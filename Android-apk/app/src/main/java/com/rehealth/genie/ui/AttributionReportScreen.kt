@@ -24,14 +24,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.phm.AttributionHistoryPoint
-import com.rehealth.genie.phm.CvdFeatureVector
-import com.rehealth.genie.phm.CvdRiskHeuristic
 import com.rehealth.genie.phm.IndividualAttributionResult
 import com.rehealth.genie.ui.theme.*
 import com.rehealth.genie.ui.theme.Canvas as AppCanvas
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.*
 
 /**
  * 真实 PIAS 个人归因屏。
@@ -47,15 +43,25 @@ fun AttributionReportScreen(onBack: () -> Unit = {}) {
     val app = LocalContext.current.applicationContext as ReHealthApplication
     val scope = rememberCoroutineScope()
     var state by remember { mutableStateOf<AttrUiState>(AttrUiState.Loading) }
-    var history by remember { mutableStateOf(computedAttributionHistory()) }
+    var history by remember { mutableStateOf(emptyList<AttributionHistoryPoint>()) }
 
     fun load() {
         state = AttrUiState.Loading
         scope.launch {
-            val base = runCatching { app.phmService.latestRisk()?.riskScore }.getOrNull()
-            val computed = computedAttributionHistory(base)
-            history = computed
-            runCatching { app.phmService.attributeIndividual(computed) }
+            val latestRisk = app.remotePhmService.getRiskLatest()
+            val recordedHistory = when (latestRisk) {
+                is com.rehealth.genie.network.RemotePhmOutcome.Success ->
+                    latestRisk.data?.normalizedRiskScore?.let { score ->
+                        listOf(AttributionHistoryPoint("最新", score, false))
+                    }.orEmpty()
+                is com.rehealth.genie.network.RemotePhmOutcome.Failure -> emptyList()
+            }
+            history = recordedHistory
+            if (recordedHistory.size < 4) {
+                state = AttrUiState.Empty
+                return@launch
+            }
+            runCatching { app.remotePhmService.attributeIndividual(recordedHistory) }
                 .onSuccess { state = AttrUiState.Success(it) }
                 .onFailure { state = AttrUiState.Error(it.message ?: "归因分析失败") }
         }
@@ -103,6 +109,22 @@ fun AttributionReportScreen(onBack: () -> Unit = {}) {
                     Text("归因分析失败", color = Ink, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     Text(s.message, color = Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
                     Button(onClick = { load() }, modifier = Modifier.padding(top = 16.dp)) { Text("重试") }
+                }
+            }
+            AttrUiState.Empty -> {
+                Column(
+                    Modifier.fillMaxSize().padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text("归因数据准备中", color = Ink, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text(
+                        "需要至少 4 天真实风险记录，完成每日风险评估并同步数据后可生成归因报告。",
+                        color = Muted,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                    Button(onClick = { load() }, modifier = Modifier.padding(top = 16.dp)) { Text("刷新") }
                 }
             }
             is AttrUiState.Success -> {
@@ -195,7 +217,7 @@ private fun SuccessContent(result: IndividualAttributionResult, history: List<At
 
     // 输入信息预览
     CardBlock {
-        Text("你输入的随机信息（前12天）", color = Ink, fontWeight = FontWeight.SemiBold)
+        Text("真实风险历史（前12天）", color = Ink, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(8.dp))
         history.take(12).forEach { p ->
             Row(
@@ -272,33 +294,11 @@ private fun AttributionTrendChart(noAction: List<Double>, withPlan: List<Double>
     }
 }
 
-/**
- * Computed (deterministic, non-random) 30-day risk history used as the attribution input
- * when no real risk records exist. Derived from [baseScore] (the current computed CVD risk,
- * or a deterministic neutral baseline) with a gentle improving trend and a smooth wobble —
- * never Random. Satisfies Requirement C: simulated input is computed, not arbitrary.
- */
-fun computedAttributionHistory(baseScore: Double? = null): List<AttributionHistoryPoint> {
-    val base = (baseScore ?: CvdRiskHeuristic.score(CvdFeatureVector())).coerceIn(0.05, 0.95)
-    val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-    val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_MONTH, -29) }
-    return List(30) { i ->
-        cal.add(Calendar.DAY_OF_MONTH, if (i == 0) 0 else 1)
-        val trend = -0.0035 * i
-        val wobble = kotlin.math.sin((i + 1).toDouble() * 0.7) * 0.03
-        val y = (base + trend + wobble).coerceIn(0.05, 0.95)
-        AttributionHistoryPoint(
-            date = fmt.format(cal.time),
-            riskScore = y,
-            isInterventionDay = i % 2 == 0,
-        )
-    }
-}
-
 private sealed class AttrUiState {
     object Loading : AttrUiState()
     data class Success(val result: IndividualAttributionResult) : AttrUiState()
     data class Error(val message: String) : AttrUiState()
+    object Empty : AttrUiState()
 }
 
 // ---- 小工具 ----

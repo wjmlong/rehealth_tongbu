@@ -7,6 +7,7 @@ import com.rehealth.genie.data.sync.InterventionFeedbackRepository
 import com.rehealth.genie.data.sync.SyncRepository
 import com.rehealth.genie.network.AuthenticatedApiClient
 import com.rehealth.genie.network.BackendConfig
+import com.rehealth.genie.network.PiasApiClient
 import com.rehealth.genie.network.ReHealthBackendClient
 import com.rehealth.genie.network.ReHealthMobileApi
 import com.rehealth.genie.network.SessionStore
@@ -45,6 +46,12 @@ class ReHealthApplication : Application() {
             baseUrl = BuildConfig.REHEALTH_API_BASE_URL,
             apiToken = BuildConfig.REHEALTH_API_TOKEN.takeIf { it.isNotBlank() },
             httpClient = BackendConfig.buildHttpClient(signSecret = BuildConfig.JEECG_SIGN_SECRET),
+        )
+    }
+    val piasApiClient: PiasApiClient by lazy {
+        PiasApiClient(
+            baseUrl = BuildConfig.MODEL_SERVICE_BASE_URL,
+            httpClient = BackendConfig.buildHttpClient(),
         )
     }
     /**
@@ -86,6 +93,7 @@ class ReHealthApplication : Application() {
     val remotePhmService: RemotePhmService by lazy {
         RemotePhmService(
             api = reHealthMobileApi,
+            piasApi = piasApiClient,
             mockFallback = MockPhmService(),
         )
     }
@@ -104,16 +112,6 @@ class ReHealthApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         RingNotificationChannels.ensure(this)
-
-        // DEBUG: On emulator, auto-inject valid token so API calls work without login
-        if (isProbablyEmulator() && !sessionStore.isLoggedIn) {
-            val debugToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IjEzNTA3MDA3OTg0IiwiY2xpZW50VHlwZSI6IkFQUCIsImV4cCI6MTc4NTg1Njc2Nn0.q4M7zJqgJnWcdyzIz59vAsJzYaVmITdl1lMyfoH-xJQ"
-            sessionStore.token = debugToken
-            sessionStore.userId = "2079224669877686274"
-            sessionStore.username = "13507007984"
-            // Rebuild the authenticated API client with the injected token
-            authenticatedApiClient.onLoginSuccess(debugToken)
-        }
 
         if (RingBackgroundCollectionSettings.isActive(this)) {
             RingBackgroundRecoveryWorker.schedule(this)

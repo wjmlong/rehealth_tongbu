@@ -17,16 +17,22 @@ fun deepSeekApiKey(): String =
     (localProps.getProperty("DEEPSEEK_API_KEY") ?: System.getenv("DEEPSEEK_API_KEY") ?: "").trim()
 fun deepSeekBaseUrl(): String =
     (localProps.getProperty("DEEPSEEK_BASE_URL") ?: System.getenv("DEEPSEEK_BASE_URL") ?: "https://api.deepseek.com").trim()
+fun reHealthApiBaseUrl(): String =
+    (localProps.getProperty("rehealth.api.base.url") ?: System.getenv("REHEALTH_API_BASE_URL")
+        ?: "http://10.0.2.2:8080/jeecg-boot/").trim().trimEnd('/') + "/"
+fun modelServiceBaseUrl(): String =
+    (localProps.getProperty("rehealth.model.service.base.url") ?: System.getenv("REHEALTH_MODEL_SERVICE_BASE_URL")
+        ?: "http://10.0.2.2:8000/api/pias/v2/").trim().trimEnd('/') + "/"
 // JeecgBoot request-signing secret for endpoints that require the `X-Sign` header
-// (e.g. /sys/sms). Read from local.properties (JEECG_SIGNATURE_SECRET), fallback to env,
-// then to the repo default. MUST match the running backend's `jeecg.signatureSecret`.
+// (e.g. /sys/sms). It must be supplied by local.properties or the environment.
 fun signSecret(): String =
     (localProps.getProperty("JEECG_SIGNATURE_SECRET") ?: System.getenv("JEECG_SIGNATURE_SECRET")
-        ?: "dd05f1c54d63749eda95f9fa6d49v442a").trim()
+        ?: "").trim()
 
 android {
     namespace = "com.rehealth.genie"
     compileSdk = 36
+    buildToolsVersion = "36.0.0"
 
     defaultConfig {
         applicationId = "com.rehealth.genie"
@@ -36,7 +42,8 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "REHEALTH_API_BASE_URL", "\"http://10.0.2.2:8080/jeecg-boot/\"")
+        buildConfigField("String", "REHEALTH_API_BASE_URL", "\"${reHealthApiBaseUrl()}\"")
+        buildConfigField("String", "MODEL_SERVICE_BASE_URL", "\"${modelServiceBaseUrl()}\"")
         buildConfigField("String", "REHEALTH_API_TOKEN", "\"\"")
         // DeepSeek (首页 AI 问答 / 健康助手)。key 从 local.properties 读取，缺失时留空（客户端给出占位提示）。
         buildConfigField("String", "DEEPSEEK_API_KEY", "\"${deepSeekApiKey()}\"")
@@ -48,7 +55,7 @@ android {
     buildTypes {
         debug {
             buildConfigField("boolean", "USE_FAKE_RING", "false")
-            buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", "true")
+            buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", "false")
         }
         release {
             buildConfigField("boolean", "USE_FAKE_RING", "false")
