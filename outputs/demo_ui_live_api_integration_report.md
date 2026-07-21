@@ -89,7 +89,7 @@ Device page
 | Command | Result |
 | --- | --- |
 | `git fetch --prune origin` | Success. Only `main` and `origin/main` exist. |
-| `gradlew.bat testDebugUnitTest` | Not completed. Existing/concurrent Gradle daemon state prevented a terminal result. |
+| `gradlew.bat testDebugUnitTest --no-daemon --max-workers=1` | Success. 28 tests across 4 suites, 0 failures. |
 | `gradlew.bat assembleDebug` | Kotlin compilation reached `compileDebugKotlin` without reporting a source error; first package attempt failed because an AGP incremental temporary file was missing. |
 | `gradlew.bat clean assembleDebug --no-daemon --max-workers=1` | Rebuilt through KSP and started APK output, but concurrent pre-existing daemon activity stopped/removed outputs before terminal success. APK success is not claimed. |
 | `git diff --check` | Success; no whitespace errors. |
