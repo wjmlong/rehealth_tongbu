@@ -144,6 +144,7 @@ def test_risk_endpoint_response_field_names_are_stable():
         "summary",
         "request_id",
         "contribution_method",
+        "base_value",
         "model_trace",
     }
 

@@ -216,6 +216,18 @@ def test_real_scorer_loads_only_when_artifacts_validate(tmp_path):
     assert result.model_trace.fallback_reason is None
 
 
+def test_reviewed_calibrated_model_returns_native_shap_contributions():
+    scorer = load_risk_scorer()
+
+    result = scorer.evaluate(complete_vector())
+
+    assert isinstance(scorer, RealCatBoostRiskScorer)
+    assert result.contribution_method == "shap_via_catboost"
+    assert result.base_value is not None
+    assert set(result.feature_contributions) == set(FEATURE_FIELDS)
+    assert any(value != 0.0 for value in result.feature_contributions.values())
+
+
 def test_historical_model_alias_loads_when_feature_cols_v2_validates(tmp_path):
     artifact_root = tmp_path / "models"
     artifact_root.mkdir()

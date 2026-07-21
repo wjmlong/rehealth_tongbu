@@ -5,7 +5,7 @@ import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import logging
-from math import isfinite, sigmoid
+from math import exp, isfinite
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -413,6 +413,7 @@ class RealCatBoostRiskScorer(RiskScorer):
         probability = self._predict_probability(vector)
         contributions, base_value = self._shap_feature_contributions(vector)
         self._base_value = base_value
+        contribution_method = self._contribution_method if base_value is not None else REAL_CONTRIBUTION_FALLBACK
         return RiskEvaluateResponse(
             risk_score=round(probability, 4),
             risk_level=self._risk_level(probability),
@@ -422,7 +423,7 @@ class RealCatBoostRiskScorer(RiskScorer):
             missing_fields=vector.missing_fields(),
             quality_warnings=[],
             summary="CatBoost CVD risk estimate with SHAP attribution. This is not a diagnosis.",
-            contribution_method=self._contribution_method,
+            contribution_method=contribution_method,
             base_value=base_value,
             model_trace=ModelRegistry(self).active_trace(),
         )
@@ -440,33 +441,36 @@ class RealCatBoostRiskScorer(RiskScorer):
         return min(max(float(probability), 0.0), 1.0)
 
     def _shap_feature_contributions(self, vector: CvdFeatureVector) -> tuple[dict[str, float], float | None]:
-        """Real per-feature attribution via CatBoost SHAP values.
+        """Return base-CatBoost log-odds SHAP values after the scoring imputer.
 
-        Returns probability-space contributions (one per FEATURE_FIELDS) that sum to
-        risk_score - baseline_probability, plus the population baseline probability.
-        Falls back to zero contributions if SHAP cannot be computed.
+        The production artifact calibrates a ``SimpleImputer -> CatBoostClassifier``
+        pipeline with ``CalibratedClassifierCV``. CatBoost's native SHAP API must be
+        called on that inner classifier and receive the same imputed input used by the
+        pipeline. These values explain the uncalibrated CatBoost log-odds, not the
+        separately calibrated probability returned as ``risk_score``.
         """
         row = [[self._model_value(getattr(vector, field)) for field in self._feature_order]]
         try:
-            pool = Pool(row)
-            shap = self._model.get_feature_importance(type="ShapValues", data=pool)
-        except Exception as exc:  # pragma: no cover - defensive
+            calibrated = self._model.calibrated_classifiers_[0]
+            pipeline = calibrated.estimator.estimator
+            imputer = pipeline.named_steps["imputer"]
+            catboost_model = pipeline.named_steps["model"]
+            shap_values = catboost_model.get_feature_importance(
+                type="ShapValues",
+                data=Pool(imputer.transform(row)),
+            )
+        except (AttributeError, IndexError, KeyError, TypeError, ValueError) as exc:
             logger.warning("SHAP attribution failed; returning zero contributions: %s", exc)
             return {field: 0.0 for field in FEATURE_FIELDS}, None
 
-        # shap shape: (n_samples, n_features + 1); last column is the base value (log-odds).
-        phi = [float(v) for v in shap[0, :-1]]
-        base_logodds = float(shap[0, -1])
-
-        contributions: dict[str, float] = {}
-        running = base_logodds
-        prev_prob = sigmoid(running)
-        for field, value in zip(self._feature_order, phi):
-            running += value
-            new_prob = sigmoid(running)
-            contributions[field] = round(new_prob - prev_prob, 4)
-            prev_prob = new_prob
-        return contributions, round(sigmoid(base_logodds), 4)
+        feature_values = shap_values[0, :-1]
+        contributions = {
+            field: round(float(feature_values[index]), 6)
+            for index, field in enumerate(self._feature_order)
+        }
+        base_log_odds = float(shap_values[0, -1])
+        baseline_probability = 1.0 / (1.0 + exp(-base_log_odds))
+        return contributions, round(baseline_probability, 4)
 
     def _model_value(self, value: float | int | None) -> float | int:
         if value is None:
