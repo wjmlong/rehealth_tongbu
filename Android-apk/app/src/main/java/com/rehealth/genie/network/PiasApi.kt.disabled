@@ -1,0 +1,24 @@
+package com.rehealth.genie.network
+
+import com.rehealth.genie.network.dto.IndividualAttributionRequestDto
+import com.rehealth.genie.network.dto.IndividualAttributionResponseDto
+import retrofit2.http.Body
+import retrofit2.http.POST
+
+/**
+ * Retrofit contract for the PIAS model-service (FastAPI, WSL2 :8000).
+ *
+ * Base URL is [com.rehealth.genie.BuildConfig.MODEL_SERVICE_BASE_URL], which
+ * already ends with `/api/pias/v2` (the JeecgBoot-compatible mount). Paths below
+ * are relative to that base, e.g. `POST /api/pias/v2/attribute/individual`.
+ *
+ * This service is stateless (no X-Access-Token required), so [ApiClient.createPias]
+ * builds it WITHOUT the [AuthInterceptor].
+ */
+interface PiasApi {
+
+    @POST("attribute/individual")
+    suspend fun attributeIndividual(
+        @Body body: IndividualAttributionRequestDto,
+    ): ApiResult<IndividualAttributionResponseDto>
+}

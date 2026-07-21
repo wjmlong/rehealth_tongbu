@@ -1,0 +1,200 @@
+package com.rehealth.genie.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.rehealth.genie.ui.theme.*
+
+/**
+ * 归因详情页面 - 展示具体因素的详细分析
+ */
+@Composable
+fun AttributionDetailScreen(
+    title: String,
+    onBack: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Canvas)
+            .statusBarsPadding()
+    ) {
+        // Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.Outlined.ArrowBack, "返回", tint = Ink)
+            }
+            Column(Modifier.weight(1f)) {
+                Text(title, color = Ink, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text("详细分析", color = Muted, fontSize = 11.sp)
+            }
+        }
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                when (title) {
+                    "睡眠时长提升" -> SleepDetailContent()
+                    "运动频率增加" -> ExerciseDetailContent()
+                    "心率稳定性" -> HeartRateDetailContent()
+                    else -> GenericDetailContent(title)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SleepDetailContent() {
+    CardBlock {
+        Text("本周睡眠分析", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(16.dp))
+
+        DetailMetricRow("平均睡眠时长", "7小时30分钟", "+45分钟", true)
+        DetailMetricRow("深睡眠占比", "28%", "+5%", true)
+        DetailMetricRow("入睡时长", "12分钟", "-8分钟", true)
+        DetailMetricRow("睡眠效率", "92%", "+7%", true)
+
+        Spacer(Modifier.height(16.dp))
+        Divider(color = Line)
+        Spacer(Modifier.height(16.dp))
+
+        Text("💡 改善建议", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+        Spacer(Modifier.height(8.dp))
+
+        RecommendationItem("保持规律作息时间")
+        RecommendationItem("睡前1小时避免使用电子设备")
+        RecommendationItem("保持卧室温度在18-22°C")
+        RecommendationItem("睡前可以尝试冥想或深呼吸")
+    }
+
+    CardBlock {
+        Text("每日睡眠趋势", color = Ink, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(12.dp))
+        MiniChart(
+            listOf(6.5f, 7.0f, 6.8f, 7.5f, 7.8f, 7.2f, 7.6f),
+            Mint,
+            Modifier.fillMaxWidth().height(120.dp)
+        )
+        Text("近7天睡眠时长变化", color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))
+    }
+}
+
+@Composable
+private fun ExerciseDetailContent() {
+    CardBlock {
+        Text("本周运动分析", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(16.dp))
+
+        DetailMetricRow("运动天数", "5天", "+2天", true)
+        DetailMetricRow("平均步数", "9,200步", "+1,500步", true)
+        DetailMetricRow("运动时长", "185分钟", "+45分钟", true)
+        DetailMetricRow("消耗卡路里", "1,840 kcal", "+320 kcal", true)
+
+        Spacer(Modifier.height(16.dp))
+        Divider(color = Line)
+        Spacer(Modifier.height(16.dp))
+
+        Text("💡 运动建议", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+        Spacer(Modifier.height(8.dp))
+
+        RecommendationItem("每周至少150分钟中等强度有氧运动")
+        RecommendationItem("结合力量训练，每周2-3次")
+        RecommendationItem("运动前充分热身，运动后拉伸")
+        RecommendationItem("逐步增加运动强度，避免过度疲劳")
+    }
+}
+
+@Composable
+private fun HeartRateDetailContent() {
+    CardBlock {
+        Text("心率稳定性分析", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(16.dp))
+
+        DetailMetricRow("静息心率", "68 bpm", "-4 bpm", true)
+        DetailMetricRow("心率变异性", "52 ms", "+8 ms", true)
+        DetailMetricRow("恢复心率", "32 bpm/min", "+5 bpm/min", true)
+        DetailMetricRow("最高心率", "142 bpm", "正常范围", false)
+
+        Spacer(Modifier.height(16.dp))
+        Divider(color = Line)
+        Spacer(Modifier.height(16.dp))
+
+        Text("💡 心率管理建议", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+        Spacer(Modifier.height(8.dp))
+
+        RecommendationItem("保持规律的有氧运动")
+        RecommendationItem("学习呼吸调节技巧")
+        RecommendationItem("减少咖啡因摄入")
+        RecommendationItem("保证充足睡眠")
+    }
+}
+
+@Composable
+private fun GenericDetailContent(title: String) {
+    CardBlock {
+        Text(title, color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(16.dp))
+        Text(
+            "该因素对您的健康有积极影响，请继续保持。详细数据正在分析中...",
+            color = Muted,
+            fontSize = 13.sp,
+            lineHeight = 20.sp
+        )
+    }
+}
+
+@Composable
+private fun DetailMetricRow(label: String, value: String, change: String, isPositive: Boolean) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, color = Ink, fontSize = 13.sp)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(value, color = Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.width(8.dp))
+            Text(
+                change,
+                color = if (isPositive) Mint else Muted,
+                fontSize = 12.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun RecommendationItem(text: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+    ) {
+        Text("•", color = Mint, fontSize = 13.sp, modifier = Modifier.padding(end = 8.dp))
+        Text(text, color = Ink, fontSize = 13.sp, lineHeight = 18.sp)
+    }
+}

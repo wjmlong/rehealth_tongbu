@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}LLM Config - BodyUP Admin{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">LLM Configuration</h1>
+<div class="bg-white rounded-lg shadow p-6 max-w-lg">
+    <form id="llm-form" class="space-y-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-700">Provider</label>
+            <select name="provider" class="mt-1 block w-full rounded border-gray-300 shadow-sm p-2 border">
+                <option value="claude" {% if config and config.provider == 'claude' %}selected{% endif %}>Claude (Anthropic)</option>
+                <option value="openai" {% if config and config.provider == 'openai' %}selected{% endif %}>OpenAI (GPT)</option>
+                <option value="openrouter" {% if config and config.provider == 'openrouter' %}selected{% endif %}>OpenRouter</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700">Model</label>
+            <input type="text" name="model" value="{{ config.model if config else 'claude-sonnet-4-20250514' }}"
+                   class="mt-1 block w-full rounded border-gray-300 shadow-sm p-2 border">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700">API Key</label>
+            <input type="password" name="api_key" placeholder="Enter new API key"
+                   class="mt-1 block w-full rounded border-gray-300 shadow-sm p-2 border">
+        </div>
+        <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">
+            Save Configuration
+        </button>
+    </form>
+    <div id="status" class="mt-4 text-sm"></div>
+</div>
+
+<script>
+document.getElementById('llm-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const body = Object.fromEntries(fd.entries());
+    const resp = await fetch('/admin/api/llm/config', {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        credentials: 'same-origin',
+        body: JSON.stringify(body)
+    });
+    const el = document.getElementById('status');
+    if (resp.ok) {
+        el.textContent = 'Configuration saved.';
+        el.className = 'mt-4 text-sm text-green-600';
+    } else {
+        el.textContent = 'Error saving configuration.';
+        el.className = 'mt-4 text-sm text-red-600';
+    }
+});
+</script>
+{% endblock %}

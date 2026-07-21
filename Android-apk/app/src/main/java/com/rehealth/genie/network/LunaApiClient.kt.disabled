@@ -1,0 +1,314 @@
+package com.rehealth.genie.network
+
+import okhttp3.Interceptor
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.Body
+import retrofit2.http.POST
+import java.net.InetSocketAddress
+import java.net.Proxy
+import java.util.concurrent.TimeUnit
+
+/**
+ * GPT-5.6 Luna API客户端
+ * 配置Clash代理以访问Luna API
+ */
+object LunaApiClient {
+
+    // Clash代理配置
+    private const val PROXY_HOST = "127.0.0.1"
+    private const val PROXY_PORT = 7890 // Clash默认端口
+
+    // Luna API配置
+    private const val BASE_URL = "https://api.openai.com/" // 或Luna的实际API地址
+    private const val API_KEY = "YOUR_LUNA_API_KEY" // 需要替换为实际的API Key
+
+    private val proxy = Proxy(Proxy.Type.HTTP, InetSocketAddress(PROXY_HOST, PROXY_PORT))
+
+    private val okHttpClient = OkHttpClient.Builder()
+        .proxy(proxy) // 使用Clash代理
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .addInterceptor { chain ->
+            val original = chain.request()
+            val request = original.newBuilder()
+                .header("Authorization", "Bearer $API_KEY")
+                .header("Content-Type", "application/json")
+                .method(original.method, original.body)
+                .build()
+            chain.proceed(request)
+        }
+        .build()
+
+    private val retrofit = Retrofit.Builder()
+        .baseUrl(BASE_URL)
+        .client(okHttpClient)
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+
+    val api: LunaApi = retrofit.create(LunaApi::class.java)
+}
+
+interface LunaApi {
+    @POST("v1/chat/completions")
+    suspend fun chat(@Body request: ChatRequest): ChatResponse
+}
+
+data class ChatRequest(
+    val model: String = "gpt-5.6-luna",
+    val messages: List<Message>,
+    val temperature: Double = 0.7,
+    val max_tokens: Int = 2000
+)
+
+data class Message(
+    val role: String, // "system", "user", "assistant"
+    val content: String
+)
+
+data class ChatResponse(
+    val id: String,
+    val choices: List<Choice>,
+    val usage: Usage
+)
+
+data class Choice(
+    val message: Message,
+    val finish_reason: String
+)
+
+data class Usage(
+    val prompt_tokens: Int,
+    val completion_tokens: Int,
+    val total_tokens: Int
+)
+
+/**
+ * AI健康问答服务 - 双AI智能切换
+ * 主力：DeepSeek V4 Pro（国内直连，无需VPN）
+ * 备用：GPT-5.6 Luna（需要VPN）
+ */
+class HealthChatService {
+
+    private var currentModel = "DeepSeek"  // 默认使用DeepSeek（国内直连）
+
+    /**
+     * 发送问题到AI
+     * 默认使用DeepSeek，可手动切换到Luna
+     */
+    suspend fun ask(question: String, healthContext: String = ""): String {
+        return try {
+            when (currentModel) {
+                "DeepSeek" -> askDeepSeek(question, healthContext)
+                "Luna" -> askLuna(question, healthContext)
+                else -> askDeepSeek(question, healthContext)
+            }
+        } catch (e: Exception) {
+            // 如果当前模型失败，返回演示响应
+            if (currentModel == "Luna") {
+                currentModel = "DeepSeek"
+                try {
+                    askDeepSeek(question, healthContext)
+                } catch (e2: Exception) {
+                    generateMockResponse(question)
+                }
+            } else {
+                generateMockResponse(question)
+            }
+        }
+    }
+
+    /**
+     * 生成演示响应（当所有API都失败时）
+     */
+    private fun generateMockResponse(question: String): String {
+        return when {
+            question.contains("睡眠", ignoreCase = true) ->
+                """关于睡眠质量改善，我有以下建议：
+
+1. **规律作息**：每天固定时间入睡和起床，包括周末
+2. **睡前准备**：睡前1小时避免使用电子设备
+3. **环境优化**：保持卧室温度在18-22℃，使用遮光窗帘
+4. **饮食注意**：晚餐后避免咖啡因和酒精
+
+这是演示数据，实际建议需要根据您的具体情况调整。"""
+
+            question.contains("心率", ignoreCase = true) || question.contains("HRV", ignoreCase = true) ->
+                """提高心率变异性(HRV)的建议：
+
+1. **有氧运动**：每周3-5次中等强度运动，如快走、游泳
+2. **压力管理**：练习冥想、深呼吸等放松技巧
+3. **充足睡眠**：保证7-9小时优质睡眠
+4. **均衡饮食**：增加Omega-3摄入，减少加工食品
+
+这是演示数据，建议咨询医生获取专业指导。"""
+
+            question.contains("血压", ignoreCase = true) ->
+                """血压偏高需要注意：
+
+1. **减少盐分**：每日食盐摄入控制在6克以内
+2. **DASH饮食**：多吃蔬菜水果、全谷物和低脂乳制品
+3. **规律运动**：每天30分钟有氧运动
+4. **体重管理**：BMI保持在正常范围
+5. **定期监测**：每天同一时间测量血压
+
+这是演示数据，血压问题请务必咨询专业医生。"""
+
+            question.contains("数据", ignoreCase = true) || question.contains("建议", ignoreCase = true) ->
+                """根据您的健康数据分析：
+
+**整体评估**：您的健康指标总体良好
+- 心率72 bpm处于正常范围
+- 血氧98%表示氧合充足
+- 睡眠7h30m接近理想水平
+- 步数8000步符合基本运动要求
+
+**改善建议**：
+1. 增加运动强度，目标每天10000步
+2. 保持规律作息，提升睡眠质量
+3. 注意饮食均衡，多吃新鲜蔬果
+4. 定期监测各项指标变化
+
+这是基于演示数据的分析，实际建议需要AI服务在线。"""
+
+            else ->
+                """您好！我是小禾灵，您的健康伙伴。
+
+目前AI服务暂时无法连接（演示模式），但我可以提供一些通用的健康建议：
+
+1. **保持规律作息**：固定的睡眠时间有助于身体节律
+2. **均衡饮食**：多吃蔬菜水果，减少加工食品
+3. **适量运动**：每周至少150分钟中等强度运动
+4. **压力管理**：学习放松技巧，保持心理健康
+5. **定期体检**：及时发现潜在健康问题
+
+如需更详细的个性化建议，请确保网络连接正常。
+
+💡 提示：这是演示响应，实际需要AI服务在线。"""
+        }
+    }
+
+    /**
+     * 使用DeepSeek V4 Pro（推荐，国内直连）
+     */
+    private suspend fun askDeepSeek(question: String, healthContext: String): String {
+        return try {
+            val messages = buildList {
+                add(Message(
+                    role = "system",
+                    content = """你是睿禾健康的AI健康助手，基于DeepSeek V4 Pro。
+                        |
+                        |我的职责：
+                        |1. 基于用户的健康数据提供个性化建议
+                        |2. 解答健康管理和生活方式相关问题
+                        |3. 提供科学、可行的改善方案
+                        |
+                        |重要说明：
+                        |- 我不提供医学诊断，仅供健康管理参考
+                        |- 严重健康问题请咨询专业医生
+                        |- 建议基于科学研究和健康管理最佳实践
+                        |
+                        |用户健康背景：
+                        |$healthContext
+                    """.trimMargin()
+                ))
+                add(Message(role = "user", content = question))
+            }
+
+            val response = DeepSeekApiClient.api.chat(
+                ChatRequest(
+                    model = "deepseek-chat",
+                    messages = messages,
+                    temperature = 0.7,
+                    max_tokens = 2000
+                )
+            )
+
+            response.choices.firstOrNull()?.message?.content
+                ?: "抱歉，AI助手暂时无法回答。"
+
+        } catch (e: Exception) {
+            "DeepSeek连接失败：${e.message}\n\n请检查网络连接或切换到Luna模型。"
+        }
+    }
+
+    /**
+     * 使用Luna API（需要VPN）
+     */
+    private suspend fun askLuna(question: String, healthContext: String): String {
+        val messages = buildList {
+            add(Message(
+                role = "system",
+                content = """你是睿禾健康的AI助手，基于GPT-5.6 Luna。
+                    |基于用户的健康数据提供个性化建议。
+                    |不提供医学诊断，仅供健康管理参考。
+                    |用户健康背景：$healthContext
+                """.trimMargin()
+            ))
+            add(Message(role = "user", content = question))
+        }
+
+        val response = LunaApiClient.api.chat(
+            ChatRequest(
+                model = "gpt-5.6-luna",
+                messages = messages
+            )
+        )
+
+        return response.choices.firstOrNull()?.message?.content
+            ?: "抱歉，Luna助手暂时无法回答。"
+    }
+
+    suspend fun generateHealthInsight(healthData: Map<String, Any>): String {
+        val dataDescription = healthData.entries.joinToString("\n") {
+            "${it.key}: ${it.value}"
+        }
+
+        val contextualQuestion = """
+            我的最近健康数据如下：
+
+            $dataDescription
+
+            请基于这些数据：
+            1. 分析我的健康状态
+            2. 指出需要改善的地方
+            3. 提供3-5条具体的健康建议
+            4. 说明每条建议的预期效果
+        """.trimIndent()
+
+        return try {
+            ask(
+                question = contextualQuestion,
+                healthContext = dataDescription
+            )
+        } catch (e: Exception) {
+            generateMockResponse(contextualQuestion)
+        }
+    }
+
+    /**
+     * 获取当前使用的AI模型
+     */
+    fun getCurrentModel(): String {
+        return when (currentModel) {
+            "DeepSeek" -> "DeepSeek V4 Pro (国内直连)"
+            "Luna" -> "GPT-5.6 Luna (需要VPN)"
+            else -> "未知"
+        }
+    }
+
+    /**
+     * 切换AI模型
+     */
+    fun switchToDeepSeek() {
+        currentModel = "DeepSeek"
+    }
+
+    fun switchToLuna() {
+        currentModel = "Luna"
+    }
+}

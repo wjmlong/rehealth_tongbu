@@ -1,0 +1,121 @@
+CREATE TABLE hardware_upload_batch (
+    id VARCHAR(36) NOT NULL,
+    receipt_id VARCHAR(36) NOT NULL,
+    batch_id VARCHAR(128) NOT NULL,
+    user_id VARCHAR(64) NOT NULL,
+    device_id VARCHAR(128) NOT NULL,
+    source VARCHAR(64) NULL,
+    collected_from DATETIME(3) NULL,
+    collected_to DATETIME(3) NULL,
+    received_at DATETIME(3) NOT NULL,
+    committed_at DATETIME(3) NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    record_count INT NOT NULL,
+    measurement_count INT NOT NULL,
+    sleep_session_count INT NOT NULL,
+    activity_count INT NOT NULL,
+    signal_chunk_count INT NOT NULL DEFAULT 0,
+    quality_json TEXT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_hardware_batch_owner_device (user_id, device_id, batch_id),
+    UNIQUE KEY uk_hardware_batch_receipt (receipt_id),
+    KEY idx_hardware_batch_user_time (user_id, collected_from),
+    KEY idx_hardware_batch_device_time (device_id, collected_from)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE hardware_measurement (
+    id VARCHAR(36) NOT NULL,
+    upload_batch_id VARCHAR(36) NOT NULL,
+    client_record_id VARCHAR(128) NULL,
+    user_id VARCHAR(64) NOT NULL,
+    device_id VARCHAR(128) NOT NULL,
+    metric_type VARCHAR(64) NOT NULL,
+    measured_at DATETIME(3) NOT NULL,
+    primary_value DECIMAL(20,6) NOT NULL,
+    secondary_value DECIMAL(20,6) NULL,
+    unit VARCHAR(32) NOT NULL,
+    quality_code VARCHAR(64) NULL,
+    source VARCHAR(64) NULL,
+    created_at DATETIME(3) NOT NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT fk_hardware_measurement_batch FOREIGN KEY (upload_batch_id) REFERENCES hardware_upload_batch (id),
+    KEY idx_hardware_measurement_user_time (user_id, measured_at),
+    KEY idx_hardware_measurement_device_time (device_id, measured_at),
+    KEY idx_hardware_measurement_metric_time (metric_type, measured_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE hardware_sleep_session (
+    id VARCHAR(36) NOT NULL,
+    upload_batch_id VARCHAR(36) NOT NULL,
+    client_record_id VARCHAR(128) NULL,
+    user_id VARCHAR(64) NOT NULL,
+    device_id VARCHAR(128) NOT NULL,
+    started_at DATETIME(3) NOT NULL,
+    ended_at DATETIME(3) NOT NULL,
+    deep_minutes INT NOT NULL DEFAULT 0,
+    light_minutes INT NOT NULL DEFAULT 0,
+    awake_minutes INT NOT NULL DEFAULT 0,
+    rem_minutes INT NOT NULL DEFAULT 0,
+    interruption_minutes INT NOT NULL DEFAULT 0,
+    source VARCHAR(64) NULL,
+    created_at DATETIME(3) NOT NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT fk_hardware_sleep_batch FOREIGN KEY (upload_batch_id) REFERENCES hardware_upload_batch (id),
+    KEY idx_hardware_sleep_user_time (user_id, started_at),
+    KEY idx_hardware_sleep_device_time (device_id, started_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE hardware_activity (
+    id VARCHAR(36) NOT NULL,
+    upload_batch_id VARCHAR(36) NOT NULL,
+    client_record_id VARCHAR(128) NULL,
+    user_id VARCHAR(64) NOT NULL,
+    device_id VARCHAR(128) NOT NULL,
+    started_at DATETIME(3) NOT NULL,
+    ended_at DATETIME(3) NULL,
+    activity_type VARCHAR(64) NOT NULL,
+    steps INT NOT NULL DEFAULT 0,
+    distance_meters DECIMAL(20,3) NOT NULL DEFAULT 0,
+    calories_kcal DECIMAL(20,3) NOT NULL DEFAULT 0,
+    duration_minutes INT NOT NULL DEFAULT 0,
+    average_heart_rate DECIMAL(10,3) NULL,
+    source VARCHAR(64) NULL,
+    created_at DATETIME(3) NOT NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT fk_hardware_activity_batch FOREIGN KEY (upload_batch_id) REFERENCES hardware_upload_batch (id),
+    KEY idx_hardware_activity_user_time (user_id, started_at),
+    KEY idx_hardware_activity_device_time (device_id, started_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE hardware_signal_chunk_metadata (
+    id VARCHAR(36) NOT NULL,
+    upload_batch_id VARCHAR(36) NOT NULL,
+    user_id VARCHAR(64) NOT NULL,
+    device_id VARCHAR(128) NOT NULL,
+    signal_type VARCHAR(32) NOT NULL,
+    started_at DATETIME(3) NOT NULL,
+    sample_rate_hz DECIMAL(10,3) NULL,
+    sample_count INT NULL,
+    payload_ref VARCHAR(512) NULL,
+    retention_expires_at DATETIME(3) NOT NULL,
+    created_at DATETIME(3) NOT NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT fk_hardware_signal_batch FOREIGN KEY (upload_batch_id) REFERENCES hardware_upload_batch (id),
+    KEY idx_hardware_signal_retention (retention_expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE hardware_data_quality_event (
+    id VARCHAR(36) NOT NULL,
+    upload_batch_id VARCHAR(36) NULL,
+    user_id VARCHAR(64) NOT NULL,
+    device_id VARCHAR(128) NOT NULL,
+    event_type VARCHAR(64) NOT NULL,
+    severity VARCHAR(32) NOT NULL,
+    message VARCHAR(512) NOT NULL,
+    occurred_at DATETIME(3) NOT NULL,
+    created_at DATETIME(3) NOT NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT fk_hardware_quality_batch FOREIGN KEY (upload_batch_id) REFERENCES hardware_upload_batch (id),
+    KEY idx_hardware_quality_user_time (user_id, occurred_at),
+    KEY idx_hardware_quality_device_time (device_id, occurred_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

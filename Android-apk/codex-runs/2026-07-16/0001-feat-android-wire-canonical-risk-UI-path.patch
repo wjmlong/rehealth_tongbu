@@ -1,0 +1,794 @@
+From 02abe705bca2bc0c1d4619a7125a38b5c1fcfd7c Mon Sep 17 00:00:00 2001
+From: csong8904 <csong8904@gmail.com>
+Date: Thu, 9 Jul 2026 23:02:46 +0800
+Subject: [PATCH] feat(android): wire canonical risk UI path
+
+---
+ .../network/dto/FeatureEvaluationDtos.kt      |  35 +-
+ .../java/com/rehealth/genie/ui/ReHealthApp.kt | 300 +++++++++++++-----
+ .../phm/RemotePhmServiceRemoteFailureTest.kt  |  24 ++
+ codex-runs/2026-07-09/P0b_status.md           | 113 +++++++
+ docs/CANONICAL_RISK_PATH.md                   |  90 ++++++
+ 5 files changed, 485 insertions(+), 77 deletions(-)
+ create mode 100644 codex-runs/2026-07-09/P0b_status.md
+ create mode 100644 docs/CANONICAL_RISK_PATH.md
+
+diff --git a/app/src/main/java/com/rehealth/genie/network/dto/FeatureEvaluationDtos.kt b/app/src/main/java/com/rehealth/genie/network/dto/FeatureEvaluationDtos.kt
+index 2313382..bcb1b7d 100644
+--- a/app/src/main/java/com/rehealth/genie/network/dto/FeatureEvaluationDtos.kt
++++ b/app/src/main/java/com/rehealth/genie/network/dto/FeatureEvaluationDtos.kt
+@@ -55,14 +55,47 @@ data class FeatureEvaluateRequest(
+ @JsonClass(generateAdapter = true)
+ data class RiskResultDto(
+     val risk_score: Double? = null,
++    val riskScore: Double? = null,
+     val risk_level: String? = null,
++    val riskLevel: String? = null,
+     val feature_contributions: Map<String, Double>? = null,
++    val featureContributions: Map<String, Double>? = null,
+     val model_version: String? = null,
++    val modelVersion: String? = null,
+     val is_mock: Boolean? = null,
++    val isMock: Boolean? = null,
++    val request_id: String? = null,
++    val requestId: String? = null,
+     val missing_fields: List<String>? = null,
++    val missingFields: List<String>? = null,
+     val quality_warnings: List<String>? = null,
++    val qualityWarnings: List<String>? = null,
+     val summary: String? = null,
+-)
++) {
++    val normalizedRiskScore: Double?
++        get() = risk_score ?: riskScore
++
++    val normalizedRiskLevel: String?
++        get() = risk_level ?: riskLevel
++
++    val normalizedFeatureContributions: Map<String, Double>
++        get() = feature_contributions ?: featureContributions ?: emptyMap()
++
++    val normalizedModelVersion: String?
++        get() = model_version ?: modelVersion
++
++    val normalizedIsMock: Boolean?
++        get() = is_mock ?: isMock
++
++    val normalizedRequestId: String?
++        get() = request_id ?: requestId
++
++    val normalizedMissingFields: List<String>
++        get() = missing_fields ?: missingFields ?: emptyList()
++
++    val normalizedQualityWarnings: List<String>
++        get() = quality_warnings ?: qualityWarnings ?: emptyList()
++}
+ 
+ @JsonClass(generateAdapter = true)
+ data class InterventionPlanDto(
+diff --git a/app/src/main/java/com/rehealth/genie/ui/ReHealthApp.kt b/app/src/main/java/com/rehealth/genie/ui/ReHealthApp.kt
+index 7360ba4..9e9c753 100644
+--- a/app/src/main/java/com/rehealth/genie/ui/ReHealthApp.kt
++++ b/app/src/main/java/com/rehealth/genie/ui/ReHealthApp.kt
+@@ -104,13 +104,12 @@ import androidx.core.content.ContextCompat
+ import androidx.lifecycle.viewmodel.compose.viewModel
+ import com.rehealth.genie.R
+ import com.rehealth.genie.ReHealthApplication
++import com.rehealth.genie.features.HealthFeatureExtractor
++import com.rehealth.genie.features.HealthMemorySnapshot
+ import com.rehealth.genie.network.PatientInterventionPayload
+-import com.rehealth.genie.network.ReHealthMobileApi
+-import com.rehealth.genie.network.RemotePhmOutcome
+ import com.rehealth.genie.phm.Intervention
+ import com.rehealth.genie.phm.ModelInputStage
+ import com.rehealth.genie.phm.ModelInputStatus
+-import com.rehealth.genie.phm.MockPhmService
+ import com.rehealth.genie.ring.RingMetricType
+ import com.rehealth.genie.ring.RingConnectionState
+ import com.rehealth.genie.ring.RingDevice
+@@ -332,9 +331,18 @@ private fun MainShell(
+     onCheckIn: (String) -> Unit,
+     onRestartOnboarding: () -> Unit,
+ ) {
++    val application = LocalContext.current.applicationContext as ReHealthApplication
+     var selected by remember { mutableStateOf(Tab.Home) }
+     var showDeviceBinding by remember { mutableStateOf(false) }
+     var showInterview by remember { mutableStateOf(false) }
++    val canonicalRiskStatus = remember { mutableStateOf<RemoteFeatureEvaluateStatus?>(null) }
++    LaunchedEffect(
++        ringState.patientMvp?.updatedAt,
++        ringState.lastSyncAt,
++        ringState.collectedMetricCount,
++    ) {
++        refreshRemoteFeatureEvaluateStatus(application, ringState, canonicalRiskStatus)
++    }
+     if (showInterview) {
+         HealthInterviewFlow(
+             onBack = { showInterview = false },
+@@ -377,9 +385,9 @@ private fun MainShell(
+         Box(Modifier.padding(padding)) {
+             when (selected) {
+                 Tab.Home -> HomeScreen(onStartInterview = { showInterview = true })
+-                Tab.Data -> DataScreen(ringState, onMeasure)
++                Tab.Data -> DataScreen(ringState, canonicalRiskStatus, onMeasure)
+                 Tab.Attribution -> AttributionScreen(ringState, onCheckIn)
+-                Tab.Model -> ModelScreen(ringState)
++                Tab.Model -> ModelScreen(ringState, canonicalRiskStatus)
+                 Tab.Profile -> ProfileScreen(
+                     state = ringState,
+                     onDeviceBinding = { showDeviceBinding = true },
+@@ -615,7 +623,11 @@ private fun Metric(label: String, value: String, state: String, modifier: Modifi
+ }
+ 
+ @Composable
+-private fun DataScreen(state: RingUiState, onMeasure: (RingMetricType) -> Unit) {
++private fun DataScreen(
++    state: RingUiState,
++    canonicalRiskStatus: androidx.compose.runtime.State<RemoteFeatureEvaluateStatus?>,
++    onMeasure: (RingMetricType) -> Unit,
++) {
+     var selectedPeriod by remember { mutableIntStateOf(1) }
+ 
+     fun measurement(type: RingMetricType): String {
+@@ -679,11 +691,11 @@ private fun DataScreen(state: RingUiState, onMeasure: (RingMetricType) -> Unit)
+             )
+         }
+         item {
+-            RiskScoreCard(state)
++            RiskScoreCard(canonicalRiskStatus)
+         }
+         if (state.message != null || state.isSyncing) {
+             item {
+-                DataStatusCard(state)
++                DataStatusCard(state, canonicalRiskStatus)
+             }
+         }
+         item {
+@@ -776,7 +788,10 @@ private fun PeriodSelector(labels: List<String>, selected: Int, onSelected: (Int
+ }
+ 
+ @Composable
+-private fun DataStatusCard(state: RingUiState) {
++private fun DataStatusCard(
++    state: RingUiState,
++    canonicalRiskStatus: androidx.compose.runtime.State<RemoteFeatureEvaluateStatus?>,
++) {
+     Column(
+         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+             .background(Color.White.copy(alpha = 0.92f))
+@@ -797,12 +812,13 @@ private fun DataStatusCard(state: RingUiState) {
+                 trackColor = MintSoft,
+             )
+         }
+-        if (state.cloudRiskLevel != null || state.cloudRiskScore != null) {
++        val risk = canonicalRiskStatus.value
++        if (risk != null) {
+             Spacer(Modifier.height(8.dp))
+             Row(verticalAlignment = Alignment.CenterVertically) {
+                 Icon(Icons.Outlined.Shield, null, tint = Mint, modifier = Modifier.size(16.dp))
+                 Text(
+-                    "云端风险 ${state.cloudRiskLevel.riskLevelLabel()} · ${state.cloudRiskScore.riskScoreLabel()} · ${state.cloudRiskMode ?: "mock"}",
++                    "规范风险 ${risk.riskLevel.riskLevelLabel()} · ${risk.riskScore.riskScoreLabel()} · ${risk.modeLabel}",
+                     color = Muted,
+                     fontSize = 10.sp,
+                     modifier = Modifier.padding(start = 6.dp),
+@@ -813,7 +829,10 @@ private fun DataStatusCard(state: RingUiState) {
+ }
+ 
+ @Composable
+-private fun RiskScoreCard(state: RingUiState) {
++private fun RiskScoreCard(
++    canonicalRiskStatus: androidx.compose.runtime.State<RemoteFeatureEvaluateStatus?>,
++) {
++    val current = canonicalRiskStatus.value
+     Row(
+         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+             .background(Brush.horizontalGradient(listOf(Color.White, Color(0xFFEAF8F4))))
+@@ -827,7 +846,7 @@ private fun RiskScoreCard(state: RingUiState) {
+         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+             Text("今日风险分", color = Ink, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+             Text(
+-                state.cloudRiskSummary ?: "同步戒指后自动生成健康风险参考",
++                current?.summary ?: "正在从本机特征生成云端风险参考",
+                 color = Muted,
+                 fontSize = 10.sp,
+                 lineHeight = 14.sp,
+@@ -836,8 +855,9 @@ private fun RiskScoreCard(state: RingUiState) {
+             )
+         }
+         Column(horizontalAlignment = Alignment.End) {
+-            Text(state.cloudRiskScore.riskScoreLabel(), color = Mint, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+-            Text(state.cloudRiskLevel.riskLevelLabel(), color = Muted, fontSize = 10.sp)
++            Text(current?.riskScore.riskScoreLabel(), color = Mint, fontSize = 24.sp, fontWeight = FontWeight.Bold)
++            Text(current?.riskLevel.riskLevelLabel(), color = Muted, fontSize = 10.sp)
++            Text(current?.modeLabel ?: "评估中", color = Muted, fontSize = 9.sp)
+         }
+     }
+ }
+@@ -1170,18 +1190,16 @@ private fun RankRow(rank: String, title: String, score: String, share: String) {
+ }
+ 
+ @Composable
+-private fun ModelScreen(state: RingUiState) {
+-    val application = LocalContext.current.applicationContext as ReHealthApplication
+-    val phm = remember { MockPhmService() }
+-    val inputs = phm.modelInputs()
+-    val remoteStatus = remember { mutableStateOf<RemoteFeatureEvaluateStatus?>(null) }
+-    LaunchedEffect(Unit) {
+-        refreshRemoteFeatureEvaluateStatus(application, remoteStatus)
+-    }
++private fun ModelScreen(
++    state: RingUiState,
++    canonicalRiskStatus: androidx.compose.runtime.State<RemoteFeatureEvaluateStatus?>,
++) {
++    val inputs = remember(state.measurements, state.sleep, state.activity) { modelInputsFromRingState(state) }
++    val current = canonicalRiskStatus.value
+     Page("端侧健康模型", "你的健康 AI 正在本机运行") {
+         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+             CardBlock {
+-                RemoteFeatureEvaluateRow(status = remoteStatus)
++                RemoteFeatureEvaluateRow(status = canonicalRiskStatus)
+             }
+             CardBlock {
+                 Row(verticalAlignment = Alignment.CenterVertically) {
+@@ -1189,31 +1207,52 @@ private fun ModelScreen(state: RingUiState) {
+                         Icon(Icons.Outlined.SmartToy, null, tint = Mint)
+                     }
+                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
+-                        Text("本机 + 云端联调中", color = Mint, fontWeight = FontWeight.Bold, fontSize = 17.sp)
++                        Text("规范风险评估", color = Mint, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                         Text(
+-                            "${state.collectedMetricCount} 项戒指数据 · ${state.cloudRiskMode ?: "mock"} 算法",
++                            "${state.collectedMetricCount} 项戒指数据 · ${current?.modeLabel ?: "评估中"}",
+                             color = Muted,
+                             fontSize = 11.sp,
+                         )
+                     }
+-                    Text(state.cloudRiskScore.riskScoreLabel(), color = Mint, fontSize = 22.sp, fontWeight = FontWeight.Bold)
++                    Text(current?.riskScore.riskScoreLabel(), color = Mint, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                 }
+             }
+             CardBlock {
+-                StatusRow("最近云端快照", state.cloudSnapshotId?.take(8) ?: "待上传")
+-                StatusRow("算法模式", state.cloudRiskMode ?: "mock")
+-                StatusRow("风险等级", state.cloudRiskLevel.riskLevelLabel())
+-                StatusRow("风险分数", state.cloudRiskScore.riskScoreLabel())
+-                state.cloudRiskSummary?.let {
+-                    Text(it, color = Muted, fontSize = 11.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 8.dp))
++                StatusRow("评估接口", "/rehealth/mobile/features/evaluate")
++                StatusRow("算法模式", current?.modeLabel ?: "评估中")
++                StatusRow("风险等级", current?.riskLevel.riskLevelLabel())
++                StatusRow("风险分数", current?.riskScore.riskScoreLabel())
++                StatusRow("模型版本", current?.modelVersion ?: "待返回")
++                StatusRow("请求 ID", current?.requestId?.take(12) ?: "待返回")
++                Text(
++                    current?.summary ?: "正在读取本机特征并请求后端评估。",
++                    color = Muted,
++                    fontSize = 11.sp,
++                    lineHeight = 16.sp,
++                    modifier = Modifier.padding(top = 8.dp),
++                )
++            }
++            SectionTitle("主要贡献因素")
++            CardBlock {
++                val contributions = current?.featureContributions.orEmpty()
++                    .toList()
++                    .sortedByDescending { kotlin.math.abs(it.second) }
++                    .take(4)
++                if (contributions.isEmpty()) {
++                    Text("后端暂未返回贡献因素。", color = Muted, fontSize = 12.sp)
++                } else {
++                    contributions.forEachIndexed { index, contribution ->
++                        ContributionRow(contribution.first, contribution.second)
++                        if (index != contributions.lastIndex) HorizontalDivider(color = Line)
++                    }
+                 }
+             }
+             SectionTitle("端侧学习流程")
+             CardBlock {
+                 ModelPipelineRow("1", "戒指数据采集", "6 项健康数据", true)
+-                ModelPipelineRow("2", "本地特征工程", "趋势与个人基线", true)
+-                ModelPipelineRow("3", "风险模型推理", "今日已完成", true)
+-                ModelPipelineRow("4", "个性化学习", "夜间持续更新", false)
++                ModelPipelineRow("2", "本地特征工程", "HealthFeatureExtractor", true)
++                ModelPipelineRow("3", "后端风险评估", current?.riskScore?.let { "今日已完成" } ?: "等待结果", current?.riskScore != null)
++                ModelPipelineRow("4", "个性化学习", "后续闭环", false)
+             }
+             SectionTitle("戒指健康数据输入")
+             CardBlock {
+@@ -1234,8 +1273,8 @@ private fun ModelScreen(state: RingUiState) {
+             CardBlock {
+                 StatusRow("原始健康数据上传", "否")
+                 StatusRow("图片原图上传", "否")
+-                StatusRow("本地数据加密", "已开启")
+-                StatusRow("匿名模型改进", "未开启")
++                StatusRow("模型服务直连", "否")
++                StatusRow("遥测批量上传", "否")
+             }
+             Row(
+                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+@@ -1312,10 +1351,93 @@ private fun ModelInputRow(input: ModelInputStatus) {
+     }
+ }
+ 
++@Composable
++private fun ContributionRow(field: String, contribution: Double) {
++    val direction = if (contribution >= 0.0) "↑" else "↓"
++    Row(Modifier.fillMaxWidth().padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
++        Text(field.cvdFieldLabel(), color = Ink, fontSize = 13.sp, modifier = Modifier.weight(1f))
++        Text(
++            "$direction ${String.format(Locale.getDefault(), "%.3f", kotlin.math.abs(contribution))}",
++            color = if (contribution >= 0.0) Color(0xFFE39A22) else Mint,
++            fontSize = 12.sp,
++            fontWeight = FontWeight.SemiBold,
++        )
++    }
++}
++
++private fun String.cvdFieldLabel(): String = when (this) {
++    "age" -> "年龄"
++    "gender" -> "性别"
++    "bmi" -> "BMI"
++    "sbp" -> "收缩压"
++    "dbp" -> "舒张压"
++    "fasting_glucose" -> "空腹血糖"
++    "total_cholesterol" -> "总胆固醇"
++    "ldl" -> "LDL"
++    "hdl" -> "HDL"
++    "triglycerides" -> "甘油三酯"
++    "exercise_days" -> "运动天数"
++    "smoking" -> "吸烟"
++    "drinking" -> "饮酒"
++    "diabetes_history" -> "糖尿病史"
++    "hypertension_history" -> "高血压史"
++    "family_history" -> "家族史"
++    else -> this
++}
++
++private fun modelInputsFromRingState(state: RingUiState): List<ModelInputStatus> =
++    listOf(
++        ModelInputStatus(
++            RingMetricType.HEART_RATE,
++            "心率",
++            "静息心率、日内波动",
++            stageForMeasurement(state, RingMetricType.HEART_RATE),
++        ),
++        ModelInputStatus(
++            RingMetricType.BLOOD_OXYGEN,
++            "血氧",
++            "均值、低值时长",
++            stageForMeasurement(state, RingMetricType.BLOOD_OXYGEN),
++        ),
++        ModelInputStatus(
++            RingMetricType.BLOOD_PRESSURE,
++            "血压",
++            "收缩压、舒张压",
++            stageForMeasurement(state, RingMetricType.BLOOD_PRESSURE),
++        ),
++        ModelInputStatus(
++            RingMetricType.SLEEP,
++            "睡眠",
++            "时长、阶段、连续性",
++            if (state.sleep != null) ModelInputStage.FEATURE_EXTRACTED else ModelInputStage.LEARNING,
++        ),
++        ModelInputStatus(
++            RingMetricType.TEMPERATURE,
++            "体温",
++            "个人基线偏差",
++            stageForMeasurement(state, RingMetricType.TEMPERATURE),
++        ),
++        ModelInputStatus(
++            RingMetricType.STEPS,
++            "步数",
++            "活动天数、运动频率",
++            if (state.activity != null || state.measurements[RingMetricType.STEPS] != null) {
++                ModelInputStage.FEATURE_EXTRACTED
++            } else {
++                ModelInputStage.LEARNING
++            },
++        ),
++    )
++
++private fun stageForMeasurement(state: RingUiState, type: RingMetricType): ModelInputStage =
++    if (state.measurements[type] != null) ModelInputStage.FEATURE_EXTRACTED else ModelInputStage.LEARNING
++
+ private fun String?.riskLevelLabel(): String = when (this?.lowercase()) {
+     "low" -> "低"
++    "moderate" -> "中"
+     "medium" -> "中"
+     "high" -> "高"
++    "very_high" -> "很高"
+     null -> "待评估"
+     else -> this
+ }
+@@ -1684,45 +1806,77 @@ private data class RemoteFeatureEvaluateStatus(
+     val isMock: Boolean?,
+     val riskLevel: String?,
+     val riskScore: Double?,
++    val featureContributions: Map<String, Double> = emptyMap(),
++    val requestId: String? = null,
++    val usedMockFallback: Boolean,
++    val fallbackReason: String? = null,
++    val missingFields: List<String> = emptyList(),
++    val qualityWarnings: List<String> = emptyList(),
+     val summary: String,
+-)
++) {
++    val modeLabel: String
++        get() = when {
++            usedMockFallback -> "本地mock兜底"
++            isMock == true -> "云端mock"
++            reachable -> "云端"
++            else -> "不可用"
++        }
++}
+ 
+ private suspend fun refreshRemoteFeatureEvaluateStatus(
+     application: com.rehealth.genie.ReHealthApplication,
++    state: RingUiState,
+     target: androidx.compose.runtime.MutableState<RemoteFeatureEvaluateStatus?>,
+ ) {
+-    val api: ReHealthMobileApi = application.reHealthMobileApi
+-    when (val outcome = api.getHealth()) {
+-        is RemotePhmOutcome.Success -> {
+-            val data = outcome.data
+-            val statusText = data?.status
+-            val service = data?.service
+-            target.value = RemoteFeatureEvaluateStatus(
+-                reachable = true,
+-                modelVersion = data?.model_version,
+-                isMock = statusText != "ok",
+-                riskLevel = null,
+-                riskScore = null,
+-                summary = if (statusText == "ok") {
+-                    "后端 E1 健康 (${service ?: "model-service"})"
+-                } else {
+-                    "后端返回非健康状态：${statusText ?: "未知"}"
+-                },
+-            )
+-        }
+-        is RemotePhmOutcome.Failure -> {
+-            target.value = RemoteFeatureEvaluateStatus(
+-                reachable = false,
+-                modelVersion = null,
+-                isMock = true,
+-                riskLevel = null,
+-                riskScore = null,
+-                summary = "后端不可达，使用本地兜底（${outcome.error.eventName}）",
+-            )
+-        }
++    val now = System.currentTimeMillis()
++    val since = now - RISK_FEATURE_LOOKBACK_MILLIS
++    val dao = application.database.ringDataDao()
++    val measurements = runCatching { dao.getMeasurementsSince(since) }.getOrDefault(emptyList())
++    val activities = runCatching { dao.getActivitiesSince(since) }.getOrDefault(emptyList())
++    val vector = HealthFeatureExtractor(nowProvider = { now }).extract(
++        HealthMemorySnapshot.fromPatientProfile(
++            profile = state.patientMvp?.profile,
++            ringMeasurements = measurements,
++            ringActivities = activities,
++            ringSleepSessions = state.sleep?.let { listOf(it) }.orEmpty(),
++        ),
++    )
++
++    val outcome = application.remotePhmService.evaluateFeatures(vector)
++    val result = outcome.result
++    if (result != null) {
++        target.value = RemoteFeatureEvaluateStatus(
++            reachable = true,
++            modelVersion = result.normalizedModelVersion,
++            isMock = result.normalizedIsMock,
++            riskLevel = result.normalizedRiskLevel,
++            riskScore = result.normalizedRiskScore,
++            featureContributions = result.normalizedFeatureContributions,
++            requestId = result.normalizedRequestId ?: outcome.requestId,
++            usedMockFallback = false,
++            missingFields = result.normalizedMissingFields,
++            qualityWarnings = result.normalizedQualityWarnings,
++            summary = result.summary ?: "后端已基于本机特征完成风险评估。",
++        )
++    } else {
++        val fallback = application.remotePhmService.mock().todayState()
++        target.value = RemoteFeatureEvaluateStatus(
++            reachable = false,
++            modelVersion = "local-mock-fallback",
++            isMock = true,
++            riskLevel = fallback.label,
++            riskScore = fallback.score / 100.0,
++            requestId = outcome.requestId,
++            usedMockFallback = true,
++            fallbackReason = outcome.mockFallbackReason,
++            missingFields = vector.missingFields,
++            summary = "${fallback.insight}（${outcome.error?.eventName ?: "fallback"}）",
++        )
+     }
+ }
+ 
++private const val RISK_FEATURE_LOOKBACK_MILLIS = 7L * 24L * 60L * 60L * 1000L
++
+ @Composable
+ private fun RemoteFeatureEvaluateRow(status: androidx.compose.runtime.State<RemoteFeatureEvaluateStatus?>) {
+     val current = status.value
+@@ -1744,21 +1898,15 @@ private fun RemoteFeatureEvaluateRow(status: androidx.compose.runtime.State<Remo
+         Column(Modifier.weight(1f).padding(start = 12.dp)) {
+             Text("云端特征评估", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+             Text(
+-                current?.summary ?: "正在检查后端 E1 状态…",
++                current?.summary ?: "正在提取本机特征并请求后端评估…",
+                 color = Muted,
+                 fontSize = 11.sp,
+                 lineHeight = 15.sp,
+             )
+         }
+-        val modeLabel = when {
+-            current == null -> "检查中"
+-            current.reachable && current.isMock != false -> "mock"
+-            current.reachable -> "云端"
+-            else -> "本地兜底"
+-        }
+         val riskLabel = current?.riskScore?.let { "${(it * 100).toInt()}分" } ?: "--"
+         Column(horizontalAlignment = Alignment.End) {
+-            Text(modeLabel, color = Muted, fontSize = 11.sp)
++            Text(current?.modeLabel ?: "检查中", color = Muted, fontSize = 11.sp)
+             Text(riskLabel, color = Mint, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+         }
+     }
+diff --git a/app/src/test/java/com/rehealth/genie/phm/RemotePhmServiceRemoteFailureTest.kt b/app/src/test/java/com/rehealth/genie/phm/RemotePhmServiceRemoteFailureTest.kt
+index efd33b4..9487829 100644
+--- a/app/src/test/java/com/rehealth/genie/phm/RemotePhmServiceRemoteFailureTest.kt
++++ b/app/src/test/java/com/rehealth/genie/phm/RemotePhmServiceRemoteFailureTest.kt
+@@ -153,6 +153,27 @@ class RemotePhmServiceRemoteFailureTest {
+         assertTrue(result.missing_fields!!.contains("fasting_glucose"))
+     }
+ 
++    @Test
++    fun successfulEnvelopeAcceptsCamelCaseRiskFields() = runTest {
++        server.start()
++        server.enqueue(
++            MockResponse().setResponseCode(200).setBody(CAMEL_CASE_SUCCESS_ENVELOPE),
++        )
++        val service = RemotePhmService(api = apiAgainstServer())
++
++        val outcome = service.evaluateFeatures(aCompleteVector())
++
++        assertFalse(outcome.usedMockFallback)
++        val result = outcome.result
++        assertNotNull(result)
++        assertEquals(0.41, result.normalizedRiskScore)
++        assertEquals("high", result.normalizedRiskLevel)
++        assertEquals(mapOf("sbp" to 0.12), result.normalizedFeatureContributions)
++        assertEquals("cvd-real-v1", result.normalizedModelVersion)
++        assertEquals(false, result.normalizedIsMock)
++        assertEquals("backend-request-1", result.normalizedRequestId)
++    }
++
+     @Test
+     fun retryOnceThenSuccessForConsecutiveSuccessEnvelopes() = runTest {
+         server.start()
+@@ -245,5 +266,8 @@ class RemotePhmServiceRemoteFailureTest {
+     private companion object {
+         const val SUCCESS_ENVELOPE =
+             """{"success":true,"code":200,"result":{"risk_score":0.34,"risk_level":"moderate","feature_contributions":{"age":0.09},"model_version":"cvd-mock-rules-v1","is_mock":true,"missing_fields":["fasting_glucose"],"quality_warnings":[],"summary":"Baseline CVD risk is moderate."}}"""
++
++        const val CAMEL_CASE_SUCCESS_ENVELOPE =
++            """{"success":true,"code":200,"result":{"riskScore":0.41,"riskLevel":"high","featureContributions":{"sbp":0.12},"modelVersion":"cvd-real-v1","isMock":false,"requestId":"backend-request-1","missingFields":[],"qualityWarnings":[],"summary":"Risk estimate is high."}}"""
+     }
+ }
+diff --git a/codex-runs/2026-07-09/P0b_status.md b/codex-runs/2026-07-09/P0b_status.md
+new file mode 100644
+index 0000000..62d91f5
+--- /dev/null
++++ b/codex-runs/2026-07-09/P0b_status.md
+@@ -0,0 +1,113 @@
++# P0b Android Canonical Risk UI Path Status
++
++Date: 2026-07-09
++
++## Start State
++
++- Initial branch observed: `work/D_android_network_feature_evaluate`
++- Initial HEAD: `a0079c4 docs(android): restore D1 network integration status`
++- P0b branch created: `work/P0b_android_canonical_risk_ui_path`
++- D1 commit present: `5528e22 feat(android): connect feature evaluation to backend`
++- B1 commit present: `2cb9a6d feat(android): add resilient ring background collection`
++- B1-owned files not touched.
++- Prohibited stash observed and not applied:
++  `stash@{0}: On work/C_android_feature_extractor: preexisting telemetry sync work before D1 status fixup`
++
++## Implementation Summary
++
++- Made the Data/Model risk UI read from a canonical risk status instead of legacy
++  `RingViewModel.cloudRisk*` fields.
++- Canonical UI flow reads local profile plus Room ring measurements/activities, builds
++  `HealthMemorySnapshot`, runs `HealthFeatureExtractor`, maps to `CvdFeatureVector`, and
++  calls `RemotePhmService.evaluateFeatures()`.
++- `RemotePhmService` remains the primary service for risk evaluation.
++- `MockPhmService` is used only through explicit fallback when remote evaluation fails.
++- UI displays/preserves risk score, risk level, feature contributions, model version,
++  request id, and mock/fallback mode.
++- Risk DTOs now accept both snake_case and camelCase response fields.
++
++## Files Changed
++
++- `app/src/main/java/com/rehealth/genie/network/dto/FeatureEvaluationDtos.kt`
++- `app/src/main/java/com/rehealth/genie/ui/ReHealthApp.kt`
++- `app/src/test/java/com/rehealth/genie/phm/RemotePhmServiceRemoteFailureTest.kt`
++- `docs/CANONICAL_RISK_PATH.md`
++- `codex-runs/2026-07-09/P0b_status.md`
++
++## Validation Results
++
++Commands run from `D:\rehealthAI\Android-apk` with `JAVA_HOME=D:\Android_Studio\jbr`:
++
++```powershell
++.\gradlew.bat testDebugUnitTest
++.\gradlew.bat assembleDebug
++```
++
++Results:
++
++- `testDebugUnitTest`: PASS
++- `assembleDebug`: PASS
++
++Pending finish-step commands after this status file is written:
++
++- `git diff --check`: PASS
++- self-review searches: PASS, scoped results summarized below
++- pre-commit `git status --short --branch`: only intended P0b files modified/added
++
++## Legacy Path Audit
++
++- `ReHealthBackendClient.uploadRingSnapshot` still exists for legacy snapshot/debug
++  behavior.
++- `/rehealth/mobile/ring/snapshots` still exists only in that legacy client path and
++  old docs; it is not the primary Data/Model risk UI source.
++- `/patient/risk-score` and `/patient/intervention-plan` remain only in legacy docs.
++- `RingViewModel` still owns legacy cloud snapshot sync state; P0b did not edit it.
++
++Self-review search summary:
++
++- `MockPhmService`: present in `ReHealthApplication`/`RemotePhmService` fallback wiring,
++  `MockPhmService.kt`, tests/docs/status only; no direct `ModelScreen` primary risk
++  source remains.
++- `RemotePhmService`: primary risk service in app wiring and UI helper.
++- `ReHealthMobileApi` / `features/evaluate`: canonical typed backend path remains present.
++- `ReHealthBackendClient`, `uploadRingSnapshot`, `ring/snapshots`: legacy path still
++  present in `ReHealthBackendClient`/`RingViewModel`; not used as primary Data/Model risk
++  UI source.
++- `patient/risk-score`, `patient/intervention-plan`: legacy docs only.
++- `measurements/batch`: comments/docs only; no Android API method or UI integration.
++- `ring_signal_chunks`, `PPG`, `RRI`: pre-existing Room/ring/BLE code and docs only; P0b
++  did not add upload integration.
++
++## Telemetry Prohibition Confirmation
++
++- P0b does not call `/rehealth/mobile/measurements/batch`.
++- P0b does not upload raw PPG.
++- P0b does not upload raw RRI.
++- P0b does not upload `ring_signal_chunks`.
++- P0b did not apply `stash@{0}`.
++
++## Known Risks
++
++- The UI uses the current `patientMvp.profile` as the available profile source. If that
++  is still local/demo fallback data, the remote evaluator is correctly labeled but the
++  input profile quality remains limited.
++- Canonical intervention generation is not promoted into the Android UI in P0b. Existing
++  intervention display remains a follow-up unless the backend canonical path is safely
++  wired.
++- Legacy snapshot upload remains in `RingViewModel` for existing sync behavior, outside
++  this branch's allowed edit scope.
++
++## Final Git Status
++
++Pre-commit status:
++
++```text
++## work/P0b_android_canonical_risk_ui_path
++ M app/src/main/java/com/rehealth/genie/network/dto/FeatureEvaluationDtos.kt
++ M app/src/main/java/com/rehealth/genie/ui/ReHealthApp.kt
++ M app/src/test/java/com/rehealth/genie/phm/RemotePhmServiceRemoteFailureTest.kt
++?? codex-runs/2026-07-09/P0b_status.md
++?? docs/CANONICAL_RISK_PATH.md
++```
++
++Expected post-commit status: clean on `work/P0b_android_canonical_risk_ui_path`.
+diff --git a/docs/CANONICAL_RISK_PATH.md b/docs/CANONICAL_RISK_PATH.md
+new file mode 100644
+index 0000000..4eced53
+--- /dev/null
++++ b/docs/CANONICAL_RISK_PATH.md
+@@ -0,0 +1,90 @@
++# Canonical Risk Path
++
++Status: P0b Android UI wiring.
++
++## Flow
++
++```text
++Android local Room/ring/profile data
++  -> HealthMemorySnapshot
++  -> HealthFeatureExtractor
++  -> CvdFeatureVector
++  -> CvdFeatureVectorDtoMapper
++  -> backend POST /rehealth/mobile/features/evaluate
++  -> backend ModelServiceClient
++  -> model-service POST /v1/cvd/risk/evaluate
++  -> backend Result<RiskResultDto>
++  -> Android UI risk score / risk level / contributions / model version / mock flag
++```
++
++Android does not call model-service directly. Android sends the local CVD feature vector
++to the backend mobile API, and the backend remains the only boundary that calls
++model-service risk evaluation.
++
++## Endpoints Used In P0b
++
++- `POST /rehealth/mobile/features/evaluate`: canonical risk evaluation path.
++
++The Retrofit base URL is configured by `REHEALTH_API_BASE_URL`, defaulting in debug to:
++
++```text
++http://10.0.2.2:8080/jeecg-boot
++```
++
++## Endpoints Explicitly Not Used In P0b
++
++- `POST /rehealth/mobile/measurements/batch`
++- `POST /rehealth/mobile/ring/snapshots`
++- `GET /rehealth/mobile/patient/risk-score`
++- `GET /rehealth/mobile/patient/intervention-plan`
++- Direct Android calls to `POST /v1/cvd/risk/evaluate`
++- Raw PPG upload
++- Raw RRI upload
++- `ring_signal_chunks` upload
++
++## Legacy Paths Retired From Primary UI
++
++`ReHealthBackendClient.uploadRingSnapshot()` and
++`/rehealth/mobile/ring/snapshots` remain in the codebase as legacy snapshot/debug
++behavior owned outside P0b. They are no longer the primary source for the Data/Model risk
++cards.
++
++`RingViewModel` still contains legacy cloud snapshot state (`cloudRiskScore`,
++`cloudRiskLevel`, `cloudRiskMode`, `cloudRiskSummary`) for existing sync behavior, but
++P0b risk UI reads from the canonical feature-evaluate status instead.
++
++## Mock And Fallback Behavior
++
++`RemotePhmService` is the primary risk service. It evaluates a `CvdFeatureVector`
++through the backend `/features/evaluate` endpoint.
++
++`MockPhmService` remains available only as an explicit fallback when the backend,
++model-service through backend, or local DTO mapping is unavailable. The UI labels fallback
++as `local mock fallback` and labels backend mock responses separately as backend/cloud mock
++responses. Mock values must not be presented as production risk results.
++
++The UI preserves and displays, when available:
++
++- risk score
++- risk level
++- feature contributions
++- model version
++- mock/fallback flag
++- request id
++
++## E2 Telemetry Note
++
++E2 added a backend ingest boundary for `/rehealth/mobile/measurements/batch`, but it is
++not durable and remains outside P0b. P0b does not integrate telemetry sync, raw signal
++upload, WorkManager telemetry upload, MQ, or hardware_db persistence.
++
++## Known Remaining Work
++
++- F2: real CatBoost/SHAP model-service scoring and validated non-mock model versions.
++- D2: durable Android telemetry upload queue and retry strategy.
++- B1: release blockers for background collection remain outside P0b.
++- Production auth/token handling and refresh if not already completed.
++- Backend persistence for latest risk/intervention retrieval, if required by later UI
++  screens.
++- Canonical intervention generation/display if the backend path is promoted for Android
++  UI use.
+-- 
+2.43.0
+

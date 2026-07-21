@@ -1,0 +1,10 @@
+0000000000000000000000000000000000000000 7359e5281e08949b57c6f9fb1de72d93d277a9aa csong8904 <csong8904@gmail.com> 1783572022 +0800	commit (initial): feat(model-service): add CVD risk API skeleton
+7359e5281e08949b57c6f9fb1de72d93d277a9aa 9ddf22773066d351eff2bc7e0c2cac64fa6c80ca csong8904 <csong8904@gmail.com> 1783572107 +0800	commit: docs(model-service): record F1b versioning status
+9ddf22773066d351eff2bc7e0c2cac64fa6c80ca 750207aaed6d08d1308ac71ef9525e4f6fc643e4 csong8904 <csong8904@gmail.com> 1783612015 +0800	commit: feat(model-service): add real model scorer boundary
+750207aaed6d08d1308ac71ef9525e4f6fc643e4 3b0835829f3b87c41fff7543681eb5e209f5d819 csong8904 <csong8904@gmail.com> 1783614709 +0800	commit: docs(model-service): document real model artifact requirements
+3b0835829f3b87c41fff7543681eb5e209f5d819 d5211a4cc5a6e1f100f12345c1f1db0c6ab1fa4c csong8904 <csong8904@gmail.com> 1783617183 +0800	commit: fix(model-service): align real model artifact discovery with rehealth docs
+d5211a4cc5a6e1f100f12345c1f1db0c6ab1fa4c c6624f3e0432550df8f922e87fd6853fc14ded94 csong8904 <csong8904@gmail.com> 1783617571 +0800	commit: feat(model-service): add model registry trace metadata
+c6624f3e0432550df8f922e87fd6853fc14ded94 cba498249227d6c5703e5896138a399d5ccefb36 csong8904 <csong8904@gmail.com> 1783622699 +0800	commit: docs(model-service): record Android/backend model_trace pass-through policy (M1 followup)
+cba498249227d6c5703e5896138a399d5ccefb36 bdf50ea95f3e4b62088d88baca651d61c1aaac58 csong8904 <csong8904@gmail.com> 1783705073 +0800	commit: fix(model-service): deploy reviewed CVD artifact runtime
+bdf50ea95f3e4b62088d88baca651d61c1aaac58 31c93bd68c5348a1c2fbf8504aec1587dd73f505 csong8904 <csong8904@gmail.com> 1783705151 +0800	commit: docs(model-service): record F workstream closure
+31c93bd68c5348a1c2fbf8504aec1587dd73f505 a4e12ccbe8a5910f1989bd8e5a41093506b10a92 csong8904 <csong8904@gmail.com> 1783921260 +0800	commit: docs(model-service): update algorithms repository identity

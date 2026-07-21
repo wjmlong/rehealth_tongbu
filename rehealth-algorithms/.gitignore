@@ -1,0 +1,79 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment variables (IMPORTANT: Never commit API keys)
+.env
+.env.local
+.env.*.local
+
+# Outputs
+outputs/
+results/
+/data/nhanes/
+*.json
+!package.json
+!data/*.json
+!frontend/src/assets/*.json
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.env
+__pycache__/
+*.pyc
+outputs/
+
+# CatBoost training info
+catboost_info/
+
+# Model files (too large for git)
+models/*.pkl
+models/*.cbm
+models/distilled/
+models/transfer/
+*.pkl
+*.cbm

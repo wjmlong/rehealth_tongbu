@@ -1,0 +1,903 @@
+package com.rehealth.genie.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.rehealth.genie.ReHealthApplication
+import com.rehealth.genie.ring.device.DeviceSettingsViewModel
+import com.rehealth.genie.ring.device.DoNotDisturb
+import com.rehealth.genie.ring.device.SedentaryReminder
+import com.rehealth.genie.ui.theme.*
+
+/**
+ * 设备设置页面 - 照搬原厂ECTRI的Device页面核心功能
+ * 包括：提醒设置、测量设置、用户信息、设备功能、系统信息
+ *
+ * 🆕 现在连接到真实的MRD SDK命令！
+ */
+@Composable
+fun DeviceSettingsScreen(
+    onBack: () -> Unit
+) {
+    val application = LocalContext.current.applicationContext as ReHealthApplication
+    val viewModel: DeviceSettingsViewModel = viewModel(
+        factory = remember(application) {
+            DeviceSettingsViewModel.Factory(
+                application.ringRepository,
+                com.rehealth.genie.ring.mrd.MrdProtocolAdapter(application)
+            )
+        }
+    )
+
+    val uiState by viewModel.uiState.collectAsState()
+    var selectedTab by remember { mutableStateOf(0) }
+    val tabs = listOf("提醒", "测量", "用户", "设备", "系统")
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Canvas)
+            .statusBarsPadding()
+    ) {
+        // Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.Outlined.ArrowBack, "返回", tint = Ink)
+            }
+            Column(Modifier.weight(1f)) {
+                Text("设备设置", color = Ink, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text("智能戒指功能配置 - 原厂SDK", color = Muted, fontSize = 11.sp)
+            }
+        }
+
+        // 状态消息
+        if (uiState.message != null) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MintSoft)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Outlined.Info, null, tint = Mint, modifier = Modifier.size(16.dp))
+                Text(
+                    uiState.message ?: "",
+                    color = Ink,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+        }
+
+        // Tab selector
+        ScrollableTabRow(
+            selectedTabIndex = selectedTab,
+            modifier = Modifier.fillMaxWidth(),
+            containerColor = Color.White,
+            contentColor = Mint,
+            edgePadding = 16.dp
+        ) {
+            tabs.forEachIndexed { index, title ->
+                Tab(
+                    selected = selectedTab == index,
+                    onClick = { selectedTab = index },
+                    text = {
+                        Text(
+                            title,
+                            fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
+                            fontSize = 14.sp
+                        )
+                    }
+                )
+            }
+        }
+
+        // Content
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                when (selectedTab) {
+                    0 -> ReminderSettingsContent(viewModel, uiState.isLoading)
+                    1 -> MeasurementSettingsContent(viewModel, uiState.isLoading)
+                    2 -> UserInfoContent(viewModel, uiState.isLoading)
+                    3 -> DeviceFeaturesContent(viewModel, uiState.isLoading)
+                    4 -> SystemInfoContent(viewModel, uiState.isLoading)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReminderSettingsContent(viewModel: DeviceSettingsViewModel, isLoading: Boolean) {
+    var selectedTab by remember { mutableStateOf(0) }
+    val tabs = listOf("提醒", "测量", "用户", "设备", "系统")
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Canvas)
+            .statusBarsPadding()
+    ) {
+        // Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.Outlined.ArrowBack, "返回", tint = Ink)
+            }
+            Column(Modifier.weight(1f)) {
+                Text("设备设置", color = Ink, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text("智能戒指功能配置", color = Muted, fontSize = 11.sp)
+            }
+        }
+
+        // Tab selector
+        ScrollableTabRow(
+            selectedTabIndex = selectedTab,
+            modifier = Modifier.fillMaxWidth(),
+            containerColor = Color.White,
+            contentColor = Mint,
+            edgePadding = 16.dp
+        ) {
+            tabs.forEachIndexed { index, title ->
+                Tab(
+                    selected = selectedTab == index,
+                    onClick = { selectedTab = index },
+                    text = {
+                        Text(
+                            title,
+                            fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
+                            fontSize = 14.sp
+                        )
+                    }
+                )
+            }
+        }
+
+        // Content
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                when (selectedTab) {
+                    0 -> ReminderSettingsContent()
+                    1 -> MeasurementSettingsContent()
+                    2 -> UserInfoContent()
+                    3 -> DeviceFeaturesContent()
+                    4 -> SystemInfoContent()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReminderSettingsContent(viewModel: DeviceSettingsViewModel, isLoading: Boolean) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        CardBlock {
+            SettingHeader(Icons.Outlined.AlarmOn, "闹钟提醒")
+            Text("设置起床、服药等定时提醒", color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+            Button(
+                onClick = { /* TODO: 打开闹钟设置对话框 */ },
+                enabled = !isLoading,
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MintSoft, contentColor = Mint)
+            ) {
+                Text("管理闹钟")
+            }
+            Text("当前已设置 0 个闹钟", color = Muted, fontSize = 10.sp, modifier = Modifier.padding(top = 8.dp))
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.EventSeat, "久坐提醒")
+            var enabled by remember { mutableStateOf(false) }
+            SwitchRow("开启久坐提醒", enabled) {
+                enabled = it
+                viewModel.setSedentaryReminder(
+                    SedentaryReminder(
+                        enabled = it,
+                        intervalMinutes = 30,
+                        startTime = "09:00",
+                        endTime = "19:00"
+                    )
+                )
+            }
+            HorizontalDivider(color = Line, modifier = Modifier.padding(vertical = 8.dp))
+            SettingRow("提醒间隔", "30 分钟")
+            SettingRow("开始时间", "09:00")
+            SettingRow("结束时间", "19:00")
+            SettingRow("午休免打扰", "12:30 - 14:00")
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.WaterDrop, "喝水提醒")
+            var enabled by remember { mutableStateOf(false) }
+            SwitchRow("开启喝水提醒", enabled) {
+                enabled = it
+                viewModel.setDrinkReminder(
+                    com.rehealth.genie.ring.device.DrinkReminder(
+                        enabled = it,
+                        intervalMinutes = 20
+                    )
+                )
+            }
+            HorizontalDivider(color = Line, modifier = Modifier.padding(vertical = 8.dp))
+            SettingRow("提醒间隔", "20 分钟")
+            SettingRow("开始时间", "09:00")
+            SettingRow("结束时间", "20:00")
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.DoNotDisturb, "勿扰模式")
+            var enabled by remember { mutableStateOf(false) }
+            SwitchRow("开启勿扰模式", enabled) {
+                enabled = it
+                viewModel.setDoNotDisturb(
+                    DoNotDisturb(enabled = it)
+                )
+            }
+            HorizontalDivider(color = Line, modifier = Modifier.padding(vertical = 8.dp))
+            SettingRow("开始时间", "22:00")
+            SettingRow("结束时间", "08:00")
+            Text(
+                "勿扰期间将不接收提醒通知",
+                color = Muted,
+                fontSize = 10.sp,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun MeasurementSettingsContent(viewModel: DeviceSettingsViewModel, isLoading: Boolean) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        CardBlock {
+            SettingHeader(Icons.Outlined.FavoriteBorder, "心率监测")
+            var enabled by remember { mutableStateOf(false) }
+            SwitchRow("定时心率测量", enabled) {
+                enabled = it
+                viewModel.setTimingHrTest(it, 30)
+            }
+            HorizontalDivider(color = Line, modifier = Modifier.padding(vertical = 8.dp))
+            SettingRow("测量间隔", "30 分钟")
+            Text(
+                "开启后戒指将定时测量心率并保存",
+                color = Muted,
+                fontSize = 10.sp,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.Thermostat, "体温监测")
+            var enabled by remember { mutableStateOf(true) }
+            SwitchRow("定时体温测量", enabled) { enabled = it }
+            HorizontalDivider(color = Line, modifier = Modifier.padding(vertical = 8.dp))
+            SettingRow("测量间隔", "30 分钟")
+            Text(
+                "体温数据可用于女性健康管理",
+                color = Muted,
+                fontSize = 10.sp,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.Warning, "健康预警")
+            var hrEnabled by remember { mutableStateOf(false) }
+            SwitchRow("心率异常预警", hrEnabled) { hrEnabled = it }
+            HorizontalDivider(color = Line, modifier = Modifier.padding(vertical = 8.dp))
+            SettingRow("高心率阈值", "120 bpm")
+            SettingRow("低心率阈值", "50 bpm")
+            Spacer(Modifier.height(12.dp))
+            var bpEnabled by remember { mutableStateOf(false) }
+            SwitchRow("血压异常预警", bpEnabled) { bpEnabled = it }
+            HorizontalDivider(color = Line, modifier = Modifier.padding(vertical = 8.dp))
+            SettingRow("高压阈值", "140 mmHg")
+            SettingRow("低压阈值", "90 mmHg")
+
+            Button(
+                onClick = {
+                    viewModel.setHealthAlert(
+                        com.rehealth.genie.ring.device.HealthAlert(
+                            hrEnabled = hrEnabled,
+                            bpEnabled = bpEnabled,
+                            hrHigh = 120, hrLow = 50,
+                            bpHigh = 140, bpLow = 90
+                        )
+                    )
+                },
+                enabled = !isLoading,
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Mint)
+            ) {
+                Text("保存预警设置")
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeviceFeaturesContent(viewModel: DeviceSettingsViewModel, isLoading: Boolean) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        CardBlock {
+            SettingHeader(Icons.Outlined.Search, "找戒指")
+            Text(
+                "戒指将震动并亮起指示灯，帮助你快速找到",
+                color = Muted,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            Button(
+                onClick = { viewModel.findDevice(3) },
+                enabled = !isLoading,
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Mint)
+            ) {
+                Icon(Icons.Outlined.NotificationsActive, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("开始寻找")
+            }
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.WbTwilight, "抬腕亮屏")
+            var enabled by remember { mutableStateOf(true) }
+            SwitchRow("开启抬腕亮屏", enabled) {
+                enabled = it
+                viewModel.setWristOn(it)
+            }
+            Text(
+                "抬手时屏幕自动点亮",
+                color = Muted,
+                fontSize = 10.sp,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.LightMode, "屏幕亮度")
+            var seconds by remember { mutableStateOf(30) }
+            SettingRow("亮屏时长", "$seconds 秒")
+            Slider(
+                value = seconds.toFloat(),
+                onValueChange = { seconds = it.toInt() },
+                onValueChangeFinished = { viewModel.setScreenLightTime(seconds) },
+                valueRange = 5f..60f,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                colors = SliderDefaults.colors(
+                    thumbColor = Mint,
+                    activeTrackColor = Mint,
+                    inactiveTrackColor = MintSoft
+                )
+            )
+            Text("亮度时长 $seconds 秒", color = Muted, fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp))
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.LocationOn, "防丢提醒")
+            var enabled by remember { mutableStateOf(false) }
+            SwitchRow("开启防丢提醒", enabled) {
+                enabled = it
+                viewModel.setLostAlert(it, 10)
+            }
+            HorizontalDivider(color = Line, modifier = Modifier.padding(vertical = 8.dp))
+            SettingRow("提醒距离", "10 米")
+            Text(
+                "当戒指与手机距离超过设定值时提醒",
+                color = Muted,
+                fontSize = 10.sp,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun SystemInfoContent(viewModel: DeviceSettingsViewModel, isLoading: Boolean) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        CardBlock {
+            SettingHeader(Icons.Outlined.Info, "设备信息")
+            InfoRow("固件版本", "1.3.0")
+            InfoRow("硬件版本", "MR11")
+            InfoRow("蓝牙地址", "AA:BB:CC:DD:EE:FF")
+            InfoRow("序列号", "MRD2026001234")
+            Button(
+                onClick = { viewModel.getFirmwareVersion() },
+                enabled = !isLoading,
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MintSoft, contentColor = Mint)
+            ) {
+                Text("查询固件版本")
+            }
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.BatteryFull, "电池信息")
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("当前电量", color = Muted, fontSize = 11.sp)
+                    Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 4.dp)) {
+                        Text("?", color = Ink, fontSize = 36.sp, fontWeight = FontWeight.Bold)
+                        Text("%", color = Muted, fontSize = 18.sp, modifier = Modifier.padding(bottom = 6.dp, start = 2.dp))
+                    }
+                    Text("点击查询", color = Mint, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+                </Column>
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .background(MintSoft)
+                        .clickable { viewModel.getBatteryLevel() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Outlined.BatteryFull,
+                        null,
+                        tint = Mint,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+            }
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.Sync, "时间同步")
+            Text(
+                "将手机时间同步到戒指",
+                color = Muted,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            Button(
+                onClick = { viewModel.syncTime() },
+                enabled = !isLoading,
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Mint)
+            ) {
+                Text("同步时间")
+            }
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.RestartAlt, "恢复出厂设置", Color(0xFFFF6078))
+            Text(
+                "此操作将清除戒指上的所有数据和设置，无法恢复",
+                color = Muted,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            Button(
+                onClick = { /* TODO: 确认对话框 */ },
+                enabled = !isLoading,
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEBEE), contentColor = Color(0xFFFF6078))
+            ) {
+                Text("恢复出厂设置")
+            }
+        }
+    }
+}
+
+@Composable
+private fun UserInfoContent(viewModel: DeviceSettingsViewModel, isLoading: Boolean) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        CardBlock {
+            SettingHeader(Icons.Outlined.AlarmOn, "闹钟提醒")
+            Text("设置起床、服药等定时提醒", color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+            Button(
+                onClick = { /* TODO: 打开闹钟设置对话框 */ },
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MintSoft, contentColor = Mint)
+            ) {
+                Text("管理闹钟")
+            }
+            Text("当前已设置 0 个闹钟", color = Muted, fontSize = 10.sp, modifier = Modifier.padding(top = 8.dp))
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.EventSeat, "久坐提醒")
+            SwitchRow("开启久坐提醒", true) {}
+            HorizontalDivider(color = Line, modifier = Modifier.padding(vertical = 8.dp))
+            SettingRow("提醒间隔", "30 分钟")
+            SettingRow("开始时间", "09:00")
+            SettingRow("结束时间", "19:00")
+            SettingRow("午休免打扰", "12:30 - 14:00")
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.WaterDrop, "喝水提醒")
+            SwitchRow("开启喝水提醒", false) {}
+            HorizontalDivider(color = Line, modifier = Modifier.padding(vertical = 8.dp))
+            SettingRow("提醒间隔", "20 分钟")
+            SettingRow("开始时间", "09:00")
+            SettingRow("结束时间", "20:00")
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.DoNotDisturb, "勿扰模式")
+            SwitchRow("开启勿扰模式", false) {}
+            HorizontalDivider(color = Line, modifier = Modifier.padding(vertical = 8.dp))
+            SettingRow("开始时间", "22:00")
+            SettingRow("结束时间", "08:00")
+            Text(
+                "勿扰期间将不接收提醒通知",
+                color = Muted,
+                fontSize = 10.sp,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun MeasurementSettingsContent() {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        CardBlock {
+            SettingHeader(Icons.Outlined.FavoriteBorder, "心率监测")
+            SwitchRow("定时心率测量", false) {}
+            HorizontalDivider(color = Line, modifier = Modifier.padding(vertical = 8.dp))
+            SettingRow("测量间隔", "30 分钟")
+            Text(
+                "开启后戒指将定时测量心率并保存",
+                color = Muted,
+                fontSize = 10.sp,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.Thermostat, "体温监测")
+            SwitchRow("定时体温测量", true) {}
+            HorizontalDivider(color = Line, modifier = Modifier.padding(vertical = 8.dp))
+            SettingRow("测量间隔", "30 分钟")
+            Text(
+                "体温数据可用于女性健康管理",
+                color = Muted,
+                fontSize = 10.sp,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.Warning, "健康预警")
+            SwitchRow("心率异常预警", false) {}
+            HorizontalDivider(color = Line, modifier = Modifier.padding(vertical = 8.dp))
+            SettingRow("高心率阈值", "120 bpm")
+            SettingRow("低心率阈值", "50 bpm")
+            Spacer(Modifier.height(12.dp))
+            SwitchRow("血压异常预警", false) {}
+            HorizontalDivider(color = Line, modifier = Modifier.padding(vertical = 8.dp))
+            SettingRow("高压阈值", "140 mmHg")
+            SettingRow("低压阈值", "90 mmHg")
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.BlurOn, "算法参数")
+            Text(
+                "高级用户可调整测量算法参数，建议保持默认设置",
+                color = Muted,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            Button(
+                onClick = { /* TODO */ },
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF1F4F3), contentColor = Ink)
+            ) {
+                Text("查看参数")
+            }
+        }
+    }
+}
+
+@Composable
+private fun UserInfoContent() {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        CardBlock {
+            SettingHeader(Icons.Outlined.Person, "基本信息")
+            SettingRow("性别", "男")
+            SettingRow("年龄", "28 岁")
+            SettingRow("身高", "170 cm")
+            SettingRow("体重", "60 kg")
+            Button(
+                onClick = { /* TODO: 打开编辑对话框 */ },
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Mint)
+            ) {
+                Text("编辑信息")
+            }
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.DirectionsRun, "运动目标")
+            SettingRow("每日步数目标", "10,000 步")
+            SettingRow("每日卡路里目标", "2,000 kcal")
+            Button(
+                onClick = { /* TODO */ },
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MintSoft, contentColor = Mint)
+            ) {
+                Text("修改目标")
+            }
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.Language, "单位设置")
+            SettingRow("长度单位", "公制 (cm/m)")
+            SettingRow("体重单位", "公斤 (kg)")
+            SettingRow("时制", "24 小时制")
+        }
+    }
+}
+
+@Composable
+private fun DeviceFeaturesContent() {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        CardBlock {
+            SettingHeader(Icons.Outlined.Search, "找戒指")
+            Text(
+                "戒指将震动并亮起指示灯，帮助你快速找到",
+                color = Muted,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            Button(
+                onClick = { /* TODO: 发送findDevice命令 */ },
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Mint)
+            ) {
+                Icon(Icons.Outlined.NotificationsActive, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("开始寻找")
+            }
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.WbTwilight, "抬腕亮屏")
+            SwitchRow("开启抬腕亮屏", true) {}
+            Text(
+                "抬手时屏幕自动点亮",
+                color = Muted,
+                fontSize = 10.sp,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.LightMode, "屏幕亮度")
+            SettingRow("亮屏时长", "30 秒")
+            Slider(
+                value = 0.7f,
+                onValueChange = {},
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                colors = SliderDefaults.colors(
+                    thumbColor = Mint,
+                    activeTrackColor = Mint,
+                    inactiveTrackColor = MintSoft
+                )
+            )
+            Text("亮度 70%", color = Muted, fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp))
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.LocationOn, "防丢提醒")
+            SwitchRow("开启防丢提醒", false) {}
+            HorizontalDivider(color = Line, modifier = Modifier.padding(vertical = 8.dp))
+            SettingRow("提醒距离", "10 米")
+            Text(
+                "当戒指与手机距离超过设定值时提醒",
+                color = Muted,
+                fontSize = 10.sp,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.CameraAlt, "遥控拍照")
+            Text(
+                "通过戒指按键触发手机拍照",
+                color = Muted,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            SwitchRow("启用遥控拍照", false, Modifier.padding(top = 8.dp)) {}
+        }
+    }
+}
+
+@Composable
+private fun SystemInfoContent() {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        CardBlock {
+            SettingHeader(Icons.Outlined.Info, "设备信息")
+            InfoRow("固件版本", "1.3.0")
+            InfoRow("硬件版本", "MR11")
+            InfoRow("蓝牙地址", "AA:BB:CC:DD:EE:FF")
+            InfoRow("序列号", "MRD2026001234")
+            Button(
+                onClick = { /* TODO: 检查更新 */ },
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MintSoft, contentColor = Mint)
+            ) {
+                Text("检查固件更新")
+            }
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.BatteryFull, "电池信息")
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("当前电量", color = Muted, fontSize = 11.sp)
+                    Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 4.dp)) {
+                        Text("85", color = Ink, fontSize = 36.sp, fontWeight = FontWeight.Bold)
+                        Text("%", color = Muted, fontSize = 18.sp, modifier = Modifier.padding(bottom = 6.dp, start = 2.dp))
+                    }
+                    Text("预计可用 3 天", color = Mint, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+                </Column>
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .background(MintSoft),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Outlined.BatteryFull,
+                        null,
+                        tint = Mint,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+            }
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.Storage, "存储信息")
+            InfoRow("已用存储", "2.3 MB / 4.0 MB")
+            LinearProgressIndicator(
+                progress = { 0.58f },
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                color = Mint,
+                trackColor = MintSoft
+            )
+            Button(
+                onClick = { /* TODO: 清除数据 */ },
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF1F4F3), contentColor = Ink)
+            ) {
+                Text("清除戒指数据")
+            }
+        }
+
+        CardBlock {
+            SettingHeader(Icons.Outlined.RestartAlt, "恢复出厂设置", Color(0xFFFF6078))
+            Text(
+                "此操作将清除戒指上的所有数据和设置，无法恢复",
+                color = Muted,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            Button(
+                onClick = { /* TODO: 确认对话框 */ },
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEBEE), contentColor = Color(0xFFFF6078))
+            ) {
+                Text("恢复出厂设置")
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingHeader(icon: ImageVector, title: String, color: Color = Mint) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, tint = color, modifier = Modifier.size(22.dp))
+        Text(
+            title,
+            color = Ink,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 8.dp)
+        )
+    }
+}
+
+@Composable
+private fun SwitchRow(label: String, checked: Boolean, modifier: Modifier = Modifier, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, color = Ink, fontSize = 13.sp, modifier = Modifier.weight(1f))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = Mint,
+                uncheckedThumbColor = Color.White,
+                uncheckedTrackColor = Color(0xFFE0E0E0)
+            )
+        )
+    }
+}
+
+@Composable
+private fun SettingRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { /* TODO */ }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, color = Ink, fontSize = 13.sp, modifier = Modifier.weight(1f))
+        Text(value, color = Muted, fontSize = 12.sp)
+        Icon(Icons.Outlined.ChevronRight, null, tint = Muted, modifier = Modifier.size(18.dp))
+    }
+}
+
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, color = Muted, fontSize = 12.sp, modifier = Modifier.weight(1f))
+        Text(value, color = Ink, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+    }
+}

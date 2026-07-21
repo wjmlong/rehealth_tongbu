@@ -1,0 +1,51 @@
+0000000000000000000000000000000000000000 52d7660d92bda2474e8c55c2cc68b5c599f08d4f unknown <kiki@LAPTOP-2GMBRRQA.(none)> 1783515520 +0800	clone: from https://github.com/RehealthAI/Android-apk.git
+52d7660d92bda2474e8c55c2cc68b5c599f08d4f 52d7660d92bda2474e8c55c2cc68b5c599f08d4f csong8904 <csong8904@gmail.com> 1783559717 +0800	checkout: moving from main to agent/rehealth-patient-mvp
+52d7660d92bda2474e8c55c2cc68b5c599f08d4f 55b82342ef7f434ce13b4480b341bcb9b3ebfd08 csong8904 <csong8904@gmail.com> 1783559846 +0800	commit: Add ReHealth patient MVP integration
+55b82342ef7f434ce13b4480b341bcb9b3ebfd08 fb437a314fb9478b0b3debcaca3caeaa45ed51b1 csong8904 <csong8904@gmail.com> 1783563554 +0800	commit: chore(android): stabilize debug build and document setup
+fb437a314fb9478b0b3debcaca3caeaa45ed51b1 2227ccf32709df38631f73cc8fa97da20209a56d csong8904 <csong8904@gmail.com> 1783564105 +0800	commit: chore(android): stabilize debug build and document setup
+2227ccf32709df38631f73cc8fa97da20209a56d 2227ccf32709df38631f73cc8fa97da20209a56d csong8904 <csong8904@gmail.com> 1783567345 +0800	checkout: moving from agent/rehealth-patient-mvp to work/C_android_feature_extractor
+2227ccf32709df38631f73cc8fa97da20209a56d 07cc278495e7ee04910e260dd1b99ffda9bf0410 csong8904 <csong8904@gmail.com> 1783567692 +0800	commit: Add CVD feature extractor
+07cc278495e7ee04910e260dd1b99ffda9bf0410 008499a4599d514337b3b24602162981d186e27f csong8904 <csong8904@gmail.com> 1783567849 +0800	commit: feat(android): add local CVD feature extraction
+008499a4599d514337b3b24602162981d186e27f 2cb9a6d66da10f953b68fcc9d0bc756bd6c776a6 csong8904 <csong8904@gmail.com> 1783600680 +0800	commit: feat(android): add resilient ring background collection
+2cb9a6d66da10f953b68fcc9d0bc756bd6c776a6 5528e22a6c3704a3120df5cbf5c07e4f7398dd69 csong8904 <csong8904@gmail.com> 1783601782 +0800	commit: feat(android): connect feature evaluation to backend
+5528e22a6c3704a3120df5cbf5c07e4f7398dd69 1dcdfbd1181c9214b6e6a39f8ed90ad5dbd3edf0 csong8904 <csong8904@gmail.com> 1783606586 +0800	commit: docs(android): restore D1 status artifact
+1dcdfbd1181c9214b6e6a39f8ed90ad5dbd3edf0 96a168b81279482c32e6aa58d5fda04f752913c3 csong8904 <csong8904@gmail.com> 1783606688 +0800	commit: docs(android): restore D1 network integration status
+96a168b81279482c32e6aa58d5fda04f752913c3 96a168b81279482c32e6aa58d5fda04f752913c3 csong8904 <csong8904@gmail.com> 1783606707 +0800	checkout: moving from work/C_android_feature_extractor to work/D_android_network_feature_evaluate
+96a168b81279482c32e6aa58d5fda04f752913c3 a0079c424b8fa350dc14100d833d705ed50e3ad8 csong8904 <csong8904@gmail.com> 1783606742 +0800	commit: docs(android): restore D1 network integration status
+a0079c424b8fa350dc14100d833d705ed50e3ad8 a0079c424b8fa350dc14100d833d705ed50e3ad8 csong8904 <csong8904@gmail.com> 1783608760 +0800	checkout: moving from work/D_android_network_feature_evaluate to work/P0b_android_canonical_risk_ui_path
+a0079c424b8fa350dc14100d833d705ed50e3ad8 02abe705bca2bc0c1d4619a7125a38b5c1fcfd7c csong8904 <csong8904@gmail.com> 1783609366 +0800	commit: feat(android): wire canonical risk UI path
+02abe705bca2bc0c1d4619a7125a38b5c1fcfd7c 02abe705bca2bc0c1d4619a7125a38b5c1fcfd7c csong8904 <csong8904@gmail.com> 1783615558 +0800	checkout: moving from work/P0b_android_canonical_risk_ui_path to work/B1_fixup_release_blockers
+02abe705bca2bc0c1d4619a7125a38b5c1fcfd7c d251fabe3fc3f37ee522ab7921695a79575b2d30 csong8904 <csong8904@gmail.com> 1783616150 +0800	commit: fix(android): harden ring background collection release blockers
+d251fabe3fc3f37ee522ab7921695a79575b2d30 528b2db1b8431ca0178ce66bb5004b7756a0bb10 csong8904 <csong8904@gmail.com> 1783620947 +0800	commit: docs(android): cleanup legacy paths and restore D1 status (G2_doc_cleanup)
+528b2db1b8431ca0178ce66bb5004b7756a0bb10 12cefba3653d0d935c3364928abd153a5b34185a csong8904 <csong8904@gmail.com> 1783622642 +0800	commit: feat(android): add ModelTrace DTO passthrough in RiskResultDto (M1 model_trace_contract)
+12cefba3653d0d935c3364928abd153a5b34185a a5e03e72158d0146af191e5bfab90ed0ed7bb181 csong8904 <csong8904@gmail.com> 1783622971 +0800	commit: docs(android): add D2 telemetry sync plan (G2 followup, planning only)
+a5e03e72158d0146af191e5bfab90ed0ed7bb181 f8751800c310081026f34b99c998154a6108e7c5 csong8904 <csong8904@gmail.com> 1783666421 +0800	commit: feat(android): add durable telemetry sync queue
+f8751800c310081026f34b99c998154a6108e7c5 a4892e8f8b59e4aa366e6153f00656fa0f1c78fc csong8904 <csong8904@gmail.com> 1783921260 +0800	commit: docs(android): update algorithms repository identity
+a4892e8f8b59e4aa366e6153f00656fa0f1c78fc 9c325bdc5b76c347cc68032de4234d605f7cae38 csong8904 <csong8904@gmail.com> 1783929571 +0800	commit: docs(android): refresh backend persistence contract
+9c325bdc5b76c347cc68032de4234d605f7cae38 9c325bdc5b76c347cc68032de4234d605f7cae38 csong8904 <csong8904@gmail.com> 1783931544 +0800	checkout: moving from work/B1_fixup_release_blockers to work/E1.2_mobile_auth_contract_docs
+9c325bdc5b76c347cc68032de4234d605f7cae38 bd8939da1736c8404a445d86ddb4d14a99adcf80 csong8904 <csong8904@gmail.com> 1783932085 +0800	commit: docs(android): freeze backend mobile auth assumptions
+bd8939da1736c8404a445d86ddb4d14a99adcf80 52d7660d92bda2474e8c55c2cc68b5c599f08d4f csong8904 <csong8904@gmail.com> 1783953826 +0800	checkout: moving from work/E1.2_mobile_auth_contract_docs to work/auto-gatt-ring-connect
+52d7660d92bda2474e8c55c2cc68b5c599f08d4f accb971a895504e658288c68d79a91973b298673 csong8904 <csong8904@gmail.com> 1783955814 +0800	commit: feat: auto-connect bound MRD ring
+accb971a895504e658288c68d79a91973b298673 2719e9cb683a01e22ae3760de9d3413a95e8ffa8 csong8904 <csong8904@gmail.com> 1783956345 +0800	commit: fix: harden physical MRD ring collection
+2719e9cb683a01e22ae3760de9d3413a95e8ffa8 cbedb73353d3885f70eb96b20fe1d2a682983fbc csong8904 <csong8904@gmail.com> 1783958058 +0800	commit: feat: add PIAS report import and PDF export
+cbedb73353d3885f70eb96b20fe1d2a682983fbc cd4b5ad1b551030b8d1c6f7c6241d946cee608a0 csong8904 <csong8904@gmail.com> 1783962079 +0800	commit: wip: preserve local Android work before remote sync
+cd4b5ad1b551030b8d1c6f7c6241d946cee608a0 2c5111495f8f3ccaf7e10a20f20182db27568a5e csong8904 <csong8904@gmail.com> 1783962250 +0800	checkout: moving from work/auto-gatt-ring-connect to main
+2c5111495f8f3ccaf7e10a20f20182db27568a5e 2c5111495f8f3ccaf7e10a20f20182db27568a5e csong8904 <csong8904@gmail.com> 1783962274 +0800	checkout: moving from main to work/auto-gatt-ring-connect
+2c5111495f8f3ccaf7e10a20f20182db27568a5e 86640906ac91b556d9aed5cad5a14b924428e137 csong8904 <csong8904@gmail.com> 1783962284 +0800	commit (cherry-pick): feat: auto-connect bound MRD ring
+86640906ac91b556d9aed5cad5a14b924428e137 86640906ac91b556d9aed5cad5a14b924428e137 git stash <git@stash> 1784527604 +0800	reset: moving to HEAD
+86640906ac91b556d9aed5cad5a14b924428e137 02abe705bca2bc0c1d4619a7125a38b5c1fcfd7c wjmlong <wjmlong@DESKTOP-4OH6FIA.localdomain> 1784528396 +0800	checkout: moving from work/auto-gatt-ring-connect to work/P0b_android_canonical_risk_ui_path
+02abe705bca2bc0c1d4619a7125a38b5c1fcfd7c 02abe705bca2bc0c1d4619a7125a38b5c1fcfd7c wjmlong <wjmlong@DESKTOP-4OH6FIA.localdomain> 1784530012 +0800	checkout: moving from work/P0b_android_canonical_risk_ui_path to work/D3_android_auth_typed_feedback
+02abe705bca2bc0c1d4619a7125a38b5c1fcfd7c 02abe705bca2bc0c1d4619a7125a38b5c1fcfd7c Codex D3 Agent <codex@rehealth.ai> 1784530324 +0800	reset: moving to HEAD
+02abe705bca2bc0c1d4619a7125a38b5c1fcfd7c 67f77dfa6554e524022d0beb7f0f8f8454d2333c Codex D3 Agent <codex@rehealth.ai> 1784530391 +0800	commit: feat(android): D3 auth-aware upload queue and typed feedback
+67f77dfa6554e524022d0beb7f0f8f8454d2333c 1e8dbac3c3c12a89857900adc1c8d03ae19a2309 Codex D3 Agent <codex@rehealth.ai> 1784531426 +0800	commit: feat(android): D3 UI integration - dependencies and banner component
+1e8dbac3c3c12a89857900adc1c8d03ae19a2309 f40f6302a585e77493bdd3e3284f9be63ea4129c Codex D3 Agent <codex@rehealth.ai> 1784531490 +0800	commit: feat(android): D3 worker - periodic feedback sync
+f40f6302a585e77493bdd3e3284f9be63ea4129c ce4cde5740896b8316d934f838b86383dc977ffd Codex D3 Agent <codex@rehealth.ai> 1784531561 +0800	commit: docs(android): D3 final status and summary
+ce4cde5740896b8316d934f838b86383dc977ffd ec6837bd39a79b159dac970335cf1504982a6312 Codex D3 Agent <codex@rehealth.ai> 1784535446 +0800	commit: docs(android): D3 complete documentation package
+ec6837bd39a79b159dac970335cf1504982a6312 ec6837bd39a79b159dac970335cf1504982a6312 Codex D3 Agent <codex@rehealth.ai> 1784535780 +0800	checkout: moving from work/D3_android_auth_typed_feedback to work/D3_android_auth_typed_feedback
+ec6837bd39a79b159dac970335cf1504982a6312 5f628977e28f84b150cb38989e911fbc4f8759c9 Codex D3 Agent <codex@rehealth.ai> 1784542286 +0800	commit: chore(android): commit D3 infrastructure source left untracked
+5f628977e28f84b150cb38989e911fbc4f8759c9 73ef981c50275251fbcea3e1b28f238abde26916 Codex D3 Agent <codex@rehealth.ai> 1784542298 +0800	commit: feat(android): D3 login flow — wire real JeecgBoot login
+73ef981c50275251fbcea3e1b28f238abde26916 ee348756c3f7ff8a4682a252b7af5f81164d11ba Codex D3 Agent <codex@rehealth.ai> 1784542305 +0800	commit: feat(android): D3 typed feedback — replace submitCheckIn
+ee348756c3f7ff8a4682a252b7af5f81164d11ba dd7bd17f151436e951290e523fa88fdb71ba6de5 Codex D3 Agent <codex@rehealth.ai> 1784542312 +0800	commit: feat(android): D3 logout, QueueStatusBanner, worker init
+dd7bd17f151436e951290e523fa88fdb71ba6de5 ef2d9a4384a4c9e692a807d0b53bcc83bc09f922 Codex D3 Agent <codex@rehealth.ai> 1784542319 +0800	commit: docs(android): D3 integration test report
+ef2d9a4384a4c9e692a807d0b53bcc83bc09f922 c9324aa674523d6ce14ff62c5c2cdbba4c946749 Codex D3 Agent <codex@rehealth.ai> 1784542349 +0800	commit: chore(android): commit remaining D3 infrastructure modifications
+c9324aa674523d6ce14ff62c5c2cdbba4c946749 2439c77a8e63f5e2acedfcee7fbb8bb8f247f6e6 Codex D3 Agent <codex@rehealth.ai> 1784564702 +0800	commit: feat(android): real-device attribution/data UI with real data + simulated gap fallback

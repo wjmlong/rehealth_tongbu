@@ -1,0 +1,65 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "三墩镇", "center": [120.09, 30.31], "population": 8670 },
+      "geometry": { "type": "Polygon", "coordinates": [[[120.03, 30.34], [120.11, 30.34], [120.11, 30.28], [120.03, 30.28], [120.03, 30.34]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "蒋村街道", "center": [120.075, 30.295], "population": 1102 },
+      "geometry": { "type": "Polygon", "coordinates": [[[120.05, 30.31], [120.10, 30.31], [120.10, 30.28], [120.05, 30.28], [120.05, 30.31]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "文新街道", "center": [120.105, 30.26], "population": 987 },
+      "geometry": { "type": "Polygon", "coordinates": [[[120.08, 30.28], [120.13, 30.28], [120.13, 30.24], [120.08, 30.24], [120.08, 30.28]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "北山街道", "center": [120.145, 30.28], "population": 1276 },
+      "geometry": { "type": "Polygon", "coordinates": [[[120.12, 30.30], [120.17, 30.30], [120.17, 30.26], [120.12, 30.26], [120.12, 30.30]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "灵隐街道", "center": [120.13, 30.24], "population": 856 },
+      "geometry": { "type": "Polygon", "coordinates": [[[120.10, 30.26], [120.16, 30.26], [120.16, 30.22], [120.10, 30.22], [120.10, 30.26]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "西溪街道", "center": [120.135, 30.29], "population": 698 },
+      "geometry": { "type": "Polygon", "coordinates": [[[120.11, 30.31], [120.16, 30.31], [120.16, 30.27], [120.11, 30.27], [120.11, 30.31]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "翠苑街道", "center": [120.105, 30.305], "population": 654 },
+      "geometry": { "type": "Polygon", "coordinates": [[[120.08, 30.32], [120.13, 30.32], [120.13, 30.29], [120.08, 30.29], [120.08, 30.32]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "古荡街道", "center": [120.125, 30.27], "population": 612 },
+      "geometry": { "type": "Polygon", "coordinates": [[[120.10, 30.29], [120.15, 30.29], [120.15, 30.25], [120.10, 30.25], [120.10, 30.29]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "留下街道", "center": [120.055, 30.22], "population": 743 },
+      "geometry": { "type": "Polygon", "coordinates": [[[120.03, 30.24], [120.08, 30.24], [120.08, 30.20], [120.03, 30.20], [120.03, 30.24]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "转塘街道", "center": [120.045, 30.175], "population": 578 },
+      "geometry": { "type": "Polygon", "coordinates": [[[120.02, 30.20], [120.07, 30.20], [120.07, 30.15], [120.02, 30.15], [120.02, 30.20]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "双浦镇", "center": [120.025, 30.15], "population": 534 },
+      "geometry": { "type": "Polygon", "coordinates": [[[120.00, 30.18], [120.05, 30.18], [120.05, 30.12], [120.00, 30.12], [120.00, 30.18]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "袁浦镇", "center": [120.02, 30.125], "population": 489 },
+      "geometry": { "type": "Polygon", "coordinates": [[[120.00, 30.15], [120.04, 30.15], [120.04, 30.10], [120.00, 30.10], [120.00, 30.15]]] }
+    }
+  ]
+}

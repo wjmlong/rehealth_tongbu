@@ -1,0 +1,13 @@
+0000000000000000000000000000000000000000 02abe705bca2bc0c1d4619a7125a38b5c1fcfd7c wjmlong <wjmlong@DESKTOP-4OH6FIA.localdomain> 1784530012 +0800	branch: Created from HEAD
+02abe705bca2bc0c1d4619a7125a38b5c1fcfd7c 67f77dfa6554e524022d0beb7f0f8f8454d2333c Codex D3 Agent <codex@rehealth.ai> 1784530391 +0800	commit: feat(android): D3 auth-aware upload queue and typed feedback
+67f77dfa6554e524022d0beb7f0f8f8454d2333c 1e8dbac3c3c12a89857900adc1c8d03ae19a2309 Codex D3 Agent <codex@rehealth.ai> 1784531426 +0800	commit: feat(android): D3 UI integration - dependencies and banner component
+1e8dbac3c3c12a89857900adc1c8d03ae19a2309 f40f6302a585e77493bdd3e3284f9be63ea4129c Codex D3 Agent <codex@rehealth.ai> 1784531490 +0800	commit: feat(android): D3 worker - periodic feedback sync
+f40f6302a585e77493bdd3e3284f9be63ea4129c ce4cde5740896b8316d934f838b86383dc977ffd Codex D3 Agent <codex@rehealth.ai> 1784531561 +0800	commit: docs(android): D3 final status and summary
+ce4cde5740896b8316d934f838b86383dc977ffd ec6837bd39a79b159dac970335cf1504982a6312 Codex D3 Agent <codex@rehealth.ai> 1784535446 +0800	commit: docs(android): D3 complete documentation package
+ec6837bd39a79b159dac970335cf1504982a6312 5f628977e28f84b150cb38989e911fbc4f8759c9 Codex D3 Agent <codex@rehealth.ai> 1784542286 +0800	commit: chore(android): commit D3 infrastructure source left untracked
+5f628977e28f84b150cb38989e911fbc4f8759c9 73ef981c50275251fbcea3e1b28f238abde26916 Codex D3 Agent <codex@rehealth.ai> 1784542298 +0800	commit: feat(android): D3 login flow — wire real JeecgBoot login
+73ef981c50275251fbcea3e1b28f238abde26916 ee348756c3f7ff8a4682a252b7af5f81164d11ba Codex D3 Agent <codex@rehealth.ai> 1784542305 +0800	commit: feat(android): D3 typed feedback — replace submitCheckIn
+ee348756c3f7ff8a4682a252b7af5f81164d11ba dd7bd17f151436e951290e523fa88fdb71ba6de5 Codex D3 Agent <codex@rehealth.ai> 1784542312 +0800	commit: feat(android): D3 logout, QueueStatusBanner, worker init
+dd7bd17f151436e951290e523fa88fdb71ba6de5 ef2d9a4384a4c9e692a807d0b53bcc83bc09f922 Codex D3 Agent <codex@rehealth.ai> 1784542319 +0800	commit: docs(android): D3 integration test report
+ef2d9a4384a4c9e692a807d0b53bcc83bc09f922 c9324aa674523d6ce14ff62c5c2cdbba4c946749 Codex D3 Agent <codex@rehealth.ai> 1784542349 +0800	commit: chore(android): commit remaining D3 infrastructure modifications
+c9324aa674523d6ce14ff62c5c2cdbba4c946749 2439c77a8e63f5e2acedfcee7fbb8bb8f247f6e6 Codex D3 Agent <codex@rehealth.ai> 1784564702 +0800	commit: feat(android): real-device attribution/data UI with real data + simulated gap fallback

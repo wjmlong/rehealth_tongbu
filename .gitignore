@@ -1,6 +1,3 @@
-# Large tool archives (exceed GitHub 100MB limit)
-tools/*.zip
-
 # OS files
 *.DS_Store
 Thumbs.db

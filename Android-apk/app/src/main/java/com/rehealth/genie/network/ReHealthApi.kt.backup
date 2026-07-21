@@ -1,0 +1,70 @@
+package com.rehealth.genie.network
+
+import com.rehealth.genie.network.dto.AttributionEventsRequestDto
+import com.rehealth.genie.network.dto.CvdFeatureVectorDto
+import com.rehealth.genie.network.dto.DeviceBindRequestDto
+import com.rehealth.genie.network.dto.DeviceBindResponseDto
+import com.rehealth.genie.network.dto.FeedbackRequestDto
+import com.rehealth.genie.network.dto.InterventionGenerateRequestDto
+import com.rehealth.genie.network.dto.InterventionGenerateResponseDto
+import com.rehealth.genie.network.dto.LoginRequestDto
+import com.rehealth.genie.network.dto.LoginResultDataDto
+import com.rehealth.genie.network.dto.RiskEvaluateRequestDto
+import com.rehealth.genie.network.dto.RiskEvaluateResponseDto
+import com.rehealth.genie.network.dto.TelemetryBatchRequestDto
+import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
+import retrofit2.http.Body
+import retrofit2.http.GET
+import retrofit2.http.POST
+import retrofit2.http.Path
+
+/**
+ * Retrofit contract for the ReHealth mobile backend.
+ *
+ * Base URL is [com.rehealth.genie.BuildConfig.API_BASE_URL] which already ends
+ * with `/jeecg-boot`. Paths below are relative to that base, e.g.
+ * `POST /jeecg-boot/sys/mLogin`, `POST /jeecg-boot/rehealth/mobile/features/evaluate`.
+ */
+interface ReHealthApi {
+
+    // ---- Auth (Jeecg APP login, not PC login) ----
+    @POST("sys/mLogin")
+    suspend fun mLogin(@Body body: LoginRequestDto): ApiResult<LoginResultDataDto>
+
+    @POST("sys/logout")
+    suspend fun logout(): ApiResult<Any?>
+
+    // ---- Mobile API (base /rehealth/mobile) ----
+    @GET("rehealth/mobile/health")
+    suspend fun health(): ApiResult<Map<String, Any?>?>
+
+    @GET("rehealth/mobile/config")
+    suspend fun config(): ApiResult<Map<String, Any?>?>
+
+    @POST("rehealth/mobile/devices/bind")
+    suspend fun bindDevice(@Body body: DeviceBindRequestDto): ApiResult<DeviceBindResponseDto>
+
+    @POST("rehealth/mobile/measurements/batch")
+    suspend fun uploadMeasurements(@Body body: TelemetryBatchRequestDto): ApiResult<TelemetryBatchResponseDto>
+
+    @POST("rehealth/mobile/features/evaluate")
+    suspend fun evaluateFeatures(@Body body: RiskEvaluateRequestDto): ApiResult<RiskEvaluateResponseDto>
+
+    @GET("rehealth/mobile/risk/latest")
+    suspend fun latestRisk(): ApiResult<RiskEvaluateResponseDto>
+
+    @POST("rehealth/mobile/interventions/generate")
+    suspend fun generateIntervention(@Body body: InterventionGenerateRequestDto): ApiResult<InterventionGenerateResponseDto>
+
+    @GET("rehealth/mobile/interventions/today")
+    suspend fun todayIntervention(): ApiResult<InterventionGenerateResponseDto>
+
+    @POST("rehealth/mobile/interventions/{id}/feedback")
+    suspend fun submitFeedback(
+        @Path("id") planId: String,
+        @Body body: FeedbackRequestDto,
+    ): ApiResult<Map<String, Any?>?>
+
+    @POST("rehealth/mobile/attribution/events")
+    suspend fun recordAttributionEvents(@Body body: AttributionEventsRequestDto): ApiResult<Map<String, Any?>?>
+}

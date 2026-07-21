@@ -1,0 +1,13 @@
+# Full runtime deps for the PIAS model-service (rehealth-algorithms/api).
+# NOTE: the dev api/requirements.txt only lists the web layer; PIAS needs the
+# scientific stack below, so this file is the source of truth for the image.
+fastapi==0.115.0
+uvicorn==0.30.0
+python-dotenv==1.0.0
+openai==1.51.0
+pydantic==2.9.0
+numpy==1.26.4
+scipy==1.13.1
+scikit-learn==1.5.1
+pandas==2.2.2
+joblib==1.4.2

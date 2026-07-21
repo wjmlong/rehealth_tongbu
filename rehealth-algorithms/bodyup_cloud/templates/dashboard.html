@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - BodyUP Admin{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">System Dashboard</h1>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="text-sm text-gray-500">Patients</div>
+        <div class="text-3xl font-bold text-indigo-600">{{ stats.patients }}</div>
+    </div>
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="text-sm text-gray-500">Doctors</div>
+        <div class="text-3xl font-bold text-green-600">{{ stats.doctors }}</div>
+    </div>
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="text-sm text-gray-500">Scores Today</div>
+        <div class="text-3xl font-bold text-orange-600">{{ stats.scores_today }}</div>
+    </div>
+</div>
+{% endblock %}

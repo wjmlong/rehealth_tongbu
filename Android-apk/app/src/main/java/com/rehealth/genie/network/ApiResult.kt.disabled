@@ -1,0 +1,19 @@
+package com.rehealth.genie.network
+
+import com.google.gson.annotations.SerializedName
+
+/**
+ * JeecgBoot unified response envelope: { success, code, message, result, timestamp }.
+ * Every backend mobile endpoint returns this wrapper; `result` holds the payload.
+ */
+data class ApiResult<T>(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("code") val code: Int? = null,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("result") val result: T? = null,
+    @SerializedName("timestamp") val timestamp: Long? = null,
+)
+
+/** True when the envelope carries a usable payload. */
+val <T> ApiResult<T>.isOk: Boolean
+    get() = success && result != null

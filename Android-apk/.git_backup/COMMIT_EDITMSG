@@ -1,0 +1,3 @@
+feat(android): real-device attribution/data UI with real data + simulated gap fallback
+
+AttributionScreen groups featureContributions into 4 real-device category cards (基础体征/血压与代谢/生活方式/病史与家族史) with animateFloatAsState animated weight bars and a risk/protective trend chip. factorLiveValue returns real profile/ring values first and fills gaps with clearly-labeled 模拟 values computed from profile + model weight, routed through the same API interface. DataScreen period selector now aggregates real Room history via RingViewModel.loadPeriodAggregate + PeriodAggregate + DAO.getSleepSessionsSince.

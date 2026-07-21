@@ -1,0 +1,167 @@
+xargs: environment is too large for exec
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.9/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+> Configure project :app
+WARNING: The option setting 'android.overridePathCheck=true' is experimental.
+The current default is 'false'.
+
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:generateDebugBuildConfig UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :app:mergeDebugShaders UP-TO-DATE
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:mergeDebugAssets UP-TO-DATE
+> Task :app:compressDebugAssets UP-TO-DATE
+> Task :app:desugarDebugFileDependencies UP-TO-DATE
+> Task :app:checkDebugDuplicateClasses UP-TO-DATE
+> Task :app:mergeExtDexDebug UP-TO-DATE
+> Task :app:mergeLibDexDebug UP-TO-DATE
+> Task :app:mergeDebugJniLibFolders UP-TO-DATE
+> Task :app:mergeDebugNativeLibs UP-TO-DATE
+> Task :app:stripDebugDebugSymbols UP-TO-DATE
+> Task :app:validateSigningDebug UP-TO-DATE
+> Task :app:writeDebugAppMetadata UP-TO-DATE
+> Task :app:writeDebugSigningConfigVersions UP-TO-DATE
+> Task :app:kspDebugKotlin
+
+> Task :app:compileDebugKotlin FAILED
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/network/ApiClient.kt:5:16 Unresolved reference 'HttpLoggingInterceptor'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/network/ApiClient.kt:18:23 Unresolved reference 'HttpLoggingInterceptor'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/network/ApiClient.kt:18:48 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/network/ApiClient.kt:18:54 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/network/ApiClient.kt:19:13 Unresolved reference 'level'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/network/ApiClient.kt:20:17 Unresolved reference 'HttpLoggingInterceptor'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/network/ApiClient.kt:22:17 Unresolved reference 'HttpLoggingInterceptor'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/network/ApiClient.kt:29:14 Unresolved reference 'connectTimeout'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/network/ApiClient.kt:44:23 Unresolved reference 'HttpLoggingInterceptor'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/network/ApiClient.kt:44:48 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/network/ApiClient.kt:44:54 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/network/ApiClient.kt:45:13 Unresolved reference 'level'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/network/ApiClient.kt:46:17 Unresolved reference 'HttpLoggingInterceptor'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/network/ApiClient.kt:48:17 Unresolved reference 'HttpLoggingInterceptor'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/network/ApiClient.kt:53:14 Unresolved reference 'connectTimeout'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/network/DeepSeekApiClient.kt:59:7 Redeclaration:
+class HealthChatService : Any
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/network/LunaApiClient.kt:95:7 Redeclaration:
+class HealthChatService : Any
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/network/LunaApiClient.kt:105:19 Unresolved reference 'currentModel'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/network/LunaApiClient.kt:112:17 Unresolved reference 'currentModel'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/network/LunaApiClient.kt:113:17 Unresolved reference 'currentModel'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/network/LunaApiClient.kt:219:22 Unresolved reference 'currentModel'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/network/LunaApiClient.kt:230:9 Unresolved reference 'currentModel'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/network/LunaApiClient.kt:234:9 Unresolved reference 'currentModel'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ring/mrd/MrdProtocolAdapter.kt:366:61 Argument type mismatch: actual type is 'kotlin.collections.List<com.manridy.sdk_mrd2019.bean.send.MrdEventClock>', but 'java.util.ArrayList<com.manridy.sdk_mrd2019.bean.send.MrdEventClock!>!' was expected.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ring/mrd/MrdProtocolAdapter.kt:400:54 No value passed for parameter 'p2'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ring/mrd/MrdProtocolAdapter.kt:519:40 Argument type mismatch: actual type is 'kotlin.collections.List<com.manridy.sdk_mrd2019.bean.send.MrdWeather>', but 'java.util.ArrayList<com.manridy.sdk_mrd2019.bean.send.MrdWeather!>!' was expected.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:70:5 None of the following candidates is applicable:
+fun CardBlock(content: @Composable() ComposableFunction1<ColumnScope, Unit>): Unit
+fun CardBlock(content: @Composable() ComposableFunction1<ColumnScope, Unit>): Unit
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:71:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:72:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:74:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:75:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:76:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:77:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:79:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:80:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:81:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:83:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:84:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:86:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:87:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:88:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:89:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:92:5 None of the following candidates is applicable:
+fun CardBlock(content: @Composable() ComposableFunction1<ColumnScope, Unit>): Unit
+fun CardBlock(content: @Composable() ComposableFunction1<ColumnScope, Unit>): Unit
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:93:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:94:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:95:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:95:9 Cannot access 'fun MiniChart(points: List<Float>, color: Color, modifier: Modifier): Unit': it is private in file.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:100:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:106:5 None of the following candidates is applicable:
+fun CardBlock(content: @Composable() ComposableFunction1<ColumnScope, Unit>): Unit
+fun CardBlock(content: @Composable() ComposableFunction1<ColumnScope, Unit>): Unit
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:107:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:108:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:110:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:111:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:112:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:113:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:115:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:116:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:117:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:119:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:120:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:122:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:123:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:124:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:125:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:131:5 None of the following candidates is applicable:
+fun CardBlock(content: @Composable() ComposableFunction1<ColumnScope, Unit>): Unit
+fun CardBlock(content: @Composable() ComposableFunction1<ColumnScope, Unit>): Unit
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:132:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:133:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:135:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:136:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:137:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:138:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:140:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:141:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:142:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:144:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:145:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:147:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:148:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:149:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:150:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:156:5 None of the following candidates is applicable:
+fun CardBlock(content: @Composable() ComposableFunction1<ColumnScope, Unit>): Unit
+fun CardBlock(content: @Composable() ComposableFunction1<ColumnScope, Unit>): Unit
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:157:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:158:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionDetailScreen.kt:159:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/AttributionReportScreen.kt:26:20 Unresolved reference 'maxOf'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/ReHealthApp.kt:106:26 Conflicting import: imported name 'ReHealthApplication' is ambiguous.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/ReHealthApp.kt:113:26 Conflicting import: imported name 'ReHealthApplication' is ambiguous.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/ReHealthApp.kt:292:79 Too many arguments for 'fun FeatureCard(icon: ImageVector, title: String, subtitle: String): Unit'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/ReHealthApp.kt:292:79 Unresolved reference 'onInterview'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/ReHealthApp.kt:293:12 Unresolved reference 'onInterview'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/ReHealthApp.kt:295:35 Unresolved reference 'Chat'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/ReHealthApp.kt:295:75 Too many arguments for 'fun FeatureCard(icon: ImageVector, title: String, subtitle: String): Unit'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/ReHealthApp.kt:295:75 Unresolved reference 'onHealthChat'.
+e: file:///D:/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/ReHealthApp.kt:296:12 Unresolved reference 'onHealthChat'.
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 27s
+30 actionable tasks: 2 executed, 28 up-to-date

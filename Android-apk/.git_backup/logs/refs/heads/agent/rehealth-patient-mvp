@@ -1,0 +1,4 @@
+0000000000000000000000000000000000000000 52d7660d92bda2474e8c55c2cc68b5c599f08d4f csong8904 <csong8904@gmail.com> 1783559717 +0800	branch: Created from HEAD
+52d7660d92bda2474e8c55c2cc68b5c599f08d4f 55b82342ef7f434ce13b4480b341bcb9b3ebfd08 csong8904 <csong8904@gmail.com> 1783559846 +0800	commit: Add ReHealth patient MVP integration
+55b82342ef7f434ce13b4480b341bcb9b3ebfd08 fb437a314fb9478b0b3debcaca3caeaa45ed51b1 csong8904 <csong8904@gmail.com> 1783563554 +0800	commit: chore(android): stabilize debug build and document setup
+fb437a314fb9478b0b3debcaca3caeaa45ed51b1 2227ccf32709df38631f73cc8fa97da20209a56d csong8904 <csong8904@gmail.com> 1783564105 +0800	commit: chore(android): stabilize debug build and document setup

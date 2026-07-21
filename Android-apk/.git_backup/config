@@ -1,0 +1,34 @@
+[core]
+	repositoryformatversion = 0
+	filemode = false
+	bare = false
+	logallrefupdates = true
+	symlinks = false
+	ignorecase = true
+[remote "origin"]
+	url = https://github.com/RehealthAI/Android-apk.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
+[branch "main"]
+	remote = origin
+	merge = refs/heads/main
+[branch "work/C_android_feature_extractor"]
+	remote = origin
+	merge = refs/heads/work/C_android_feature_extractor
+[branch "work/D_android_network_feature_evaluate"]
+	remote = origin
+	merge = refs/heads/work/D_android_network_feature_evaluate
+[branch "work/B1_fixup_release_blockers"]
+	remote = origin
+	merge = refs/heads/work/B1_fixup_release_blockers
+[branch "work/auto-gatt-ring-connect"]
+	remote = origin
+	merge = refs/heads/work/auto-gatt-ring-connect
+[credential]
+	helper = 
+	helper = !gh auth git-credential
+[branch "work/P0b_android_canonical_risk_ui_path"]
+	remote = origin
+	merge = refs/heads/work/P0b_android_canonical_risk_ui_path
+[user]
+	email = codex@rehealth.ai
+	name = Codex D3 Agent

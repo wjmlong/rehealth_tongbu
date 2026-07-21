@@ -1,0 +1,31 @@
+[core]
+	repositoryformatversion = 0
+	filemode = false
+	bare = false
+	logallrefupdates = true
+	symlinks = false
+	ignorecase = true
+[remote "origin"]
+	url = https://github.com/RehealthAI/backend.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
+[branch "master"]
+	remote = origin
+	merge = refs/heads/master
+[branch "work/E_backend_mobile_api"]
+	remote = origin
+	merge = refs/heads/work/E_backend_mobile_api
+[branch "work/P0c_backend_legacy_path_retirement"]
+	remote = origin
+	merge = refs/heads/work/P0c_backend_legacy_path_retirement
+[branch "work/E2_backend_hardware_ingest"]
+	remote = origin
+	merge = refs/heads/work/E2_backend_hardware_ingest
+[branch "work/E2.1_backend_durable_telemetry_ingestion"]
+	remote = origin
+	merge = refs/heads/work/E2.1_backend_durable_telemetry_ingestion
+[branch "work/staging_backend_deployment"]
+	remote = origin
+	merge = refs/heads/work/staging_backend_deployment
+[credential]
+	helper = 
+	helper = !gh auth git-credential

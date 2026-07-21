@@ -1,0 +1,38 @@
+{
+  "featureVector": {
+    "age": 52,
+    "gender": 1,
+    "bmi": 27.5,
+    "sbp": 145,
+    "dbp": 90,
+    "fasting_glucose": 6.2,
+    "total_cholesterol": 5.8,
+    "ldl": 3.9,
+    "hdl": 1.1,
+    "triglycerides": 2.1,
+    "exercise_days": 2,
+    "smoking": 1,
+    "drinking": 0,
+    "diabetes_history": 0,
+    "hypertension_history": 1,
+    "family_history": 1,
+    "featureQuality": {
+      "age": {"status": "VALID", "source": "REAL_DEVICE", "reason": "ring device"},
+      "gender": {"status": "VALID", "source": "REAL_DEVICE", "reason": "ring device"},
+      "bmi": {"status": "VALID", "source": "REAL_DEVICE", "reason": "ring device"},
+      "sbp": {"status": "VALID", "source": "REAL_DEVICE", "reason": "ring device"},
+      "dbp": {"status": "VALID", "source": "REAL_DEVICE", "reason": "ring device"},
+      "fasting_glucose": {"status": "VALID", "source": "REAL_DEVICE", "reason": "ring device"},
+      "total_cholesterol": {"status": "VALID", "source": "REAL_DEVICE", "reason": "ring device"},
+      "ldl": {"status": "VALID", "source": "REAL_DEVICE", "reason": "ring device"},
+      "hdl": {"status": "VALID", "source": "REAL_DEVICE", "reason": "ring device"},
+      "triglycerides": {"status": "VALID", "source": "REAL_DEVICE", "reason": "ring device"},
+      "exercise_days": {"status": "VALID", "source": "REAL_DEVICE", "reason": "ring device"},
+      "smoking": {"status": "VALID", "source": "USER_REPORTED", "reason": "user self-report"},
+      "drinking": {"status": "VALID", "source": "USER_REPORTED", "reason": "user self-report"},
+      "diabetes_history": {"status": "VALID", "source": "USER_REPORTED", "reason": "user self-report"},
+      "hypertension_history": {"status": "VALID", "source": "USER_REPORTED", "reason": "user self-report"},
+      "family_history": {"status": "VALID", "source": "USER_REPORTED", "reason": "user self-report"}
+    }
+  }
+}

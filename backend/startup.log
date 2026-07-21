@@ -1,0 +1,15 @@
+[Mon Jul 20 18:38:30 CST 2026] starting docker compose up -d
+time="2026-07-20T18:38:30+08:00" level=warning msg="D:\\rehealthai\\backend\\jeecg-boot\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Image jeecg-boot-mysql Pulling 
+ Image registry.cn-hangzhou.aliyuncs.com/jeecgdocker/pgvector Pulling 
+ Image jeecg-boot-system Pulling 
+ Image registry.cn-hangzhou.aliyuncs.com/jeecgdocker/redis:5.0 Pulling 
+ Image jeecg-boot-system pull access denied for jeecg-boot-system, repository does not exist or may require 'docker login' 
+ Image jeecg-boot-mysql pull access denied for jeecg-boot-mysql, repository does not exist or may require 'docker login' 
+ Image registry.cn-hangzhou.aliyuncs.com/jeecgdocker/pgvector Interrupted 
+failed to copy: httpReadSeeker: failed open: failed to authorize: failed to fetch anonymous token: Get "https://dockerauth.cn-hangzhou.aliyuncs.com/auth?scope=repository%3Ajeecgdocker%2Fredis%3Apull&service=registry.aliyuncs.com%3Acn-hangzhou%3A26842": EOF
+[Mon Jul 20 18:38:43 CST 2026] compose up returned 0
+[Mon Jul 20 18:38:43 CST 2026] probe 1 -> 302
+[Mon Jul 20 18:38:43 CST 2026] BACKEND_UP http=302
+[Mon Jul 20 18:38:43 CST 2026] final docker compose ps:
+NAME      IMAGE     COMMAND   SERVICE   CREATED   STATUS    PORTS

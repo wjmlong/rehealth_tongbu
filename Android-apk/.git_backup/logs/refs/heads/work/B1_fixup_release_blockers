@@ -1,0 +1,8 @@
+0000000000000000000000000000000000000000 02abe705bca2bc0c1d4619a7125a38b5c1fcfd7c csong8904 <csong8904@gmail.com> 1783615558 +0800	branch: Created from HEAD
+02abe705bca2bc0c1d4619a7125a38b5c1fcfd7c d251fabe3fc3f37ee522ab7921695a79575b2d30 csong8904 <csong8904@gmail.com> 1783616150 +0800	commit: fix(android): harden ring background collection release blockers
+d251fabe3fc3f37ee522ab7921695a79575b2d30 528b2db1b8431ca0178ce66bb5004b7756a0bb10 csong8904 <csong8904@gmail.com> 1783620947 +0800	commit: docs(android): cleanup legacy paths and restore D1 status (G2_doc_cleanup)
+528b2db1b8431ca0178ce66bb5004b7756a0bb10 12cefba3653d0d935c3364928abd153a5b34185a csong8904 <csong8904@gmail.com> 1783622642 +0800	commit: feat(android): add ModelTrace DTO passthrough in RiskResultDto (M1 model_trace_contract)
+12cefba3653d0d935c3364928abd153a5b34185a a5e03e72158d0146af191e5bfab90ed0ed7bb181 csong8904 <csong8904@gmail.com> 1783622971 +0800	commit: docs(android): add D2 telemetry sync plan (G2 followup, planning only)
+a5e03e72158d0146af191e5bfab90ed0ed7bb181 f8751800c310081026f34b99c998154a6108e7c5 csong8904 <csong8904@gmail.com> 1783666421 +0800	commit: feat(android): add durable telemetry sync queue
+f8751800c310081026f34b99c998154a6108e7c5 a4892e8f8b59e4aa366e6153f00656fa0f1c78fc csong8904 <csong8904@gmail.com> 1783921260 +0800	commit: docs(android): update algorithms repository identity
+a4892e8f8b59e4aa366e6153f00656fa0f1c78fc 9c325bdc5b76c347cc68032de4234d605f7cae38 csong8904 <csong8904@gmail.com> 1783929571 +0800	commit: docs(android): refresh backend persistence contract

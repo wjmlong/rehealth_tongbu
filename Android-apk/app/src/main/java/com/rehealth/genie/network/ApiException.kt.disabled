@@ -1,0 +1,11 @@
+package com.rehealth.genie.network
+
+/**
+ * Domain-level API error.
+ * [isAuth] marks 401/unauthenticated so callers can pause queues and re-login.
+ */
+class ApiException(
+    val code: Int?,
+    message: String?,
+    val isAuth: Boolean = false,
+) : Exception(message ?: "请求失败")

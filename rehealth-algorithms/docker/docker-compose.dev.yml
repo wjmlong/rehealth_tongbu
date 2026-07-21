@@ -1,0 +1,19 @@
+# DEV override: live source mount + auto-reload, no restart policy.
+# Keeps your WSL2 host dev tree isolated from the prod image.
+services:
+  pias:
+    image: rehealth-pias:dev
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=debug
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ../api:/app/api
+      - ../healthagent:/app/healthagent
+    ports:
+      - "8000:8000"
+    restart: "no"

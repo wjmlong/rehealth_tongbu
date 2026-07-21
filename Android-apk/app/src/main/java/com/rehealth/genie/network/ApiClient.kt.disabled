@@ -1,0 +1,64 @@
+package com.rehealth.genie.network
+
+import com.rehealth.genie.BuildConfig
+import com.rehealth.genie.network.PiasApi
+import okhttp3.logging.HttpLoggingInterceptor
+import okhttp3.OkHttpClient
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
+
+/**
+ * Builds the singleton [ReHealthApi]. Base URL comes from BuildConfig
+ * (sourced from local.properties `rehealth.api.base.url`, defaulting to the
+ * Android emulator loopback that reaches WSL2 on the Windows host).
+ */
+object ApiClient {
+    fun create(baseUrl: String, sessionStore: SessionStore): ReHealthApi {
+        val logging = HttpLoggingInterceptor().apply {
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BASIC
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
+        }
+
+        val okHttp = OkHttpClient.Builder()
+            .addInterceptor(AuthInterceptor(sessionStore))
+            .addInterceptor(logging)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
+
+        return Retrofit.Builder()
+            .baseUrl(baseUrl)
+            .client(okHttp)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(ReHealthApi::class.java)
+    }
+
+    /** PIAS model-service client (stateless, no auth interceptor). */
+    fun createPias(baseUrl: String): PiasApi {
+        val logging = HttpLoggingInterceptor().apply {
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BASIC
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
+        }
+        val okHttp = OkHttpClient.Builder()
+            .addInterceptor(logging)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
+        return Retrofit.Builder()
+            .baseUrl(baseUrl)
+            .client(okHttp)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(PiasApi::class.java)
+    }
+}

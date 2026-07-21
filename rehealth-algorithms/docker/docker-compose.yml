@@ -1,0 +1,16 @@
+# Base compose for the PIAS model-service.
+# Use with an override:
+#   dev : docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#   prod: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+services:
+  pias:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: rehealth-pias:latest
+    environment:
+      - PYTHONPATH=/app
+      - TZ=Asia/Shanghai
+    ports:
+      - "8000:8000"
+    restart: unless-stopped

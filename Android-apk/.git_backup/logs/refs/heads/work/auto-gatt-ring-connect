@@ -1,0 +1,7 @@
+0000000000000000000000000000000000000000 52d7660d92bda2474e8c55c2cc68b5c599f08d4f csong8904 <csong8904@gmail.com> 1783953826 +0800	branch: Created from origin/main
+52d7660d92bda2474e8c55c2cc68b5c599f08d4f accb971a895504e658288c68d79a91973b298673 csong8904 <csong8904@gmail.com> 1783955814 +0800	commit: feat: auto-connect bound MRD ring
+accb971a895504e658288c68d79a91973b298673 2719e9cb683a01e22ae3760de9d3413a95e8ffa8 csong8904 <csong8904@gmail.com> 1783956345 +0800	commit: fix: harden physical MRD ring collection
+2719e9cb683a01e22ae3760de9d3413a95e8ffa8 cbedb73353d3885f70eb96b20fe1d2a682983fbc csong8904 <csong8904@gmail.com> 1783958058 +0800	commit: feat: add PIAS report import and PDF export
+cbedb73353d3885f70eb96b20fe1d2a682983fbc cd4b5ad1b551030b8d1c6f7c6241d946cee608a0 csong8904 <csong8904@gmail.com> 1783962079 +0800	commit: wip: preserve local Android work before remote sync
+cd4b5ad1b551030b8d1c6f7c6241d946cee608a0 2c5111495f8f3ccaf7e10a20f20182db27568a5e csong8904 <csong8904@gmail.com> 1783962274 +0800	branch: Reset to main
+2c5111495f8f3ccaf7e10a20f20182db27568a5e 86640906ac91b556d9aed5cad5a14b924428e137 csong8904 <csong8904@gmail.com> 1783962284 +0800	commit (cherry-pick): feat: auto-connect bound MRD ring
