@@ -1,0 +1,31 @@
+ReHealth 模拟器 ↔ 本地后端 联调连通性证明
+=====================================================
+日期: 2026-07-21
+设备: emulator-5554 (Android Studio 模拟器)
+App 基础地址: http://10.0.2.2:8080/jeecg-boot/  (默认; 无需改成 WSL IP)
+网络路径: 模拟器 -> 10.0.2.2(宿主机) -> 宿主机 0.0.0.0:8080 -> WSL2 Docker 后端容器 rehealth-staging-backend-1
+
+【铁证】后端容器日志 (docker logs rehealth-staging-backend-1)
+下列日志由模拟器 App 在注册页点击"获取验证码"触发, 手机号 13507007988 是后端
+注册脚本从未用过的号码, 因此一旦出现即可证明请求来自 App:
+----------------------------------------------------------------------
+2026-07-21 00:47:29.173 [http-nio-8080-exec-10] INFO  o.j.config.sign.interceptor.SignAuthInterceptor:36 - 签名拦截器 Interceptor request URI = /jeecg-boot/sys/sms
+2026-07-21 00:47:29.175 [http-nio-8080-exec-10] INFO  o.jeecg.modules.system.controller.LoginController:325 - -------- IP:172.19.0.1, 手机号：13507007988，获取绑定验证码
+2026-07-21 00:47:29.176 [http-nio-8080-exec-10] WARN  o.jeecg.modules.system.controller.LoginController:363 - 【DEV短信验证码】手机号 13507007988 的注册验证码 = 458978（开发模式，未真实下发短信）
+----------------------------------------------------------------------
+说明: SignAuthInterceptor 为 /jeecg-boot/sys/sms 触发, 证明 App 的 SignInterceptor
+正确附加了 X-Sign 头, 且请求完整穿越 模拟器 -> 10.0.2.2 -> 0.0.0.0:8080 -> Docker 后端。
+连通性已证实。
+
+【补充已验证项】
+- App 使用 13507007999 / Test@123456 登录后, 实时跳转至 onboarding 页 "健康初识 1/8"
+  (登录后页面), 证明 /sys/mLogin 也成功抵达后端。
+- 戒指配对跳过按钮 "暂时没有戒指，先跳过" 已确认存在于已安装 APK 中
+  (在 classes12.dex 检索到该字符串), 位于 onboarding 流程的戒指配对页。
+
+【关于 WSL IP 方案的结论】
+用户提议把 App base url 指向 WSL IP (172.17.6.199)。经验证该方案不可行:
+  - 模拟器无法路由到 WSL 子网 (ping WSL IP 100% 丢包);
+  - 宿主机访问 WSL IP:8080 返回 502 (WSL IP 不通向后端容器)。
+而宿主机已通过 Docker 暴露 0.0.0.0:8080, 模拟器默认的 10.0.2.2:8080 即可到达后端,
+因此无需修改 App 的 base url, 也无需重建 APK。

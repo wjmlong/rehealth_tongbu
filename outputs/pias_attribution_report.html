@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>PIAS 个人归因报告 (WSL2 实时)</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<style>
+  :root{--bg:#0f1420;--card:#1a2233;--accent:#4f8cff;--good:#37d39b;--warn:#ffb454;--txt:#e8edf5;--muted:#9fb0c8}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,'Segoe UI',Roboto,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.6}
+  .wrap{max-width:920px;margin:0 auto;padding:20px}
+  header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+  h1{font-size:22px;margin:0}
+  .meta{color:var(--muted);font-size:13px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:18px 0}
+  .card{background:var(--card);border-radius:12px;padding:14px}
+  .card .k{color:var(--muted);font-size:12px}
+  .card .v{font-size:22px;font-weight:700;margin-top:4px}
+  .card .v.good{color:var(--good)} .card .v.warn{color:var(--warn)}
+  .panel{background:var(--card);border-radius:12px;padding:16px;margin:14px 0}
+  .panel h2{font-size:16px;margin:0 0 10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+  #chart{width:100%;height:340px}
+  .drill{background:var(--accent);color:#fff;border:none;border-radius:20px;padding:6px 14px;font-size:13px;cursor:pointer}
+  .att-link{color:var(--accent);font-size:13px;cursor:pointer;text-decoration:underline}
+  .tabs{display:flex;gap:8px;margin:6px 0 12px;flex-wrap:wrap}
+  .tab-btn{background:#26304a;color:var(--txt);border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:14px}
+  .tab-btn.active{background:var(--accent);color:#fff}
+  .report-tab{display:none} .report-tab.active{display:block}
+  .report-tab h3{margin:0 0 8px;color:var(--accent)}
+  .advice{margin-top:10px;padding:10px 12px;background:#13351f;color:var(--good);border-radius:8px}
+  .btn{position:fixed;right:18px;bottom:18px;background:var(--accent);color:#fff;border:none;border-radius:24px;padding:12px 20px;font-size:15px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+  .badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;background:#26304a}
+  .sig{color:var(--good)} .nsig{color:var(--warn)}
+  /* ---- second-level overlay ---- */
+  .overlay{position:fixed;inset:0;background:rgba(10,14,22,.97);z-index:50;display:flex;flex-direction:column;padding:0}
+  .overlay.hidden{display:none}
+  .ov-head{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #26304a}
+  .ov-head h2{margin:0;font-size:18px}
+  .ov-close{background:#26304a;color:var(--txt);border:none;border-radius:8px;padding:8px 14px;font-size:14px;cursor:pointer}
+  .ov-body{padding:16px 20px;overflow:auto;flex:1}
+  .ov-tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .ov-tab{background:#26304a;color:var(--txt);border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:14px}
+  .ov-tab.active{background:var(--accent);color:#fff}
+  .ov-pane{display:none} .ov-pane.active{display:block}
+  table.dt{width:100%;border-collapse:collapse;font-size:13px}
+  table.dt th,table.dt td{border-bottom:1px solid #26304a;padding:7px 8px;text-align:center}
+  table.dt th{color:var(--muted);position:sticky;top:0;background:var(--bg)}
+  .t-hist{color:var(--warn)} .t-fc{color:var(--good)}
+  pre.raw{background:#11161f;border:1px solid #26304a;border-radius:10px;padding:14px;overflow:auto;font-size:12px;color:#bfe9d2}
+  .method{font-size:14px;color:var(--txt)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div><h1>PIAS 个人归因报告</h1><div class="meta">report_id: IND-20260715-5920 · status: <span class="badge">ready</span> · 数据源: WSL2 model-service :8000 (实时)</div></div>
+  </header>
+
+  <div class="cards">
+    <div class="card"><div class="k">当前风险</div><div class="v warn">0.413</div></div>
+    <div class="card"><div class="k">风险等级</div><div class="v">moderate</div></div>
+    <div class="card"><div class="k">趋势</div><div class="v good">improving</div></div>
+    <div class="card"><div class="k">30天(不干预)</div><div class="v warn">0.3409231780717931</div></div>
+    <div class="card"><div class="k">30天(干预)</div><div class="v good">0.332326905763633</div></div>
+    <div class="card"><div class="k">风险下降</div><div class="v good">0.008596272308160124</div></div>
+  </div>
+
+  <div class="panel">
+    <h2>风险轨迹预测：不干预 vs 干预计划 <button class="drill" onclick="openDetail()">查看归因逐日明细 →</button></h2>
+    <div id="chart"></div>
+  </div>
+
+  <div class="panel">
+    <h2>干预因果效应 (配对 ATT) <span class="att-link" onclick="openDetail()">逐日明细 →</span></h2>
+    <div class="cards">
+      <div class="card"><div class="k">个体 ATT</div><div class="v good">-0.03999999999999998</div></div>
+      <div class="card"><div class="k">ATT 95% CI</div><div class="v">[-0.041063124999999985, -0.03893687499999998]</div></div>
+      <div class="card"><div class="k">p 值</div><div class="v">0.125</div></div>
+      <div class="card"><div class="k">是否显著</div><div class="v nsig">不显著</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>分层报告</h2>
+    <div class="tabs"><button class="tab-btn active" onclick="showRep('user')">用户</button><button class="tab-btn " onclick="showRep('manager')">运营</button><button class="tab-btn " onclick="showRep('actuary')">精算</button><button class="tab-btn " onclick="showRep('regulator')">监管</button></div>
+    
+      <div class="report-tab" id="rep-user">
+        <h3>➡️ 风险趋势平稳</h3>
+        <p>过去 30 天您的风险整体下降，当前为 41.3%。
+计划执行与否的 30 天差异较小（0.9%），建议与医生沟通调整方案。</p>
+        <div class="advice">当前方案效果不明显，可考虑加强运动强度或调整饮食。</div>
+      </div>
+      <div class="report-tab" id="rep-manager">
+        <h3></h3>
+        <p></p>
+        <div class="advice"></div>
+      </div>
+      <div class="report-tab" id="rep-actuary">
+        <h3></h3>
+        <p></p>
+        <div class="advice"></div>
+      </div>
+      <div class="report-tab" id="rep-regulator">
+        <h3></h3>
+        <p></p>
+        <div class="advice"></div>
+      </div>
+  </div>
+</div>
+<button class="btn" onclick="window.print()">导出 / 打印 PDF</button>
+
+<!-- ============ SECOND-LEVEL DRILL-DOWN OVERLAY ============ -->
+<div id="detail" class="overlay hidden">
+  <div class="ov-head">
+    <h2>归因逐日明细</h2>
+    <button class="ov-close" onclick="closeDetail()">← 返回报告</button>
+  </div>
+  <div class="ov-body">
+    <div class="ov-tabs">
+      <button class="ov-tab active" onclick="showOv('data')">逐日数据</button>
+      <button class="ov-tab" onclick="showOv('method')">方法说明</button>
+      <button class="ov-tab" onclick="showOv('raw')">原始输入</button>
+    </div>
+    <div id="ov-data" class="ov-pane active">
+      <table class="dt">
+        <thead><tr><th>日期</th><th>类型</th><th>风险分 Y</th><th>干预日 Z</th><th>不干预预测</th><th>干预预测</th><th>CI 下</th><th>CI 上</th></tr></thead>
+        <tbody><tr><td>2026-05-01</td><td class='t-hist'>历史</td><td>0.4600</td><td>是</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-02</td><td class='t-hist'>历史</td><td>0.4970</td><td>否</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-03</td><td class='t-hist'>历史</td><td>0.4940</td><td>否</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-04</td><td class='t-hist'>历史</td><td>0.4510</td><td>是</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-05</td><td class='t-hist'>历史</td><td>0.4880</td><td>否</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-06</td><td class='t-hist'>历史</td><td>0.4850</td><td>否</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-07</td><td class='t-hist'>历史</td><td>0.4420</td><td>是</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-08</td><td class='t-hist'>历史</td><td>0.4790</td><td>否</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-09</td><td class='t-hist'>历史</td><td>0.4760</td><td>否</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-10</td><td class='t-hist'>历史</td><td>0.4330</td><td>是</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-11</td><td class='t-hist'>历史</td><td>0.4700</td><td>否</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-12</td><td class='t-hist'>历史</td><td>0.4670</td><td>否</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-13</td><td class='t-hist'>历史</td><td>0.4240</td><td>是</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-14</td><td class='t-hist'>历史</td><td>0.4610</td><td>否</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-15</td><td class='t-hist'>历史</td><td>0.4580</td><td>否</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-16</td><td class='t-hist'>历史</td><td>0.4150</td><td>是</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-17</td><td class='t-hist'>历史</td><td>0.4520</td><td>否</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-18</td><td class='t-hist'>历史</td><td>0.4490</td><td>否</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-19</td><td class='t-hist'>历史</td><td>0.4060</td><td>是</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-20</td><td class='t-hist'>历史</td><td>0.4430</td><td>否</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-21</td><td class='t-hist'>历史</td><td>0.4400</td><td>否</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-22</td><td class='t-hist'>历史</td><td>0.3970</td><td>是</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-23</td><td class='t-hist'>历史</td><td>0.4340</td><td>否</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-24</td><td class='t-hist'>历史</td><td>0.4310</td><td>否</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-25</td><td class='t-hist'>历史</td><td>0.3880</td><td>是</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-26</td><td class='t-hist'>历史</td><td>0.4250</td><td>否</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-27</td><td class='t-hist'>历史</td><td>0.4220</td><td>否</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-28</td><td class='t-hist'>历史</td><td>0.3790</td><td>是</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-29</td><td class='t-hist'>历史</td><td>0.4160</td><td>否</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>2026-05-30</td><td class='t-hist'>历史</td><td>0.4130</td><td>否</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>Day 1</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.4104</td><td>0.4100</td><td>0.3762</td><td>0.4476</td></tr><tr><td>Day 2</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.4078</td><td>0.4071</td><td>0.3738</td><td>0.4447</td></tr><tr><td>Day 3</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.4052</td><td>0.4041</td><td>0.3715</td><td>0.4419</td></tr><tr><td>Day 4</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.4026</td><td>0.4012</td><td>0.3691</td><td>0.4391</td></tr><tr><td>Day 5</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.4000</td><td>0.3983</td><td>0.3667</td><td>0.4363</td></tr><tr><td>Day 6</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3975</td><td>0.3954</td><td>0.3644</td><td>0.4335</td></tr><tr><td>Day 7</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3949</td><td>0.3926</td><td>0.3621</td><td>0.4307</td></tr><tr><td>Day 8</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3924</td><td>0.3897</td><td>0.3598</td><td>0.4280</td></tr><tr><td>Day 9</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3899</td><td>0.3869</td><td>0.3575</td><td>0.4253</td></tr><tr><td>Day 10</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3874</td><td>0.3841</td><td>0.3552</td><td>0.4226</td></tr><tr><td>Day 11</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3850</td><td>0.3814</td><td>0.3529</td><td>0.4199</td></tr><tr><td>Day 12</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3825</td><td>0.3786</td><td>0.3507</td><td>0.4172</td></tr><tr><td>Day 13</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3801</td><td>0.3759</td><td>0.3485</td><td>0.4145</td></tr><tr><td>Day 14</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3776</td><td>0.3732</td><td>0.3462</td><td>0.4119</td></tr><tr><td>Day 15</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3752</td><td>0.3705</td><td>0.3440</td><td>0.4093</td></tr><tr><td>Day 16</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3728</td><td>0.3678</td><td>0.3418</td><td>0.4067</td></tr><tr><td>Day 17</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3705</td><td>0.3651</td><td>0.3397</td><td>0.4041</td></tr><tr><td>Day 18</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3681</td><td>0.3625</td><td>0.3375</td><td>0.4015</td></tr><tr><td>Day 19</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3658</td><td>0.3599</td><td>0.3353</td><td>0.3989</td></tr><tr><td>Day 20</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3634</td><td>0.3573</td><td>0.3332</td><td>0.3964</td></tr><tr><td>Day 21</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3611</td><td>0.3547</td><td>0.3311</td><td>0.3939</td></tr><tr><td>Day 22</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3588</td><td>0.3522</td><td>0.3290</td><td>0.3914</td></tr><tr><td>Day 23</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3565</td><td>0.3496</td><td>0.3269</td><td>0.3889</td></tr><tr><td>Day 24</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3543</td><td>0.3471</td><td>0.3248</td><td>0.3864</td></tr><tr><td>Day 25</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3520</td><td>0.3446</td><td>0.3227</td><td>0.3839</td></tr><tr><td>Day 26</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3498</td><td>0.3421</td><td>0.3207</td><td>0.3815</td></tr><tr><td>Day 27</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3475</td><td>0.3396</td><td>0.3186</td><td>0.3790</td></tr><tr><td>Day 28</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3453</td><td>0.3372</td><td>0.3166</td><td>0.3766</td></tr><tr><td>Day 29</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3431</td><td>0.3347</td><td>0.3146</td><td>0.3742</td></tr><tr><td>Day 30</td><td class='t-fc'>预测</td><td>-</td><td>-</td><td>0.3409</td><td>0.3323</td><td>0.3126</td><td>0.3718</td></tr></tbody>
+      </table>
+    </div>
+    <div id="ov-method" class="ov-pane method"><b>个体归因 (Individual Attribution)</b> 用于回答：<i>“在已经发生的这些天里，坚持干预计划到底让我的风险降了多少？”</i><br/><br/>
+核心指标是 <b>ATT（Average Treatment effect on the Treated，处理了个体的平均处理效应）</b>：
+把“干预日”与“对照日（未干预日）”按周配对，比较两者风险分的差异，再做 Wilcoxon 符号秩检验
+与 Bootstrap 重采样得到 95% 置信区间与 p 值。<br/><br/>
+<b>怎么读这张表</b>：历史段是你真实上报的每日风险分 Y 与是否干预日 Z；预测段是模型基于当前趋势外推
+的 30 天轨迹——红线(不干预)持续走高，绿线(干预计划)走低，两条线之间的阴影即置信区间。
+<b>ATT 为负且 p&lt;0.05</b> 说明干预计划确实有效降低了风险；否则属于统计上不显著，需要更长的数据积累。</div>
+    <div id="ov-raw" class="ov-pane"><pre class="raw">[
+  {
+    "date": "2026-05-01",
+    "Y": 0.46,
+    "Z": 1
+  },
+  {
+    "date": "2026-05-02",
+    "Y": 0.497,
+    "Z": 0
+  },
+  {
+    "date": "2026-05-03",
+    "Y": 0.494,
+    "Z": 0
+  },
+  {
+    "date": "2026-05-04",
+    "Y": 0.451,
+    "Z": 1
+  },
+  {
+    "date": "2026-05-05",
+    "Y": 0.488,
+    "Z": 0
+  },
+  {
+    "date": "2026-05-06",
+    "Y": 0.485,
+    "Z": 0
+  },
+  {
+    "date": "2026-05-07",
+    "Y": 0.442,
+    "Z": 1
+  },
+  {
+    "date": "2026-05-08",
+    "Y": 0.479,
+    "Z": 0
+  },
+  {
+    "date": "2026-05-09",
+    "Y": 0.476,
+    "Z": 0
+  },
+  {
+    "date": "2026-05-10",
+    "Y": 0.433,
+    "Z": 1
+  },
+  {
+    "date": "2026-05-11",
+    "Y": 0.47,
+    "Z": 0
+  },
+  {
+    "date": "2026-05-12",
+    "Y": 0.467,
+    "Z": 0
+  },
+  {
+    "date": "2026-05-13",
+    "Y": 0.424,
+    "Z": 1
+  },
+  {
+    "date": "2026-05-14",
+    "Y": 0.461,
+    "Z": 0
+  },
+  {
+    "date": "2026-05-15",
+    "Y": 0.458,
+    "Z": 0
+  },
+  {
+    "date": "2026-05-16",
+    "Y": 0.415,
+    "Z": 1
+  },
+  {
+    "date": "2026-05-17",
+    "Y": 0.452,
+    "Z": 0
+  },
+  {
+    "date": "2026-05-18",
+    "Y": 0.449,
+    "Z": 0
+  },
+  {
+    "date": "2026-05-19",
+    "Y": 0.406,
+    "Z": 1
+  },
+  {
+    "date": "2026-05-20",
+    "Y": 0.443,
+    "Z": 0
+  },
+  {
+    "date": "2026-05-21",
+    "Y": 0.44,
+    "Z": 0
+  },
+  {
+    "date": "2026-05-22",
+    "Y": 0.397,
+    "Z": 1
+  },
+  {
+    "date": "2026-05-23",
+    "Y": 0.434,
+    "Z": 0
+  },
+  {
+    "date": "2026-05-24",
+    "Y": 0.431,
+    "Z": 0
+  },
+  {
+    "date": "2026-05-25",
+    "Y": 0.388,
+    "Z": 1
+  },
+  {
+    "date": "2026-05-26",
+    "Y": 0.425,
+    "Z": 0
+  },
+  {
+    "date": "2026-05-27",
+    "Y": 0.422,
+    "Z": 0
+  },
+  {
+    "date": "2026-05-28",
+    "Y": 0.379,
+    "Z": 1
+  },
+  {
+    "date": "2026-05-29",
+    "Y": 0.416,
+    "Z": 0
+  },
+  {
+    "date": "2026-05-30",
+    "Y": 0.413,
+    "Z": 0
+  }
+]</pre></div>
+  </div>
+</div>
+
+<script>
+var chart = echarts.init(document.getElementById('chart'), 'dark');
+var option = {
+  backgroundColor:'transparent',
+  tooltip:{trigger:'axis'},
+  legend:{data:['不干预','干预计划']},
+  grid:{left:48,right:18,top:36,bottom:36},
+  xAxis:{type:'category',data:["Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7", "Day 8", "Day 9", "Day 10", "Day 11", "Day 12", "Day 13", "Day 14", "Day 15", "Day 16", "Day 17", "Day 18", "Day 19", "Day 20", "Day 21", "Day 22", "Day 23", "Day 24", "Day 25", "Day 26", "Day 27", "Day 28", "Day 29", "Day 30"]},
+  yAxis:{type:'value',name:'风险分',min:0,max:1},
+  series:[
+    {name:'不干预',type:'line',smooth:true,data:[0.410368106973607, 0.4077529860075103, 0.40515453021970377, 0.4025726334093, 0.4000071900521896, 0.39745809529672854, 0.39492524495945275, 0.39240853552082, 0.389907864120979, 0.38742312855556543, 0.3849542272715249, 0.3825010593629621, 0.38006352456701703, 0.37764152325976696, 0.3752349564521548, 0.3728437257859435, 0.37046773352969553, 0.3681068825747792, 0.3657610764313995, 0.36343021922465424, 0.36111421569061586, 0.3588129711724379, 0.3565263916164861, 0.3542543835684946, 0.35199685416974624, 0.3497537111532774, 0.347524862840107, 0.34531021813548946, 0.3431096865251915, 0.3409231780717931],lineStyle:{color:'#ff6b6b'},itemStyle:{color:'#ff6b6b'}},
+    {name:'干预计划',type:'line',smooth:true,data:[0.410018922555677, 0.40705936284193295, 0.40412116554152483, 0.40120417645830614, 0.39830824250913416, 0.3954332117158366, 0.3925789331972355, 0.38974525716122915, 0.3869320348969309, 0.3841391187668651, 0.3813663621992186, 0.3786136196801494, 0.3758807467461495, 0.37316759997646376, 0.3704740369855632, 0.36779991641567233, 0.3651450979293512, 0.36250944220213016, 0.35989281091519837, 0.35729506674814443, 0.3547160733717504, 0.35215569544083675, 0.3496137985871599, 0.3470902494123603, 0.3445849154809617, 0.3420976653134213, 0.3396283683792291, 0.3371768950900584, 0.33474311679296437, 0.332326905763633],lineStyle:{color:'#37d39b'},itemStyle:{color:'#37d39b'},areaStyle:{color:'rgba(55,211,155,0.12)'}},
+    {name:'CI上界',type:'line',data:[0.4475868982202408, 0.44473459595358045, 0.4419004703320648, 0.43908440552279915, 0.4362862864310476, 0.43350599869553, 0.4307434286837472, 0.4279984634873371, 0.42527099091746, 0.42256089950021325, 0.41986807847207536, 0.4171924177753788, 0.4145338080538121, 0.4118921406479502, 0.4092673075908136, 0.4066592016034555, 0.40406771609057734, 0.40149274513617217, 0.39893418349919574, 0.39639192660926514, 0.39386587056238526, 0.39135591211670157, 0.3888619486882812, 0.3863838783469198, 0.38392159981197566, 0.3814750124482304, 0.379044016261776, 0.37662851189592766, 0.37422840062716334, 0.37184358436108866],lineStyle:{opacity:0.25,color:'#4f8cff'},itemStyle:{opacity:0},symbol:'none',tooltip:{show:false}},
+    {name:'CI下界',type:'line',data:[0.3762442195933926, 0.3738465572743405, 0.3714641743517464, 0.3690969734557871, 0.3667448578371405, 0.36440773136303145, 0.36208549851330246, 0.3597780643765102, 0.3574853346460461, 0.35520721561628166, 0.3529436141787394, 0.3506944378182867, 0.3484595946093551, 0.34623899321218293, 0.3440325428690825, 0.3418401534007305, 0.3396617352024823, 0.33749719924071003, 0.3353464570491633, 0.33320942072535387, 0.33108600292696283, 0.32897611686827083, 0.32687967631661113, 0.3247965955888453, 0.32272678954786116, 0.32067017359909306, 0.3186266636870647, 0.3165961762919537, 0.31457862842617773, 0.3125739376310031],lineStyle:{opacity:0.25,color:'#4f8cff'},itemStyle:{opacity:0},symbol:'none',tooltip:{show:false},areaStyle:{color:'rgba(79,140,255,0.08)'}}
+  ]
+};
+chart.setOption(option);
+window.addEventListener('resize', function(){chart.resize();});
+function showRep(layer){
+  document.querySelectorAll('.report-tab').forEach(function(e){e.classList.remove('active');});
+  document.getElementById('rep-'+layer).classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
+  event.target.classList.add('active');
+}
+document.getElementById('rep-user').classList.add('active');
+// ---- drill-down overlay ----
+function openDetail(){ document.getElementById('detail').classList.remove('hidden'); }
+function closeDetail(){ document.getElementById('detail').classList.add('hidden'); }
+function showOv(pane){
+  document.querySelectorAll('.ov-pane').forEach(function(e){e.classList.remove('active');});
+  document.getElementById('ov-'+pane).classList.add('active');
+  document.querySelectorAll('.ov-tab').forEach(function(b){b.classList.remove('active');});
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>

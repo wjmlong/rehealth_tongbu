@@ -1,0 +1,3580 @@
+########## DIFF: app/build.gradle.kts ##########
+--- /tmp/real_branch/app/build.gradle.kts	2026-07-20 23:32:23.987331471 +0800
++++ /mnt/d/rehealthAI/Android-apk/app/build.gradle.kts	2026-07-20 21:27:25.538814500 +0800
+@@ -1,3 +1,5 @@
++import java.util.Properties
++
+ plugins {
+     id("com.android.application")
+     id("org.jetbrains.kotlin.android")
+@@ -5,22 +7,22 @@
+     id("com.google.devtools.ksp")
+ }
+ 
+-import java.util.Properties
+-
+-fun quoteBuildConfigValue(value: String): String =
+-    "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+-
+-val localProperties = Properties()
+-val localPropertiesFile = rootProject.file("local.properties")
+-if (localPropertiesFile.exists()) {
+-    localPropertiesFile.inputStream().use(localProperties::load)
++// DeepSeek configuration: read from local.properties (DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL),
++// fallback to env vars, then to the public DeepSeek endpoint. Never hardcode secrets.
++val localProps = Properties().apply {
++    val f = rootProject.file("local.properties")
++    if (f.exists()) f.inputStream().use { load(it) }
+ }
+-val deepSeekApiKey = localProperties.getProperty("DEEPSEEK_API_KEY")
+-    ?: System.getenv("DEEPSEEK_API_KEY")
+-    ?: ""
+-val deepSeekBaseUrl = localProperties.getProperty("DEEPSEEK_BASE_URL")
+-    ?: System.getenv("DEEPSEEK_BASE_URL")
+-    ?: "https://api.deepseek.com"
++fun deepSeekApiKey(): String =
++    (localProps.getProperty("DEEPSEEK_API_KEY") ?: System.getenv("DEEPSEEK_API_KEY") ?: "").trim()
++fun deepSeekBaseUrl(): String =
++    (localProps.getProperty("DEEPSEEK_BASE_URL") ?: System.getenv("DEEPSEEK_BASE_URL") ?: "https://api.deepseek.com").trim()
++// JeecgBoot request-signing secret for endpoints that require the `X-Sign` header
++// (e.g. /sys/sms). Read from local.properties (JEECG_SIGNATURE_SECRET), fallback to env,
++// then to the repo default. MUST match the running backend's `jeecg.signatureSecret`.
++fun signSecret(): String =
++    (localProps.getProperty("JEECG_SIGNATURE_SECRET") ?: System.getenv("JEECG_SIGNATURE_SECRET")
++        ?: "dd05f1c54d63749eda95f9fa6d49v442a").trim()
+ 
+ android {
+     namespace = "com.rehealth.genie"
+@@ -33,10 +35,26 @@
+         versionCode = 1
+         versionName = "1.0"
+ 
+-        buildConfigField("String", "DEEPSEEK_API_KEY", quoteBuildConfigValue(deepSeekApiKey))
+-        buildConfigField("String", "DEEPSEEK_BASE_URL", quoteBuildConfigValue(deepSeekBaseUrl))
+-
+         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
++        buildConfigField("String", "REHEALTH_API_BASE_URL", "\"http://10.0.2.2:8080/jeecg-boot/\"")
++        buildConfigField("String", "REHEALTH_API_TOKEN", "\"\"")
++        // DeepSeek (首页 AI 问答 / 健康助手)。key 从 local.properties 读取，缺失时留空（客户端给出占位提示）。
++        buildConfigField("String", "DEEPSEEK_API_KEY", "\"${deepSeekApiKey()}\"")
++        buildConfigField("String", "DEEPSEEK_BASE_URL", "\"${deepSeekBaseUrl()}\"")
++        // JeecgBoot sign secret for /sys/sms (X-Sign header). Override via local.properties.
++        buildConfigField("String", "JEECG_SIGN_SECRET", "\"${signSecret()}\"")
++    }
++
++    buildTypes {
++        debug {
++            buildConfigField("boolean", "USE_FAKE_RING", "false")
++            buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", "true")
++        }
++        release {
++            buildConfigField("boolean", "USE_FAKE_RING", "false")
++            buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", "false")
++            isMinifyEnabled = false
++        }
+     }
+ 
+     buildFeatures {
+@@ -76,6 +94,22 @@
+ 
+     implementation("androidx.room:room-runtime:2.7.1")
+     implementation("androidx.room:room-ktx:2.7.1")
++    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+     implementation("com.google.code.gson:gson:2.11.0")
++    implementation("com.squareup.okhttp3:okhttp:4.12.0")
++    // Retrofit + Moshi: typed E1 mobile API client for /features/evaluate and risk/intervention retrieval.
++    // Why: replace ad-hoc OkHttp/Gson string parsing with a typed DTO client aligned to MOBILE_API.md / API_CONTRACT.md.
++    // Alternative: keep extending ReHealthBackendClient manually; rejected because feature-evaluate DTOs are complex (nested featureQuality map, snake_case) and error-prone to (de)serialize by hand.
++    implementation("com.squareup.retrofit2:retrofit:2.11.0")
++    implementation("com.squareup.retrofit2:converter-moshi:2.11.0")
++    implementation("com.squareup.moshi:moshi:1.15.1")
++    implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
++    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
++    // WorkManager: reserved for E2 durable telemetry upload queue. D1 does NOT wire it to a production telemetry worker; it is added now so that D1's lightweight feature-evaluate retry helper can reuse the same dependency surface later.
++    implementation("androidx.work:work-runtime-ktx:2.10.0")
++    testImplementation(kotlin("test"))
++    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
++    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
++    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+     ksp("androidx.room:room-compiler:2.7.1")
+ }
+
+########## DIFF: app/src/main/AndroidManifest.xml ##########
+--- /tmp/real_branch/app/src/main/AndroidManifest.xml	2026-07-20 23:32:24.548677674 +0800
++++ /mnt/d/rehealthAI/Android-apk/app/src/main/AndroidManifest.xml	2026-07-20 14:19:55.930351900 +0800
+@@ -1,6 +1,10 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+     <uses-permission android:name="android.permission.INTERNET" />
++    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
++    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
++    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
++
+     <uses-feature
+         android:name="android.hardware.bluetooth_le"
+         android:required="false" />
+@@ -14,19 +18,24 @@
+     <uses-permission
+         android:name="android.permission.ACCESS_FINE_LOCATION"
+         android:maxSdkVersion="30" />
+-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
++    <uses-permission
++        android:name="android.permission.BLUETOOTH_SCAN"
++        android:usesPermissionFlags="neverForLocation" />
+     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" />
+-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+ 
+     <application
+         android:name=".ReHealthApplication"
+         android:allowBackup="false"
+-        android:icon="@drawable/xiaohelin"
+-        android:logo="@drawable/xiaohelin"
+         android:label="睿禾精灵"
++        android:usesCleartextTraffic="true"
+         android:supportsRtl="true"
+         android:theme="@style/Theme.ReHealthGenie">
++        <service
++            android:name=".service.RingForegroundService"
++            android:exported="false"
++            android:foregroundServiceType="connectedDevice" />
++
+         <activity
+             android:name=".MainActivity"
+             android:exported="true">
+
+########## DIFF: app/src/main/java/com/rehealth/genie/ReHealthApplication.kt ##########
+--- /tmp/real_branch/app/src/main/java/com/rehealth/genie/ReHealthApplication.kt	2026-07-20 23:32:25.637234160 +0800
++++ /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ReHealthApplication.kt	2026-07-20 21:38:11.127715800 +0800
+@@ -1,15 +1,129 @@
+ package com.rehealth.genie
+ 
+ import android.app.Application
++import android.os.Build
+ import com.rehealth.genie.data.AppDatabase
++import com.rehealth.genie.data.sync.InterventionFeedbackRepository
++import com.rehealth.genie.data.sync.SyncRepository
++import com.rehealth.genie.network.AuthenticatedApiClient
++import com.rehealth.genie.network.BackendConfig
++import com.rehealth.genie.network.ReHealthBackendClient
++import com.rehealth.genie.network.ReHealthMobileApi
++import com.rehealth.genie.network.SessionStore
++import com.rehealth.genie.notification.RingNotificationChannels
++import com.rehealth.genie.phm.MockPhmService
++import com.rehealth.genie.phm.PhmService
++import com.rehealth.genie.phm.RemotePhmService
++import com.rehealth.genie.ring.RingBackgroundCollectionSettings
++import com.rehealth.genie.ring.MockRingRepository
+ import com.rehealth.genie.ring.RingRepository
+ import com.rehealth.genie.ring.mrd.MrdBleRingRepository
+ import com.rehealth.genie.ring.mrd.MrdProtocolAdapter
++import com.rehealth.genie.work.MeasurementSyncWorker
++import com.rehealth.genie.work.RingBackgroundRecoveryWorker
+ 
+ class ReHealthApplication : Application() {
+     val database by lazy { AppDatabase.create(this) }
++
++    // D3: Auth and session management
++    val sessionStore by lazy { SessionStore(this) }
++
++    val backendClient by lazy {
++        ReHealthBackendClient(
++            baseUrl = BuildConfig.REHEALTH_API_BASE_URL,
++            apiToken = BuildConfig.REHEALTH_API_TOKEN.takeIf { it.isNotBlank() },
++        )
++    }
++    /**
++     * Typed E1 mobile API client for the D1-safe endpoints (feature evaluate, risk/intervention
++     * retrieval, intervention feedback, health, config). Built on Retrofit/Moshi with the
++     * shared OkHttp configuration. Does NOT implement the durable `/measurements/batch`
++     * telemetry upload path; that is E2-pending.
++     */
++    val reHealthMobileApi: ReHealthMobileApi by lazy {
++        ReHealthMobileApi(
++            baseUrl = BuildConfig.REHEALTH_API_BASE_URL,
++            apiToken = BuildConfig.REHEALTH_API_TOKEN.takeIf { it.isNotBlank() },
++            httpClient = BackendConfig.buildHttpClient(signSecret = BuildConfig.JEECG_SIGN_SECRET),
++        )
++    }
++    /**
++     * D3: Auth-aware API client with 401 detection and queue pause.
++     */
++    val authenticatedApiClient by lazy {
++        AuthenticatedApiClient(
++            baseUrl = BuildConfig.REHEALTH_API_BASE_URL,
++            httpClient = BackendConfig.buildHttpClient(signSecret = BuildConfig.JEECG_SIGN_SECRET),
++            sessionStore = sessionStore,
++        )
++    }
++
++    /**
++     * D3: Upload queue repository with auth-aware pause/resume.
++     */
++    val syncRepository by lazy {
++        SyncRepository(
++            dao = database.uploadQueueDao(),
++            apiClient = authenticatedApiClient,
++        )
++    }
++
++    /**
++     * D3: Typed intervention feedback repository.
++     */
++    val interventionFeedbackRepository by lazy {
++        InterventionFeedbackRepository(
++            dao = database.interventionFeedbackDao(),
++            apiClient = authenticatedApiClient,
++        )
++    }
++
++    /**
++     * Remote-capable PHM service. Falls back to [MockPhmService] when the backend is
++     * unavailable, misconfigured, or not yet wired. The local mock remains the snapshot
++     * the legacy UI already consumes via [MockPhmService].
++     */
++    val remotePhmService: RemotePhmService by lazy {
++        RemotePhmService(
++            api = reHealthMobileApi,
++            mockFallback = MockPhmService(),
++        )
++    }
++
++    /** Exposes the offline mock PHM service for UI screens that need local demo data. */
++    val phmService: PhmService by lazy { remotePhmService.mock() }
+     val mrdProtocolAdapter by lazy { MrdProtocolAdapter(this) }
+     val ringRepository: RingRepository by lazy {
+-        MrdBleRingRepository(this, database.ringDataDao(), mrdProtocolAdapter)
++        if (BuildConfig.USE_FAKE_RING || (BuildConfig.SEED_FAKE_HEALTH_DATA && isProbablyEmulator())) {
++            MockRingRepository(database.ringDataDao())
++        } else {
++            MrdBleRingRepository(this, database.ringDataDao(), mrdProtocolAdapter)
++        }
++    }
++
++    override fun onCreate() {
++        super.onCreate()
++        RingNotificationChannels.ensure(this)
++        if (RingBackgroundCollectionSettings.isActive(this)) {
++            RingBackgroundRecoveryWorker.schedule(this)
++        }
++        // D3: if a session was restored, schedule the feedback sync worker
++        if (sessionStore.isLoggedIn) {
++            MeasurementSyncWorker.schedule(this)
++        }
++    }
++
++    private fun isProbablyEmulator(): Boolean {
++        val fingerprint = Build.FINGERPRINT.lowercase()
++        val model = Build.MODEL.lowercase()
++        val product = Build.PRODUCT.lowercase()
++        val brand = Build.BRAND.lowercase()
++        return fingerprint.contains("generic") ||
++            fingerprint.contains("emulator") ||
++            model.contains("emulator") ||
++            model.contains("android sdk built for") ||
++            product.contains("sdk") ||
++            product.contains("emulator") ||
++            brand.contains("generic")
+     }
+ }
+
+########## DIFF: app/src/main/java/com/rehealth/genie/chat/DeepSeekClient.kt ##########
+--- /tmp/real_branch/app/src/main/java/com/rehealth/genie/chat/DeepSeekClient.kt	2026-07-20 23:32:26.278230836 +0800
++++ /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/chat/DeepSeekClient.kt	2026-07-20 18:30:32.320042800 +0800
+@@ -1,18 +1,28 @@
+ package com.rehealth.genie.chat
+ 
++import android.util.Log
+ import com.google.gson.JsonArray
+ import com.google.gson.JsonObject
+ import com.google.gson.JsonParser
++import com.rehealth.genie.BuildConfig
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.withContext
+ import java.net.HttpURLConnection
+ import java.net.URL
+ 
++/**
++ * DeepSeek 大模型客户端（首页 AI 问答 / 健康助手）。
++ *
++ * 与 demo-simulated 的 DeepSeekClient 一致的实现：直接调用
++ * `${baseUrl}/chat/completions`，模型固定 `deepseek-chat`。
++ * API key 来自 [BuildConfig.DEEPSEEK_API_KEY]（由 local.properties 注入，绝不硬编码）。
++ * 当 key 为空时返回友好的占位提示，不抛出异常。
++ */
+ data class ChatTurn(val role: String, val content: String)
+ 
+ class DeepSeekClient(
+-    private val baseUrl: String,
+-    private val apiKey: String,
++    private val baseUrl: String = BuildConfig.DEEPSEEK_BASE_URL,
++    private val apiKey: String = BuildConfig.DEEPSEEK_API_KEY,
+ ) {
+     suspend fun reply(history: List<ChatTurn>): String = withContext(Dispatchers.IO) {
+         if (apiKey.isBlank()) {
+@@ -58,6 +68,7 @@
+             val responseStream = if (responseCode in 200..299) connection.inputStream else connection.errorStream
+             val responseText = responseStream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+             if (responseCode !in 200..299) {
++                Log.w("DeepSeekClient", "non-2xx $responseCode: $responseText")
+                 return@withContext "服务暂时不可用（$responseCode），请稍后再试。"
+             }
+             val root = JsonParser.parseString(responseText).asJsonObject
+@@ -66,7 +77,8 @@
+                 ?.trim()
+                 ?.takeIf { it.isNotBlank() }
+                 ?: "我暂时没有生成有效回答，请换一种方式描述。"
+-        } catch (_: Exception) {
++        } catch (e: Exception) {
++            Log.w("DeepSeekClient", "request failed", e)
+             "暂时无法连接健康助手，请检查网络后重试。"
+         } finally {
+             connection.disconnect()
+
+########## DIFF: app/src/main/java/com/rehealth/genie/data/AppDatabase.kt ##########
+--- /tmp/real_branch/app/src/main/java/com/rehealth/genie/data/AppDatabase.kt	2026-07-20 23:32:26.904085696 +0800
++++ /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/data/AppDatabase.kt	2026-07-20 18:00:49.908708700 +0800
+@@ -8,6 +8,10 @@
+ import androidx.room.RoomDatabase
+ import androidx.room.migration.Migration
+ import androidx.sqlite.db.SupportSQLiteDatabase
++import com.rehealth.genie.data.sync.InterventionFeedbackDao
++import com.rehealth.genie.data.sync.InterventionFeedbackEntity
++import com.rehealth.genie.data.sync.UploadQueueDao
++import com.rehealth.genie.data.sync.UploadQueueEntity
+ import com.rehealth.genie.ring.data.RingActivityEntity
+ import com.rehealth.genie.ring.data.RingDataDao
+ import com.rehealth.genie.ring.data.RingMeasurementEntity
+@@ -41,14 +45,65 @@
+         RingSleepSessionEntity::class,
+         RingActivityEntity::class,
+         RingSignalChunkEntity::class,
++        UploadQueueEntity::class,
++        InterventionFeedbackEntity::class,
+     ],
+-    version = 2,
++    version = 3,
+     exportSchema = false,
+ )
+ abstract class AppDatabase : RoomDatabase() {
+     abstract fun ringDataDao(): RingDataDao
++    abstract fun uploadQueueDao(): UploadQueueDao
++    abstract fun interventionFeedbackDao(): InterventionFeedbackDao
+ 
+     companion object {
++        private val Migration2To3 = object : Migration(2, 3) {
++            override fun migrate(db: SupportSQLiteDatabase) {
++                // D3 sync queue for offline uploads
++                db.execSQL(
++                    """
++                    CREATE TABLE IF NOT EXISTS sync_upload_queue (
++                        id TEXT NOT NULL PRIMARY KEY,
++                        kind TEXT NOT NULL,
++                        payload_json TEXT NOT NULL,
++                        status TEXT NOT NULL,
++                        attempts INTEGER NOT NULL DEFAULT 0,
++                        last_error TEXT,
++                        created_at INTEGER NOT NULL,
++                        next_retry_at INTEGER NOT NULL
++                    )
++                    """.trimIndent(),
++                )
++                db.execSQL(
++                    "CREATE INDEX IF NOT EXISTS index_sync_upload_queue_status_retry ON sync_upload_queue(status, next_retry_at)",
++                )
++
++                // D3 intervention feedback queue
++                db.execSQL(
++                    """
++                    CREATE TABLE IF NOT EXISTS intervention_feedback_queue (
++                        id TEXT NOT NULL PRIMARY KEY,
++                        intervention_id TEXT NOT NULL,
++                        status TEXT NOT NULL,
++                        note TEXT,
++                        checked_at INTEGER NOT NULL,
++                        created_at INTEGER NOT NULL,
++                        upload_status TEXT NOT NULL DEFAULT 'pending',
++                        upload_attempts INTEGER NOT NULL DEFAULT 0,
++                        last_error TEXT,
++                        next_retry_at INTEGER NOT NULL DEFAULT 0
++                    )
++                    """.trimIndent(),
++                )
++                db.execSQL(
++                    "CREATE INDEX IF NOT EXISTS index_intervention_feedback_intervention_id ON intervention_feedback_queue(intervention_id)",
++                )
++                db.execSQL(
++                    "CREATE INDEX IF NOT EXISTS index_intervention_feedback_upload_status ON intervention_feedback_queue(upload_status, next_retry_at)",
++                )
++            }
++        }
++
+         private val Migration1To2 = object : Migration(1, 2) {
+             override fun migrate(db: SupportSQLiteDatabase) {
+                 db.execSQL(
+@@ -124,7 +179,8 @@
+ 
+         fun create(context: Context): AppDatabase =
+             Room.databaseBuilder(context, AppDatabase::class.java, "rehealth-local.db")
+-                .addMigrations(Migration1To2)
++                .addMigrations(Migration1To2, Migration2To3)
++                .fallbackToDestructiveMigration()
+                 .build()
+     }
+ }
+
+########## DIFF: app/src/main/java/com/rehealth/genie/phm/MockPhmService.kt ##########
+--- /tmp/real_branch/app/src/main/java/com/rehealth/genie/phm/MockPhmService.kt	2026-07-20 23:32:28.361040179 +0800
++++ /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/phm/MockPhmService.kt	2026-07-20 17:26:52.018522900 +0800
+@@ -1,58 +1,89 @@
+ package com.rehealth.genie.phm
+ 
++import com.rehealth.genie.network.dto.RiskResultDto
+ import com.rehealth.genie.ring.RingMetricType
+ 
+-data class LifeState(
+-    val score: Int,
+-    val label: String,
+-    val insight: String,
+-)
+-
+-data class Intervention(
+-    val title: String,
+-    val reason: String,
+-    val duration: String,
+-    val category: String,
+-)
+-
+-enum class ModelInputStage {
+-    READY,
+-    FEATURE_EXTRACTED,
+-    LEARNING,
+-}
+-
+-data class ModelInputStatus(
+-    val type: RingMetricType,
+-    val label: String,
+-    val feature: String,
+-    val stage: ModelInputStage,
+-)
+-
+-interface PhmService {
+-    fun todayState(): LifeState
+-    fun interventions(): List<Intervention>
+-    fun modelInputs(): List<ModelInputStatus>
+-}
+-
++/**
++ * Offline demo fallback for [PhmService]. Implements the full app-facing interface
++ * with canned local data so the UI can render without a backend.
++ */
+ class MockPhmService : PhmService {
+-    override fun todayState() = LifeState(
++    override fun modelInputs(): List<ModelInputStatus> = listOf(
++        ModelInputStatus(RingMetricType.HEART_RATE, "心率", "静息心率、日内波动", ModelInputStage.LEARNING),
++        ModelInputStatus(RingMetricType.BLOOD_OXYGEN, "血氧", "均值、低值时长", ModelInputStage.FEATURE_EXTRACTED),
++        ModelInputStatus(RingMetricType.BLOOD_PRESSURE, "血压", "收缩压、舒张压趋势", ModelInputStage.LEARNING),
++        ModelInputStatus(RingMetricType.SLEEP, "睡眠", "时长、阶段、连续性", ModelInputStage.LEARNING),
++        ModelInputStatus(RingMetricType.TEMPERATURE, "体温", "个人基线偏差", ModelInputStage.FEATURE_EXTRACTED),
++        ModelInputStatus(RingMetricType.STEPS, "步数", "总量、时段分布", ModelInputStage.LEARNING),
++    )
++
++    override suspend fun todayState(): LifeState = LifeState(
+         score = 82,
+         label = "良好",
+         insight = "昨晚睡眠恢复良好，今天适合保持轻量活动。",
+     )
+ 
+-    override fun interventions() = listOf(
++    override suspend fun interventions(): List<Intervention> = listOf(
+         Intervention("晚餐少油少盐", "优化血压与睡眠质量", "今晚", "饮食"),
+         Intervention("睡前 30 分钟放松训练", "帮助入睡，提高睡眠质量", "30 分钟", "睡眠"),
+         Intervention("今日步数达到 8000 步", "保持代谢活跃", "约 20 分钟", "运动"),
+     )
+ 
+-    override fun modelInputs() = listOf(
+-        ModelInputStatus(RingMetricType.HEART_RATE, "心率", "静息心率、日内波动", ModelInputStage.LEARNING),
+-        ModelInputStatus(RingMetricType.BLOOD_OXYGEN, "血氧", "均值、低值时长", ModelInputStage.FEATURE_EXTRACTED),
+-        ModelInputStatus(RingMetricType.BLOOD_PRESSURE, "血压", "收缩压、舒张压趋势", ModelInputStage.LEARNING),
+-        ModelInputStatus(RingMetricType.SLEEP, "睡眠", "时长、阶段、连续性", ModelInputStage.LEARNING),
+-        ModelInputStatus(RingMetricType.TEMPERATURE, "体温", "个人基线偏差", ModelInputStage.FEATURE_EXTRACTED),
+-        ModelInputStatus(RingMetricType.STEPS, "步数", "总量、时段分布", ModelInputStage.LEARNING),
++    override suspend fun login(username: String, password: String): LoginResult =
++        LoginResult(token = "mock-token", userId = "mock-user", username = username)
++
++    override suspend fun logout() {}
++
++    override suspend fun evaluateRisk(request: RiskEvaluateRequest): RiskResult = RiskResult(
++        riskScore = 0.12,
++        riskLevel = "低",
++        summary = "本地模拟评估结果，未连接后端。",
++        isMock = true,
++    )
++
++    override suspend fun latestRisk(): RiskResult? = RiskResult(
++        riskScore = 0.12,
++        riskLevel = "低",
++        summary = "本地模拟评估结果，未连接后端。",
++        isMock = true,
++    )
++
++    override suspend fun todayIntervention(): InterventionPlan? = InterventionPlan(
++        priorityIntervention = "晚餐少油少盐",
++        rationale = "优化血压与睡眠质量",
++        expectedImpact = "降低夜间心血管负荷",
++        isMock = true,
++    )
++
++    override suspend fun generateIntervention(request: InterventionGenerateRequest): InterventionPlan =
++        InterventionPlan(
++            priorityIntervention = "保持规律作息",
++            rationale = "基于当前特征向量的通用建议",
++            expectedImpact = "维持代谢与心血管稳态",
++            isMock = true,
++        )
++
++    override suspend fun submitFeedback(planId: String, feedback: FeedbackRequest): FeedbackResult =
++        FeedbackResult(id = planId, status = feedback.status, persisted = false)
++
++    override suspend fun bindDevice(request: DeviceBindRequest): DeviceBindResult =
++        DeviceBindResult(id = "mock-device-id", userId = "mock-user", deviceId = request.deviceId)
++
++    override suspend fun uploadMeasurements(request: TelemetryBatchRequest): TelemetryBatchResult =
++        TelemetryBatchResult(batchId = request.batchId, accepted = true, persisted = false, recordCount = request.measurements.size)
++
++    override suspend fun recordAttributionEvents(request: AttributionEventsRequest): AttributionResult =
++        AttributionResult(requestId = null)
++
++    override suspend fun attributeIndividual(
++        history: List<AttributionHistoryPoint>,
++        forecastDays: Int,
++        language: String,
++    ): IndividualAttributionResult = IndividualAttributionResult(
++        headline = "本地模拟归因结果",
++        body = "未连接后端模型服务，以下为占位数据。",
++        advice = "保持规律作息与适度运动。",
++        currentRiskScore = 0.12,
++        riskLevel = "低",
+     )
+ }
+
+########## DIFF: app/src/main/java/com/rehealth/genie/ring/MockRingRepository.kt ##########
+--- /tmp/real_branch/app/src/main/java/com/rehealth/genie/ring/MockRingRepository.kt	2026-07-20 23:32:31.460928091 +0800
++++ /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ring/MockRingRepository.kt	2026-07-20 17:55:34.774676400 +0800
+@@ -6,7 +6,11 @@
+ import com.rehealth.genie.ring.data.RingMeasurementEntity
+ import com.rehealth.genie.ring.data.RingSignalChunkEntity
+ import com.rehealth.genie.ring.data.RingSleepSessionEntity
+-import java.util.UUID
++import kotlin.math.PI
++import kotlin.math.roundToInt
++import kotlin.math.sin
++import kotlin.random.Random
++import kotlinx.coroutines.delay
+ import kotlinx.coroutines.flow.MutableStateFlow
+ import kotlinx.coroutines.flow.StateFlow
+ 
+@@ -15,20 +19,29 @@
+ ) : RingRepository {
+     private val mutableConnectionState = MutableStateFlow(RingConnectionState.DISCONNECTED)
+     private val mutableConnectedDevice = MutableStateFlow<RingDevice?>(null)
++    private val random = Random(20260708)
++    private var baselineSeeded = false
++
+     override val connectionState: StateFlow<RingConnectionState> = mutableConnectionState
+     override val connectedDevice: StateFlow<RingDevice?> = mutableConnectedDevice
+     override val supportedMetrics: Set<RingMetricType> = RequiredRingMetrics
+ 
+     override suspend fun scan(): List<RingDevice> {
+         mutableConnectionState.value = RingConnectionState.SCANNING
++        delay(700)
+         mutableConnectionState.value = RingConnectionState.DISCONNECTED
+-        return listOf(RingDevice("MOCK:RING:01", "睿禾智能戒指（模拟）", -42))
++        return listOf(
++            RingDevice("MOCK:RING:01", "睿禾智能戒指 Mock", -42),
++            RingDevice("MOCK:RING:02", "MRD Dev Ring Replay", -63),
++        )
+     }
+ 
+     override suspend fun connect(device: RingDevice) {
+         mutableConnectionState.value = RingConnectionState.CONNECTING
++        delay(450)
+         mutableConnectedDevice.value = device
+         mutableConnectionState.value = RingConnectionState.CONNECTED
++        seedBaselineIfNeeded()
+     }
+ 
+     override suspend fun disconnect() {
+@@ -36,91 +49,202 @@
+         mutableConnectionState.value = RingConnectionState.DISCONNECTED
+     }
+ 
++    override suspend fun autoConnect(): Boolean {
++        if (mutableConnectionState.value == RingConnectionState.CONNECTED) return true
++        connect(RingDevice("MOCK:RING:01", "睿禾智能戒指 Mock", -42))
++        return mutableConnectionState.value == RingConnectionState.CONNECTED
++    }
++
++    override suspend fun sendCommand(data: ByteArray): Boolean {
++        // Mock repository: commands are no-ops (no real BLE transport).
++        return true
++    }
++
+     override suspend fun syncAll(): RingSyncResult {
+         mutableConnectionState.value = RingConnectionState.SYNCING
++        delay(900)
++        seedBaselineIfNeeded()
+         val now = System.currentTimeMillis()
+-        val source = "ring_mock"
+-        val measurements = listOf(
+-            measurement(RingMetricType.HEART_RATE, now, 72.0, "bpm", source),
+-            measurement(RingMetricType.HRV, now, 48.0, "ms", source),
+-            measurement(RingMetricType.BLOOD_OXYGEN, now, 98.0, "%", source),
+-            measurement(RingMetricType.BLOOD_PRESSURE, now, 118.0, "mmHg", source, 76.0),
+-            measurement(RingMetricType.TEMPERATURE, now, 36.5, "°C", source),
+-            measurement(RingMetricType.STEPS, now, 6842.0, "steps", source),
+-            measurement(RingMetricType.STRESS, now, 32.0, "score", source),
+-        )
+-        val sleep = RingSleepSessionEntity(
+-            id = id("sleep"),
+-            startedAt = now - 8 * 60 * 60 * 1000,
+-            endedAt = now,
+-            deepMinutes = 102,
+-            lightMinutes = 286,
+-            awakeMinutes = 26,
+-            remMinutes = 58,
+-            interruptionMinutes = 8,
+-            source = source,
+-        )
+-        val activity = RingActivityEntity(
+-            id = id("activity"),
+-            startedAt = now - 35 * 60 * 1000,
+-            endedAt = now,
+-            activityType = "walking",
+-            steps = 3200,
+-            distanceMeters = 2450.0,
+-            caloriesKcal = 126.0,
+-            durationMinutes = 35,
+-            averageHeartRate = 104.0,
+-            source = source,
+-        )
+-        val rri = intArrayOf(812, 806, 821, 798, 815, 809, 824, 817)
+-        val ppg = IntArray(250) { index -> 1800 + ((index % 25) * 16) }
+-        val signals = listOf(
+-            RingSignalChunkEntity(
+-                id = id("rri"),
+-                signalType = RingMetricType.RRI.name,
+-                startedAt = now,
+-                sampleRateHz = null,
+-                sampleCount = rri.size,
+-                payload = SignalEncoding.int32LittleEndian(rri),
+-                source = source,
+-            ),
+-            RingSignalChunkEntity(
+-                id = id("ppg"),
+-                signalType = RingMetricType.PPG.name,
+-                startedAt = now,
+-                sampleRateHz = 25,
+-                sampleCount = ppg.size,
+-                payload = SignalEncoding.int32LittleEndian(ppg),
+-                source = source,
+-            ),
+-        )
+-        val batch = RingDataBatch(
+-            measurements = measurements,
+-            sleepSessions = listOf(sleep),
+-            activities = listOf(activity),
+-            signalChunks = signals,
+-        )
++        val batch = generateCurrentBatch(now)
+         dao.insertBatch(batch)
+         mutableConnectionState.value = RingConnectionState.CONNECTED
+-        return RingSyncResult(RequiredRingMetrics, batch.size, now)
++        return RingSyncResult(
++            collectedTypes = setOf(
++                RingMetricType.SLEEP,
++                RingMetricType.BLOOD_PRESSURE,
++                RingMetricType.TEMPERATURE,
++                RingMetricType.HEART_RATE,
++                RingMetricType.STEPS,
++                RingMetricType.BLOOD_OXYGEN,
++                RingMetricType.HRV,
++                RingMetricType.STRESS,
++                RingMetricType.RRI,
++                RingMetricType.PPG,
++            ),
++            recordsWritten = batch.size,
++            completedAt = now,
++        )
+     }
+ 
+     override suspend fun measure(type: RingMetricType): RingSyncResult {
+         mutableConnectionState.value = RingConnectionState.SYNCING
++        delay(1_200)
+         val now = System.currentTimeMillis()
+-        val source = "ring_mock"
+-        val record = when (type) {
+-            RingMetricType.HEART_RATE -> measurement(type, now, 72.0, "bpm", source)
+-            RingMetricType.BLOOD_OXYGEN -> measurement(type, now, 98.0, "%", source)
+-            RingMetricType.BLOOD_PRESSURE -> measurement(type, now, 118.0, "mmHg", source, 76.0)
+-            RingMetricType.TEMPERATURE -> measurement(type, now, 36.5, "°C", source)
+-            RingMetricType.HRV -> measurement(type, now, 48.0, "ms", source)
+-            else -> null
++        val batch = when (type) {
++            RingMetricType.HEART_RATE -> RingDataBatch(
++                measurements = listOf(measurement(type, now, randomValue(69.0, 5.0), "bpm")),
++            )
++            RingMetricType.HRV -> RingDataBatch(
++                measurements = listOf(measurement(type, now, randomValue(49.0, 6.0), "ms")),
++            )
++            RingMetricType.BLOOD_OXYGEN -> RingDataBatch(
++                measurements = listOf(measurement(type, now, randomValue(97.0, 1.0).coerceIn(94.0, 99.0), "%")),
++            )
++            RingMetricType.BLOOD_PRESSURE -> RingDataBatch(
++                measurements = listOf(
++                    measurement(
++                        type = type,
++                        measuredAt = now,
++                        value = randomValue(118.0, 6.0),
++                        unit = "mmHg",
++                        secondaryValue = randomValue(76.0, 4.0),
++                    ),
++                ),
++            )
++            RingMetricType.TEMPERATURE -> RingDataBatch(
++                measurements = listOf(measurement(type, now, randomValue(36.5, 0.18), "°C")),
++            )
++            RingMetricType.RRI -> RingDataBatch(signalChunks = listOf(rriSignal(now)))
++            RingMetricType.PPG -> RingDataBatch(signalChunks = listOf(ppgSignal(now)))
++            else -> RingDataBatch()
+         }
+-        val batch = RingDataBatch(measurements = listOfNotNull(record))
+         dao.insertBatch(batch)
+         mutableConnectionState.value = RingConnectionState.CONNECTED
+-        return RingSyncResult(if (record == null) emptySet() else setOf(type), batch.size, now)
++        return RingSyncResult(
++            collectedTypes = if (batch.size > 0) setOf(type) else emptySet(),
++            recordsWritten = batch.size,
++            completedAt = now,
++        )
++    }
++
++    private suspend fun seedBaselineIfNeeded() {
++        if (baselineSeeded) return
++        baselineSeeded = true
++        val now = System.currentTimeMillis()
++        (6 downTo 1).forEach { daysAgo ->
++            val dayStart = startOfFakeDay(now - daysAgo * DAY_MS)
++            dao.insertBatch(generateDailyBatch(dayStart, daysAgo))
++        }
++    }
++
++    private fun generateCurrentBatch(now: Long): RingDataBatch {
++        val dayStart = startOfFakeDay(now)
++        val steps = 4_800 + random.nextInt(4_200)
++        return RingDataBatch(
++            measurements = listOf(
++                measurement(RingMetricType.HEART_RATE, now, randomValue(70.0, 5.0), "bpm"),
++                measurement(RingMetricType.HRV, now, randomValue(50.0, 6.0), "ms"),
++                measurement(RingMetricType.BLOOD_OXYGEN, now, randomValue(97.0, 1.0).coerceIn(94.0, 99.0), "%"),
++                measurement(RingMetricType.BLOOD_PRESSURE, now, randomValue(118.0, 6.0), "mmHg", randomValue(76.0, 4.0)),
++                measurement(RingMetricType.TEMPERATURE, now, randomValue(36.5, 0.18), "°C"),
++                measurement(RingMetricType.STEPS, now, steps.toDouble(), "steps"),
++                measurement(RingMetricType.STRESS, now, randomValue(34.0, 8.0).coerceIn(12.0, 75.0), "score"),
++            ),
++            sleepSessions = listOf(sleepSession(dayStart)),
++            activities = listOf(activity(dayStart, steps)),
++            signalChunks = listOf(rriSignal(now), ppgSignal(now)),
++        )
++    }
++
++    private fun generateDailyBatch(dayStart: Long, daysAgo: Int): RingDataBatch {
++        val morning = dayStart + 8 * HOUR_MS + random.nextLong(45 * MINUTE_MS)
++        val evening = dayStart + 20 * HOUR_MS + random.nextLong(60 * MINUTE_MS)
++        val trend = (6 - daysAgo) * 0.7
++        val steps = 5_200 + random.nextInt(4_600) + (trend * 120).roundToInt()
++        return RingDataBatch(
++            measurements = listOf(
++                measurement(RingMetricType.HEART_RATE, morning, randomValue(72.0 - trend, 4.0), "bpm"),
++                measurement(RingMetricType.HEART_RATE, evening, randomValue(76.0 - trend, 5.0), "bpm"),
++                measurement(RingMetricType.HRV, morning, randomValue(45.0 + trend, 5.0), "ms"),
++                measurement(RingMetricType.BLOOD_OXYGEN, morning, randomValue(97.0, 1.0).coerceIn(94.0, 99.0), "%"),
++                measurement(RingMetricType.BLOOD_PRESSURE, morning, randomValue(121.0 - trend, 6.0), "mmHg", randomValue(78.0, 4.0)),
++                measurement(RingMetricType.TEMPERATURE, morning, randomValue(36.45, 0.16), "°C"),
++                measurement(RingMetricType.STEPS, evening, steps.toDouble(), "steps"),
++                measurement(RingMetricType.STRESS, evening, randomValue(40.0 - trend, 8.0).coerceIn(12.0, 80.0), "score"),
++            ),
++            sleepSessions = listOf(sleepSession(dayStart)),
++            activities = listOf(activity(dayStart, steps)),
++        )
++    }
++
++    private fun sleepSession(dayStart: Long): RingSleepSessionEntity {
++        val endAt = dayStart + 7 * HOUR_MS + random.nextLong(45 * MINUTE_MS)
++        val deep = 82 + random.nextInt(45)
++        val rem = 50 + random.nextInt(35)
++        val awake = 12 + random.nextInt(22)
++        val light = 260 + random.nextInt(70)
++        val total = deep + rem + awake + light
++        return RingSleepSessionEntity(
++            id = stableId("sleep", endAt),
++            startedAt = endAt - total * MINUTE_MS,
++            endedAt = endAt,
++            deepMinutes = deep,
++            lightMinutes = light,
++            awakeMinutes = awake,
++            remMinutes = rem,
++            interruptionMinutes = awake / 3,
++            source = SOURCE,
++            rawPayload = """{"mock":true,"totalMinutes":$total}""",
++        )
++    }
++
++    private fun activity(dayStart: Long, steps: Int): RingActivityEntity {
++        val startedAt = dayStart + 18 * HOUR_MS + random.nextLong(90 * MINUTE_MS)
++        val duration = 28 + random.nextInt(24)
++        return RingActivityEntity(
++            id = stableId("activity", startedAt),
++            startedAt = startedAt,
++            endedAt = startedAt + duration * MINUTE_MS,
++            activityType = "walking",
++            steps = (steps * 0.42).roundToInt(),
++            distanceMeters = steps * 0.68,
++            caloriesKcal = steps * 0.036,
++            durationMinutes = duration,
++            averageHeartRate = randomValue(103.0, 8.0),
++            source = SOURCE,
++            rawPayload = """{"mock":true,"type":"walking"}""",
++        )
++    }
++
++    private fun rriSignal(startedAt: Long): RingSignalChunkEntity {
++        val values = IntArray(48) { index ->
++            (815 + sin(index / 4.0) * 22 + random.nextInt(-8, 9)).roundToInt()
++        }
++        return RingSignalChunkEntity(
++            id = stableId("rri", startedAt),
++            signalType = RingMetricType.RRI.name,
++            startedAt = startedAt,
++            sampleRateHz = null,
++            sampleCount = values.size,
++            payload = SignalEncoding.int32LittleEndian(values),
++            source = SOURCE,
++        )
++    }
++
++    private fun ppgSignal(startedAt: Long): RingSignalChunkEntity {
++        val values = IntArray(250) { index ->
++            val wave = sin(index / 25.0 * 2.0 * PI)
++            (1_850 + wave * 260 + random.nextInt(-35, 36)).roundToInt()
++        }
++        return RingSignalChunkEntity(
++            id = stableId("ppg", startedAt),
++            signalType = RingMetricType.PPG.name,
++            startedAt = startedAt,
++            sampleRateHz = 25,
++            sampleCount = values.size,
++            payload = SignalEncoding.int32LittleEndian(values),
++            source = SOURCE,
++        )
+     }
+ 
+     private fun measurement(
+@@ -128,17 +252,32 @@
+         measuredAt: Long,
+         value: Double,
+         unit: String,
+-        source: String,
+         secondaryValue: Double? = null,
+     ) = RingMeasurementEntity(
+-        id = id(type.name.lowercase()),
++        id = stableId(type.name.lowercase(), measuredAt),
+         metricType = type.name,
+         measuredAt = measuredAt,
+-        primaryValue = value,
+-        secondaryValue = secondaryValue,
++        primaryValue = round(value),
++        secondaryValue = secondaryValue?.let(::round),
+         unit = unit,
+-        source = source,
++        quality = random.nextInt(88, 100),
++        source = SOURCE,
++        rawPayload = """{"mock":true,"metric":"${type.name}"}""",
+     )
+ 
+-    private fun id(prefix: String): String = "${prefix}_${UUID.randomUUID()}"
++    private fun randomValue(center: Double, spread: Double): Double =
++        center + random.nextDouble(-spread, spread)
++
++    private fun round(value: Double): Double = (value * 10.0).roundToInt() / 10.0
++
++    private fun startOfFakeDay(timestamp: Long): Long = timestamp - timestamp % DAY_MS
++
++    private fun stableId(prefix: String, timestamp: Long): String = "${prefix}_${timestamp}_mock"
++
++    private companion object {
++        const val SOURCE = "ring_mock"
++        const val MINUTE_MS = 60_000L
++        const val HOUR_MS = 60 * MINUTE_MS
++        const val DAY_MS = 24 * HOUR_MS
++    }
+ }
+
+########## DIFF: app/src/main/java/com/rehealth/genie/ring/RingRepository.kt ##########
+--- /tmp/real_branch/app/src/main/java/com/rehealth/genie/ring/RingRepository.kt	2026-07-20 23:32:32.682645131 +0800
++++ /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ring/RingRepository.kt	2026-07-20 17:28:38.568084100 +0800
+@@ -9,7 +9,9 @@
+ 
+     suspend fun scan(): List<RingDevice>
+     suspend fun connect(device: RingDevice)
++    suspend fun autoConnect(): Boolean
+     suspend fun disconnect()
+     suspend fun syncAll(): RingSyncResult
+     suspend fun measure(type: RingMetricType): RingSyncResult
++    suspend fun sendCommand(data: ByteArray): Boolean
+ }
+
+########## DIFF: app/src/main/java/com/rehealth/genie/ring/RingViewModel.kt ##########
+--- /tmp/real_branch/app/src/main/java/com/rehealth/genie/ring/RingViewModel.kt	2026-07-20 23:32:33.672918881 +0800
++++ /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ring/RingViewModel.kt	2026-07-20 16:52:01.702259900 +0800
+@@ -1,21 +1,30 @@
+ package com.rehealth.genie.ring
+ 
++import android.content.Context
+ import android.util.Log
+ import androidx.lifecycle.ViewModel
+ import androidx.lifecycle.ViewModelProvider
+ import androidx.lifecycle.viewModelScope
++import com.rehealth.genie.network.CloudUploadResult
++import com.rehealth.genie.network.PatientInterventionPayload
++import com.rehealth.genie.network.PatientMvpPayload
++import com.rehealth.genie.network.PatientProfilePayload
++import com.rehealth.genie.network.PatientRiskPayload
++import com.rehealth.genie.network.ReHealthBackendClient
+ import com.rehealth.genie.ring.SupportedHardwareHealthMetrics
+ import com.rehealth.genie.ring.data.RingActivityEntity
+ import com.rehealth.genie.ring.data.RingDataDao
+ import com.rehealth.genie.ring.data.RingMeasurementEntity
+ import com.rehealth.genie.ring.data.RingSignalChunkEntity
+ import com.rehealth.genie.ring.data.RingSleepSessionEntity
++import com.rehealth.genie.service.RingForegroundService
+ import kotlinx.coroutines.delay
+ import kotlinx.coroutines.Job
+ import kotlinx.coroutines.flow.MutableStateFlow
+ import kotlinx.coroutines.flow.StateFlow
+ import kotlinx.coroutines.flow.asStateFlow
+ import kotlinx.coroutines.flow.combine
++import kotlinx.coroutines.flow.first
+ import kotlinx.coroutines.flow.update
+ import kotlinx.coroutines.launch
+ 
+@@ -29,6 +38,13 @@
+     val syncProgress: Int = 0,
+     val lastSyncAt: Long? = null,
+     val message: String? = null,
++    val cloudSnapshotId: String? = null,
++    val cloudRiskLevel: String? = defaultPatientMvp.risk?.riskLevel,
++    val cloudRiskScore: Double? = defaultPatientMvp.risk?.riskScore,
++    val cloudRiskMode: String? = defaultPatientMvp.risk?.mode,
++    val cloudRiskSummary: String? = defaultPatientMvp.risk?.summary,
++    val patientMvp: PatientMvpPayload? = defaultPatientMvp,
++    val isPatientMvpLoading: Boolean = false,
+     val measurements: Map<RingMetricType, RingMeasurementEntity> = emptyMap(),
+     val sleep: RingSleepSessionEntity? = null,
+     val activity: RingActivityEntity? = null,
+@@ -41,7 +57,8 @@
+ 
+ class RingViewModel(
+     private val repository: RingRepository,
+-    dao: RingDataDao,
++    private val dao: RingDataDao,
++    private val backendClient: ReHealthBackendClient? = null,
+ ) : ViewModel() {
+     private val mutableUiState = MutableStateFlow(RingUiState())
+     val uiState: StateFlow<RingUiState> = mutableUiState.asStateFlow()
+@@ -85,6 +102,9 @@
+                 }
+             }
+         }
++        viewModelScope.launch {
++            refreshPatientMvp(silent = true)
++        }
+     }
+ 
+     fun startAutoCollection() {
+@@ -103,6 +123,14 @@
+         autoCollectionJob = null
+     }
+ 
++    fun startBackgroundCollection(context: Context) {
++        RingForegroundService.start(context.applicationContext)
++    }
++
++    fun stopBackgroundCollection(context: Context) {
++        RingForegroundService.stop(context.applicationContext)
++    }
++
+     private suspend fun runAutoCollectionCycle() {
+         if (mutableUiState.value.isSyncing) return
+         Log.i(TAG, "auto collection cycle start")
+@@ -132,13 +160,26 @@
+         totalRecords
+             .onSuccess { records ->
+                 val now = System.currentTimeMillis()
++                val upload = uploadLatestSnapshot(now, "auto_collection")
++                if (upload.result != null) {
++                    refreshPatientMvp(silent = true)
++                }
+                 mutableUiState.update {
+                     it.copy(
+                         isSyncing = false,
+                         measuringMetric = null,
+                         syncProgress = 100,
+                         lastSyncAt = now,
+-                        message = if (records > 0) "自动采集完成，已保存 $records 条数据" else "自动采集完成，暂无新数据",
++                        cloudSnapshotId = upload.result?.snapshotId ?: it.cloudSnapshotId,
++                        cloudRiskLevel = upload.result?.riskLevel ?: it.cloudRiskLevel,
++                        cloudRiskScore = upload.result?.riskScore ?: it.cloudRiskScore,
++                        cloudRiskMode = upload.result?.riskMode ?: it.cloudRiskMode,
++                        cloudRiskSummary = upload.result?.riskSummary ?: it.cloudRiskSummary,
++                        message = if (records > 0) {
++                            "自动采集完成，已保存 $records 条数据，${upload.message}"
++                        } else {
++                            "自动采集完成，暂无新数据"
++                        },
+                     )
+                 }
+                 Log.i(TAG, "auto collection cycle done records=$records")
+@@ -211,13 +252,26 @@
+             runCatching { repository.syncAll() }
+                 .onSuccess { result ->
+                     progressJob.cancel()
++                    val uploadMessage = if (result.recordsWritten > 0) {
++                        uploadLatestSnapshot(result.completedAt, "manual_sync")
++                    } else {
++                        null
++                    }
++                    if (uploadMessage?.result != null) {
++                        refreshPatientMvp(silent = true)
++                    }
+                     mutableUiState.update {
+                         it.copy(
+                             isSyncing = false,
+                             syncProgress = 100,
+                             lastSyncAt = result.completedAt,
++                            cloudSnapshotId = uploadMessage?.result?.snapshotId ?: it.cloudSnapshotId,
++                            cloudRiskLevel = uploadMessage?.result?.riskLevel ?: it.cloudRiskLevel,
++                            cloudRiskScore = uploadMessage?.result?.riskScore ?: it.cloudRiskScore,
++                            cloudRiskMode = uploadMessage?.result?.riskMode ?: it.cloudRiskMode,
++                            cloudRiskSummary = uploadMessage?.result?.riskSummary ?: it.cloudRiskSummary,
+                             message = if (result.recordsWritten > 0) {
+-                                "${result.recordsWritten} 条戒指数据已保存到本机"
++                                "${result.recordsWritten} 条戒指数据已保存到本机，${uploadMessage?.message ?: "云端未上传"}"
+                             } else {
+                                 "未读取到戒指数据，请确认戒指仍保持连接"
+                             },
+@@ -237,6 +291,12 @@
+         }
+     }
+ 
++    fun refreshPatientMvp() {
++        viewModelScope.launch {
++            refreshPatientMvp(silent = false)
++        }
++    }
++
+     fun measure(type: RingMetricType) {
+         viewModelScope.launch {
+             Log.i(TAG, "measure clicked type=$type")
+@@ -292,19 +352,153 @@
+         val signals: List<RingSignalChunkEntity>,
+     )
+ 
++    private suspend fun uploadLatestSnapshot(collectedAt: Long, trigger: String): CloudUploadUiStatus {
++        val client = backendClient ?: return CloudUploadUiStatus("云端未配置")
++        val measurements = dao.observeLatestMeasurements().first()
++        val sleep = dao.observeLatestSleepSession().first()
++        val activity = dao.observeLatestActivity().first()
++        val signals = dao.observeLatestSignalChunks().first()
++        return client.uploadRingSnapshot(
++            collectedAt = collectedAt,
++            trigger = trigger,
++            device = mutableUiState.value.connectedDevice,
++            measurements = measurements,
++            sleep = sleep,
++            activity = activity,
++            signals = signals,
++        ).fold(
++            onSuccess = { result -> CloudUploadUiStatus(result.statusMessage(), result) },
++            onFailure = { error ->
++                Log.w(TAG, "cloud upload failed", error)
++                CloudUploadUiStatus("云端稍后重试")
++            },
++        )
++    }
++
++    private suspend fun refreshPatientMvp(silent: Boolean) {
++        val client = backendClient ?: return
++        if (!silent) {
++            mutableUiState.update { it.copy(isPatientMvpLoading = true, message = "正在刷新患者健康计划") }
++        }
++        client.fetchPatientMvp()
++            .onSuccess { mvp ->
++                val risk = mvp.risk
++                mutableUiState.update {
++                    it.copy(
++                        patientMvp = mvp,
++                        isPatientMvpLoading = false,
++                        cloudRiskLevel = risk?.riskLevel ?: it.cloudRiskLevel,
++                        cloudRiskScore = risk?.riskScore ?: it.cloudRiskScore,
++                        cloudRiskMode = risk?.mode ?: it.cloudRiskMode,
++                        cloudRiskSummary = risk?.summary ?: it.cloudRiskSummary,
++                        message = if (silent) it.message else "患者健康计划已更新",
++                    )
++                }
++            }
++            .onFailure { error ->
++                Log.w(TAG, "patient mvp refresh failed", error)
++                mutableUiState.update {
++                    it.copy(
++                        isPatientMvpLoading = false,
++                        patientMvp = it.patientMvp ?: defaultPatientMvp,
++                        message = if (silent) it.message else "已使用本地模拟健康计划",
++                    )
++                }
++            }
++    }
++
+     class Factory(
+         private val repository: RingRepository,
+         private val dao: RingDataDao,
++        private val backendClient: ReHealthBackendClient? = null,
+     ) : ViewModelProvider.Factory {
+         @Suppress("UNCHECKED_CAST")
+         override fun <T : ViewModel> create(modelClass: Class<T>): T =
+-            RingViewModel(repository, dao) as T
++            RingViewModel(repository, dao, backendClient) as T
+     }
+ }
+ 
++private data class CloudUploadUiStatus(
++    val message: String,
++    val result: CloudUploadResult? = null,
++)
++
+ private const val TAG = "RingViewModel"
+ private const val AUTO_COLLECTION_INTERVAL_MS = 15 * 60 * 1000L
+ 
++private val defaultPatientMvp = PatientMvpPayload(
++    profile = PatientProfilePayload(
++        patientId = "local-demo",
++        name = "李明",
++        gender = "male",
++        age = 45,
++        heightCm = 172.0,
++        weightKg = 72.0,
++        bmi = 24.3,
++        diagnoses = listOf("血压偏高观察"),
++        medications = emptyList(),
++        allergies = emptyList(),
++        familyHistory = true,
++        smoking = false,
++        drinking = false,
++        diabetesHistory = false,
++        hypertensionHistory = true,
++        updatedAt = System.currentTimeMillis(),
++    ),
++    risk = PatientRiskPayload(
++        mode = "local_mock",
++        modelVersion = "rehealth-local-mvp-0.1",
++        riskScore = 0.36,
++        riskLevel = "medium",
++        summary = "根据健康档案和模拟戒指数据生成的中等风险参考",
++        generatedAt = null,
++    ),
++    interventionPlan = listOf(
++        PatientInterventionPayload(
++            id = "sleep_baseline",
++            title = "睡眠节律打卡",
++            goal = "连续记录睡眠恢复情况",
++            action = "起床后记录精神状态",
++            duration = "7 天",
++            reason = "稳定睡眠有助于血压和心率恢复",
++            status = "active",
++        ),
++        PatientInterventionPayload(
++            id = "walking_zone2",
++            title = "餐后轻运动",
++            goal = "降低餐后代谢压力",
++            action = "晚餐后步行 15-20 分钟",
++            duration = "2 周",
++            reason = "低强度活动有助于血糖、血脂和压力管理",
++            status = "active",
++        ),
++        PatientInterventionPayload(
++            id = "bp_review",
++            title = "血压复测计划",
++            goal = "观察血压趋势",
++            action = "早晚各测 1 次血压",
++            duration = "3 天",
++            reason = "当前风险分提示需要关注血压波动",
++            status = "active",
++        ),
++    ),
++    recentCheckins = emptyList(),
++    updatedAt = System.currentTimeMillis(),
++)
++
++private fun CloudUploadResult.statusMessage(): String {
++    val level = riskLevel?.let { "风险${it.toRiskLevelLabel()}" }
++    val score = riskScore?.let { "分数${(it * 100).toInt()}" }
++    return listOfNotNull("已上传云端", level, score).joinToString("，")
++}
++
++private fun String.toRiskLevelLabel(): String = when (lowercase()) {
++    "low" -> "低"
++    "medium" -> "中"
++    "high" -> "高"
++    else -> this
++}
++
+ private fun RingMetricType.displayName(): String = when (this) {
+     RingMetricType.HEART_RATE -> "心率"
+     RingMetricType.BLOOD_OXYGEN -> "血氧"
+
+########## DIFF: app/src/main/java/com/rehealth/genie/ring/data/RingDataDao.kt ##########
+--- /tmp/real_branch/app/src/main/java/com/rehealth/genie/ring/data/RingDataDao.kt	2026-07-20 23:32:34.974313118 +0800
++++ /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ring/data/RingDataDao.kt	2026-07-20 14:19:56.149649200 +0800
+@@ -71,6 +71,17 @@
+     )
+     fun observeLatestSignalChunks(): Flow<List<RingSignalChunkEntity>>
+ 
++    @Query("SELECT * FROM ring_measurements WHERE measured_at >= :since ORDER BY measured_at DESC")
++    suspend fun getMeasurementsSince(since: Long): List<RingMeasurementEntity>
++
++    @Query(
++        "SELECT * FROM ring_measurements WHERE metric_type = :metricType ORDER BY measured_at DESC LIMIT 1",
++    )
++    suspend fun getLatestMeasurement(metricType: String): RingMeasurementEntity?
++
++    @Query("SELECT * FROM ring_activities WHERE started_at >= :since ORDER BY started_at DESC")
++    suspend fun getActivitiesSince(since: Long): List<RingActivityEntity>
++
+     @Transaction
+     suspend fun insertBatch(batch: RingDataBatch) {
+         insertMeasurements(batch.measurements)
+
+########## DIFF: app/src/main/java/com/rehealth/genie/ring/mrd/MrdBleRingRepository.kt ##########
+--- /tmp/real_branch/app/src/main/java/com/rehealth/genie/ring/mrd/MrdBleRingRepository.kt	2026-07-20 23:32:36.442650057 +0800
++++ /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ring/mrd/MrdBleRingRepository.kt	2026-07-20 17:55:46.876855400 +0800
+@@ -1,6 +1,5 @@
+ package com.rehealth.genie.ring.mrd
+ 
+-import android.Manifest
+ import android.annotation.SuppressLint
+ import android.bluetooth.BluetoothAdapter
+ import android.bluetooth.BluetoothDevice
+@@ -12,11 +11,9 @@
+ import android.bluetooth.BluetoothManager
+ import android.bluetooth.BluetoothProfile
+ import android.content.Context
+-import android.content.pm.PackageManager
+-import android.os.Build
+ import android.util.Log
+-import androidx.core.content.ContextCompat
+ import com.rehealth.genie.ring.RequiredRingMetrics
++import com.rehealth.genie.ring.RingBleGuards
+ import com.rehealth.genie.ring.RingConnectionState
+ import com.rehealth.genie.ring.RingDevice
+ import com.rehealth.genie.ring.RingMetricType
+@@ -40,7 +37,6 @@
+     private val protocol: MrdProtocolAdapter,
+ ) : RingRepository {
+     private val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+-    private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+     private val adapter: BluetoothAdapter?
+         get() = manager.adapter
+ 
+@@ -95,7 +91,7 @@
+                 val name = device.name.orEmpty()
+                 name.contains("MR11", ignoreCase = true) ||
+                     name.contains("MRD", ignoreCase = true) ||
+-                    device.address.equals(lastRingAddress(), ignoreCase = true)
++                    device.address.equals(KNOWN_RING_ADDRESS, ignoreCase = true)
+             }.thenByDescending { it.rssi ?: -999 },
+         ).take(12)
+     }
+@@ -116,9 +112,6 @@
+         gatt = remote.connectGatt(context, false, callback)
+         val ok = withTimeoutOrNull(15_000) { connectReady?.await() } == true
+         mutableConnectedDevice.value = if (ok) device else null
+-        if (ok) {
+-            preferences.edit().putString(LAST_RING_ADDRESS_KEY, device.address).apply()
+-        }
+         mutableConnectionState.value = if (ok) RingConnectionState.CONNECTED else RingConnectionState.ERROR
+     }
+ 
+@@ -128,13 +121,24 @@
+         mutableConnectionState.value = RingConnectionState.DISCONNECTED
+     }
+ 
++    override suspend fun autoConnect(): Boolean = withContext(Dispatchers.Main) {
++        if (mutableConnectionState.value == RingConnectionState.CONNECTED && gatt != null) return@withContext true
++        connect(RingDevice(KNOWN_RING_ADDRESS, "MR11 智能戒指", null))
++        mutableConnectionState.value == RingConnectionState.CONNECTED && gatt != null
++    }
++
++    override suspend fun sendCommand(data: ByteArray): Boolean = withContext(Dispatchers.Main) {
++        val writer = writeCharacteristic
++        val currentGatt = gatt
++        if (writer == null || currentGatt == null) return@withContext false
++        writeWithRetry(currentGatt, writer, data)
++    }
++
+     override suspend fun syncAll(): RingSyncResult = withContext(Dispatchers.Main) {
+         if (writeCharacteristic == null || gatt == null) {
+             Log.i(TAG, "sync reconnecting")
+-            lastRingAddress()?.let { address ->
+-                connect(RingDevice(address, "已绑定的 MRD 戒指", null))
+-                delay(800)
+-            }
++            connect(RingDevice(KNOWN_RING_ADDRESS, "MR11 鏅鸿兘鎴掓寚", null))
++            delay(800)
+         }
+         val writer = writeCharacteristic
+         val currentGatt = gatt
+@@ -173,10 +177,8 @@
+         }
+         if (writeCharacteristic == null || gatt == null) {
+             Log.i(TAG, "manual measure reconnecting before type=$type")
+-            lastRingAddress()?.let { address ->
+-                connect(RingDevice(address, "已绑定的 MRD 戒指", null))
+-                delay(800)
+-            }
++            connect(RingDevice(KNOWN_RING_ADDRESS, "MR11 智能戒指", null))
++            delay(800)
+         }
+         val writer = writeCharacteristic
+         val currentGatt = gatt
+@@ -205,10 +207,8 @@
+     private suspend fun readTemperature(): RingSyncResult {
+         if (writeCharacteristic == null || gatt == null) {
+             Log.i(TAG, "temperature read reconnecting")
+-            lastRingAddress()?.let { address ->
+-                connect(RingDevice(address, "已绑定的 MRD 戒指", null))
+-                delay(800)
+-            }
++            connect(RingDevice(KNOWN_RING_ADDRESS, "MR11 智能戒指", null))
++            delay(800)
+         }
+         val writer = writeCharacteristic
+         val currentGatt = gatt
+@@ -354,16 +354,9 @@
+     }
+ 
+     private fun hasBlePermission(): Boolean {
+-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+-            ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED &&
+-                ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+-        } else {
+-            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+-        }
++        return RingBleGuards.hasCollectionPermission(context)
+     }
+ 
+-    private fun lastRingAddress(): String? = preferences.getString(LAST_RING_ADDRESS_KEY, null)
+-
+     private fun ByteArray.toHex(): String = joinToString(" ") { "%02X".format(it) }
+ 
+     private fun ByteArray.containsUuid(uuid: UUID): Boolean {
+@@ -416,8 +409,7 @@
+ 
+     private companion object {
+         const val TAG = "MrdBleRingRepository"
+-        const val PREFERENCES_NAME = "ring_connection"
+-        const val LAST_RING_ADDRESS_KEY = "last_ring_address"
++        const val KNOWN_RING_ADDRESS = "D9:18:68:41:00:C6"
+         val WRITE_SERVICE_UUID: UUID = UUID.fromString("f000efe0-0451-4000-0000-00000000b000")
+         val WRITE_CHARACTERISTIC_UUID: UUID = UUID.fromString("f000efe1-0451-4000-0000-00000000b000")
+         val NOTIFY_CHARACTERISTIC_UUID: UUID = UUID.fromString("f000efe3-0451-4000-0000-00000000b000")
+
+########## DIFF: app/src/main/java/com/rehealth/genie/ring/mrd/MrdProtocolAdapter.kt ##########
+--- /tmp/real_branch/app/src/main/java/com/rehealth/genie/ring/mrd/MrdProtocolAdapter.kt	2026-07-20 23:32:38.183974617 +0800
++++ /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ring/mrd/MrdProtocolAdapter.kt	2026-07-20 17:56:40.905889400 +0800
+@@ -17,7 +17,13 @@
+ import com.manridy.sdk_mrd2019.bean.read.history.SleepHistoryBean
+ import com.manridy.sdk_mrd2019.bean.read.history.StepHistoryBean
+ import com.manridy.sdk_mrd2019.bean.read.history.TempHistoryBean
++import com.manridy.sdk_mrd2019.bean.send.MrdEventClock
++import com.manridy.sdk_mrd2019.bean.send.MrdSedentary
++import com.manridy.sdk_mrd2019.bean.send.MrdNotDisturb
++import com.manridy.sdk_mrd2019.bean.send.MrdHeartBloodAlert
++import com.manridy.sdk_mrd2019.bean.send.MrdUserInfo
+ import com.manridy.sdk_mrd2019.bean.send.StartTestEnum
++import com.manridy.sdk_mrd2019.bean.common.DrinkReminderBean
+ import com.manridy.sdk_mrd2019.read.MrdReadRequest
+ import com.google.gson.Gson
+ import com.rehealth.genie.ring.RequiredRingMetrics
+@@ -357,5 +363,30 @@
+     private companion object {
+         const val SOURCE = "mrd_ring"
+     }
++
++    // ---- Device settings command stubs (DeviceSettingsViewModel) ----
++    // These return empty placeholder packets. The real vendor command builders are
++    // not wired in D1; the settings screen sends these through sendCommand() which
++    // is a no-op on the mock/unsupported path. Replace with real Manridy.getMrdSend()
++    // builders when device-settings is brought online.
++
++    fun setAlarmClock(clocks: List<MrdEventClock>): List<ByteArray> = emptyList()
++    fun setSedentaryReminder(reminder: MrdSedentary): ByteArray = ByteArray(0)
++    fun setDrinkReminder(reminder: DrinkReminderBean): ByteArray = ByteArray(0)
++    fun setDoNotDisturb(dnd: MrdNotDisturb): ByteArray = ByteArray(0)
++    fun setTimingHrTest(enabled: Boolean, intervalMinutes: Int): ByteArray = ByteArray(0)
++    fun setHealthAlert(alert: MrdHeartBloodAlert): ByteArray = ByteArray(0)
++    fun setUserInfo(userInfo: MrdUserInfo): ByteArray = ByteArray(0)
++    fun setSportTarget(stepTarget: Int, calorieTarget: Int): ByteArray = ByteArray(0)
++    fun setUnit(lengthUnit: Int, weightUnit: Int): ByteArray = ByteArray(0)
++    fun setHourFormat(is24Hour: Boolean): ByteArray = ByteArray(0)
++    fun findDevice(durationSeconds: Int): ByteArray = ByteArray(0)
++    fun setWristOn(enabled: Boolean): ByteArray = ByteArray(0)
++    fun setScreenLightTime(seconds: Int): ByteArray = ByteArray(0)
++    fun setLostAlert(enabled: Boolean, distance: Int): ByteArray = ByteArray(0)
++    fun getBatteryLevel(): ByteArray = ByteArray(0)
++    fun getFirmwareVersion(): ByteArray = ByteArray(0)
++    fun syncTime(): ByteArray = ByteArray(0)
++    fun factoryReset(): ByteArray = ByteArray(0)
+ }
+ 
+
+########## DIFF: app/src/main/java/com/rehealth/genie/ui/LoginScreen.kt ##########
+--- /tmp/real_branch/app/src/main/java/com/rehealth/genie/ui/LoginScreen.kt	2026-07-20 23:32:39.724230097 +0800
++++ /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/LoginScreen.kt	2026-07-20 21:39:29.479574900 +0800
+@@ -25,7 +25,6 @@
+ import androidx.compose.material.icons.outlined.ChatBubbleOutline
+ import androidx.compose.material.icons.outlined.Check
+ import androidx.compose.material.icons.outlined.Lock
+-import androidx.compose.material.icons.outlined.PhoneAndroid
+ import androidx.compose.material.icons.outlined.PersonOutline
+ import androidx.compose.material.icons.outlined.Shield
+ import androidx.compose.material3.Button
+@@ -42,8 +41,13 @@
+ import androidx.compose.runtime.mutableStateOf
+ import androidx.compose.runtime.remember
+ import androidx.compose.runtime.setValue
++import androidx.compose.runtime.collectAsState
++import androidx.compose.runtime.LaunchedEffect
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
++import androidx.compose.ui.platform.LocalContext
++import androidx.lifecycle.viewmodel.compose.viewModel
++import androidx.compose.material3.CircularProgressIndicator
+ import androidx.compose.ui.draw.clip
+ import androidx.compose.ui.draw.shadow
+ import androidx.compose.ui.graphics.Brush
+@@ -55,6 +59,7 @@
+ import androidx.compose.ui.text.font.FontWeight
+ import androidx.compose.ui.text.input.ImeAction
+ import androidx.compose.ui.text.input.KeyboardType
++import androidx.compose.ui.text.input.PasswordVisualTransformation
+ import androidx.compose.ui.unit.Density
+ import androidx.compose.ui.unit.dp
+ import androidx.compose.ui.unit.sp
+@@ -64,15 +69,22 @@
+ import com.rehealth.genie.ui.theme.Muted
+ 
+ @Composable
+-fun LoginScreen(onLogin: (String) -> Unit) {
+-    var phone by remember { mutableStateOf("") }
+-    var code by remember { mutableStateOf("") }
++fun LoginScreen(
++    onLoginSuccess: () -> Unit,
++    onGoToRegister: () -> Unit = {},
++) {
++    val context = LocalContext.current
++    val viewModel: LoginViewModel = viewModel(factory = LoginViewModel.Factory(context))
++    val uiState by viewModel.uiState.collectAsState()
++    LaunchedEffect(uiState.isLoggedIn) {
++        if (uiState.isLoggedIn) onLoginSuccess()
++    }
++    var username by remember { mutableStateOf("") }
++    var password by remember { mutableStateOf("") }
+     var agreed by remember { mutableStateOf(false) }
+-    var codeSent by remember { mutableStateOf(false) }
+     var showAgreementHint by remember { mutableStateOf(false) }
+     var showLoginHint by remember { mutableStateOf(false) }
+-    val phoneValid = phone.length == 11 && phone.all(Char::isDigit)
+-    val canLogin = phoneValid && code.length >= 4 && agreed
++    val canLogin = username.isNotBlank() && password.isNotBlank() && agreed && !uiState.isLoading
+     val brandGreen = Color(0xFF08A97B)
+     val outlineGreen = Color(0xFFB9DDD5)
+     val density = LocalDensity.current
+@@ -135,13 +147,12 @@
+                     .background(Color.White)
+                     .padding(16.dp),
+             ) {
+-                Text("手机号登录", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
++                Text("账号登录", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                 OutlinedTextField(
+-                    value = phone,
+-                    onValueChange = { phone = it.filter(Char::isDigit).take(11) },
+-                    placeholder = { Text("请输入手机号", fontSize = 14.sp, maxLines = 1) },
+-                    leadingIcon = { Icon(Icons.Outlined.PhoneAndroid, null) },
+-                    prefix = { Text("+86  ", fontSize = 14.sp) },
++                    value = username,
++                    onValueChange = { username = it.trim().take(64) },
++                    placeholder = { Text("请输入账号", fontSize = 14.sp, maxLines = 1) },
++                    leadingIcon = { Icon(Icons.Outlined.PersonOutline, null) },
+                     singleLine = true,
+                     textStyle = TextStyle(fontSize = 14.sp),
+                     modifier = Modifier
+@@ -157,29 +168,16 @@
+                         cursorColor = brandGreen,
+                     ),
+                     keyboardOptions = KeyboardOptions(
+-                        keyboardType = KeyboardType.Phone,
++                        keyboardType = KeyboardType.Text,
+                         imeAction = ImeAction.Next,
+                     ),
+                 )
+                 OutlinedTextField(
+-                    value = code,
+-                    onValueChange = { code = it.filter(Char::isDigit).take(6) },
+-                    placeholder = { Text("请输入验证码", fontSize = 14.sp, maxLines = 1) },
++                    value = password,
++                    onValueChange = { password = it.take(64) },
++                    placeholder = { Text("请输入密码", fontSize = 14.sp, maxLines = 1) },
+                     leadingIcon = { Icon(Icons.Outlined.Lock, null) },
+-                    trailingIcon = {
+-                        Text(
+-                            if (codeSent) "已发送" else "获取验证码",
+-                            color = if (phoneValid) Mint else Muted,
+-                            fontSize = 13.sp,
+-                            fontWeight = FontWeight.SemiBold,
+-                            modifier = Modifier
+-                                .clickable(enabled = phoneValid) {
+-                                    codeSent = true
+-                                    if (code.isBlank()) code = "8888"
+-                                }
+-                                .padding(8.dp),
+-                        )
+-                    },
++                    visualTransformation = PasswordVisualTransformation(),
+                     singleLine = true,
+                     textStyle = TextStyle(fontSize = 14.sp),
+                     modifier = Modifier
+@@ -195,19 +193,20 @@
+                         cursorColor = brandGreen,
+                     ),
+                     keyboardOptions = KeyboardOptions(
+-                        keyboardType = KeyboardType.NumberPassword,
++                        keyboardType = KeyboardType.Password,
+                         imeAction = ImeAction.Done,
+                     ),
+                 )
+                 Button(
+                     onClick = {
+                         if (canLogin) {
+-                            onLogin(phone)
++                            viewModel.login(username, password)
+                         } else {
+                             showLoginHint = true
+                             if (!agreed) showAgreementHint = true
+                         }
+                     },
++                    enabled = canLogin,
+                     modifier = Modifier
+                         .fillMaxWidth()
+                         .padding(top = 14.dp)
+@@ -215,11 +214,25 @@
+                     shape = RoundedCornerShape(15.dp),
+                     colors = ButtonDefaults.buttonColors(containerColor = brandGreen),
+                 ) {
+-                    Text("登录 / 注册", fontSize = 16.sp, fontWeight = FontWeight.Bold)
++                    if (uiState.isLoading) {
++                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
++                    } else {
++                        Text("登录 / 注册", fontSize = 16.sp, fontWeight = FontWeight.Bold)
++                    }
++                }
++                uiState.errorMessage?.let { error ->
++                    Text(
++                        text = error,
++                        color = Color(0xFFD94C4C),
++                        fontSize = 11.sp,
++                        modifier = Modifier
++                            .fillMaxWidth()
++                            .padding(start = 12.dp, top = 6.dp),
++                    )
+                 }
+-                if (showLoginHint && (!phoneValid || code.length < 4)) {
++                if (showLoginHint && (username.isBlank() || password.isBlank())) {
+                     Text(
+-                        "请输入正确的手机号和验证码",
++                        "请输入账号和密码",
+                         color = Color(0xFFD94C4C),
+                         fontSize = 11.sp,
+                         modifier = Modifier.padding(start = 12.dp, top = 6.dp),
+@@ -242,7 +255,7 @@
+                 ) {
+                     OutlinedButton(
+                         onClick = {
+-                            if (agreed) onLogin("wechat_user") else showAgreementHint = true
++                            if (agreed) onLoginSuccess() else showAgreementHint = true
+                         },
+                         modifier = Modifier
+                             .weight(1f)
+@@ -265,7 +278,7 @@
+                     }
+                     OutlinedButton(
+                         onClick = {
+-                            if (agreed) onLogin("guest") else showAgreementHint = true
++                            if (agreed) onLoginSuccess() else showAgreementHint = true
+                         },
+                         modifier = Modifier
+                             .weight(1f)
+@@ -289,6 +302,24 @@
+                 }
+                 Row(
+                     modifier = Modifier
++                        .fillMaxWidth()
++                        .padding(top = 6.dp),
++                    horizontalArrangement = Arrangement.Center,
++                    verticalAlignment = Alignment.CenterVertically,
++                ) {
++                    Text("还没有账号？", color = Muted, fontSize = 13.sp)
++                    Text(
++                        "去注册",
++                        color = brandGreen,
++                        fontSize = 13.sp,
++                        fontWeight = FontWeight.Bold,
++                        modifier = Modifier
++                            .clickable { onGoToRegister() }
++                            .padding(start = 4.dp),
++                    )
++                }
++                Row(
++                    modifier = Modifier
+                         .fillMaxWidth()
+                         .padding(top = 10.dp)
+                         .clickable {
+
+########## DIFF: app/src/main/java/com/rehealth/genie/ui/ReHealthApp.kt ##########
+--- /tmp/real_branch/app/src/main/java/com/rehealth/genie/ui/ReHealthApp.kt	2026-07-20 23:32:40.482976639 +0800
++++ /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/ReHealthApp.kt	2026-07-20 23:04:32.566477300 +0800
+@@ -1,4 +1,4 @@
+-package com.rehealth.genie.ui
++﻿package com.rehealth.genie.ui
+ 
+ import android.Manifest
+ import android.content.Context
+@@ -33,6 +33,7 @@
+ import androidx.compose.foundation.layout.size
+ import androidx.compose.foundation.layout.statusBarsPadding
+ import androidx.compose.foundation.layout.width
++import androidx.compose.foundation.layout.widthIn
+ import androidx.compose.foundation.lazy.LazyColumn
+ import androidx.compose.foundation.lazy.items
+ import androidx.compose.foundation.shape.CircleShape
+@@ -44,9 +45,11 @@
+ import androidx.compose.material.icons.outlined.AutoAwesome
+ import androidx.compose.material.icons.outlined.ArrowBack
+ import androidx.compose.material.icons.outlined.Bluetooth
++import androidx.compose.material.icons.outlined.Check
+ import androidx.compose.material.icons.outlined.ChatBubbleOutline
+ import androidx.compose.material.icons.outlined.ChevronRight
+ import androidx.compose.material.icons.outlined.CloudOff
++import androidx.compose.material.icons.outlined.Close
+ import androidx.compose.material.icons.outlined.DataUsage
+ import androidx.compose.material.icons.outlined.DeleteOutline
+ import androidx.compose.material.icons.outlined.Devices
+@@ -66,6 +69,8 @@
+ import androidx.compose.material.icons.outlined.Timeline
+ import androidx.compose.material3.Button
+ import androidx.compose.material3.ButtonDefaults
++import androidx.compose.material3.OutlinedButton
++import androidx.compose.foundation.BorderStroke
+ import androidx.compose.material3.Card
+ import androidx.compose.material3.CardDefaults
+ import androidx.compose.material3.HorizontalDivider
+@@ -76,17 +81,15 @@
+ import androidx.compose.material3.OutlinedTextField
+ import androidx.compose.material3.Scaffold
+ import androidx.compose.material3.Text
+-import androidx.compose.material3.TextButton
+ import androidx.compose.runtime.Composable
+ import androidx.compose.runtime.LaunchedEffect
+ import androidx.compose.runtime.collectAsState
+ import androidx.compose.runtime.getValue
+ import androidx.compose.runtime.mutableIntStateOf
+-import androidx.compose.runtime.mutableStateListOf
+ import androidx.compose.runtime.mutableStateOf
+ import androidx.compose.runtime.remember
+-import androidx.compose.runtime.rememberCoroutineScope
+ import androidx.compose.runtime.setValue
++import androidx.compose.runtime.rememberCoroutineScope
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.platform.LocalContext
+ import androidx.compose.ui.Modifier
+@@ -107,13 +110,12 @@
+ import androidx.lifecycle.viewmodel.compose.viewModel
+ import com.rehealth.genie.R
+ import com.rehealth.genie.ReHealthApplication
+-import com.rehealth.genie.BuildConfig
+-import com.rehealth.genie.chat.ChatTurn
+-import com.rehealth.genie.chat.DeepSeekClient
++import com.rehealth.genie.features.HealthFeatureExtractor
++import com.rehealth.genie.features.HealthMemorySnapshot
++import com.rehealth.genie.network.PatientInterventionPayload
+ import com.rehealth.genie.phm.Intervention
+ import com.rehealth.genie.phm.ModelInputStage
+ import com.rehealth.genie.phm.ModelInputStatus
+-import com.rehealth.genie.phm.MockPhmService
+ import com.rehealth.genie.ring.RingMetricType
+ import com.rehealth.genie.ring.RingConnectionState
+ import com.rehealth.genie.ring.RingDevice
+@@ -131,7 +133,13 @@
+ import kotlinx.coroutines.delay
+ import kotlinx.coroutines.launch
+ 
+-private enum class AppStage { Splash, Login, InterviewSession, DeviceSetup, Main }
++import androidx.compose.material.icons.outlined.ExitToApp
++import androidx.compose.material3.AlertDialog
++import androidx.compose.material3.TextButton
++import com.rehealth.genie.ui.components.QueueStatusBanner
++import com.rehealth.genie.work.MeasurementSyncWorker
++
++private enum class AppStage { Splash, Login, Register, InterviewSession, DeviceSetup, Main }
+ private enum class Tab(val label: String, val icon: ImageVector) {
+     Home("首页", Icons.Outlined.Home),
+     Data("数据", Icons.Outlined.ShowChart),
+@@ -153,244 +161,1274 @@
+     val measuringLabel: String = "测量中",
+ )
+ 
+-private data class DemoVitalPreset(
+-    val heartRate: Int,
+-    val bloodOxygen: Int,
+-    val systolic: Int,
+-    val diastolic: Int,
+-    val temperature: Double,
+-) {
+-    fun valueFor(type: RingMetricType): String = when (type) {
+-        RingMetricType.HEART_RATE -> heartRate.toString()
+-        RingMetricType.BLOOD_OXYGEN -> bloodOxygen.toString()
+-        RingMetricType.BLOOD_PRESSURE -> "$systolic/$diastolic"
+-        RingMetricType.TEMPERATURE -> String.format(Locale.getDefault(), "%.1f", temperature)
+-        else -> "--"
+-    }
+-
+-    fun asValueMap(): Map<RingMetricType, String> = mapOf(
+-        RingMetricType.HEART_RATE to valueFor(RingMetricType.HEART_RATE),
+-        RingMetricType.BLOOD_OXYGEN to valueFor(RingMetricType.BLOOD_OXYGEN),
+-        RingMetricType.BLOOD_PRESSURE to valueFor(RingMetricType.BLOOD_PRESSURE),
+-        RingMetricType.TEMPERATURE to valueFor(RingMetricType.TEMPERATURE),
++@Composable
++fun ReHealthApp() {
++    val application = LocalContext.current.applicationContext as ReHealthApplication
++    val profilePreferences = remember(application) {
++        application.getSharedPreferences("rehealth_profile", 0)
++    }
++    val onboardingComplete = remember(profilePreferences) {
++        profilePreferences.getBoolean("onboarding_complete", false)
++    }
++    var stage by remember {
++        mutableStateOf(if (onboardingComplete) AppStage.Main else AppStage.Splash)
++    }
++    val ringViewModel: RingViewModel = viewModel(
++        factory = remember(application) {
++            RingViewModel.Factory(
++                application.ringRepository,
++                application.database.ringDataDao(),
++                application.backendClient,
++            )
++        },
+     )
++    val ringState by ringViewModel.uiState.collectAsState()
++    LaunchedEffect(stage) {
++        if (stage == AppStage.Main) {
++            ringViewModel.startAutoCollection()
++        } else {
++            ringViewModel.stopAutoCollection()
++        }
++    }
++    AnimatedContent(
++        targetState = stage,
++        transitionSpec = { fadeIn(tween(320)) togetherWith fadeOut(tween(220)) },
++        label = "app-stage",
++    ) { current ->
++        when (current) {
++            AppStage.Splash -> SplashScreen { stage = AppStage.Login }
++            AppStage.Login -> LoginScreen(
++                onLoginSuccess = {
++                    // Return to Main if onboarding is already complete (e.g. after re-login),
++                    // otherwise continue the first-run interview/device-setup flow.
++                    stage = if (onboardingComplete) AppStage.Main else AppStage.InterviewSession
++                },
++                onGoToRegister = { stage = AppStage.Register },
++            )
++            AppStage.Register -> RegisterScreen(
++                onBackToLogin = { stage = AppStage.Login },
++                onRegistered = {
++                    // New users are not onboarded yet, so continue the first-run flow.
++                    stage = if (onboardingComplete) AppStage.Main else AppStage.InterviewSession
++                },
++            )
++            AppStage.InterviewSession -> HealthInterviewFlow(
++                onBack = { stage = AppStage.Login },
++                onComplete = { stage = AppStage.DeviceSetup },
++                completionLabel = "连接智能戒指",
++            )
++            AppStage.DeviceSetup -> DeviceBindingScreen(
++                state = ringState,
++                onBack = { stage = AppStage.InterviewSession },
++                onScan = ringViewModel::scan,
++                onConnect = ringViewModel::connect,
++                onDisconnect = ringViewModel::disconnect,
++                onSync = ringViewModel::syncAll,
++                onboarding = true,
++                onComplete = {
++                    profilePreferences.edit()
++                        .putBoolean("device_setup_complete", true)
++                        .putBoolean("onboarding_complete", true)
++                        .apply()
++                    stage = AppStage.Main
++                },
++            )
++            AppStage.Main -> MainShell(
++                ringState = ringState,
++                onScan = ringViewModel::scan,
++                onConnect = ringViewModel::connect,
++                onDisconnect = ringViewModel::disconnect,
++                onSync = ringViewModel::syncAll,
++                onMeasure = ringViewModel::measure,
++                onRestartOnboarding = {
++                    profilePreferences.edit().clear().apply()
++                    ringViewModel.disconnect()
++                    stage = AppStage.Splash
++                },
++                onGoToLogin = { stage = AppStage.Login },
++            )
++        }
++    }
+ }
+ 
+-private val demoVitalPresets = listOf(
+-    DemoVitalPreset(heartRate = 72, bloodOxygen = 98, systolic = 118, diastolic = 76, temperature = 36.5),
+-    DemoVitalPreset(heartRate = 78, bloodOxygen = 97, systolic = 122, diastolic = 79, temperature = 36.7),
+-    DemoVitalPreset(heartRate = 68, bloodOxygen = 99, systolic = 115, diastolic = 74, temperature = 36.4),
+-)
++@Composable
++private fun SplashScreen(onStart: () -> Unit) {
++    LaunchedEffect(Unit) {
++        delay(3_000)
++        onStart()
++    }
++
++    Box(
++        modifier = Modifier
++            .fillMaxSize()
++            .background(
++                Brush.verticalGradient(
++                    listOf(Color(0xFFF8FDFB), Color(0xFFDCF8F2), Color(0xFFBEEFEA)),
++                ),
++            )
++            .statusBarsPadding()
++            .padding(24.dp),
++    ) {
++        Column(
++            modifier = Modifier.fillMaxSize(),
++            horizontalAlignment = Alignment.CenterHorizontally,
++        ) {
++            Spacer(Modifier.height(56.dp))
++            Text("睿禾精灵", color = Color(0xFF08765D), fontSize = 34.sp, fontWeight = FontWeight.Bold)
++            Text("你的端侧 AI 健康伙伴", color = Ink, fontSize = 16.sp, modifier = Modifier.padding(top = 8.dp))
++            Spacer(Modifier.height(36.dp))
++            androidx.compose.foundation.Image(
++                painter = painterResource(R.drawable.xiaohelin),
++                contentDescription = "小禾灵",
++                modifier = Modifier.size(260.dp),
++                contentScale = ContentScale.Fit,
++            )
++            Spacer(Modifier.weight(1f))
++            Row(verticalAlignment = Alignment.CenterVertically) {
++                Icon(Icons.Outlined.Shield, null, tint = Mint, modifier = Modifier.size(17.dp))
++                Spacer(Modifier.width(7.dp))
++                Text("健康数据默认保存在本机", color = Ink, fontSize = 13.sp)
++            }
++            Text("原始健康数据不会自动上传", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
++            Spacer(Modifier.height(38.dp))
++        }
++    }
++}
+ 
+-private data class DataPeriodDemo(
+-    val subtitle: String,
+-    val statusMessage: String,
+-    val healthScore: Int,
+-    val healthLabel: String,
+-    val healthSummary: String,
+-    val vitals: DemoVitalPreset,
+-    val sleep: String,
+-    val steps: String,
+-    val metricStatus: String,
+-)
++@Composable
++private fun InterviewScreen(onComplete: () -> Unit) {
++    Column(
++        modifier = Modifier.fillMaxSize().background(Canvas).statusBarsPadding().padding(24.dp),
++        horizontalAlignment = Alignment.CenterHorizontally,
++    ) {
++        Spacer(Modifier.height(28.dp))
++        Text("建立你的健康基线", color = Ink, fontSize = 27.sp, fontWeight = FontWeight.Bold)
++        Text("我们一起聊聊你的健康", color = Ink, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
++        androidx.compose.foundation.Image(
++            painter = painterResource(R.drawable.xiaohelin),
++            contentDescription = null,
++            modifier = Modifier.size(180.dp).padding(vertical = 8.dp),
++            contentScale = ContentScale.Fit,
++        )
++        FeatureCard(Icons.Outlined.AutoAwesome, "AI 健康采访", "通过问答了解你，生成专属健康画像")
++        FeatureCard(Icons.Outlined.Shield, "端侧模型守护隐私", "数据默认保存在本机，原始数据不上传")
++        FeatureCard(Icons.Outlined.FavoriteBorder, "更懂你的健康伙伴", "越了解你，建议越精准，越有温度")
++        Spacer(Modifier.weight(1f))
++        Button(
++            onClick = onComplete,
++            modifier = Modifier.fillMaxWidth().height(54.dp),
++            shape = RoundedCornerShape(18.dp),
++            colors = ButtonDefaults.buttonColors(containerColor = Mint),
++        ) {
++            Text("开始健康采访", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
++        }
++        Text("约 5 分钟", color = Muted, fontSize = 13.sp, modifier = Modifier.padding(16.dp))
++    }
++}
+ 
+-private val dataPeriodDemos = listOf(
+-    DataPeriodDemo(
+-        subtitle = "今日身体状态概览",
+-        statusMessage = "今日状态最佳，健康指数较近7天提升 2 分",
+-        healthScore = 91,
+-        healthLabel = "优秀",
+-        healthSummary = "今日表现最佳，较近7天提升 2 分 ›",
+-        vitals = DemoVitalPreset(70, 99, 116, 74, 36.5),
+-        sleep = "7h48m",
+-        steps = "8,240",
+-        metricStatus = "今日累计",
+-    ),
+-    DataPeriodDemo(
+-        subtitle = "近7天身体状态总览",
+-        statusMessage = "近7天状态优于近30天，健康指数提升 2 分",
+-        healthScore = 89,
+-        healthLabel = "优秀",
+-        healthSummary = "近7天优于近30天，继续保持 ›",
+-        vitals = DemoVitalPreset(72, 99, 118, 76, 36.5),
+-        sleep = "7h35m",
+-        steps = "7,680",
+-        metricStatus = "近7天平均",
+-    ),
+-    DataPeriodDemo(
+-        subtitle = "近30天身体状态总览",
+-        statusMessage = "近30天状态优于近90天，健康指数提升 3 分",
+-        healthScore = 87,
+-        healthLabel = "良好",
+-        healthSummary = "近30天优于近90天，趋势向好 ›",
+-        vitals = DemoVitalPreset(74, 98, 120, 78, 36.5),
+-        sleep = "7h24m",
+-        steps = "7,210",
+-        metricStatus = "近30天平均",
+-    ),
+-    DataPeriodDemo(
+-        subtitle = "近90天身体状态总览",
+-        statusMessage = "近90天健康基线稳定，近期状态持续改善",
+-        healthScore = 84,
+-        healthLabel = "良好",
+-        healthSummary = "近90天基线稳定，近期持续改善 ›",
+-        vitals = DemoVitalPreset(76, 97, 122, 80, 36.6),
+-        sleep = "7h10m",
+-        steps = "6,840",
+-        metricStatus = "近90天平均",
+-    ),
+-)
++@Composable
++private fun FeatureCard(icon: ImageVector, title: String, subtitle: String) {
++    Row(
++        modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp).clip(RoundedCornerShape(18.dp))
++            .background(Color.White).border(1.dp, Line, RoundedCornerShape(18.dp)).padding(16.dp),
++        verticalAlignment = Alignment.CenterVertically,
++    ) {
++        Box(Modifier.size(42.dp).clip(CircleShape).background(MintSoft), contentAlignment = Alignment.Center) {
++            Icon(icon, null, tint = Mint)
++        }
++        Column(Modifier.padding(start = 14.dp)) {
++            Text(title, color = Ink, fontWeight = FontWeight.SemiBold)
++            Text(subtitle, color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
++        }
++    }
++}
+ 
+-private fun demoMeasuringValue(type: RingMetricType, step: Int, target: DemoVitalPreset): String = when (type) {
+-    RingMetricType.HEART_RATE -> (target.heartRate + listOf(-2, 1, -1, 2, 0, 1)[step % 6]).toString()
+-    RingMetricType.BLOOD_OXYGEN -> (target.bloodOxygen + listOf(0, -1, 0, 1, 0, -1)[step % 6])
+-        .coerceIn(95, 99).toString()
+-    RingMetricType.BLOOD_PRESSURE -> {
+-        val systolic = target.systolic + listOf(-2, 1, -1, 2, 0, 1)[step % 6]
+-        val diastolic = target.diastolic + listOf(-1, 1, 0, 1, -1, 0)[step % 6]
+-        "$systolic/$diastolic"
+-    }
+-    RingMetricType.TEMPERATURE -> String.format(
+-        Locale.getDefault(),
+-        "%.1f",
+-        target.temperature + listOf(0.0, -0.1, 0.1, 0.0, 0.1, -0.1)[step % 6],
+-    )
+-    else -> "--"
++@Composable
++private fun MainShell(
++    ringState: RingUiState,
++    onScan: () -> Unit,
++    onConnect: (RingDevice) -> Unit,
++    onDisconnect: () -> Unit,
++    onSync: () -> Unit,
++    onMeasure: (RingMetricType) -> Unit,
++    onRestartOnboarding: () -> Unit,
++    onGoToLogin: () -> Unit,
++) {
++    val application = LocalContext.current.applicationContext as ReHealthApplication
++    var selected by remember { mutableStateOf(Tab.Home) }
++    // D3: observe upload queue state + pending feedback for the status banner
++    val queueState by application.syncRepository.queueState.collectAsState()
++    val pendingFeedback by application.interventionFeedbackRepository.observePendingFeedback()
++        .collectAsState(initial = emptyList())
++    var showDeviceBinding by remember { mutableStateOf(false) }
++    var showInterview by remember { mutableStateOf(false) }
++    val canonicalRiskStatus = remember { mutableStateOf<RemoteFeatureEvaluateStatus?>(null) }
++    LaunchedEffect(
++        ringState.patientMvp?.updatedAt,
++        ringState.lastSyncAt,
++        ringState.collectedMetricCount,
++    ) {
++        refreshRemoteFeatureEvaluateStatus(application, ringState, canonicalRiskStatus)
++    }
++    if (showInterview) {
++        HealthInterviewFlow(
++            onBack = { showInterview = false },
++            onComplete = { showInterview = false },
++        )
++        return
++    }
++    if (showDeviceBinding) {
++        DeviceBindingScreen(
++            state = ringState,
++            onBack = { showDeviceBinding = false },
++            onScan = onScan,
++            onConnect = onConnect,
++            onDisconnect = onDisconnect,
++            onSync = onSync,
++        )
++        return
++    }
++    Scaffold(
++        containerColor = Canvas,
++        contentWindowInsets = WindowInsets(0, 0, 0, 0),
++        bottomBar = {
++            Row(
++                modifier = Modifier.fillMaxWidth().background(Color.White).navigationBarsPadding().height(66.dp),
++                horizontalArrangement = Arrangement.SpaceAround,
++                verticalAlignment = Alignment.CenterVertically,
++            ) {
++                Tab.entries.forEach { tab ->
++                    Column(
++                        modifier = Modifier.weight(1f).clickable { selected = tab },
++                        horizontalAlignment = Alignment.CenterHorizontally,
++                    ) {
++                        Icon(tab.icon, tab.label, tint = if (selected == tab) Mint else Muted, modifier = Modifier.size(22.dp))
++                        Text(tab.label, color = if (selected == tab) Mint else Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp))
++                    }
++                }
++            }
++        },
++    ) { padding ->
++        Box(Modifier.padding(padding).fillMaxSize()) {
++            Column(Modifier.fillMaxSize()) {
++                // D3: queue status banner (sync progress / session expired)
++                QueueStatusBanner(
++                    queueState = queueState,
++                    pendingCount = pendingFeedback.size,
++                    onLoginClick = onGoToLogin,
++                )
++                Box(Modifier.weight(1f).fillMaxWidth()) {
++                    when (selected) {
++                        Tab.Home -> HomeScreen(onStartInterview = { showInterview = true })
++                        Tab.Data -> DataScreen(ringState, canonicalRiskStatus, onMeasure)
++                        Tab.Attribution -> AttributionScreen(ringState, canonicalRiskStatus)
++                        Tab.Model -> ModelScreen(ringState, canonicalRiskStatus)
++                        Tab.Profile -> ProfileScreen(
++                            state = ringState,
++                            onDeviceBinding = { showDeviceBinding = true },
++                            onRestartOnboarding = onRestartOnboarding,
++                            onGoToLogin = onGoToLogin,
++                        )
++                    }
++                }
++            }
++        }
++    }
+ }
+ 
+-private data class AttributionFactor(
+-    val section: String,
+-    val title: String,
+-    val value: String,
+-    val score: String,
+-    val share: String,
+-    val progress: Float,
+-    val detail: String,
+-    val evidence: String,
+-    val action: String,
+-)
++@Composable
++private fun Page(title: String, subtitle: String? = null, content: @Composable () -> Unit) {
++    LazyColumn(
++        modifier = Modifier.fillMaxSize().background(Canvas).statusBarsPadding(),
++        contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp),
++        verticalArrangement = Arrangement.spacedBy(12.dp),
++    ) {
++        item {
++            Text(title, color = Ink, fontSize = 25.sp, fontWeight = FontWeight.Bold)
++            subtitle?.let { Text(it, color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp)) }
++        }
++        item { content() }
++    }
++}
+ 
+-private val attributionFactors = listOf(
+-    AttributionFactor("基础体征", "年龄", "32 岁", "基线项", "模型输入", 0.58f, "年龄用于校准长期心脑血管风险，当前健康画像年龄为 32 岁。", "来源：健康初始采访 · 已建立", "每年复查一次健康基线"),
+-    AttributionFactor("基础体征", "性别", "男", "基线项", "模型输入", 0.24f, "性别是模型的基础校准变量，与其他临床指标共同参与风险估计。", "来源：健康初始采访 · 已建立", "信息变化时更新健康画像"),
+-    AttributionFactor("基础体征", "BMI", "23.8 kg/m²", "-2 分", "贡献度 4%", 0.38f, "当前 BMI 处于健康范围，体重变化会影响血压、血糖和血脂相关风险。", "来源：身高体重记录 · 最近更新 06-11", "维持当前体重，优先关注腰围趋势"),
+-    AttributionFactor("血压与代谢", "收缩压", "118 mmHg", "-6 分", "贡献度 8%", 0.64f, "近 3 次测量均值 118 mmHg，较上一周期下降 4 mmHg，波动较小。", "来源：戒指血压测量 · 3 次有效", "测量前静坐 5 分钟，保持固定时间测量"),
+-    AttributionFactor("血压与代谢", "舒张压", "76 mmHg", "-4 分", "贡献度 6%", 0.52f, "舒张压处于当前个人基线附近，与收缩压一起用于计算血压相关风险。", "来源：戒指血压测量 · 3 次有效", "继续保持规律睡眠和适度运动"),
+-    AttributionFactor("血压与代谢", "空腹血糖", "5.2 mmol/L", "-3 分", "贡献度 5%", 0.45f, "空腹血糖在本次健康画像中保持稳定，饮食结构和运动依从性会影响后续趋势。", "来源：临床报告手工录入 · 最近更新 05-28", "复查时尽量保持空腹条件一致"),
+-    AttributionFactor("血压与代谢", "总胆固醇", "4.6 mmol/L", "-2 分", "贡献度 4%", 0.37f, "总胆固醇用于评估血脂整体水平，需要结合 LDL、HDL 和甘油三酯一起看。", "来源：临床报告手工录入 · 最近更新 05-28", "减少高油高盐饮食，按计划复查血脂"),
+-    AttributionFactor("血压与代谢", "LDL 胆固醇", "2.4 mmol/L", "-2 分", "贡献度 4%", 0.35f, "LDL 是血脂风险解释中的重点指标，当前记录较上一周期下降 0.2 mmol/L。", "来源：临床报告手工录入 · 最近更新 05-28", "保持膳食纤维摄入，减少反式脂肪"),
+-    AttributionFactor("血压与代谢", "HDL 胆固醇", "1.5 mmol/L", "-3 分", "贡献度 5%", 0.48f, "HDL 与运动、体重和饮食结构相关，当前水平对个人风险评估较友好。", "来源：临床报告手工录入 · 最近更新 05-28", "每周完成至少 4 天中等强度活动"),
+-    AttributionFactor("血压与代谢", "甘油三酯", "1.1 mmol/L", "-2 分", "贡献度 3%", 0.32f, "甘油三酯受晚间饮食、饮酒和运动影响，当前记录处于个人目标范围。", "来源：临床报告手工录入 · 最近更新 05-28", "晚餐控制精制碳水，避免夜间加餐"),
+-    AttributionFactor("生活方式", "每周运动天数", "4 天", "+18 分", "贡献度 28%", 0.78f, "本周完成 4 天中等强度活动，日均步数 6,842 步，是当前最主要的可干预改善因素。", "来源：戒指步数与活动记录 · 5/7 天有效", "晚餐后步行 15 分钟，把运动保持在每周 4-5 天"),
+-    AttributionFactor("生活方式", "吸烟", "不吸烟", "-5 分", "贡献度 7%", 0.72f, "当前健康画像记录为不吸烟，模型将该状态作为保护性生活方式因素。", "来源：健康初始采访 · 已建立", "继续保持，避免长期被动吸烟"),
+-    AttributionFactor("生活方式", "饮酒", "每周 1 次", "+1 分", "贡献度 2%", 0.18f, "当前饮酒频率较低，对本周期风险趋势影响有限，但与睡眠和甘油三酯有关联。", "来源：健康初始采访 · 最近更新 06-11", "控制饮酒频率，避免连续多日饮酒"),
+-    AttributionFactor("病史与家族史", "糖尿病史", "无", "-4 分", "贡献度 6%", 0.66f, "当前未记录糖尿病史，后续如果临床报告出现新结果，需要重新评估空腹血糖相关风险。", "来源：健康初始采访 · 已建立", "每年复查空腹血糖或糖化血红蛋白"),
+-    AttributionFactor("病史与家族史", "高血压史", "无", "-4 分", "贡献度 6%", 0.63f, "当前未记录高血压史，戒指测量结果会用于观察个人血压趋势，不替代临床诊断。", "来源：健康初始采访 · 已建立", "继续记录固定时间的血压变化"),
+-    AttributionFactor("病史与家族史", "家族史", "无明确家族史", "基线项", "模型输入", 0.22f, "家族史用于校准先天风险背景，当前健康画像未发现明确的早发心脑血管疾病家族史。", "来源：健康初始采访 · 已建立", "有新家族健康信息时及时补充"),
+-)
++@Composable
++private fun HomeScreen(onStartInterview: () -> Unit) {
++    var input by remember { mutableStateOf("") }
++    var showActions by remember { mutableStateOf(false) }
++    var lastMessage by remember { mutableStateOf<String?>(null) }
++    var aiReply by remember { mutableStateOf<String?>(null) }
++    var isAsking by remember { mutableStateOf(false) }
++    val scope = rememberCoroutineScope()
++    val chatService = remember { com.rehealth.genie.network.HealthChatService() }
++
++    fun askAi(text: String) {
++        if (text.isBlank() || isAsking) return
++        lastMessage = text
++        input = ""
++        isAsking = true
++        aiReply = null
++        scope.launch {
++            val reply = runCatching { chatService.ask(text) }.getOrDefault("暂时无法连接健康助手，请检查网络后重试。")
++            aiReply = reply
++            isAsking = false
++        }
++    }
+ 
+-private data class MealInsight(
+-    val title: String,
+-    val calories: String,
+-    val targetGap: String,
+-    val description: String,
+-    val protein: String,
+-    val carbs: String,
+-    val fat: String,
+-)
++    Column(
++        modifier = Modifier.fillMaxSize().background(Canvas).statusBarsPadding(),
++    ) {
++        Row(
++            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp),
++            verticalAlignment = Alignment.CenterVertically,
++        ) {
++            Column(Modifier.weight(1f)) {
++                Text("小禾灵", color = Ink, fontSize = 22.sp, fontWeight = FontWeight.Bold)
++                Text("你的健康伙伴一直在这里", color = Muted, fontSize = 11.sp)
++            }
++            IconButton(onClick = {}) {
++                Icon(Icons.Outlined.NotificationsNone, "通知", tint = Ink)
++            }
++        }
+ 
+-private val lunchInsight = MealInsight(
+-    title = "红烧牛肉面 + 鸡蛋 + 无糖茶",
+-    calories = "780 kcal",
+-    targetGap = "+180 kcal",
+-    description = "午餐热量高于你的个人目标，主要来自面量和汤汁；蛋白质摄入基本充足。",
+-    protein = "蛋白质 29 g",
+-    carbs = "碳水 86 g",
+-    fat = "脂肪 25 g",
+-)
++        Column(
++            modifier = Modifier.weight(1f).fillMaxWidth(),
++            horizontalAlignment = Alignment.CenterHorizontally,
++        ) {
++            Spacer(Modifier.height(6.dp))
++            Box(
++                modifier = Modifier.size(250.dp).clip(CircleShape)
++                    .background(Brush.radialGradient(listOf(Color.White, MintSoft, Color.Transparent))),
++                contentAlignment = Alignment.Center,
++            ) {
++                androidx.compose.foundation.Image(
++                    painter = painterResource(R.drawable.xiaohelin),
++                    contentDescription = "小禾灵",
++                    modifier = Modifier.size(230.dp),
++                    contentScale = ContentScale.Fit,
++                )
++            }
++            Text("早上好，李明", color = Ink, fontSize = 24.sp, fontWeight = FontWeight.Bold)
++            Text("今天想从哪里开始？", color = Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
+ 
+-private data class AttributionTrend(
+-    val windowDays: Int,
+-    val baselineAverage: Float,
+-    val currentAverage: Float,
+-    val improvementScore: Int,
+-    val riskLevel: String,
+-    val trendLabel: String,
+-    val healthSeries: List<Float>,
+-    val statusQuo: List<Float>,
+-    val withPlan: List<Float>,
+-)
++            lastMessage?.let {
++                Text(
++                    "你：$it",
++                    color = Ink,
++                    fontSize = 12.sp,
++                    maxLines = 2,
++                    modifier = Modifier.padding(horizontal = 22.dp, vertical = 6.dp)
++                        .clip(RoundedCornerShape(16.dp)).background(MintSoft)
++                        .padding(horizontal = 14.dp, vertical = 10.dp),
++                )
++                if (isAsking) {
++                    Text(
++                        "小禾灵正在思考…",
++                        color = Muted,
++                        fontSize = 12.sp,
++                        modifier = Modifier.padding(horizontal = 22.dp, vertical = 4.dp),
++                    )
++                } else {
++                    aiReply?.let { reply ->
++                        Text(
++                            "小禾灵：$reply",
++                            color = Ink,
++                            fontSize = 12.sp,
++                            lineHeight = 17.sp,
++                            modifier = Modifier.padding(horizontal = 22.dp, vertical = 6.dp)
++                                .clip(RoundedCornerShape(16.dp)).background(Color.White)
++                                .padding(horizontal = 14.dp, vertical = 10.dp),
++                        )
++                    }
++                }
++            } ?: Spacer(Modifier.height(12.dp))
++
++            Spacer(Modifier.weight(1f))
++        }
+ 
+-private val healthRiskHistory = List(180) { index ->
+-    val progress = index / 179f
+-    val noise = listOf(0.008f, -0.004f, 0.006f, -0.002f, 0.004f)[index % 5]
+-    (0.64f - progress * 0.19f + noise).coerceIn(0.38f, 0.68f)
+-}
+-
+-private fun sampleSeries(values: List<Float>, count: Int): List<Float> {
+-    if (values.isEmpty()) return emptyList()
+-    if (values.size <= count) return values
+-    return List(count) { index ->
+-        val sourceIndex = index * (values.lastIndex) / (count - 1).coerceAtLeast(1)
+-        values[sourceIndex]
++        if (showActions) {
++            Row(
++                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
++                horizontalArrangement = Arrangement.spacedBy(8.dp),
++            ) {
++                HomeQuickAction(Icons.Outlined.AddAPhoto, "拍照记录", Modifier.weight(1f)) {
++                    lastMessage = "我想拍照记录饮食或报告"
++                    showActions = false
++                }
++                HomeQuickAction(Icons.Outlined.Assessment, "健康记录", Modifier.weight(1f)) {
++                    lastMessage = "打开我的健康记录"
++                    showActions = false
++                }
++                HomeQuickAction(Icons.Outlined.Devices, "戒指同步", Modifier.weight(1f)) {
++                    lastMessage = "查看智能戒指状态"
++                    showActions = false
++                }
++            }
++        }
++
++        Row(
++            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
++            verticalAlignment = Alignment.CenterVertically,
++        ) {
++            IconButton(
++                onClick = { showActions = !showActions },
++                modifier = Modifier.size(48.dp).clip(CircleShape).background(MintSoft),
++            ) {
++                Icon(Icons.Outlined.Add, "更多", tint = Mint)
++            }
++            OutlinedTextField(
++                value = input,
++                onValueChange = { input = it },
++                placeholder = { Text("问问小禾灵…", color = Muted) },
++                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
++                shape = RoundedCornerShape(22.dp),
++                maxLines = 2,
++                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = ImeAction.Send),
++                keyboardActions = androidx.compose.foundation.text.KeyboardActions(
++                    onSend = {
++                        askAi(input.trim())
++                    },
++                ),
++                trailingIcon = {
++                    if (input.isNotBlank()) {
++                        IconButton(
++                            onClick = {
++                                askAi(input.trim())
++                            },
++                        ) {
++                            Icon(Icons.Outlined.ChatBubbleOutline, "发送", tint = Mint)
++                        }
++                    }
++                },
++            )
++            IconButton(
++                onClick = onStartInterview,
++                modifier = Modifier.size(48.dp).clip(CircleShape).background(Mint),
++            ) {
++                Icon(Icons.Outlined.MicNone, "实时语音", tint = Color.White)
++            }
++        }
++    }
++}
++
++@Composable
++private fun PatientPlanRow(item: PatientInterventionPayload, feedbackViewModel: InterventionFeedbackViewModel) {
++    val feedbackState by feedbackViewModel.uiState.collectAsState()
++    Row(
++        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
++            .background(Color(0xFFF8FCFA)).padding(horizontal = 10.dp, vertical = 9.dp),
++        verticalAlignment = Alignment.CenterVertically,
++    ) {
++        Box(Modifier.size(30.dp).clip(CircleShape).background(MintSoft), contentAlignment = Alignment.Center) {
++            Icon(Icons.Outlined.TaskAlt, null, tint = Mint, modifier = Modifier.size(17.dp))
++        }
++        Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
++            Text(item.title ?: "干预计划", color = Ink, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
++            Text(item.action ?: item.reason ?: "按计划完成今日任务", color = Muted, fontSize = 9.sp, maxLines = 1)
++        }
++        Column(
++            modifier = Modifier.widthIn(min = 172.dp),
++            horizontalAlignment = Alignment.End,
++        ) {
++            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
++                FeedbackButton(
++                    label = "完成",
++                    icon = Icons.Outlined.Check,
++                    containerColor = Mint,
++                    contentColor = Color.White,
++                    enabled = !feedbackState.isSubmitting && item.id != null,
++                    onClick = {
++                        item.id?.let { interventionId ->
++                            feedbackViewModel.submitFeedback(interventionId, "completed", null)
++                        }
++                    },
++                )
++                FeedbackButton(
++                    label = "不适用",
++                    icon = Icons.Outlined.Close,
++                    containerColor = Color.White,
++                    contentColor = Mint,
++                    enabled = !feedbackState.isSubmitting && item.id != null,
++                    onClick = {
++                        item.id?.let { interventionId ->
++                            feedbackViewModel.submitFeedback(interventionId, "not_applicable", null)
++                        }
++                    },
++                )
++                FeedbackButton(
++                    label = "稍后",
++                    containerColor = Color.White,
++                    contentColor = Muted,
++                    enabled = !feedbackState.isSubmitting && item.id != null,
++                    onClick = {
++                        item.id?.let { interventionId ->
++                            feedbackViewModel.submitFeedback(interventionId, "skipped", null)
++                        }
++                    },
++                )
++            }
++            feedbackState.message?.let { message ->
++                Text(
++                    text = message,
++                    color = Mint,
++                    fontSize = 9.sp,
++                    modifier = Modifier.padding(top = 4.dp),
++                )
++            }
++        }
++    }
++}
++
++@Composable
++private fun FeedbackButton(
++    label: String,
++    icon: ImageVector? = null,
++    containerColor: Color,
++    contentColor: Color,
++    enabled: Boolean,
++    onClick: () -> Unit,
++) {
++    Button(
++        onClick = onClick,
++        enabled = enabled,
++        colors = ButtonDefaults.buttonColors(containerColor = containerColor, contentColor = contentColor),
++        modifier = Modifier.height(30.dp),
++        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 0.dp),
++    ) {
++        if (icon != null) {
++            Icon(icon, null, modifier = Modifier.size(13.dp))
++            Spacer(Modifier.width(3.dp))
++        }
++        Text(label, fontSize = 10.sp)
++    }
++}
++
++@Composable
++private fun HomeQuickAction(icon: ImageVector, label: String, modifier: Modifier, onClick: () -> Unit) {
++    Column(
++        modifier = modifier.clip(RoundedCornerShape(14.dp)).background(Color.White)
++            .border(1.dp, Line, RoundedCornerShape(14.dp)).clickable(onClick = onClick)
++            .padding(vertical = 10.dp),
++        horizontalAlignment = Alignment.CenterHorizontally,
++    ) {
++        Icon(icon, null, tint = Mint, modifier = Modifier.size(19.dp))
++        Text(label, color = Ink, fontSize = 10.sp, modifier = Modifier.padding(top = 5.dp))
++    }
++}
++
++@Composable
++private fun ActionTile(icon: ImageVector, text: String, modifier: Modifier) {
++    Column(
++        modifier = modifier.clip(RoundedCornerShape(16.dp)).background(Color.White)
++            .border(1.dp, Line, RoundedCornerShape(16.dp)).clickable { }.padding(vertical = 14.dp),
++        horizontalAlignment = Alignment.CenterHorizontally,
++    ) {
++        Box(Modifier.size(34.dp).clip(CircleShape).background(MintSoft), contentAlignment = Alignment.Center) {
++            Icon(icon, null, tint = Mint, modifier = Modifier.size(19.dp))
++        }
++        Text(text, color = Ink, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(top = 7.dp))
++    }
++}
++
++@Composable
++private fun InterventionCard(item: Intervention) {
++    Row(
++        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White)
++            .border(1.dp, Line, RoundedCornerShape(16.dp)).padding(14.dp),
++        verticalAlignment = Alignment.CenterVertically,
++    ) {
++        Box(Modifier.size(38.dp).clip(CircleShape).background(MintSoft), contentAlignment = Alignment.Center) {
++            Icon(Icons.Outlined.TaskAlt, null, tint = Mint, modifier = Modifier.size(20.dp))
++        }
++        Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
++            Text(item.title, color = Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
++            Text("${item.reason} · ${item.duration}", color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp))
++        }
++        Text("去完成", color = Mint, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
++    }
++}
++
++@Composable
++private fun Metric(label: String, value: String, state: String, modifier: Modifier) {
++    Column(
++        modifier = modifier.clip(RoundedCornerShape(14.dp)).background(Color.White)
++            .border(1.dp, Line, RoundedCornerShape(14.dp)).padding(10.dp),
++    ) {
++        Text(label, color = Muted, fontSize = 10.sp)
++        Text(value, color = Ink, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp))
++        Text(state, color = Mint, fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp))
+     }
+ }
+ 
+-private fun buildAttributionTrend(windowDays: Int): AttributionTrend {
+-    val currentStart = healthRiskHistory.size - windowDays
+-    val currentWindow = healthRiskHistory.subList(currentStart, healthRiskHistory.size)
+-    val baselineStart = (currentStart - 90).coerceAtLeast(0)
+-    val baselineWindow = healthRiskHistory.subList(baselineStart, currentStart)
+-    val currentAverage = currentWindow.average().toFloat()
+-    val baselineAverage = baselineWindow.average().toFloat()
+-    val improvementScore = ((baselineAverage - currentAverage) * 320f).toInt().coerceIn(0, 99)
+-    val riskLevel = when {
+-        currentAverage < 0.38f -> "较低"
+-        currentAverage < 0.55f -> "中等"
+-        else -> "偏高"
+-    }
+-    val trendLabel = if (currentAverage < baselineAverage) "趋势改善" else "需要关注"
+-    val currentPoint = currentWindow.last()
+-    val planEffect = 0.018f + windowDays / 90f * 0.042f
+-    val statusQuo = List(9) { index ->
+-        (currentPoint - 0.014f * index / 8f).coerceAtLeast(0.28f)
+-    }
+-    val withPlan = List(9) { index ->
+-        (currentPoint - (0.014f + planEffect) * index / 8f).coerceAtLeast(0.25f)
+-    }
+-    return AttributionTrend(
+-        windowDays = windowDays,
+-        baselineAverage = baselineAverage,
+-        currentAverage = currentAverage,
+-        improvementScore = improvementScore,
+-        riskLevel = riskLevel,
+-        trendLabel = trendLabel,
+-        healthSeries = sampleSeries(healthRiskHistory.map { 1f - it }, 8),
+-        statusQuo = statusQuo,
+-        withPlan = withPlan,
++@Composable
++private fun DataScreen(
++    state: RingUiState,
++    canonicalRiskStatus: androidx.compose.runtime.State<RemoteFeatureEvaluateStatus?>,
++    onMeasure: (RingMetricType) -> Unit,
++) {
++    var selectedPeriod by remember { mutableIntStateOf(1) }
++
++    fun measurement(type: RingMetricType): String {
++        val record = state.measurements[type] ?: return "--"
++        return if (type == RingMetricType.BLOOD_PRESSURE) {
++            "${record.primaryValue.toInt()}/${record.secondaryValue?.toInt() ?: "--"}"
++        } else if (type == RingMetricType.TEMPERATURE) {
++            String.format(Locale.getDefault(), "%.1f", record.primaryValue)
++        } else {
++            record.primaryValue.toInt().toString()
++        }
++    }
++    val sleepMinutes = state.sleep?.let { (it.endedAt - it.startedAt) / 60_000 }
++    val sleepValue = sleepMinutes?.let { "${it / 60}h${it % 60}m" } ?: "--"
++    val vitalMetrics = listOf(
++        RingMetricUi(RingMetricType.HEART_RATE, "心率", measurement(RingMetricType.HEART_RATE), "bpm", "手动测量", Icons.Outlined.FavoriteBorder, Color(0xFFFF6078), manualMeasure = true),
++        RingMetricUi(RingMetricType.BLOOD_OXYGEN, "血氧", measurement(RingMetricType.BLOOD_OXYGEN), "%", "手动测量", Icons.Outlined.DataUsage, Color(0xFF148BFF), manualMeasure = true),
++        RingMetricUi(RingMetricType.BLOOD_PRESSURE, "血压", measurement(RingMetricType.BLOOD_PRESSURE), "mmHg", "手动测量", Icons.Outlined.FavoriteBorder, Color(0xFF8B63F6), manualMeasure = true),
++        RingMetricUi(RingMetricType.TEMPERATURE, "体温", measurement(RingMetricType.TEMPERATURE), "°C", "定时采集", Icons.Outlined.Assessment, Color(0xFFFF8A32), manualMeasure = true, actionLabel = "开启", measuringLabel = "采集中"),
+     )
++    val dailyMetrics = listOf(
++        RingMetricUi(RingMetricType.SLEEP, "睡眠", sleepValue, "", "本周平均", Icons.Outlined.AutoAwesome, Color(0xFF9668EF)),
++        RingMetricUi(RingMetricType.STEPS, "步数", measurement(RingMetricType.STEPS), "步", "本周平均", Icons.Outlined.ShowChart, Color(0xFF20B77A)),
++    )
++
++    LazyColumn(
++        modifier = Modifier.fillMaxSize().background(
++            Brush.radialGradient(
++                colors = listOf(Color(0xFFE9FBF6), Canvas),
++                radius = 900f,
++            ),
++        ),
++        contentPadding = androidx.compose.foundation.layout.PaddingValues(
++            start = 16.dp,
++            top = 32.dp,
++            end = 16.dp,
++            bottom = 12.dp,
++        ),
++        verticalArrangement = Arrangement.spacedBy(11.dp),
++    ) {
++        item {
++            Row(verticalAlignment = Alignment.CenterVertically) {
++                Column(Modifier.weight(1f)) {
++                    Text("健康数据", color = Ink, fontSize = 24.sp, fontWeight = FontWeight.Bold)
++                    Text("近7天身体状态总览", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
++                }
++                Box(
++                    modifier = Modifier.size(38.dp).clip(CircleShape)
++                        .border(1.dp, Ink, CircleShape),
++                    contentAlignment = Alignment.Center,
++                ) {
++                    Icon(Icons.Outlined.Assessment, "数据概览", tint = Ink, modifier = Modifier.size(20.dp))
++                }
++            }
++        }
++        item {
++            PeriodSelector(
++                labels = listOf("今日", "7 天", "30 天", "90 天"),
++                selected = selectedPeriod,
++                onSelected = { selectedPeriod = it },
++            )
++        }
++        item {
++            RiskScoreCard(canonicalRiskStatus)
++        }
++        if (state.message != null || state.isSyncing) {
++            item {
++                DataStatusCard(state, canonicalRiskStatus)
++            }
++        }
++        item {
++            Row(
++                modifier = Modifier.fillMaxWidth().height(178.dp),
++                horizontalArrangement = Arrangement.spacedBy(12.dp),
++            ) {
++                HealthScoreCard(Modifier.weight(1f))
++                SmartRingOverviewCard(state, Modifier.weight(1f))
++            }
++        }
++        item {
++            DashboardSectionHeader(Icons.Outlined.FavoriteBorder, "生命体征")
++        }
++        item {
++            MetricGrid(
++                metrics = vitalMetrics,
++                measuringMetric = state.measuringMetric,
++                onMeasure = onMeasure,
++                measureEnabled = !state.isSyncing,
++            )
++        }
++        item {
++            DashboardSectionHeader(Icons.Outlined.Timeline, "睡眠与活动")
++        }
++        item {
++            MetricGrid(dailyMetrics)
++        }
++        item {
++            Row(
++                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
++                    .background(Brush.horizontalGradient(listOf(Color(0xFFF4FFFB), Color(0xFFE3F9F2))))
++                    .border(1.dp, Color(0xFFCDEBE2), RoundedCornerShape(18.dp))
++                    .padding(horizontal = 14.dp, vertical = 11.dp),
++                verticalAlignment = Alignment.CenterVertically,
++            ) {
++                Box(
++                    modifier = Modifier.size(36.dp).clip(CircleShape).background(Color.White),
++                    contentAlignment = Alignment.Center,
++                ) {
++                    Icon(Icons.Outlined.Shield, null, tint = Mint, modifier = Modifier.size(22.dp))
++                }
++                Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
++                    Text("健康洞察 · AI 提醒", color = Mint, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
++                    Text(
++                        "当前为智能戒指采集数据。血压、血氧等结果仅用于健康管理参考。",
++                        color = Muted,
++                        fontSize = 9.sp,
++                        lineHeight = 13.sp,
++                        modifier = Modifier.padding(top = 3.dp),
++                    )
++                }
++                Icon(Icons.Outlined.ChevronRight, null, tint = Mint, modifier = Modifier.size(20.dp))
++            }
++        }
++    }
++}
++
++@Composable
++private fun PeriodSelector(labels: List<String>, selected: Int, onSelected: (Int) -> Unit) {
++    Row(
++        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp))
++            .background(Color.White.copy(alpha = 0.88f))
++            .border(1.dp, Color(0xFFD7E5E1), RoundedCornerShape(17.dp))
++            .padding(3.dp),
++    ) {
++        labels.forEachIndexed { index, label ->
++            Box(
++                modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp))
++                    .background(
++                        if (index == selected) {
++                            Brush.horizontalGradient(listOf(Color(0xFF0E9E8C), Color(0xFF11D7B0)))
++                        } else {
++                            Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent))
++                        },
++                    )
++                    .clickable { onSelected(index) }
++                    .padding(vertical = 9.dp),
++                contentAlignment = Alignment.Center,
++            ) {
++                Text(
++                    label,
++                    color = if (index == selected) Color.White else Muted,
++                    fontSize = 13.sp,
++                    fontWeight = if (index == selected) FontWeight.Bold else FontWeight.Medium,
++                )
++            }
++        }
++    }
+ }
+ 
+-private fun formatRiskIndex(value: Float): String = String.format(Locale.getDefault(), "%.1f", value * 100f)
++@Composable
++private fun DataStatusCard(
++    state: RingUiState,
++    canonicalRiskStatus: androidx.compose.runtime.State<RemoteFeatureEvaluateStatus?>,
++) {
++    Column(
++        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
++            .background(Color.White.copy(alpha = 0.92f))
++            .border(1.dp, Color(0xFFD7E5E1), RoundedCornerShape(16.dp))
++            .padding(horizontal = 12.dp, vertical = 10.dp),
++    ) {
++        Text(
++            state.message ?: if (state.isSyncing) "正在处理戒指数据" else "",
++            color = Ink,
++            fontSize = 11.sp,
++            fontWeight = FontWeight.SemiBold,
++        )
++        if (state.isSyncing) {
++            LinearProgressIndicator(
++                progress = { state.syncProgress / 100f },
++                modifier = Modifier.fillMaxWidth().height(5.dp).padding(top = 7.dp),
++                color = Mint,
++                trackColor = MintSoft,
++            )
++        }
++        val risk = canonicalRiskStatus.value
++        if (risk != null) {
++            Spacer(Modifier.height(8.dp))
++            Row(verticalAlignment = Alignment.CenterVertically) {
++                Icon(Icons.Outlined.Shield, null, tint = Mint, modifier = Modifier.size(16.dp))
++                Text(
++                    "规范风险 ${risk.riskLevel.riskLevelLabel()} · ${risk.riskScore.riskScoreLabel()} · ${risk.modeLabel}",
++                    color = Muted,
++                    fontSize = 10.sp,
++                    modifier = Modifier.padding(start = 6.dp),
++                )
++            }
++        }
++    }
++}
+ 
+ @Composable
+-fun ReHealthApp() {
+-    val application = LocalContext.current.applicationContext as ReHealthApplication
+-    val profilePreferences = remember(application) {
+-        application.getSharedPreferences("rehealth_profile", 0)
++private fun RiskScoreCard(
++    canonicalRiskStatus: androidx.compose.runtime.State<RemoteFeatureEvaluateStatus?>,
++) {
++    val current = canonicalRiskStatus.value
++    Row(
++        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
++            .background(Brush.horizontalGradient(listOf(Color.White, Color(0xFFEAF8F4))))
++            .border(1.dp, Color(0xFFD7E5E1), RoundedCornerShape(18.dp))
++            .padding(14.dp),
++        verticalAlignment = Alignment.CenterVertically,
++    ) {
++        Box(Modifier.size(46.dp).clip(CircleShape).background(MintSoft), contentAlignment = Alignment.Center) {
++            Icon(Icons.Outlined.Shield, null, tint = Mint, modifier = Modifier.size(24.dp))
++        }
++        Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
++            Text("今日风险分", color = Ink, fontSize = 14.sp, fontWeight = FontWeight.Bold)
++            Text(
++                current?.summary ?: "正在从本机特征生成云端风险参考",
++                color = Muted,
++                fontSize = 10.sp,
++                lineHeight = 14.sp,
++                maxLines = 2,
++                modifier = Modifier.padding(top = 3.dp),
++            )
++        }
++        Column(horizontalAlignment = Alignment.End) {
++            Text(current?.riskScore.riskScoreLabel(), color = Mint, fontSize = 24.sp, fontWeight = FontWeight.Bold)
++            Text(current?.riskLevel.riskLevelLabel(), color = Muted, fontSize = 10.sp)
++            Text(current?.modeLabel ?: "评估中", color = Muted, fontSize = 9.sp)
++        }
+     }
+-    var stage by remember {
+-        val onboardingComplete = profilePreferences.getBoolean("onboarding_complete", false)
+-        mutableStateOf(if (onboardingComplete) AppStage.Main else AppStage.Splash)
++}
++
++@Composable
++private fun HealthScoreCard(modifier: Modifier) {
++    Column(
++        modifier = modifier.fillMaxHeight(),
++        horizontalAlignment = Alignment.CenterHorizontally,
++        verticalArrangement = Arrangement.Center,
++    ) {
++        Box(Modifier.size(132.dp), contentAlignment = Alignment.Center) {
++            Canvas(Modifier.fillMaxSize()) {
++                val stroke = 11.dp.toPx()
++                drawCircle(Color(0xFFD5F1E9), style = androidx.compose.ui.graphics.drawscope.Stroke(stroke))
++                drawArc(
++                    brush = Brush.sweepGradient(
++                        listOf(Color(0xFF0DA47C), Color(0xFF13D4A7), Color(0xFF0DA47C)),
++                    ),
++                    startAngle = -90f,
++                    sweepAngle = 313f,
++                    useCenter = false,
++                    style = androidx.compose.ui.graphics.drawscope.Stroke(stroke, cap = StrokeCap.Round),
++                )
++                drawCircle(
++                    color = Color(0xFFBEEBDD),
++                    style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx()),
++                    radius = size.minDimension / 2 - 2.dp.toPx(),
++                )
++            }
++            Column(horizontalAlignment = Alignment.CenterHorizontally) {
++                Text("健康指数", color = Muted, fontSize = 10.sp)
++                Text("87", color = Ink, fontSize = 38.sp, fontWeight = FontWeight.Bold)
++                Text(
++                    "良好",
++                    color = Mint,
++                    fontSize = 10.sp,
++                    modifier = Modifier.clip(CircleShape).background(MintSoft)
++                        .padding(horizontal = 10.dp, vertical = 3.dp),
++                )
++            }
++        }
++        Text("身体状态良好，继续保持 ›", color = Muted, fontSize = 9.sp, modifier = Modifier.padding(top = 4.dp))
+     }
+-    val ringViewModel: RingViewModel = viewModel(
+-        factory = remember(application) {
+-            RingViewModel.Factory(application.ringRepository, application.database.ringDataDao())
+-        },
++}
++
++@Composable
++private fun SmartRingOverviewCard(state: RingUiState, modifier: Modifier) {
++    val hasConnectedDevice = state.connectedDevice != null
++    val hasLocalData = state.measurements.isNotEmpty() || state.sleep != null
++    Column(
++        modifier = modifier.fillMaxHeight().clip(RoundedCornerShape(20.dp))
++            .background(Color.White.copy(alpha = 0.9f))
++            .border(1.dp, Color(0xFFD6E5E1), RoundedCornerShape(20.dp))
++            .padding(11.dp),
++    ) {
++        Row(verticalAlignment = Alignment.CenterVertically) {
++                Text("睿禾智能戒指", color = Ink, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.weight(1f))
++            Box(Modifier.size(16.dp).clip(CircleShape).background(Mint), contentAlignment = Alignment.Center) {
++                Text("✓", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
++            }
++            Icon(Icons.Outlined.ChevronRight, null, tint = Muted, modifier = Modifier.size(18.dp))
++        }
++        Text(
++            when {
++                hasConnectedDevice -> "设备已连接"
++                hasLocalData -> "有历史数据，需重新连接"
++                else -> "设备未连接"
++            },
++            color = Muted,
++            fontSize = 9.sp,
++            modifier = Modifier.padding(top = 2.dp),
++        )
++        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
++            androidx.compose.foundation.Image(
++                painter = painterResource(R.drawable.smart_ring),
++                contentDescription = "睿禾智能戒指",
++                modifier = Modifier.fillMaxWidth().height(67.dp),
++                contentScale = ContentScale.Fit,
++            )
++        }
++        Row(
++            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp))
++                .background(Color.White).border(1.dp, Line, RoundedCornerShape(13.dp))
++                .padding(horizontal = 9.dp, vertical = 7.dp),
++            verticalAlignment = Alignment.CenterVertically,
++        ) {
++            Icon(Icons.Outlined.Timeline, null, tint = Mint, modifier = Modifier.size(17.dp))
++            Text(
++                if (state.lastSyncAt == null) "待同步" else "已同步",
++                color = Ink,
++                fontSize = 9.sp,
++                fontWeight = FontWeight.SemiBold,
++                modifier = Modifier.padding(start = 7.dp),
++            )
++            Spacer(Modifier.weight(1f))
++            Text(
++                state.lastSyncAt?.let { "上次同步 ${formatSyncTime(it)}" } ?: "上次同步 --:--",
++                color = Muted,
++                fontSize = 8.sp,
++            )
++        }
++    }
++}
++
++@Composable
++private fun DashboardSectionHeader(icon: ImageVector, title: String) {
++    Row(verticalAlignment = Alignment.CenterVertically) {
++        Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
++            Icon(icon, null, tint = Mint, modifier = Modifier.size(22.dp))
++        }
++        Text(title, color = Ink, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 5.dp))
++        Spacer(Modifier.weight(1f))
++        Text("查看全部  ›", color = Muted, fontSize = 10.sp)
++    }
++}
++
++@Composable
++private fun MetricGrid(
++    metrics: List<RingMetricUi>,
++    measuringMetric: RingMetricType? = null,
++    onMeasure: (RingMetricType) -> Unit = {},
++    measureEnabled: Boolean = false,
++) {
++    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
++        metrics.chunked(2).forEach { rowMetrics ->
++            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
++                rowMetrics.forEach { metric ->
++                    DashboardMetricCard(
++                        metric = metric,
++                        measuring = measuringMetric == metric.type,
++                        measureEnabled = measureEnabled,
++                        onMeasure = onMeasure,
++                        modifier = Modifier.weight(1f),
++                    )
++                }
++            }
++        }
++    }
++}
++
++@Composable
++private fun DashboardMetricCard(
++    metric: RingMetricUi,
++    measuring: Boolean,
++    measureEnabled: Boolean,
++    onMeasure: (RingMetricType) -> Unit,
++    modifier: Modifier,
++) {
++    val context = LocalContext.current
++    val startMeasure = {
++        val toast = if (metric.type == RingMetricType.TEMPERATURE) {
++            "已开启体温定时采集，稍后会读取历史体温"
++        } else {
++            "开始测量${metric.title}，请保持戒指佩戴稳定"
++        }
++        Toast.makeText(context, toast, Toast.LENGTH_SHORT).show()
++        onMeasure(metric.type)
++    }
++    Column(
++        modifier = modifier.height(if (metric.manualMeasure) 116.dp else 102.dp).clip(RoundedCornerShape(18.dp))
++            .background(Color.White.copy(alpha = 0.94f))
++            .border(1.dp, Color(0xFFE1E9E7), RoundedCornerShape(18.dp))
++            .clickable(
++                enabled = metric.manualMeasure && measureEnabled && !measuring,
++                onClick = startMeasure,
++            )
++            .padding(horizontal = 10.dp, vertical = 9.dp),
++    ) {
++        Row(verticalAlignment = Alignment.CenterVertically) {
++            Box(
++                modifier = Modifier.size(32.dp).clip(CircleShape).background(metric.color.copy(alpha = 0.12f)),
++                contentAlignment = Alignment.Center,
++            ) {
++                Icon(metric.icon, null, tint = metric.color, modifier = Modifier.size(18.dp))
++            }
++            Column(Modifier.weight(1f).padding(start = 8.dp)) {
++                Text(metric.title, color = Ink, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
++                Row(verticalAlignment = Alignment.Bottom) {
++                    Text(
++                        metric.value,
++                        color = Ink,
++                        fontSize = if (metric.type == RingMetricType.BLOOD_PRESSURE) 12.sp else 18.sp,
++                        fontWeight = FontWeight.Bold,
++                        maxLines = 1,
++                    )
++                    if (metric.unit.isNotEmpty()) {
++                        Text(
++                            metric.unit,
++                            color = Muted,
++                            fontSize = if (metric.type == RingMetricType.BLOOD_PRESSURE) 5.sp else 7.sp,
++                            maxLines = 1,
++                            modifier = Modifier.padding(start = 2.dp, bottom = 3.dp),
++                        )
++                    }
++                }
++            }
++            if (!metric.manualMeasure) {
++                MiniChart(
++                    points = if (metric.type == RingMetricType.SLEEP || metric.type == RingMetricType.STEPS) {
++                        listOf(.25f, .72f, .38f, .82f, .52f, .75f)
++                    } else {
++                        listOf(.35f, .65f, .48f, .72f, .28f, .55f)
++                    },
++                    color = metric.color,
++                    modifier = Modifier.width(if (metric.type == RingMetricType.BLOOD_PRESSURE) 16.dp else 24.dp).height(32.dp),
++                )
++            }
++        }
++        Spacer(Modifier.weight(1f))
++        Row(verticalAlignment = Alignment.CenterVertically) {
++            Box(Modifier.size(6.dp).clip(CircleShape).background(Mint))
++            Text(metric.status, color = Muted, fontSize = 8.sp, modifier = Modifier.padding(start = 5.dp))
++            if (metric.manualMeasure) {
++                Spacer(Modifier.weight(1f))
++                Box(
++                    modifier = Modifier.clip(RoundedCornerShape(999.dp))
++                        .background(if (measuring) Mint.copy(alpha = 0.16f) else MintSoft)
++                        .border(1.dp, Mint.copy(alpha = 0.22f), RoundedCornerShape(999.dp))
++                        .clickable(enabled = measureEnabled && !measuring, onClick = startMeasure)
++                        .padding(horizontal = 8.dp, vertical = 4.dp),
++                    contentAlignment = Alignment.Center,
++                ) {
++                    Text(
++                        if (measuring) metric.measuringLabel else metric.actionLabel,
++                        color = Mint,
++                        fontSize = 9.sp,
++                        fontWeight = FontWeight.SemiBold,
++                    )
++                }
++            }
++        }
++    }
++}
++@Composable
++private fun ChartCard(title: String, value: String, color: Color, points: List<Float>) {
++    Card(
++        modifier = Modifier.fillMaxWidth(),
++        shape = RoundedCornerShape(18.dp),
++        colors = CardDefaults.cardColors(containerColor = Color.White),
++        border = androidx.compose.foundation.BorderStroke(1.dp, Line),
++    ) {
++        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
++            Column(Modifier.width(110.dp)) {
++                Text(title, color = Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
++                Text(value, color = Ink, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 5.dp))
++                Text("平均", color = Muted, fontSize = 10.sp)
++            }
++            MiniChart(points, color, Modifier.weight(1f).height(62.dp))
++        }
++    }
++}
++
++@Composable
++private fun MiniChart(points: List<Float>, color: Color, modifier: Modifier) {
++    Canvas(modifier) {
++        if (points.size < 2) return@Canvas
++        val step = size.width / (points.size - 1)
++        val path = Path()
++        points.forEachIndexed { index, point ->
++            val x = index * step
++            val y = size.height * (1f - point)
++            if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
++            drawCircle(color, radius = 3.dp.toPx(), center = androidx.compose.ui.geometry.Offset(x, y))
++        }
++        drawPath(path, color, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round))
++    }
++}
++
++@Composable
++private fun AttributionScreen(
++    state: RingUiState,
++    canonicalRiskStatus: androidx.compose.runtime.State<RemoteFeatureEvaluateStatus?>,
++) {
++    val feedbackViewModel: InterventionFeedbackViewModel = viewModel(
++        factory = InterventionFeedbackViewModel.Factory(LocalContext.current),
+     )
+-    val ringState by ringViewModel.uiState.collectAsState()
+-    LaunchedEffect(stage) {
+-        if …14814 tokens truncated…>
++    val plan = state.patientMvp?.interventionPlan.orEmpty()
++    val checkIns = state.patientMvp?.recentCheckins.orEmpty()
++    val current = canonicalRiskStatus.value
++    // 真实贡献因素：来自后端 /rehealth/mobile/features/evaluate 返回的 featureContributions
++    val contributions = remember(current) {
++        current?.featureContributions.orEmpty()
++            .toList()
++            .sortedByDescending { kotlin.math.abs(it.second) }
++            .take(6)
++    }
++    Page("本周归因报告", "基于真实健康数据与模型评估") {
++        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
++            CardBlock {
++                Text("健康改善得分", color = Ink, fontWeight = FontWeight.SemiBold)
++                val score = current?.riskScore?.let { (it * 100).toInt() } ?: 0
++                Text(
++                    if (current != null) "$score 分" else "评估中",
++                    color = Mint,
++                    fontSize = 35.sp,
++                    fontWeight = FontWeight.Bold,
++                    modifier = Modifier.padding(vertical = 8.dp),
++                )
++                Text(
++                    current?.summary ?: "同步戒指数据并请求后端评估后生成得分",
++                    color = Muted,
++                    fontSize = 12.sp,
++                    lineHeight = 16.sp,
++                )
++            }
++            CardBlock {
++                Text("贡献因素（真实模型返回）", color = Ink, fontWeight = FontWeight.SemiBold)
++                Spacer(Modifier.height(10.dp))
++                if (contributions.isEmpty()) {
++                    Text("后端暂未返回贡献因素，同步数据后展示。", color = Muted, fontSize = 12.sp)
++                } else {
++                    contributions.forEachIndexed { index, (field, value) ->
++                        val share = if (value >= 0.0) "+${(value * 100).toInt()}%" else "${(value * 100).toInt()}%"
++                        RankRow(
++                            "${index + 1}",
++                            field.cvdFieldLabel(),
++                            share,
++                            "贡献度 ${(kotlin.math.abs(value) * 100).toInt()}%",
++                        )
++                    }
++                }
++            }
++            CardBlock {
++                Text("今日干预计划", color = Ink, fontWeight = FontWeight.SemiBold)
++                Text("根据风险分、戒指数据和健康档案生成", color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp, bottom = 8.dp))
++                if (plan.isEmpty()) {
++                    Text("同步健康数据后生成今日计划", color = Muted, fontSize = 12.sp)
++                } else {
++                    plan.forEachIndexed { index, item ->
++                        PatientPlanRow(item = item, feedbackViewModel = feedbackViewModel)
++                        if (index != plan.lastIndex) Spacer(Modifier.height(8.dp))
++                    }
++                }
++            }
++            CardBlock {
++                Text("反馈打卡", color = Ink, fontWeight = FontWeight.SemiBold)
++                Text(
++                    if (checkIns.isEmpty()) "今天还没有反馈，完成计划后点打卡" else "已记录 ${checkIns.size} 次反馈，最近一次 ${formatSyncTime(checkIns.first().checkedAt ?: System.currentTimeMillis())}",
++                    color = Muted,
++                    fontSize = 11.sp,
++                    modifier = Modifier.padding(top = 4.dp),
++                )
++            }
++            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(MintSoft).padding(14.dp)) {
++                Icon(Icons.Outlined.Shield, null, tint = Mint, modifier = Modifier.size(18.dp))
++                Text("归因结果用于健康管理参考，不代表医学诊断。", color = Muted, fontSize = 11.sp, modifier = Modifier.padding(start = 8.dp))
++            }
++        }
++    }
++}
++
++@Composable
++private fun RankRow(rank: String, title: String, score: String, share: String) {
++    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
++        Box(Modifier.size(28.dp).clip(CircleShape).background(MintSoft), contentAlignment = Alignment.Center) {
++            Text(rank, color = Mint, fontWeight = FontWeight.Bold)
++        }
++        Text(title, color = Ink, modifier = Modifier.weight(1f).padding(start = 10.dp), fontSize = 13.sp)
++        Column(horizontalAlignment = Alignment.End) {
++            Text(score, color = Mint, fontWeight = FontWeight.Bold, fontSize = 12.sp)
++            Text(share, color = Muted, fontSize = 9.sp)
++        }
++    }
++}
++
++@Composable
++private fun ModelScreen(
++    state: RingUiState,
++    canonicalRiskStatus: androidx.compose.runtime.State<RemoteFeatureEvaluateStatus?>,
++) {
++    val inputs = remember(state.measurements, state.sleep, state.activity) { modelInputsFromRingState(state) }
++    val current = canonicalRiskStatus.value
++    Page("端侧健康模型", "你的健康 AI 正在本机运行") {
++        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
++            CardBlock {
++                RemoteFeatureEvaluateRow(status = canonicalRiskStatus)
++            }
++            CardBlock {
++                Row(verticalAlignment = Alignment.CenterVertically) {
++                    Box(Modifier.size(48.dp).clip(CircleShape).background(MintSoft), contentAlignment = Alignment.Center) {
++                        Icon(Icons.Outlined.SmartToy, null, tint = Mint)
++                    }
++                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
++                        Text("规范风险评估", color = Mint, fontWeight = FontWeight.Bold, fontSize = 17.sp)
++                        Text(
++                            "${state.collectedMetricCount} 项戒指数据 · ${current?.modeLabel ?: "评估中"}",
++                            color = Muted,
++                            fontSize = 11.sp,
++                        )
++                    }
++                    Text(current?.riskScore.riskScoreLabel(), color = Mint, fontSize = 22.sp, fontWeight = FontWeight.Bold)
++                }
++            }
++            CardBlock {
++                StatusRow("评估接口", "/rehealth/mobile/features/evaluate")
++                StatusRow("算法模式", current?.modeLabel ?: "评估中")
++                StatusRow("风险等级", current?.riskLevel.riskLevelLabel())
++                StatusRow("风险分数", current?.riskScore.riskScoreLabel())
++                StatusRow("模型版本", current?.modelVersion ?: "待返回")
++                StatusRow("请求 ID", current?.requestId?.take(12) ?: "待返回")
++                Text(
++                    current?.summary ?: "正在读取本机特征并请求后端评估。",
++                    color = Muted,
++                    fontSize = 11.sp,
++                    lineHeight = 16.sp,
++                    modifier = Modifier.padding(top = 8.dp),
++                )
++            }
++            SectionTitle("主要贡献因素")
++            CardBlock {
++                val contributions = current?.featureContributions.orEmpty()
++                    .toList()
++                    .sortedByDescending { kotlin.math.abs(it.second) }
++                    .take(4)
++                if (contributions.isEmpty()) {
++                    Text("后端暂未返回贡献因素。", color = Muted, fontSize = 12.sp)
++                } else {
++                    contributions.forEachIndexed { index, contribution ->
++                        ContributionRow(contribution.first, contribution.second)
++                        if (index != contributions.lastIndex) HorizontalDivider(color = Line)
++                    }
++                }
++            }
++            SectionTitle("端侧学习流程")
++            CardBlock {
++                ModelPipelineRow("1", "戒指数据采集", "6 项健康数据", true)
++                ModelPipelineRow("2", "本地特征工程", "HealthFeatureExtractor", true)
++                ModelPipelineRow("3", "后端风险评估", current?.riskScore?.let { "今日已完成" } ?: "等待结果", current?.riskScore != null)
++                ModelPipelineRow("4", "个性化学习", "后续闭环", false)
++            }
++            SectionTitle("戒指健康数据输入")
++            CardBlock {
++                inputs.forEachIndexed { index, input ->
+                     ModelInputRow(input)
+                     if (index != inputs.lastIndex) HorizontalDivider(color = Line)
+                 }
+@@ -407,8 +1445,8 @@
+             CardBlock {
+                 StatusRow("原始健康数据上传", "否")
+                 StatusRow("图片原图上传", "否")
+-                StatusRow("本地数据加密", "已开启")
+-                StatusRow("匿名模型改进", "未开启")
++                StatusRow("模型服务直连", "否")
++                StatusRow("遥测批量上传", "否")
+             }
+             Row(
+                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+@@ -486,6 +1524,100 @@
+ }
+ 
+ @Composable
++private fun ContributionRow(field: String, contribution: Double) {
++    val direction = if (contribution >= 0.0) "↑" else "↓"
++    Row(Modifier.fillMaxWidth().padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
++        Text(field.cvdFieldLabel(), color = Ink, fontSize = 13.sp, modifier = Modifier.weight(1f))
++        Text(
++            "$direction ${String.format(Locale.getDefault(), "%.3f", kotlin.math.abs(contribution))}",
++            color = if (contribution >= 0.0) Color(0xFFE39A22) else Mint,
++            fontSize = 12.sp,
++            fontWeight = FontWeight.SemiBold,
++        )
++    }
++}
++
++private fun String.cvdFieldLabel(): String = when (this) {
++    "age" -> "年龄"
++    "gender" -> "性别"
++    "bmi" -> "BMI"
++    "sbp" -> "收缩压"
++    "dbp" -> "舒张压"
++    "fasting_glucose" -> "空腹血糖"
++    "total_cholesterol" -> "总胆固醇"
++    "ldl" -> "LDL"
++    "hdl" -> "HDL"
++    "triglycerides" -> "甘油三酯"
++    "exercise_days" -> "运动天数"
++    "smoking" -> "吸烟"
++    "drinking" -> "饮酒"
++    "diabetes_history" -> "糖尿病史"
++    "hypertension_history" -> "高血压史"
++    "family_history" -> "家族史"
++    else -> this
++}
++
++private fun modelInputsFromRingState(state: RingUiState): List<ModelInputStatus> =
++    listOf(
++        ModelInputStatus(
++            RingMetricType.HEART_RATE,
++            "心率",
++            "静息心率、日内波动",
++            stageForMeasurement(state, RingMetricType.HEART_RATE),
++        ),
++        ModelInputStatus(
++            RingMetricType.BLOOD_OXYGEN,
++            "血氧",
++            "均值、低值时长",
++            stageForMeasurement(state, RingMetricType.BLOOD_OXYGEN),
++        ),
++        ModelInputStatus(
++            RingMetricType.BLOOD_PRESSURE,
++            "血压",
++            "收缩压、舒张压",
++            stageForMeasurement(state, RingMetricType.BLOOD_PRESSURE),
++        ),
++        ModelInputStatus(
++            RingMetricType.SLEEP,
++            "睡眠",
++            "时长、阶段、连续性",
++            if (state.sleep != null) ModelInputStage.FEATURE_EXTRACTED else ModelInputStage.LEARNING,
++        ),
++        ModelInputStatus(
++            RingMetricType.TEMPERATURE,
++            "体温",
++            "个人基线偏差",
++            stageForMeasurement(state, RingMetricType.TEMPERATURE),
++        ),
++        ModelInputStatus(
++            RingMetricType.STEPS,
++            "步数",
++            "活动天数、运动频率",
++            if (state.activity != null || state.measurements[RingMetricType.STEPS] != null) {
++                ModelInputStage.FEATURE_EXTRACTED
++            } else {
++                ModelInputStage.LEARNING
++            },
++        ),
++    )
++
++private fun stageForMeasurement(state: RingUiState, type: RingMetricType): ModelInputStage =
++    if (state.measurements[type] != null) ModelInputStage.FEATURE_EXTRACTED else ModelInputStage.LEARNING
++
++private fun String?.riskLevelLabel(): String = when (this?.lowercase()) {
++    "low" -> "低"
++    "moderate" -> "中"
++    "medium" -> "中"
++    "high" -> "高"
++    "very_high" -> "很高"
++    null -> "待评估"
++    else -> this
++}
++
++private fun Double?.riskScoreLabel(): String =
++    this?.let { "${(it * 100).toInt()}分" } ?: "--"
++
++@Composable
+ private fun StatusRow(label: String, value: String) {
+     Row(Modifier.fillMaxWidth().padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+         Text(label, color = Ink, fontSize = 13.sp, modifier = Modifier.weight(1f))
+@@ -495,9 +1627,14 @@
+ 
+ @Composable
+ private fun ProfileScreen(
++    state: RingUiState,
+     onDeviceBinding: () -> Unit,
+     onRestartOnboarding: () -> Unit,
++    onGoToLogin: () -> Unit,
+ ) {
++    val context = LocalContext.current
++    var showLogoutDialog by remember { mutableStateOf(false) }
++    val profile = state.patientMvp?.profile
+     Page("我的") {
+         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+             CardBlock {
+@@ -506,12 +1643,20 @@
+                         Icon(Icons.Outlined.AccountCircle, null, tint = Mint, modifier = Modifier.size(38.dp))
+                     }
+                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
+-                        Text("李明", color = Ink, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+-                        Text("已陪伴 28 天", color = Muted, fontSize = 11.sp)
++                        Text(profile?.name ?: "李明", color = Ink, fontSize = 20.sp, fontWeight = FontWeight.Bold)
++                        Text("${profile?.age ?: "--"}岁 · BMI ${profile?.bmi ?: "--"} · 已陪伴 28 天", color = Muted, fontSize = 11.sp)
+                     }
+                     Text("Pro 会员", color = Color(0xFFB47A13), fontSize = 11.sp, modifier = Modifier.clip(CircleShape).background(Color(0xFFFFF1CD)).padding(horizontal = 10.dp, vertical = 5.dp))
+                 }
+             }
++            CardBlock {
++                Text("健康档案", color = Ink, fontWeight = FontWeight.SemiBold)
++                StatusRow("诊断标签", profile?.diagnoses?.joinToString("、") ?: "待补全")
++                StatusRow("家族史", if (profile?.familyHistory == true) "有" else "无")
++                StatusRow("高血压史", if (profile?.hypertensionHistory == true) "有" else "无")
++                StatusRow("糖尿病史", if (profile?.diabetesHistory == true) "有" else "无")
++                StatusRow("最近更新", profile?.updatedAt?.let { formatSyncTime(it) } ?: "待同步")
++            }
+             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                 Metric("睡眠时长", "7h30m", "够眠", Modifier.weight(1f))
+                 Metric("每日步数", "8,000", "步", Modifier.weight(1f))
+@@ -525,9 +1670,37 @@
+                 MenuRow(Icons.Outlined.NotificationsNone, "通知设置")
+                 MenuRow(Icons.Outlined.Settings, "关于睿禾精灵")
+                 MenuRow(Icons.Outlined.Timeline, "重新体验首次使用流程", onRestartOnboarding)
++                MenuRow(Icons.Outlined.ExitToApp, "退出登录") { showLogoutDialog = true }
+             }
+         }
+     }
++    if (showLogoutDialog) {
++        AlertDialog(
++            onDismissRequest = { showLogoutDialog = false },
++            title = { Text("确认退出登录") },
++            text = { Text("退出后需要重新登录才能同步反馈数据") },
++            confirmButton = {
++                TextButton(
++                    onClick = {
++                        performLogout(context)
++                        showLogoutDialog = false
++                        onGoToLogin()
++                    },
++                ) { Text("确认退出") }
++            },
++            dismissButton = {
++                TextButton(onClick = { showLogoutDialog = false }) { Text("取消") }
++            },
++        )
++    }
++}
++
++/** D3 logout: cancel the sync worker, clear the auth session, and pause the upload queue. */
++private fun performLogout(context: Context) {
++    val app = context.applicationContext as ReHealthApplication
++    MeasurementSyncWorker.cancel(context)
++    app.authenticatedApiClient.onLogout()
++    app.syncRepository.pauseQueue()
+ }
+ 
+ @Composable
+@@ -553,7 +1726,6 @@
+     onSync: () -> Unit,
+     onboarding: Boolean = false,
+     onComplete: (() -> Unit)? = null,
+-    onSkip: (() -> Unit)? = null,
+ ) {
+     BackHandler(onBack = onBack)
+     val context = LocalContext.current
+@@ -755,13 +1927,17 @@
+                     color = Muted,
+                     fontSize = 10.sp,
+                     textAlign = TextAlign.Center,
+-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 20.dp),
++                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 12.dp),
+                 )
+-                TextButton(
+-                    onClick = { onSkip?.invoke() },
+-                    modifier = Modifier.fillMaxWidth(),
++                // 暂时没有戒指：跳过配对，直接进入主页（仍会标记首次引导已完成）
++                OutlinedButton(
++                    onClick = { onComplete?.invoke() },
++                    modifier = Modifier.fillMaxWidth().height(48.dp),
++                    shape = RoundedCornerShape(14.dp),
++                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Mint),
++                    border = BorderStroke(1.dp, Mint),
+                 ) {
+-                    Text("暂时没有戒指，跳过", color = Muted, fontSize = 13.sp)
++                    Text("暂时没有戒指，先跳过", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                 }
+             }
+         }
+@@ -831,3 +2007,120 @@
+         Column(Modifier.fillMaxWidth().padding(16.dp), content = content)
+     }
+ }
++
++/**
++ * Minimal remote feature-evaluate UI status. Holds only display strings, not raw health data.
++ * Built to keep business logic outside the composable: parsing happens in
++ * [refreshRemoteFeatureEvaluateStatus]; the composable only renders [summary].
++ */
++private data class RemoteFeatureEvaluateStatus(
++    val reachable: Boolean,
++    val modelVersion: String?,
++    val isMock: Boolean?,
++    val riskLevel: String?,
++    val riskScore: Double?,
++    val featureContributions: Map<String, Double> = emptyMap(),
++    val requestId: String? = null,
++    val usedMockFallback: Boolean,
++    val fallbackReason: String? = null,
++    val missingFields: List<String> = emptyList(),
++    val qualityWarnings: List<String> = emptyList(),
++    val summary: String,
++) {
++    val modeLabel: String
++        get() = when {
++            usedMockFallback -> "本地mock兜底"
++            isMock == true -> "云端mock"
++            reachable -> "云端"
++            else -> "不可用"
++        }
++}
++
++private suspend fun refreshRemoteFeatureEvaluateStatus(
++    application: com.rehealth.genie.ReHealthApplication,
++    state: RingUiState,
++    target: androidx.compose.runtime.MutableState<RemoteFeatureEvaluateStatus?>,
++) {
++    val now = System.currentTimeMillis()
++    val since = now - RISK_FEATURE_LOOKBACK_MILLIS
++    val dao = application.database.ringDataDao()
++    val measurements = runCatching { dao.getMeasurementsSince(since) }.getOrDefault(emptyList())
++    val activities = runCatching { dao.getActivitiesSince(since) }.getOrDefault(emptyList())
++    val vector = HealthFeatureExtractor(nowProvider = { now }).extract(
++        HealthMemorySnapshot.fromPatientProfile(
++            profile = state.patientMvp?.profile,
++            ringMeasurements = measurements,
++            ringActivities = activities,
++            ringSleepSessions = state.sleep?.let { listOf(it) }.orEmpty(),
++        ),
++    )
++
++    val outcome = application.remotePhmService.evaluateFeatures(vector)
++    val result = outcome.result
++    if (result != null) {
++        target.value = RemoteFeatureEvaluateStatus(
++            reachable = true,
++            modelVersion = result.normalizedModelVersion,
++            isMock = result.normalizedIsMock,
++            riskLevel = result.normalizedRiskLevel,
++            riskScore = result.normalizedRiskScore,
++            featureContributions = result.normalizedFeatureContributions,
++            requestId = result.normalizedRequestId ?: outcome.requestId,
++            usedMockFallback = false,
++            missingFields = result.normalizedMissingFields,
++            qualityWarnings = result.normalizedQualityWarnings,
++            summary = result.summary ?: "后端已基于本机特征完成风险评估。",
++        )
++    } else {
++        val fallback = application.remotePhmService.mock().todayState()
++        target.value = RemoteFeatureEvaluateStatus(
++            reachable = false,
++            modelVersion = "local-mock-fallback",
++            isMock = true,
++            riskLevel = fallback.label,
++            riskScore = fallback.score / 100.0,
++            requestId = outcome.requestId,
++            usedMockFallback = true,
++            fallbackReason = outcome.mockFallbackReason,
++            missingFields = vector.missingFields,
++            summary = "${fallback.insight}（${outcome.error?.eventName ?: "fallback"}）",
++        )
++    }
++}
++
++private const val RISK_FEATURE_LOOKBACK_MILLIS = 7L * 24L * 60L * 60L * 1000L
++
++@Composable
++private fun RemoteFeatureEvaluateRow(status: androidx.compose.runtime.State<RemoteFeatureEvaluateStatus?>) {
++    val current = status.value
++    Row(verticalAlignment = Alignment.CenterVertically) {
++        Box(
++            modifier = Modifier
++                .size(40.dp)
++                .clip(CircleShape)
++                .background(if (current?.reachable == true) MintSoft else Color(0xFFFFF2D8)),
++            contentAlignment = Alignment.Center,
++        ) {
++            Icon(
++                Icons.Outlined.SmartToy,
++                "云端特征评估",
++                tint = if (current?.reachable == true) Mint else Color(0xFFD38B18),
++                modifier = Modifier.size(20.dp),
++            )
++        }
++        Column(Modifier.weight(1f).padding(start = 12.dp)) {
++            Text("云端特征评估", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
++            Text(
++                current?.summary ?: "正在提取本机特征并请求后端评估…",
++                color = Muted,
++                fontSize = 11.sp,
++                lineHeight = 15.sp,
++            )
++        }
++        val riskLabel = current?.riskScore?.let { "${(it * 100).toInt()}分" } ?: "--"
++        Column(horizontalAlignment = Alignment.End) {
++            Text(current?.modeLabel ?: "检查中", color = Muted, fontSize = 11.sp)
++            Text(riskLabel, color = Mint, fontWeight = FontWeight.Bold, fontSize = 16.sp)
++        }
++    }
++}
+

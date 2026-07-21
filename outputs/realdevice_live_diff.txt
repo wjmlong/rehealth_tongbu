@@ -1,0 +1,71 @@
+===== FILE-LEVEL DIFF: codex/real-device (fetched) vs LOCAL working tree =====
+generated: Mon Jul 20 23:33:56 CST 2026
+
+Only in /tmp/real_branch: Ring
+Only in /mnt/d/rehealthAI/Android-apk: TEST_REPORT.md
+Files /tmp/real_branch/app/build.gradle.kts and /mnt/d/rehealthAI/Android-apk/app/build.gradle.kts differ
+Only in /mnt/d/rehealthAI/Android-apk/app: libs
+Only in /mnt/d/rehealthAI/Android-apk/app: proguard-rules.pro
+Files /tmp/real_branch/app/src/main/AndroidManifest.xml and /mnt/d/rehealthAI/Android-apk/app/src/main/AndroidManifest.xml differ
+Files /tmp/real_branch/app/src/main/java/com/rehealth/genie/ReHealthApplication.kt and /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ReHealthApplication.kt differ
+Files /tmp/real_branch/app/src/main/java/com/rehealth/genie/chat/DeepSeekClient.kt and /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/chat/DeepSeekClient.kt differ
+Files /tmp/real_branch/app/src/main/java/com/rehealth/genie/data/AppDatabase.kt and /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/data/AppDatabase.kt differ
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/data: RiskCacheDao.kt
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/data: RiskCacheEntity.kt
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/data: sync
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie: features
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie: network
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie: notification
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/phm: Mappers.kt
+Files /tmp/real_branch/app/src/main/java/com/rehealth/genie/phm/MockPhmService.kt and /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/phm/MockPhmService.kt differ
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/phm: PhmModels.kt
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/phm: PhmService.kt
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/phm: RemotePhmService.kt
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/phm: RemotePhmService.kt.backup
+Files /tmp/real_branch/app/src/main/java/com/rehealth/genie/ring/MockRingRepository.kt and /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ring/MockRingRepository.kt differ
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ring: RingBackgroundCollectionPolicy.kt
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ring: RingBackgroundCollectionSettings.kt
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ring: RingBleGuards.kt
+Files /tmp/real_branch/app/src/main/java/com/rehealth/genie/ring/RingRepository.kt and /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ring/RingRepository.kt differ
+Files /tmp/real_branch/app/src/main/java/com/rehealth/genie/ring/RingViewModel.kt and /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ring/RingViewModel.kt differ
+Files /tmp/real_branch/app/src/main/java/com/rehealth/genie/ring/data/RingDataDao.kt and /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ring/data/RingDataDao.kt differ
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ring: device
+Files /tmp/real_branch/app/src/main/java/com/rehealth/genie/ring/mrd/MrdBleRingRepository.kt and /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ring/mrd/MrdBleRingRepository.kt differ
+Files /tmp/real_branch/app/src/main/java/com/rehealth/genie/ring/mrd/MrdProtocolAdapter.kt and /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ring/mrd/MrdProtocolAdapter.kt differ
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ring: vendor
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie: service
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui: AttributionDetailScreen.kt.disabled
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui: AttributionReportScreen.kt
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui: DeviceSettingsScreen.kt.disabled
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui: HealthChatScreen.kt
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui: InterventionFeedbackViewModel.kt
+Files /tmp/real_branch/app/src/main/java/com/rehealth/genie/ui/LoginScreen.kt and /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/LoginScreen.kt differ
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui: LoginViewModel.kt
+Files /tmp/real_branch/app/src/main/java/com/rehealth/genie/ui/ReHealthApp.kt and /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui/ReHealthApp.kt differ
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui: RegisterScreen.kt
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui: RegisterViewModel.kt
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie/ui: components
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/java/com/rehealth/genie: work
+Only in /mnt/d/rehealthAI/Android-apk/app/src/main/res: drawable-nodpi
+Only in /mnt/d/rehealthAI/Android-apk/app/src: test
+Only in /mnt/d/rehealthAI/Android-apk: codex-runs
+Only in /mnt/d/rehealthAI/Android-apk/docs: BLE_BACKGROUND_QA.md
+Only in /mnt/d/rehealthAI/Android-apk/docs: CANONICAL_RISK_PATH.md
+Only in /mnt/d/rehealthAI/Android-apk/docs: D3_AUTH_TYPED_FEEDBACK.md
+Only in /tmp/real_branch/docs: DEEPSEEK_LOCAL_CONFIG.md
+Only in /mnt/d/rehealthAI/Android-apk/docs: FEATURE_EXTRACTOR.md
+Only in /mnt/d/rehealthAI/Android-apk/docs: MOBILE_INTEGRATION_OPTIMIZATION_PLAN.md
+Only in /mnt/d/rehealthAI/Android-apk/docs: NETWORK_FEATURE_EVALUATE.md
+Only in /mnt/d/rehealthAI/Android-apk/docs: REHEALTH_INTEGRATION_CONTRACT.md
+Only in /mnt/d/rehealthAI/Android-apk/docs: WSL2_CONNECTIVITY.md
+Only in /mnt/d/rehealthAI/Android-apk: install-adb-wsl.sh
+Only in /mnt/d/rehealthAI/Android-apk: install-apk-wsl.sh
+Only in /mnt/d/rehealthAI/Android-apk: quick-install.sh
+Only in /mnt/d/rehealthAI/Android-apk: start-emulator.bat
+Only in /mnt/d/rehealthAI/Android-apk: start-emulator.sh
+
+===== SUMMARY COUNTS =====
+Only in branch (deleted locally): 2
+Only in local (new locally):      46
+Differ (both exist, changed):     14
+DONE

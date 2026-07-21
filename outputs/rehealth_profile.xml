@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<map>
+    <string name="login_phone">guest</string>
+    <boolean name="login_complete" value="true" />
+    <boolean name="device_setup_complete" value="true" />
+    <boolean name="onboarding_complete" value="true" />
+</map>

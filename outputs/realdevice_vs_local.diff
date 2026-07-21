@@ -1,0 +1,1595 @@
+########## DIFF: app/build.gradle.kts ##########
+--- .ref/real-device/app/build.gradle.kts	2026-07-20 18:21:49.091453100 +0800
++++ ./app/build.gradle.kts	2026-07-20 21:27:25.538814500 +0800
+@@ -1,3 +1,5 @@
++import java.util.Properties
++
+ plugins {
+     id("com.android.application")
+     id("org.jetbrains.kotlin.android")
+@@ -5,22 +7,22 @@
+     id("com.google.devtools.ksp")
+ }
+ 
+-import java.util.Properties
+-
+-fun quoteBuildConfigValue(value: String): String =
+-    "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+-
+-val localProperties = Properties()
+-val localPropertiesFile = rootProject.file("local.properties")
+-if (localPropertiesFile.exists()) {
+-    localPropertiesFile.inputStream().use(localProperties::load)
++// DeepSeek configuration: read from local.properties (DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL),
++// fallback to env vars, then to the public DeepSeek endpoint. Never hardcode secrets.
++val localProps = Properties().apply {
++    val f = rootProject.file("local.properties")
++    if (f.exists()) f.inputStream().use { load(it) }
+ }
+-val deepSeekApiKey = localProperties.getProperty("DEEPSEEK_API_KEY")
+-    ?: System.getenv("DEEPSEEK_API_KEY")
+-    ?: ""
+-val deepSeekBaseUrl = localProperties.getProperty("DEEPSEEK_BASE_URL")
+-    ?: System.getenv("DEEPSEEK_BASE_URL")
+-    ?: "https://api.deepseek.com"
++fun deepSeekApiKey(): String =
++    (localProps.getProperty("DEEPSEEK_API_KEY") ?: System.getenv("DEEPSEEK_API_KEY") ?: "").trim()
++fun deepSeekBaseUrl(): String =
++    (localProps.getProperty("DEEPSEEK_BASE_URL") ?: System.getenv("DEEPSEEK_BASE_URL") ?: "https://api.deepseek.com").trim()
++// JeecgBoot request-signing secret for endpoints that require the `X-Sign` header
++// (e.g. /sys/sms). Read from local.properties (JEECG_SIGNATURE_SECRET), fallback to env,
++// then to the repo default. MUST match the running backend's `jeecg.signatureSecret`.
++fun signSecret(): String =
++    (localProps.getProperty("JEECG_SIGNATURE_SECRET") ?: System.getenv("JEECG_SIGNATURE_SECRET")
++        ?: "dd05f1c54d63749eda95f9fa6d49v442a").trim()
+ 
+ android {
+     namespace = "com.rehealth.genie"
+@@ -33,10 +35,26 @@
+         versionCode = 1
+         versionName = "1.0"
+ 
+-        buildConfigField("String", "DEEPSEEK_API_KEY", quoteBuildConfigValue(deepSeekApiKey))
+-        buildConfigField("String", "DEEPSEEK_BASE_URL", quoteBuildConfigValue(deepSeekBaseUrl))
+-
+         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
++        buildConfigField("String", "REHEALTH_API_BASE_URL", "\"http://10.0.2.2:8080/jeecg-boot/\"")
++        buildConfigField("String", "REHEALTH_API_TOKEN", "\"\"")
++        // DeepSeek (首页 AI 问答 / 健康助手)。key 从 local.properties 读取，缺失时留空（客户端给出占位提示）。
++        buildConfigField("String", "DEEPSEEK_API_KEY", "\"${deepSeekApiKey()}\"")
++        buildConfigField("String", "DEEPSEEK_BASE_URL", "\"${deepSeekBaseUrl()}\"")
++        // JeecgBoot sign secret for /sys/sms (X-Sign header). Override via local.properties.
++        buildConfigField("String", "JEECG_SIGN_SECRET", "\"${signSecret()}\"")
++    }
++
++    buildTypes {
++        debug {
++            buildConfigField("boolean", "USE_FAKE_RING", "false")
++            buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", "true")
++        }
++        release {
++            buildConfigField("boolean", "USE_FAKE_RING", "false")
++            buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", "false")
++            isMinifyEnabled = false
++        }
+     }
+ 
+     buildFeatures {
+@@ -76,6 +94,22 @@
+ 
+     implementation("androidx.room:room-runtime:2.7.1")
+     implementation("androidx.room:room-ktx:2.7.1")
++    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+     implementation("com.google.code.gson:gson:2.11.0")
++    implementation("com.squareup.okhttp3:okhttp:4.12.0")
++    // Retrofit + Moshi: typed E1 mobile API client for /features/evaluate and risk/intervention retrieval.
++    // Why: replace ad-hoc OkHttp/Gson string parsing with a typed DTO client aligned to MOBILE_API.md / API_CONTRACT.md.
++    // Alternative: keep extending ReHealthBackendClient manually; rejected because feature-evaluate DTOs are complex (nested featureQuality map, snake_case) and error-prone to (de)serialize by hand.
++    implementation("com.squareup.retrofit2:retrofit:2.11.0")
++    implementation("com.squareup.retrofit2:converter-moshi:2.11.0")
++    implementation("com.squareup.moshi:moshi:1.15.1")
++    implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
++    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
++    // WorkManager: reserved for E2 durable telemetry upload queue. D1 does NOT wire it to a production telemetry worker; it is added now so that D1's lightweight feature-evaluate retry helper can reuse the same dependency surface later.
++    implementation("androidx.work:work-runtime-ktx:2.10.0")
++    testImplementation(kotlin("test"))
++    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
++    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
++    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+     ksp("androidx.room:room-compiler:2.7.1")
+ }
+
+########## DIFF: app/src/main/java/com/rehealth/genie/ReHealthApplication.kt ##########
+--- .ref/real-device/app/src/main/java/com/rehealth/genie/ReHealthApplication.kt	2026-07-20 18:21:38.418534800 +0800
++++ ./app/src/main/java/com/rehealth/genie/ReHealthApplication.kt	2026-07-20 21:38:11.127715800 +0800
+@@ -1,15 +1,129 @@
+ package com.rehealth.genie
+ 
+ import android.app.Application
++import android.os.Build
+ import com.rehealth.genie.data.AppDatabase
++import com.rehealth.genie.data.sync.InterventionFeedbackRepository
++import com.rehealth.genie.data.sync.SyncRepository
++import com.rehealth.genie.network.AuthenticatedApiClient
++import com.rehealth.genie.network.BackendConfig
++import com.rehealth.genie.network.ReHealthBackendClient
++import com.rehealth.genie.network.ReHealthMobileApi
++import com.rehealth.genie.network.SessionStore
++import com.rehealth.genie.notification.RingNotificationChannels
++import com.rehealth.genie.phm.MockPhmService
++import com.rehealth.genie.phm.PhmService
++import com.rehealth.genie.phm.RemotePhmService
++import com.rehealth.genie.ring.RingBackgroundCollectionSettings
++import com.rehealth.genie.ring.MockRingRepository
+ import com.rehealth.genie.ring.RingRepository
+ import com.rehealth.genie.ring.mrd.MrdBleRingRepository
+ import com.rehealth.genie.ring.mrd.MrdProtocolAdapter
++import com.rehealth.genie.work.MeasurementSyncWorker
++import com.rehealth.genie.work.RingBackgroundRecoveryWorker
+ 
+ class ReHealthApplication : Application() {
+     val database by lazy { AppDatabase.create(this) }
++
++    // D3: Auth and session management
++    val sessionStore by lazy { SessionStore(this) }
++
++    val backendClient by lazy {
++        ReHealthBackendClient(
++            baseUrl = BuildConfig.REHEALTH_API_BASE_URL,
++            apiToken = BuildConfig.REHEALTH_API_TOKEN.takeIf { it.isNotBlank() },
++        )
++    }
++    /**
++     * Typed E1 mobile API client for the D1-safe endpoints (feature evaluate, risk/intervention
++     * retrieval, intervention feedback, health, config). Built on Retrofit/Moshi with the
++     * shared OkHttp configuration. Does NOT implement the durable `/measurements/batch`
++     * telemetry upload path; that is E2-pending.
++     */
++    val reHealthMobileApi: ReHealthMobileApi by lazy {
++        ReHealthMobileApi(
++            baseUrl = BuildConfig.REHEALTH_API_BASE_URL,
++            apiToken = BuildConfig.REHEALTH_API_TOKEN.takeIf { it.isNotBlank() },
++            httpClient = BackendConfig.buildHttpClient(signSecret = BuildConfig.JEECG_SIGN_SECRET),
++        )
++    }
++    /**
++     * D3: Auth-aware API client with 401 detection and queue pause.
++     */
++    val authenticatedApiClient by lazy {
++        AuthenticatedApiClient(
++            baseUrl = BuildConfig.REHEALTH_API_BASE_URL,
++            httpClient = BackendConfig.buildHttpClient(signSecret = BuildConfig.JEECG_SIGN_SECRET),
++            sessionStore = sessionStore,
++        )
++    }
++
++    /**
++     * D3: Upload queue repository with auth-aware pause/resume.
++     */
++    val syncRepository by lazy {
++        SyncRepository(
++            dao = database.uploadQueueDao(),
++            apiClient = authenticatedApiClient,
++        )
++    }
++
++    /**
++     * D3: Typed intervention feedback repository.
++     */
++    val interventionFeedbackRepository by lazy {
++        InterventionFeedbackRepository(
++            dao = database.interventionFeedbackDao(),
++            apiClient = authenticatedApiClient,
++        )
++    }
++
++    /**
++     * Remote-capable PHM service. Falls back to [MockPhmService] when the backend is
++     * unavailable, misconfigured, or not yet wired. The local mock remains the snapshot
++     * the legacy UI already consumes via [MockPhmService].
++     */
++    val remotePhmService: RemotePhmService by lazy {
++        RemotePhmService(
++            api = reHealthMobileApi,
++            mockFallback = MockPhmService(),
++        )
++    }
++
++    /** Exposes the offline mock PHM service for UI screens that need local demo data. */
++    val phmService: PhmService by lazy { remotePhmService.mock() }
+     val mrdProtocolAdapter by lazy { MrdProtocolAdapter(this) }
+     val ringRepository: RingRepository by lazy {
+-        MrdBleRingRepository(this, database.ringDataDao(), mrdProtocolAdapter)
++        if (BuildConfig.USE_FAKE_RING || (BuildConfig.SEED_FAKE_HEALTH_DATA && isProbablyEmulator())) {
++            MockRingRepository(database.ringDataDao())
++        } else {
++            MrdBleRingRepository(this, database.ringDataDao(), mrdProtocolAdapter)
++        }
++    }
++
++    override fun onCreate() {
++        super.onCreate()
++        RingNotificationChannels.ensure(this)
++        if (RingBackgroundCollectionSettings.isActive(this)) {
++            RingBackgroundRecoveryWorker.schedule(this)
++        }
++        // D3: if a session was restored, schedule the feedback sync worker
++        if (sessionStore.isLoggedIn) {
++            MeasurementSyncWorker.schedule(this)
++        }
++    }
++
++    private fun isProbablyEmulator(): Boolean {
++        val fingerprint = Build.FINGERPRINT.lowercase()
++        val model = Build.MODEL.lowercase()
++        val product = Build.PRODUCT.lowercase()
++        val brand = Build.BRAND.lowercase()
++        return fingerprint.contains("generic") ||
++            fingerprint.contains("emulator") ||
++            model.contains("emulator") ||
++            model.contains("android sdk built for") ||
++            product.contains("sdk") ||
++            product.contains("emulator") ||
++            brand.contains("generic")
+     }
+ }
+
+########## DIFF: app/src/main/java/com/rehealth/genie/ring/MockRingRepository.kt ##########
+--- .ref/real-device/app/src/main/java/com/rehealth/genie/ring/MockRingRepository.kt	2026-07-20 18:21:43.581868000 +0800
++++ ./app/src/main/java/com/rehealth/genie/ring/MockRingRepository.kt	2026-07-20 17:55:34.774676400 +0800
+@@ -6,7 +6,11 @@
+ import com.rehealth.genie.ring.data.RingMeasurementEntity
+ import com.rehealth.genie.ring.data.RingSignalChunkEntity
+ import com.rehealth.genie.ring.data.RingSleepSessionEntity
+-import java.util.UUID
++import kotlin.math.PI
++import kotlin.math.roundToInt
++import kotlin.math.sin
++import kotlin.random.Random
++import kotlinx.coroutines.delay
+ import kotlinx.coroutines.flow.MutableStateFlow
+ import kotlinx.coroutines.flow.StateFlow
+ 
+@@ -15,20 +19,29 @@
+ ) : RingRepository {
+     private val mutableConnectionState = MutableStateFlow(RingConnectionState.DISCONNECTED)
+     private val mutableConnectedDevice = MutableStateFlow<RingDevice?>(null)
++    private val random = Random(20260708)
++    private var baselineSeeded = false
++
+     override val connectionState: StateFlow<RingConnectionState> = mutableConnectionState
+     override val connectedDevice: StateFlow<RingDevice?> = mutableConnectedDevice
+     override val supportedMetrics: Set<RingMetricType> = RequiredRingMetrics
+ 
+     override suspend fun scan(): List<RingDevice> {
+         mutableConnectionState.value = RingConnectionState.SCANNING
++        delay(700)
+         mutableConnectionState.value = RingConnectionState.DISCONNECTED
+-        return listOf(RingDevice("MOCK:RING:01", "睿禾智能戒指（模拟）", -42))
++        return listOf(
++            RingDevice("MOCK:RING:01", "睿禾智能戒指 Mock", -42),
++            RingDevice("MOCK:RING:02", "MRD Dev Ring Replay", -63),
++        )
+     }
+ 
+     override suspend fun connect(device: RingDevice) {
+         mutableConnectionState.value = RingConnectionState.CONNECTING
++        delay(450)
+         mutableConnectedDevice.value = device
+         mutableConnectionState.value = RingConnectionState.CONNECTED
++        seedBaselineIfNeeded()
+     }
+ 
+     override suspend fun disconnect() {
+@@ -36,91 +49,202 @@
+         mutableConnectionState.value = RingConnectionState.DISCONNECTED
+     }
+ 
++    override suspend fun autoConnect(): Boolean {
++        if (mutableConnectionState.value == RingConnectionState.CONNECTED) return true
++        connect(RingDevice("MOCK:RING:01", "睿禾智能戒指 Mock", -42))
++        return mutableConnectionState.value == RingConnectionState.CONNECTED
++    }
++
++    override suspend fun sendCommand(data: ByteArray): Boolean {
++        // Mock repository: commands are no-ops (no real BLE transport).
++        return true
++    }
++
+     override suspend fun syncAll(): RingSyncResult {
+         mutableConnectionState.value = RingConnectionState.SYNCING
++        delay(900)
++        seedBaselineIfNeeded()
+         val now = System.currentTimeMillis()
+-        val source = "ring_mock"
+-        val measurements = listOf(
+-            measurement(RingMetricType.HEART_RATE, now, 72.0, "bpm", source),
+-            measurement(RingMetricType.HRV, now, 48.0, "ms", source),
+-            measurement(RingMetricType.BLOOD_OXYGEN, now, 98.0, "%", source),
+-            measurement(RingMetricType.BLOOD_PRESSURE, now, 118.0, "mmHg", source, 76.0),
+-            measurement(RingMetricType.TEMPERATURE, now, 36.5, "°C", source),
+-            measurement(RingMetricType.STEPS, now, 6842.0, "steps", source),
+-            measurement(RingMetricType.STRESS, now, 32.0, "score", source),
+-        )
+-        val sleep = RingSleepSessionEntity(
+-            id = id("sleep"),
+-            startedAt = now - 8 * 60 * 60 * 1000,
+-            endedAt = now,
+-            deepMinutes = 102,
+-            lightMinutes = 286,
+-            awakeMinutes = 26,
+-            remMinutes = 58,
+-            interruptionMinutes = 8,
+-            source = source,
+-        )
+-        val activity = RingActivityEntity(
+-            id = id("activity"),
+-            startedAt = now - 35 * 60 * 1000,
+-            endedAt = now,
+-            activityType = "walking",
+-            steps = 3200,
+-            distanceMeters = 2450.0,
+-            caloriesKcal = 126.0,
+-            durationMinutes = 35,
+-            averageHeartRate = 104.0,
+-            source = source,
+-        )
+-        val rri = intArrayOf(812, 806, 821, 798, 815, 809, 824, 817)
+-        val ppg = IntArray(250) { index -> 1800 + ((index % 25) * 16) }
+-        val signals = listOf(
+-            RingSignalChunkEntity(
+-                id = id("rri"),
+-                signalType = RingMetricType.RRI.name,
+-                startedAt = now,
+-                sampleRateHz = null,
+-                sampleCount = rri.size,
+-                payload = SignalEncoding.int32LittleEndian(rri),
+-                source = source,
+-            ),
+-            RingSignalChunkEntity(
+-                id = id("ppg"),
+-                signalType = RingMetricType.PPG.name,
+-                startedAt = now,
+-                sampleRateHz = 25,
+-                sampleCount = ppg.size,
+-                payload = SignalEncoding.int32LittleEndian(ppg),
+-                source = source,
+-            ),
+-        )
+-        val batch = RingDataBatch(
+-            measurements = measurements,
+-            sleepSessions = listOf(sleep),
+-            activities = listOf(activity),
+-            signalChunks = signals,
+-        )
++        val batch = generateCurrentBatch(now)
+         dao.insertBatch(batch)
+         mutableConnectionState.value = RingConnectionState.CONNECTED
+-        return RingSyncResult(RequiredRingMetrics, batch.size, now)
++        return RingSyncResult(
++            collectedTypes = setOf(
++                RingMetricType.SLEEP,
++                RingMetricType.BLOOD_PRESSURE,
++                RingMetricType.TEMPERATURE,
++                RingMetricType.HEART_RATE,
++                RingMetricType.STEPS,
++                RingMetricType.BLOOD_OXYGEN,
++                RingMetricType.HRV,
++                RingMetricType.STRESS,
++                RingMetricType.RRI,
++                RingMetricType.PPG,
++            ),
++            recordsWritten = batch.size,
++            completedAt = now,
++        )
+     }
+ 
+     override suspend fun measure(type: RingMetricType): RingSyncResult {
+         mutableConnectionState.value = RingConnectionState.SYNCING
++        delay(1_200)
+         val now = System.currentTimeMillis()
+-        val source = "ring_mock"
+-        val record = when (type) {
+-            RingMetricType.HEART_RATE -> measurement(type, now, 72.0, "bpm", source)
+-            RingMetricType.BLOOD_OXYGEN -> measurement(type, now, 98.0, "%", source)
+-            RingMetricType.BLOOD_PRESSURE -> measurement(type, now, 118.0, "mmHg", source, 76.0)
+-            RingMetricType.TEMPERATURE -> measurement(type, now, 36.5, "°C", source)
+-            RingMetricType.HRV -> measurement(type, now, 48.0, "ms", source)
+-            else -> null
++        val batch = when (type) {
++            RingMetricType.HEART_RATE -> RingDataBatch(
++                measurements = listOf(measurement(type, now, randomValue(69.0, 5.0), "bpm")),
++            )
++            RingMetricType.HRV -> RingDataBatch(
++                measurements = listOf(measurement(type, now, randomValue(49.0, 6.0), "ms")),
++            )
++            RingMetricType.BLOOD_OXYGEN -> RingDataBatch(
++                measurements = listOf(measurement(type, now, randomValue(97.0, 1.0).coerceIn(94.0, 99.0), "%")),
++            )
++            RingMetricType.BLOOD_PRESSURE -> RingDataBatch(
++                measurements = listOf(
++                    measurement(
++                        type = type,
++                        measuredAt = now,
++                        value = randomValue(118.0, 6.0),
++                        unit = "mmHg",
++                        secondaryValue = randomValue(76.0, 4.0),
++                    ),
++                ),
++            )
++            RingMetricType.TEMPERATURE -> RingDataBatch(
++                measurements = listOf(measurement(type, now, randomValue(36.5, 0.18), "°C")),
++            )
++            RingMetricType.RRI -> RingDataBatch(signalChunks = listOf(rriSignal(now)))
++            RingMetricType.PPG -> RingDataBatch(signalChunks = listOf(ppgSignal(now)))
++            else -> RingDataBatch()
+         }
+-        val batch = RingDataBatch(measurements = listOfNotNull(record))
+         dao.insertBatch(batch)
+         mutableConnectionState.value = RingConnectionState.CONNECTED
+-        return RingSyncResult(if (record == null) emptySet() else setOf(type), batch.size, now)
++        return RingSyncResult(
++            collectedTypes = if (batch.size > 0) setOf(type) else emptySet(),
++            recordsWritten = batch.size,
++            completedAt = now,
++        )
++    }
++
++    private suspend fun seedBaselineIfNeeded() {
++        if (baselineSeeded) return
++        baselineSeeded = true
++        val now = System.currentTimeMillis()
++        (6 downTo 1).forEach { daysAgo ->
++            val dayStart = startOfFakeDay(now - daysAgo * DAY_MS)
++            dao.insertBatch(generateDailyBatch(dayStart, daysAgo))
++        }
++    }
++
++    private fun generateCurrentBatch(now: Long): RingDataBatch {
++        val dayStart = startOfFakeDay(now)
++        val steps = 4_800 + random.nextInt(4_200)
++        return RingDataBatch(
++            measurements = listOf(
++                measurement(RingMetricType.HEART_RATE, now, randomValue(70.0, 5.0), "bpm"),
++                measurement(RingMetricType.HRV, now, randomValue(50.0, 6.0), "ms"),
++                measurement(RingMetricType.BLOOD_OXYGEN, now, randomValue(97.0, 1.0).coerceIn(94.0, 99.0), "%"),
++                measurement(RingMetricType.BLOOD_PRESSURE, now, randomValue(118.0, 6.0), "mmHg", randomValue(76.0, 4.0)),
++                measurement(RingMetricType.TEMPERATURE, now, randomValue(36.5, 0.18), "°C"),
++                measurement(RingMetricType.STEPS, now, steps.toDouble(), "steps"),
++                measurement(RingMetricType.STRESS, now, randomValue(34.0, 8.0).coerceIn(12.0, 75.0), "score"),
++            ),
++            sleepSessions = listOf(sleepSession(dayStart)),
++            activities = listOf(activity(dayStart, steps)),
++            signalChunks = listOf(rriSignal(now), ppgSignal(now)),
++        )
++    }
++
++    private fun generateDailyBatch(dayStart: Long, daysAgo: Int): RingDataBatch {
++        val morning = dayStart + 8 * HOUR_MS + random.nextLong(45 * MINUTE_MS)
++        val evening = dayStart + 20 * HOUR_MS + random.nextLong(60 * MINUTE_MS)
++        val trend = (6 - daysAgo) * 0.7
++        val steps = 5_200 + random.nextInt(4_600) + (trend * 120).roundToInt()
++        return RingDataBatch(
++            measurements = listOf(
++                measurement(RingMetricType.HEART_RATE, morning, randomValue(72.0 - trend, 4.0), "bpm"),
++                measurement(RingMetricType.HEART_RATE, evening, randomValue(76.0 - trend, 5.0), "bpm"),
++                measurement(RingMetricType.HRV, morning, randomValue(45.0 + trend, 5.0), "ms"),
++                measurement(RingMetricType.BLOOD_OXYGEN, morning, randomValue(97.0, 1.0).coerceIn(94.0, 99.0), "%"),
++                measurement(RingMetricType.BLOOD_PRESSURE, morning, randomValue(121.0 - trend, 6.0), "mmHg", randomValue(78.0, 4.0)),
++                measurement(RingMetricType.TEMPERATURE, morning, randomValue(36.45, 0.16), "°C"),
++                measurement(RingMetricType.STEPS, evening, steps.toDouble(), "steps"),
++                measurement(RingMetricType.STRESS, evening, randomValue(40.0 - trend, 8.0).coerceIn(12.0, 80.0), "score"),
++            ),
++            sleepSessions = listOf(sleepSession(dayStart)),
++            activities = listOf(activity(dayStart, steps)),
++        )
++    }
++
++    private fun sleepSession(dayStart: Long): RingSleepSessionEntity {
++        val endAt = dayStart + 7 * HOUR_MS + random.nextLong(45 * MINUTE_MS)
++        val deep = 82 + random.nextInt(45)
++        val rem = 50 + random.nextInt(35)
++        val awake = 12 + random.nextInt(22)
++        val light = 260 + random.nextInt(70)
++        val total = deep + rem + awake + light
++        return RingSleepSessionEntity(
++            id = stableId("sleep", endAt),
++            startedAt = endAt - total * MINUTE_MS,
++            endedAt = endAt,
++            deepMinutes = deep,
++            lightMinutes = light,
++            awakeMinutes = awake,
++            remMinutes = rem,
++            interruptionMinutes = awake / 3,
++            source = SOURCE,
++            rawPayload = """{"mock":true,"totalMinutes":$total}""",
++        )
++    }
++
++    private fun activity(dayStart: Long, steps: Int): RingActivityEntity {
++        val startedAt = dayStart + 18 * HOUR_MS + random.nextLong(90 * MINUTE_MS)
++        val duration = 28 + random.nextInt(24)
++        return RingActivityEntity(
++            id = stableId("activity", startedAt),
++            startedAt = startedAt,
++            endedAt = startedAt + duration * MINUTE_MS,
++            activityType = "walking",
++            steps = (steps * 0.42).roundToInt(),
++            distanceMeters = steps * 0.68,
++            caloriesKcal = steps * 0.036,
++            durationMinutes = duration,
++            averageHeartRate = randomValue(103.0, 8.0),
++            source = SOURCE,
++            rawPayload = """{"mock":true,"type":"walking"}""",
++        )
++    }
++
++    private fun rriSignal(startedAt: Long): RingSignalChunkEntity {
++        val values = IntArray(48) { index ->
++            (815 + sin(index / 4.0) * 22 + random.nextInt(-8, 9)).roundToInt()
++        }
++        return RingSignalChunkEntity(
++            id = stableId("rri", startedAt),
++            signalType = RingMetricType.RRI.name,
++            startedAt = startedAt,
++            sampleRateHz = null,
++            sampleCount = values.size,
++            payload = SignalEncoding.int32LittleEndian(values),
++            source = SOURCE,
++        )
++    }
++
++    private fun ppgSignal(startedAt: Long): RingSignalChunkEntity {
++        val values = IntArray(250) { index ->
++            val wave = sin(index / 25.0 * 2.0 * PI)
++            (1_850 + wave * 260 + random.nextInt(-35, 36)).roundToInt()
++        }
++        return RingSignalChunkEntity(
++            id = stableId("ppg", startedAt),
++            signalType = RingMetricType.PPG.name,
++            startedAt = startedAt,
++            sampleRateHz = 25,
++            sampleCount = values.size,
++            payload = SignalEncoding.int32LittleEndian(values),
++            source = SOURCE,
++        )
+     }
+ 
+     private fun measurement(
+@@ -128,17 +252,32 @@
+         measuredAt: Long,
+         value: Double,
+         unit: String,
+-        source: String,
+         secondaryValue: Double? = null,
+     ) = RingMeasurementEntity(
+-        id = id(type.name.lowercase()),
++        id = stableId(type.name.lowercase(), measuredAt),
+         metricType = type.name,
+         measuredAt = measuredAt,
+-        primaryValue = value,
+-        secondaryValue = secondaryValue,
++        primaryValue = round(value),
++        secondaryValue = secondaryValue?.let(::round),
+         unit = unit,
+-        source = source,
++        quality = random.nextInt(88, 100),
++        source = SOURCE,
++        rawPayload = """{"mock":true,"metric":"${type.name}"}""",
+     )
+ 
+-    private fun id(prefix: String): String = "${prefix}_${UUID.randomUUID()}"
++    private fun randomValue(center: Double, spread: Double): Double =
++        center + random.nextDouble(-spread, spread)
++
++    private fun round(value: Double): Double = (value * 10.0).roundToInt() / 10.0
++
++    private fun startOfFakeDay(timestamp: Long): Long = timestamp - timestamp % DAY_MS
++
++    private fun stableId(prefix: String, timestamp: Long): String = "${prefix}_${timestamp}_mock"
++
++    private companion object {
++        const val SOURCE = "ring_mock"
++        const val MINUTE_MS = 60_000L
++        const val HOUR_MS = 60 * MINUTE_MS
++        const val DAY_MS = 24 * HOUR_MS
++    }
+ }
+
+########## DIFF: app/src/main/java/com/rehealth/genie/ring/RingViewModel.kt ##########
+--- .ref/real-device/app/src/main/java/com/rehealth/genie/ring/RingViewModel.kt	2026-07-20 18:21:42.900291400 +0800
++++ ./app/src/main/java/com/rehealth/genie/ring/RingViewModel.kt	2026-07-20 16:52:01.702259900 +0800
+@@ -1,21 +1,30 @@
+ package com.rehealth.genie.ring
+ 
++import android.content.Context
+ import android.util.Log
+ import androidx.lifecycle.ViewModel
+ import androidx.lifecycle.ViewModelProvider
+ import androidx.lifecycle.viewModelScope
++import com.rehealth.genie.network.CloudUploadResult
++import com.rehealth.genie.network.PatientInterventionPayload
++import com.rehealth.genie.network.PatientMvpPayload
++import com.rehealth.genie.network.PatientProfilePayload
++import com.rehealth.genie.network.PatientRiskPayload
++import com.rehealth.genie.network.ReHealthBackendClient
+ import com.rehealth.genie.ring.SupportedHardwareHealthMetrics
+ import com.rehealth.genie.ring.data.RingActivityEntity
+ import com.rehealth.genie.ring.data.RingDataDao
+ import com.rehealth.genie.ring.data.RingMeasurementEntity
+ import com.rehealth.genie.ring.data.RingSignalChunkEntity
+ import com.rehealth.genie.ring.data.RingSleepSessionEntity
++import com.rehealth.genie.service.RingForegroundService
+ import kotlinx.coroutines.delay
+ import kotlinx.coroutines.Job
+ import kotlinx.coroutines.flow.MutableStateFlow
+ import kotlinx.coroutines.flow.StateFlow
+ import kotlinx.coroutines.flow.asStateFlow
+ import kotlinx.coroutines.flow.combine
++import kotlinx.coroutines.flow.first
+ import kotlinx.coroutines.flow.update
+ import kotlinx.coroutines.launch
+ 
+@@ -29,6 +38,13 @@
+     val syncProgress: Int = 0,
+     val lastSyncAt: Long? = null,
+     val message: String? = null,
++    val cloudSnapshotId: String? = null,
++    val cloudRiskLevel: String? = defaultPatientMvp.risk?.riskLevel,
++    val cloudRiskScore: Double? = defaultPatientMvp.risk?.riskScore,
++    val cloudRiskMode: String? = defaultPatientMvp.risk?.mode,
++    val cloudRiskSummary: String? = defaultPatientMvp.risk?.summary,
++    val patientMvp: PatientMvpPayload? = defaultPatientMvp,
++    val isPatientMvpLoading: Boolean = false,
+     val measurements: Map<RingMetricType, RingMeasurementEntity> = emptyMap(),
+     val sleep: RingSleepSessionEntity? = null,
+     val activity: RingActivityEntity? = null,
+@@ -41,7 +57,8 @@
+ 
+ class RingViewModel(
+     private val repository: RingRepository,
+-    dao: RingDataDao,
++    private val dao: RingDataDao,
++    private val backendClient: ReHealthBackendClient? = null,
+ ) : ViewModel() {
+     private val mutableUiState = MutableStateFlow(RingUiState())
+     val uiState: StateFlow<RingUiState> = mutableUiState.asStateFlow()
+@@ -85,6 +102,9 @@
+                 }
+             }
+         }
++        viewModelScope.launch {
++            refreshPatientMvp(silent = true)
++        }
+     }
+ 
+     fun startAutoCollection() {
+@@ -103,6 +123,14 @@
+         autoCollectionJob = null
+     }
+ 
++    fun startBackgroundCollection(context: Context) {
++        RingForegroundService.start(context.applicationContext)
++    }
++
++    fun stopBackgroundCollection(context: Context) {
++        RingForegroundService.stop(context.applicationContext)
++    }
++
+     private suspend fun runAutoCollectionCycle() {
+         if (mutableUiState.value.isSyncing) return
+         Log.i(TAG, "auto collection cycle start")
+@@ -132,13 +160,26 @@
+         totalRecords
+             .onSuccess { records ->
+                 val now = System.currentTimeMillis()
++                val upload = uploadLatestSnapshot(now, "auto_collection")
++                if (upload.result != null) {
++                    refreshPatientMvp(silent = true)
++                }
+                 mutableUiState.update {
+                     it.copy(
+                         isSyncing = false,
+                         measuringMetric = null,
+                         syncProgress = 100,
+                         lastSyncAt = now,
+-                        message = if (records > 0) "自动采集完成，已保存 $records 条数据" else "自动采集完成，暂无新数据",
++                        cloudSnapshotId = upload.result?.snapshotId ?: it.cloudSnapshotId,
++                        cloudRiskLevel = upload.result?.riskLevel ?: it.cloudRiskLevel,
++                        cloudRiskScore = upload.result?.riskScore ?: it.cloudRiskScore,
++                        cloudRiskMode = upload.result?.riskMode ?: it.cloudRiskMode,
++                        cloudRiskSummary = upload.result?.riskSummary ?: it.cloudRiskSummary,
++                        message = if (records > 0) {
++                            "自动采集完成，已保存 $records 条数据，${upload.message}"
++                        } else {
++                            "自动采集完成，暂无新数据"
++                        },
+                     )
+                 }
+                 Log.i(TAG, "auto collection cycle done records=$records")
+@@ -211,13 +252,26 @@
+             runCatching { repository.syncAll() }
+                 .onSuccess { result ->
+                     progressJob.cancel()
++                    val uploadMessage = if (result.recordsWritten > 0) {
++                        uploadLatestSnapshot(result.completedAt, "manual_sync")
++                    } else {
++                        null
++                    }
++                    if (uploadMessage?.result != null) {
++                        refreshPatientMvp(silent = true)
++                    }
+                     mutableUiState.update {
+                         it.copy(
+                             isSyncing = false,
+                             syncProgress = 100,
+                             lastSyncAt = result.completedAt,
++                            cloudSnapshotId = uploadMessage?.result?.snapshotId ?: it.cloudSnapshotId,
++                            cloudRiskLevel = uploadMessage?.result?.riskLevel ?: it.cloudRiskLevel,
++                            cloudRiskScore = uploadMessage?.result?.riskScore ?: it.cloudRiskScore,
++                            cloudRiskMode = uploadMessage?.result?.riskMode ?: it.cloudRiskMode,
++                            cloudRiskSummary = uploadMessage?.result?.riskSummary ?: it.cloudRiskSummary,
+                             message = if (result.recordsWritten > 0) {
+-                                "${result.recordsWritten} 条戒指数据已保存到本机"
++                                "${result.recordsWritten} 条戒指数据已保存到本机，${uploadMessage?.message ?: "云端未上传"}"
+                             } else {
+                                 "未读取到戒指数据，请确认戒指仍保持连接"
+                             },
+@@ -237,6 +291,12 @@
+         }
+     }
+ 
++    fun refreshPatientMvp() {
++        viewModelScope.launch {
++            refreshPatientMvp(silent = false)
++        }
++    }
++
+     fun measure(type: RingMetricType) {
+         viewModelScope.launch {
+             Log.i(TAG, "measure clicked type=$type")
+@@ -292,19 +352,153 @@
+         val signals: List<RingSignalChunkEntity>,
+     )
+ 
++    private suspend fun uploadLatestSnapshot(collectedAt: Long, trigger: String): CloudUploadUiStatus {
++        val client = backendClient ?: return CloudUploadUiStatus("云端未配置")
++        val measurements = dao.observeLatestMeasurements().first()
++        val sleep = dao.observeLatestSleepSession().first()
++        val activity = dao.observeLatestActivity().first()
++        val signals = dao.observeLatestSignalChunks().first()
++        return client.uploadRingSnapshot(
++            collectedAt = collectedAt,
++            trigger = trigger,
++            device = mutableUiState.value.connectedDevice,
++            measurements = measurements,
++            sleep = sleep,
++            activity = activity,
++            signals = signals,
++        ).fold(
++            onSuccess = { result -> CloudUploadUiStatus(result.statusMessage(), result) },
++            onFailure = { error ->
++                Log.w(TAG, "cloud upload failed", error)
++                CloudUploadUiStatus("云端稍后重试")
++            },
++        )
++    }
++
++    private suspend fun refreshPatientMvp(silent: Boolean) {
++        val client = backendClient ?: return
++        if (!silent) {
++            mutableUiState.update { it.copy(isPatientMvpLoading = true, message = "正在刷新患者健康计划") }
++        }
++        client.fetchPatientMvp()
++            .onSuccess { mvp ->
++                val risk = mvp.risk
++                mutableUiState.update {
++                    it.copy(
++                        patientMvp = mvp,
++                        isPatientMvpLoading = false,
++                        cloudRiskLevel = risk?.riskLevel ?: it.cloudRiskLevel,
++                        cloudRiskScore = risk?.riskScore ?: it.cloudRiskScore,
++                        cloudRiskMode = risk?.mode ?: it.cloudRiskMode,
++                        cloudRiskSummary = risk?.summary ?: it.cloudRiskSummary,
++                        message = if (silent) it.message else "患者健康计划已更新",
++                    )
++                }
++            }
++            .onFailure { error ->
++                Log.w(TAG, "patient mvp refresh failed", error)
++                mutableUiState.update {
++                    it.copy(
++                        isPatientMvpLoading = false,
++                        patientMvp = it.patientMvp ?: defaultPatientMvp,
++                        message = if (silent) it.message else "已使用本地模拟健康计划",
++                    )
++                }
++            }
++    }
++
+     class Factory(
+         private val repository: RingRepository,
+         private val dao: RingDataDao,
++        private val backendClient: ReHealthBackendClient? = null,
+     ) : ViewModelProvider.Factory {
+         @Suppress("UNCHECKED_CAST")
+         override fun <T : ViewModel> create(modelClass: Class<T>): T =
+-            RingViewModel(repository, dao) as T
++            RingViewModel(repository, dao, backendClient) as T
+     }
+ }
+ 
++private data class CloudUploadUiStatus(
++    val message: String,
++    val result: CloudUploadResult? = null,
++)
++
+ private const val TAG = "RingViewModel"
+ private const val AUTO_COLLECTION_INTERVAL_MS = 15 * 60 * 1000L
+ 
++private val defaultPatientMvp = PatientMvpPayload(
++    profile = PatientProfilePayload(
++        patientId = "local-demo",
++        name = "李明",
++        gender = "male",
++        age = 45,
++        heightCm = 172.0,
++        weightKg = 72.0,
++        bmi = 24.3,
++        diagnoses = listOf("血压偏高观察"),
++        medications = emptyList(),
++        allergies = emptyList(),
++        familyHistory = true,
++        smoking = false,
++        drinking = false,
++        diabetesHistory = false,
++        hypertensionHistory = true,
++        updatedAt = System.currentTimeMillis(),
++    ),
++    risk = PatientRiskPayload(
++        mode = "local_mock",
++        modelVersion = "rehealth-local-mvp-0.1",
++        riskScore = 0.36,
++        riskLevel = "medium",
++        summary = "根据健康档案和模拟戒指数据生成的中等风险参考",
++        generatedAt = null,
++    ),
++    interventionPlan = listOf(
++        PatientInterventionPayload(
++            id = "sleep_baseline",
++            title = "睡眠节律打卡",
++            goal = "连续记录睡眠恢复情况",
++            action = "起床后记录精神状态",
++            duration = "7 天",
++            reason = "稳定睡眠有助于血压和心率恢复",
++            status = "active",
++        ),
++        PatientInterventionPayload(
++            id = "walking_zone2",
++            title = "餐后轻运动",
++            goal = "降低餐后代谢压力",
++            action = "晚餐后步行 15-20 分钟",
++            duration = "2 周",
++            reason = "低强度活动有助于血糖、血脂和压力管理",
++            status = "active",
++        ),
++        PatientInterventionPayload(
++            id = "bp_review",
++            title = "血压复测计划",
++            goal = "观察血压趋势",
++            action = "早晚各测 1 次血压",
++            duration = "3 天",
++            reason = "当前风险分提示需要关注血压波动",
++            status = "active",
++        ),
++    ),
++    recentCheckins = emptyList(),
++    updatedAt = System.currentTimeMillis(),
++)
++
++private fun CloudUploadResult.statusMessage(): String {
++    val level = riskLevel?.let { "风险${it.toRiskLevelLabel()}" }
++    val score = riskScore?.let { "分数${(it * 100).toInt()}" }
++    return listOfNotNull("已上传云端", level, score).joinToString("，")
++}
++
++private fun String.toRiskLevelLabel(): String = when (lowercase()) {
++    "low" -> "低"
++    "medium" -> "中"
++    "high" -> "高"
++    else -> this
++}
++
+ private fun RingMetricType.displayName(): String = when (this) {
+     RingMetricType.HEART_RATE -> "心率"
+     RingMetricType.BLOOD_OXYGEN -> "血氧"
+
+########## DIFF: app/src/main/java/com/rehealth/genie/phm/MockPhmService.kt ##########
+--- .ref/real-device/app/src/main/java/com/rehealth/genie/phm/MockPhmService.kt	2026-07-20 18:21:41.451204700 +0800
++++ ./app/src/main/java/com/rehealth/genie/phm/MockPhmService.kt	2026-07-20 17:26:52.018522900 +0800
+@@ -1,58 +1,89 @@
+ package com.rehealth.genie.phm
+ 
++import com.rehealth.genie.network.dto.RiskResultDto
+ import com.rehealth.genie.ring.RingMetricType
+ 
+-data class LifeState(
+-    val score: Int,
+-    val label: String,
+-    val insight: String,
+-)
+-
+-data class Intervention(
+-    val title: String,
+-    val reason: String,
+-    val duration: String,
+-    val category: String,
+-)
+-
+-enum class ModelInputStage {
+-    READY,
+-    FEATURE_EXTRACTED,
+-    LEARNING,
+-}
+-
+-data class ModelInputStatus(
+-    val type: RingMetricType,
+-    val label: String,
+-    val feature: String,
+-    val stage: ModelInputStage,
+-)
+-
+-interface PhmService {
+-    fun todayState(): LifeState
+-    fun interventions(): List<Intervention>
+-    fun modelInputs(): List<ModelInputStatus>
+-}
+-
++/**
++ * Offline demo fallback for [PhmService]. Implements the full app-facing interface
++ * with canned local data so the UI can render without a backend.
++ */
+ class MockPhmService : PhmService {
+-    override fun todayState() = LifeState(
++    override fun modelInputs(): List<ModelInputStatus> = listOf(
++        ModelInputStatus(RingMetricType.HEART_RATE, "心率", "静息心率、日内波动", ModelInputStage.LEARNING),
++        ModelInputStatus(RingMetricType.BLOOD_OXYGEN, "血氧", "均值、低值时长", ModelInputStage.FEATURE_EXTRACTED),
++        ModelInputStatus(RingMetricType.BLOOD_PRESSURE, "血压", "收缩压、舒张压趋势", ModelInputStage.LEARNING),
++        ModelInputStatus(RingMetricType.SLEEP, "睡眠", "时长、阶段、连续性", ModelInputStage.LEARNING),
++        ModelInputStatus(RingMetricType.TEMPERATURE, "体温", "个人基线偏差", ModelInputStage.FEATURE_EXTRACTED),
++        ModelInputStatus(RingMetricType.STEPS, "步数", "总量、时段分布", ModelInputStage.LEARNING),
++    )
++
++    override suspend fun todayState(): LifeState = LifeState(
+         score = 82,
+         label = "良好",
+         insight = "昨晚睡眠恢复良好，今天适合保持轻量活动。",
+     )
+ 
+-    override fun interventions() = listOf(
++    override suspend fun interventions(): List<Intervention> = listOf(
+         Intervention("晚餐少油少盐", "优化血压与睡眠质量", "今晚", "饮食"),
+         Intervention("睡前 30 分钟放松训练", "帮助入睡，提高睡眠质量", "30 分钟", "睡眠"),
+         Intervention("今日步数达到 8000 步", "保持代谢活跃", "约 20 分钟", "运动"),
+     )
+ 
+-    override fun modelInputs() = listOf(
+-        ModelInputStatus(RingMetricType.HEART_RATE, "心率", "静息心率、日内波动", ModelInputStage.LEARNING),
+-        ModelInputStatus(RingMetricType.BLOOD_OXYGEN, "血氧", "均值、低值时长", ModelInputStage.FEATURE_EXTRACTED),
+-        ModelInputStatus(RingMetricType.BLOOD_PRESSURE, "血压", "收缩压、舒张压趋势", ModelInputStage.LEARNING),
+-        ModelInputStatus(RingMetricType.SLEEP, "睡眠", "时长、阶段、连续性", ModelInputStage.LEARNING),
+-        ModelInputStatus(RingMetricType.TEMPERATURE, "体温", "个人基线偏差", ModelInputStage.FEATURE_EXTRACTED),
+-        ModelInputStatus(RingMetricType.STEPS, "步数", "总量、时段分布", ModelInputStage.LEARNING),
++    override suspend fun login(username: String, password: String): LoginResult =
++        LoginResult(token = "mock-token", userId = "mock-user", username = username)
++
++    override suspend fun logout() {}
++
++    override suspend fun evaluateRisk(request: RiskEvaluateRequest): RiskResult = RiskResult(
++        riskScore = 0.12,
++        riskLevel = "低",
++        summary = "本地模拟评估结果，未连接后端。",
++        isMock = true,
++    )
++
++    override suspend fun latestRisk(): RiskResult? = RiskResult(
++        riskScore = 0.12,
++        riskLevel = "低",
++        summary = "本地模拟评估结果，未连接后端。",
++        isMock = true,
++    )
++
++    override suspend fun todayIntervention(): InterventionPlan? = InterventionPlan(
++        priorityIntervention = "晚餐少油少盐",
++        rationale = "优化血压与睡眠质量",
++        expectedImpact = "降低夜间心血管负荷",
++        isMock = true,
++    )
++
++    override suspend fun generateIntervention(request: InterventionGenerateRequest): InterventionPlan =
++        InterventionPlan(
++            priorityIntervention = "保持规律作息",
++            rationale = "基于当前特征向量的通用建议",
++            expectedImpact = "维持代谢与心血管稳态",
++            isMock = true,
++        )
++
++    override suspend fun submitFeedback(planId: String, feedback: FeedbackRequest): FeedbackResult =
++        FeedbackResult(id = planId, status = feedback.status, persisted = false)
++
++    override suspend fun bindDevice(request: DeviceBindRequest): DeviceBindResult =
++        DeviceBindResult(id = "mock-device-id", userId = "mock-user", deviceId = request.deviceId)
++
++    override suspend fun uploadMeasurements(request: TelemetryBatchRequest): TelemetryBatchResult =
++        TelemetryBatchResult(batchId = request.batchId, accepted = true, persisted = false, recordCount = request.measurements.size)
++
++    override suspend fun recordAttributionEvents(request: AttributionEventsRequest): AttributionResult =
++        AttributionResult(requestId = null)
++
++    override suspend fun attributeIndividual(
++        history: List<AttributionHistoryPoint>,
++        forecastDays: Int,
++        language: String,
++    ): IndividualAttributionResult = IndividualAttributionResult(
++        headline = "本地模拟归因结果",
++        body = "未连接后端模型服务，以下为占位数据。",
++        advice = "保持规律作息与适度运动。",
++        currentRiskScore = 0.12,
++        riskLevel = "低",
+     )
+ }
+
+########## DIFF: app/src/main/java/com/rehealth/genie/ui/LoginScreen.kt ##########
+--- .ref/real-device/app/src/main/java/com/rehealth/genie/ui/LoginScreen.kt	2026-07-20 18:21:47.809240000 +0800
++++ ./app/src/main/java/com/rehealth/genie/ui/LoginScreen.kt	2026-07-20 21:39:29.479574900 +0800
+@@ -25,7 +25,6 @@
+ import androidx.compose.material.icons.outlined.ChatBubbleOutline
+ import androidx.compose.material.icons.outlined.Check
+ import androidx.compose.material.icons.outlined.Lock
+-import androidx.compose.material.icons.outlined.PhoneAndroid
+ import androidx.compose.material.icons.outlined.PersonOutline
+ import androidx.compose.material.icons.outlined.Shield
+ import androidx.compose.material3.Button
+@@ -42,8 +41,13 @@
+ import androidx.compose.runtime.mutableStateOf
+ import androidx.compose.runtime.remember
+ import androidx.compose.runtime.setValue
++import androidx.compose.runtime.collectAsState
++import androidx.compose.runtime.LaunchedEffect
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
++import androidx.compose.ui.platform.LocalContext
++import androidx.lifecycle.viewmodel.compose.viewModel
++import androidx.compose.material3.CircularProgressIndicator
+ import androidx.compose.ui.draw.clip
+ import androidx.compose.ui.draw.shadow
+ import androidx.compose.ui.graphics.Brush
+@@ -55,6 +59,7 @@
+ import androidx.compose.ui.text.font.FontWeight
+ import androidx.compose.ui.text.input.ImeAction
+ import androidx.compose.ui.text.input.KeyboardType
++import androidx.compose.ui.text.input.PasswordVisualTransformation
+ import androidx.compose.ui.unit.Density
+ import androidx.compose.ui.unit.dp
+ import androidx.compose.ui.unit.sp
+@@ -64,15 +69,22 @@
+ import com.rehealth.genie.ui.theme.Muted
+ 
+ @Composable
+-fun LoginScreen(onLogin: (String) -> Unit) {
+-    var phone by remember { mutableStateOf("") }
+-    var code by remember { mutableStateOf("") }
++fun LoginScreen(
++    onLoginSuccess: () -> Unit,
++    onGoToRegister: () -> Unit = {},
++) {
++    val context = LocalContext.current
++    val viewModel: LoginViewModel = viewModel(factory = LoginViewModel.Factory(context))
++    val uiState by viewModel.uiState.collectAsState()
++    LaunchedEffect(uiState.isLoggedIn) {
++        if (uiState.isLoggedIn) onLoginSuccess()
++    }
++    var username by remember { mutableStateOf("") }
++    var password by remember { mutableStateOf("") }
+     var agreed by remember { mutableStateOf(false) }
+-    var codeSent by remember { mutableStateOf(false) }
+     var showAgreementHint by remember { mutableStateOf(false) }
+     var showLoginHint by remember { mutableStateOf(false) }
+-    val phoneValid = phone.length == 11 && phone.all(Char::isDigit)
+-    val canLogin = phoneValid && code.length >= 4 && agreed
++    val canLogin = username.isNotBlank() && password.isNotBlank() && agreed && !uiState.isLoading
+     val brandGreen = Color(0xFF08A97B)
+     val outlineGreen = Color(0xFFB9DDD5)
+     val density = LocalDensity.current
+@@ -135,13 +147,12 @@
+                     .background(Color.White)
+                     .padding(16.dp),
+             ) {
+-                Text("手机号登录", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
++                Text("账号登录", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                 OutlinedTextField(
+-                    value = phone,
+-                    onValueChange = { phone = it.filter(Char::isDigit).take(11) },
+-                    placeholder = { Text("请输入手机号", fontSize = 14.sp, maxLines = 1) },
+-                    leadingIcon = { Icon(Icons.Outlined.PhoneAndroid, null) },
+-                    prefix = { Text("+86  ", fontSize = 14.sp) },
++                    value = username,
++                    onValueChange = { username = it.trim().take(64) },
++                    placeholder = { Text("请输入账号", fontSize = 14.sp, maxLines = 1) },
++                    leadingIcon = { Icon(Icons.Outlined.PersonOutline, null) },
+                     singleLine = true,
+                     textStyle = TextStyle(fontSize = 14.sp),
+                     modifier = Modifier
+@@ -157,29 +168,16 @@
+                         cursorColor = brandGreen,
+                     ),
+                     keyboardOptions = KeyboardOptions(
+-                        keyboardType = KeyboardType.Phone,
++                        keyboardType = KeyboardType.Text,
+                         imeAction = ImeAction.Next,
+                     ),
+                 )
+                 OutlinedTextField(
+-                    value = code,
+-                    onValueChange = { code = it.filter(Char::isDigit).take(6) },
+-                    placeholder = { Text("请输入验证码", fontSize = 14.sp, maxLines = 1) },
++                    value = password,
++                    onValueChange = { password = it.take(64) },
++                    placeholder = { Text("请输入密码", fontSize = 14.sp, maxLines = 1) },
+                     leadingIcon = { Icon(Icons.Outlined.Lock, null) },
+-                    trailingIcon = {
+-                        Text(
+-                            if (codeSent) "已发送" else "获取验证码",
+-                            color = if (phoneValid) Mint else Muted,
+-                            fontSize = 13.sp,
+-                            fontWeight = FontWeight.SemiBold,
+-                            modifier = Modifier
+-                                .clickable(enabled = phoneValid) {
+-                                    codeSent = true
+-                                    if (code.isBlank()) code = "8888"
+-                                }
+-                                .padding(8.dp),
+-                        )
+-                    },
++                    visualTransformation = PasswordVisualTransformation(),
+                     singleLine = true,
+                     textStyle = TextStyle(fontSize = 14.sp),
+                     modifier = Modifier
+@@ -195,19 +193,20 @@
+                         cursorColor = brandGreen,
+                     ),
+                     keyboardOptions = KeyboardOptions(
+-                        keyboardType = KeyboardType.NumberPassword,
++                        keyboardType = KeyboardType.Password,
+                         imeAction = ImeAction.Done,
+                     ),
+                 )
+                 Button(
+                     onClick = {
+                         if (canLogin) {
+-                            onLogin(phone)
++                            viewModel.login(username, password)
+                         } else {
+                             showLoginHint = true
+                             if (!agreed) showAgreementHint = true
+                         }
+                     },
++                    enabled = canLogin,
+                     modifier = Modifier
+                         .fillMaxWidth()
+                         .padding(top = 14.dp)
+@@ -215,11 +214,25 @@
+                     shape = RoundedCornerShape(15.dp),
+                     colors = ButtonDefaults.buttonColors(containerColor = brandGreen),
+                 ) {
+-                    Text("登录 / 注册", fontSize = 16.sp, fontWeight = FontWeight.Bold)
++                    if (uiState.isLoading) {
++                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
++                    } else {
++                        Text("登录 / 注册", fontSize = 16.sp, fontWeight = FontWeight.Bold)
++                    }
++                }
++                uiState.errorMessage?.let { error ->
++                    Text(
++                        text = error,
++                        color = Color(0xFFD94C4C),
++                        fontSize = 11.sp,
++                        modifier = Modifier
++                            .fillMaxWidth()
++                            .padding(start = 12.dp, top = 6.dp),
++                    )
+                 }
+-                if (showLoginHint && (!phoneValid || code.length < 4)) {
++                if (showLoginHint && (username.isBlank() || password.isBlank())) {
+                     Text(
+-                        "请输入正确的手机号和验证码",
++                        "请输入账号和密码",
+                         color = Color(0xFFD94C4C),
+                         fontSize = 11.sp,
+                         modifier = Modifier.padding(start = 12.dp, top = 6.dp),
+@@ -242,7 +255,7 @@
+                 ) {
+                     OutlinedButton(
+                         onClick = {
+-                            if (agreed) onLogin("wechat_user") else showAgreementHint = true
++                            if (agreed) onLoginSuccess() else showAgreementHint = true
+                         },
+                         modifier = Modifier
+                             .weight(1f)
+@@ -265,7 +278,7 @@
+                     }
+                     OutlinedButton(
+                         onClick = {
+-                            if (agreed) onLogin("guest") else showAgreementHint = true
++                            if (agreed) onLoginSuccess() else showAgreementHint = true
+                         },
+                         modifier = Modifier
+                             .weight(1f)
+@@ -289,6 +302,24 @@
+                 }
+                 Row(
+                     modifier = Modifier
++                        .fillMaxWidth()
++                        .padding(top = 6.dp),
++                    horizontalArrangement = Arrangement.Center,
++                    verticalAlignment = Alignment.CenterVertically,
++                ) {
++                    Text("还没有账号？", color = Muted, fontSize = 13.sp)
++                    Text(
++                        "去注册",
++                        color = brandGreen,
++                        fontSize = 13.sp,
++                        fontWeight = FontWeight.Bold,
++                        modifier = Modifier
++                            .clickable { onGoToRegister() }
++                            .padding(start = 4.dp),
++                    )
++                }
++                Row(
++                    modifier = Modifier
+                         .fillMaxWidth()
+                         .padding(top = 10.dp)
+                         .clickable {
+
+########## DIFF: app/src/main/java/com/rehealth/genie/data/AppDatabase.kt ##########
+--- .ref/real-device/app/src/main/java/com/rehealth/genie/data/AppDatabase.kt	2026-07-20 18:21:39.703775500 +0800
++++ ./app/src/main/java/com/rehealth/genie/data/AppDatabase.kt	2026-07-20 18:00:49.908708700 +0800
+@@ -8,6 +8,10 @@
+ import androidx.room.RoomDatabase
+ import androidx.room.migration.Migration
+ import androidx.sqlite.db.SupportSQLiteDatabase
++import com.rehealth.genie.data.sync.InterventionFeedbackDao
++import com.rehealth.genie.data.sync.InterventionFeedbackEntity
++import com.rehealth.genie.data.sync.UploadQueueDao
++import com.rehealth.genie.data.sync.UploadQueueEntity
+ import com.rehealth.genie.ring.data.RingActivityEntity
+ import com.rehealth.genie.ring.data.RingDataDao
+ import com.rehealth.genie.ring.data.RingMeasurementEntity
+@@ -41,14 +45,65 @@
+         RingSleepSessionEntity::class,
+         RingActivityEntity::class,
+         RingSignalChunkEntity::class,
++        UploadQueueEntity::class,
++        InterventionFeedbackEntity::class,
+     ],
+-    version = 2,
++    version = 3,
+     exportSchema = false,
+ )
+ abstract class AppDatabase : RoomDatabase() {
+     abstract fun ringDataDao(): RingDataDao
++    abstract fun uploadQueueDao(): UploadQueueDao
++    abstract fun interventionFeedbackDao(): InterventionFeedbackDao
+ 
+     companion object {
++        private val Migration2To3 = object : Migration(2, 3) {
++            override fun migrate(db: SupportSQLiteDatabase) {
++                // D3 sync queue for offline uploads
++                db.execSQL(
++                    """
++                    CREATE TABLE IF NOT EXISTS sync_upload_queue (
++                        id TEXT NOT NULL PRIMARY KEY,
++                        kind TEXT NOT NULL,
++                        payload_json TEXT NOT NULL,
++                        status TEXT NOT NULL,
++                        attempts INTEGER NOT NULL DEFAULT 0,
++                        last_error TEXT,
++                        created_at INTEGER NOT NULL,
++                        next_retry_at INTEGER NOT NULL
++                    )
++                    """.trimIndent(),
++                )
++                db.execSQL(
++                    "CREATE INDEX IF NOT EXISTS index_sync_upload_queue_status_retry ON sync_upload_queue(status, next_retry_at)",
++                )
++
++                // D3 intervention feedback queue
++                db.execSQL(
++                    """
++                    CREATE TABLE IF NOT EXISTS intervention_feedback_queue (
++                        id TEXT NOT NULL PRIMARY KEY,
++                        intervention_id TEXT NOT NULL,
++                        status TEXT NOT NULL,
++                        note TEXT,
++                        checked_at INTEGER NOT NULL,
++                        created_at INTEGER NOT NULL,
++                        upload_status TEXT NOT NULL DEFAULT 'pending',
++                        upload_attempts INTEGER NOT NULL DEFAULT 0,
++                        last_error TEXT,
++                        next_retry_at INTEGER NOT NULL DEFAULT 0
++                    )
++                    """.trimIndent(),
++                )
++                db.execSQL(
++                    "CREATE INDEX IF NOT EXISTS index_intervention_feedback_intervention_id ON intervention_feedback_queue(intervention_id)",
++                )
++                db.execSQL(
++                    "CREATE INDEX IF NOT EXISTS index_intervention_feedback_upload_status ON intervention_feedback_queue(upload_status, next_retry_at)",
++                )
++            }
++        }
++
+         private val Migration1To2 = object : Migration(1, 2) {
+             override fun migrate(db: SupportSQLiteDatabase) {
+                 db.execSQL(
+@@ -124,7 +179,8 @@
+ 
+         fun create(context: Context): AppDatabase =
+             Room.databaseBuilder(context, AppDatabase::class.java, "rehealth-local.db")
+-                .addMigrations(Migration1To2)
++                .addMigrations(Migration1To2, Migration2To3)
++                .fallbackToDestructiveMigration()
+                 .build()
+     }
+ }
+
+########## DIFF: app/src/main/java/com/rehealth/genie/ring/mrd/MrdBleRingRepository.kt ##########
+--- .ref/real-device/app/src/main/java/com/rehealth/genie/ring/mrd/MrdBleRingRepository.kt	2026-07-20 18:21:44.301753600 +0800
++++ ./app/src/main/java/com/rehealth/genie/ring/mrd/MrdBleRingRepository.kt	2026-07-20 17:55:46.876855400 +0800
+@@ -1,6 +1,5 @@
+ package com.rehealth.genie.ring.mrd
+ 
+-import android.Manifest
+ import android.annotation.SuppressLint
+ import android.bluetooth.BluetoothAdapter
+ import android.bluetooth.BluetoothDevice
+@@ -12,11 +11,9 @@
+ import android.bluetooth.BluetoothManager
+ import android.bluetooth.BluetoothProfile
+ import android.content.Context
+-import android.content.pm.PackageManager
+-import android.os.Build
+ import android.util.Log
+-import androidx.core.content.ContextCompat
+ import com.rehealth.genie.ring.RequiredRingMetrics
++import com.rehealth.genie.ring.RingBleGuards
+ import com.rehealth.genie.ring.RingConnectionState
+ import com.rehealth.genie.ring.RingDevice
+ import com.rehealth.genie.ring.RingMetricType
+@@ -40,7 +37,6 @@
+     private val protocol: MrdProtocolAdapter,
+ ) : RingRepository {
+     private val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+-    private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+     private val adapter: BluetoothAdapter?
+         get() = manager.adapter
+ 
+@@ -95,7 +91,7 @@
+                 val name = device.name.orEmpty()
+                 name.contains("MR11", ignoreCase = true) ||
+                     name.contains("MRD", ignoreCase = true) ||
+-                    device.address.equals(lastRingAddress(), ignoreCase = true)
++                    device.address.equals(KNOWN_RING_ADDRESS, ignoreCase = true)
+             }.thenByDescending { it.rssi ?: -999 },
+         ).take(12)
+     }
+@@ -116,9 +112,6 @@
+         gatt = remote.connectGatt(context, false, callback)
+         val ok = withTimeoutOrNull(15_000) { connectReady?.await() } == true
+         mutableConnectedDevice.value = if (ok) device else null
+-        if (ok) {
+-            preferences.edit().putString(LAST_RING_ADDRESS_KEY, device.address).apply()
+-        }
+         mutableConnectionState.value = if (ok) RingConnectionState.CONNECTED else RingConnectionState.ERROR
+     }
+ 
+@@ -128,13 +121,24 @@
+         mutableConnectionState.value = RingConnectionState.DISCONNECTED
+     }
+ 
++    override suspend fun autoConnect(): Boolean = withContext(Dispatchers.Main) {
++        if (mutableConnectionState.value == RingConnectionState.CONNECTED && gatt != null) return@withContext true
++        connect(RingDevice(KNOWN_RING_ADDRESS, "MR11 智能戒指", null))
++        mutableConnectionState.value == RingConnectionState.CONNECTED && gatt != null
++    }
++
++    override suspend fun sendCommand(data: ByteArray): Boolean = withContext(Dispatchers.Main) {
++        val writer = writeCharacteristic
++        val currentGatt = gatt
++        if (writer == null || currentGatt == null) return@withContext false
++        writeWithRetry(currentGatt, writer, data)
++    }
++
+     override suspend fun syncAll(): RingSyncResult = withContext(Dispatchers.Main) {
+         if (writeCharacteristic == null || gatt == null) {
+             Log.i(TAG, "sync reconnecting")
+-            lastRingAddress()?.let { address ->
+-                connect(RingDevice(address, "已绑定的 MRD 戒指", null))
+-                delay(800)
+-            }
++            connect(RingDevice(KNOWN_RING_ADDRESS, "MR11 鏅鸿兘鎴掓寚", null))
++            delay(800)
+         }
+         val writer = writeCharacteristic
+         val currentGatt = gatt
+@@ -173,10 +177,8 @@
+         }
+         if (writeCharacteristic == null || gatt == null) {
+             Log.i(TAG, "manual measure reconnecting before type=$type")
+-            lastRingAddress()?.let { address ->
+-                connect(RingDevice(address, "已绑定的 MRD 戒指", null))
+-                delay(800)
+-            }
++            connect(RingDevice(KNOWN_RING_ADDRESS, "MR11 智能戒指", null))
++            delay(800)
+         }
+         val writer = writeCharacteristic
+         val currentGatt = gatt
+@@ -205,10 +207,8 @@
+     private suspend fun readTemperature(): RingSyncResult {
+         if (writeCharacteristic == null || gatt == null) {
+             Log.i(TAG, "temperature read reconnecting")
+-            lastRingAddress()?.let { address ->
+-                connect(RingDevice(address, "已绑定的 MRD 戒指", null))
+-                delay(800)
+-            }
++            connect(RingDevice(KNOWN_RING_ADDRESS, "MR11 智能戒指", null))
++            delay(800)
+         }
+         val writer = writeCharacteristic
+         val currentGatt = gatt
+@@ -354,16 +354,9 @@
+     }
+ 
+     private fun hasBlePermission(): Boolean {
+-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+-            ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED &&
+-                ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+-        } else {
+-            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+-        }
++        return RingBleGuards.hasCollectionPermission(context)
+     }
+ 
+-    private fun lastRingAddress(): String? = preferences.getString(LAST_RING_ADDRESS_KEY, null)
+-
+     private fun ByteArray.toHex(): String = joinToString(" ") { "%02X".format(it) }
+ 
+     private fun ByteArray.containsUuid(uuid: UUID): Boolean {
+@@ -416,8 +409,7 @@
+ 
+     private companion object {
+         const val TAG = "MrdBleRingRepository"
+-        const val PREFERENCES_NAME = "ring_connection"
+-        const val LAST_RING_ADDRESS_KEY = "last_ring_address"
++        const val KNOWN_RING_ADDRESS = "D9:18:68:41:00:C6"
+         val WRITE_SERVICE_UUID: UUID = UUID.fromString("f000efe0-0451-4000-0000-00000000b000")
+         val WRITE_CHARACTERISTIC_UUID: UUID = UUID.fromString("f000efe1-0451-4000-0000-00000000b000")
+         val NOTIFY_CHARACTERISTIC_UUID: UUID = UUID.fromString("f000efe3-0451-4000-0000-00000000b000")
+
+########## DIFF: app/src/main/java/com/rehealth/genie/ring/mrd/MrdProtocolAdapter.kt ##########
+--- .ref/real-device/app/src/main/java/com/rehealth/genie/ring/mrd/MrdProtocolAdapter.kt	2026-07-20 18:21:45.019986400 +0800
++++ ./app/src/main/java/com/rehealth/genie/ring/mrd/MrdProtocolAdapter.kt	2026-07-20 17:56:40.905889400 +0800
+@@ -17,7 +17,13 @@
+ import com.manridy.sdk_mrd2019.bean.read.history.SleepHistoryBean
+ import com.manridy.sdk_mrd2019.bean.read.history.StepHistoryBean
+ import com.manridy.sdk_mrd2019.bean.read.history.TempHistoryBean
++import com.manridy.sdk_mrd2019.bean.send.MrdEventClock
++import com.manridy.sdk_mrd2019.bean.send.MrdSedentary
++import com.manridy.sdk_mrd2019.bean.send.MrdNotDisturb
++import com.manridy.sdk_mrd2019.bean.send.MrdHeartBloodAlert
++import com.manridy.sdk_mrd2019.bean.send.MrdUserInfo
+ import com.manridy.sdk_mrd2019.bean.send.StartTestEnum
++import com.manridy.sdk_mrd2019.bean.common.DrinkReminderBean
+ import com.manridy.sdk_mrd2019.read.MrdReadRequest
+ import com.google.gson.Gson
+ import com.rehealth.genie.ring.RequiredRingMetrics
+@@ -357,5 +363,30 @@
+     private companion object {
+         const val SOURCE = "mrd_ring"
+     }
++
++    // ---- Device settings command stubs (DeviceSettingsViewModel) ----
++    // These return empty placeholder packets. The real vendor command builders are
++    // not wired in D1; the settings screen sends these through sendCommand() which
++    // is a no-op on the mock/unsupported path. Replace with real Manridy.getMrdSend()
++    // builders when device-settings is brought online.
++
++    fun setAlarmClock(clocks: List<MrdEventClock>): List<ByteArray> = emptyList()
++    fun setSedentaryReminder(reminder: MrdSedentary): ByteArray = ByteArray(0)
++    fun setDrinkReminder(reminder: DrinkReminderBean): ByteArray = ByteArray(0)
++    fun setDoNotDisturb(dnd: MrdNotDisturb): ByteArray = ByteArray(0)
++    fun setTimingHrTest(enabled: Boolean, intervalMinutes: Int): ByteArray = ByteArray(0)
++    fun setHealthAlert(alert: MrdHeartBloodAlert): ByteArray = ByteArray(0)
++    fun setUserInfo(userInfo: MrdUserInfo): ByteArray = ByteArray(0)
++    fun setSportTarget(stepTarget: Int, calorieTarget: Int): ByteArray = ByteArray(0)
++    fun setUnit(lengthUnit: Int, weightUnit: Int): ByteArray = ByteArray(0)
++    fun setHourFormat(is24Hour: Boolean): ByteArray = ByteArray(0)
++    fun findDevice(durationSeconds: Int): ByteArray = ByteArray(0)
++    fun setWristOn(enabled: Boolean): ByteArray = ByteArray(0)
++    fun setScreenLightTime(seconds: Int): ByteArray = ByteArray(0)
++    fun setLostAlert(enabled: Boolean, distance: Int): ByteArray = ByteArray(0)
++    fun getBatteryLevel(): ByteArray = ByteArray(0)
++    fun getFirmwareVersion(): ByteArray = ByteArray(0)
++    fun syncTime(): ByteArray = ByteArray(0)
++    fun factoryReset(): ByteArray = ByteArray(0)
+ }
+ 
+
+########## DIFF: app/src/main/java/com/rehealth/genie/chat/DeepSeekClient.kt ##########
+--- .ref/real-device/app/src/main/java/com/rehealth/genie/chat/DeepSeekClient.kt	2026-07-20 18:21:39.047903700 +0800
++++ ./app/src/main/java/com/rehealth/genie/chat/DeepSeekClient.kt	2026-07-20 18:30:32.320042800 +0800
+@@ -1,18 +1,28 @@
+ package com.rehealth.genie.chat
+ 
++import android.util.Log
+ import com.google.gson.JsonArray
+ import com.google.gson.JsonObject
+ import com.google.gson.JsonParser
++import com.rehealth.genie.BuildConfig
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.withContext
+ import java.net.HttpURLConnection
+ import java.net.URL
+ 
++/**
++ * DeepSeek 大模型客户端（首页 AI 问答 / 健康助手）。
++ *
++ * 与 demo-simulated 的 DeepSeekClient 一致的实现：直接调用
++ * `${baseUrl}/chat/completions`，模型固定 `deepseek-chat`。
++ * API key 来自 [BuildConfig.DEEPSEEK_API_KEY]（由 local.properties 注入，绝不硬编码）。
++ * 当 key 为空时返回友好的占位提示，不抛出异常。
++ */
+ data class ChatTurn(val role: String, val content: String)
+ 
+ class DeepSeekClient(
+-    private val baseUrl: String,
+-    private val apiKey: String,
++    private val baseUrl: String = BuildConfig.DEEPSEEK_BASE_URL,
++    private val apiKey: String = BuildConfig.DEEPSEEK_API_KEY,
+ ) {
+     suspend fun reply(history: List<ChatTurn>): String = withContext(Dispatchers.IO) {
+         if (apiKey.isBlank()) {
+@@ -58,6 +68,7 @@
+             val responseStream = if (responseCode in 200..299) connection.inputStream else connection.errorStream
+             val responseText = responseStream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+             if (responseCode !in 200..299) {
++                Log.w("DeepSeekClient", "non-2xx $responseCode: $responseText")
+                 return@withContext "服务暂时不可用（$responseCode），请稍后再试。"
+             }
+             val root = JsonParser.parseString(responseText).asJsonObject
+@@ -66,7 +77,8 @@
+                 ?.trim()
+                 ?.takeIf { it.isNotBlank() }
+                 ?: "我暂时没有生成有效回答，请换一种方式描述。"
+-        } catch (_: Exception) {
++        } catch (e: Exception) {
++            Log.w("DeepSeekClient", "request failed", e)
+             "暂时无法连接健康助手，请检查网络后重试。"
+         } finally {
+             connection.disconnect()
+
+########## DIFF: app/src/main/java/com/rehealth/genie/ring/RingRepository.kt ##########
+--- .ref/real-device/app/src/main/java/com/rehealth/genie/ring/RingRepository.kt	2026-07-20 18:21:42.068565300 +0800
++++ ./app/src/main/java/com/rehealth/genie/ring/RingRepository.kt	2026-07-20 17:28:38.568084100 +0800
+@@ -9,7 +9,9 @@
+ 
+     suspend fun scan(): List<RingDevice>
+     suspend fun connect(device: RingDevice)
++    suspend fun autoConnect(): Boolean
+     suspend fun disconnect()
+     suspend fun syncAll(): RingSyncResult
+     suspend fun measure(type: RingMetricType): RingSyncResult
++    suspend fun sendCommand(data: ByteArray): Boolean
+ }
+
