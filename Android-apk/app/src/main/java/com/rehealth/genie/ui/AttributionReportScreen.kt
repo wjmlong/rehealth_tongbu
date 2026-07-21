@@ -48,14 +48,7 @@ fun AttributionReportScreen(onBack: () -> Unit = {}) {
     fun load() {
         state = AttrUiState.Loading
         scope.launch {
-            val latestRisk = app.remotePhmService.getRiskLatest()
-            val recordedHistory = when (latestRisk) {
-                is com.rehealth.genie.network.RemotePhmOutcome.Success ->
-                    latestRisk.data?.normalizedRiskScore?.let { score ->
-                        listOf(AttributionHistoryPoint("最新", score, false))
-                    }.orEmpty()
-                is com.rehealth.genie.network.RemotePhmOutcome.Failure -> emptyList()
-            }
+            val recordedHistory = app.riskHistoryRepository.attributionHistory()
             history = recordedHistory
             if (recordedHistory.size < 4) {
                 state = AttrUiState.Empty

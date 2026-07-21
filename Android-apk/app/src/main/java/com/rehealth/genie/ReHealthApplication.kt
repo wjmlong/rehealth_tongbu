@@ -3,6 +3,7 @@ package com.rehealth.genie
 import android.app.Application
 import android.os.Build
 import com.rehealth.genie.data.AppDatabase
+import com.rehealth.genie.data.RiskHistoryRepository
 import com.rehealth.genie.data.sync.InterventionFeedbackRepository
 import com.rehealth.genie.data.sync.SyncRepository
 import com.rehealth.genie.network.AuthenticatedApiClient
@@ -82,6 +83,14 @@ class ReHealthApplication : Application() {
         InterventionFeedbackRepository(
             dao = database.interventionFeedbackDao(),
             apiClient = authenticatedApiClient,
+        )
+    }
+
+    val riskHistoryRepository by lazy {
+        RiskHistoryRepository(
+            riskHistoryDao = database.riskHistoryDao(),
+            feedbackDao = database.interventionFeedbackDao(),
+            userIdProvider = { sessionStore.userId },
         )
     }
 

@@ -47,16 +47,39 @@ data class AttributionLogEntity(
         RingSignalChunkEntity::class,
         UploadQueueEntity::class,
         InterventionFeedbackEntity::class,
+        RiskHistoryEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun ringDataDao(): RingDataDao
     abstract fun uploadQueueDao(): UploadQueueDao
     abstract fun interventionFeedbackDao(): InterventionFeedbackDao
+    abstract fun riskHistoryDao(): RiskHistoryDao
 
     companion object {
+        private val Migration3To4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS cvd_risk_history (
+                        user_id TEXT NOT NULL,
+                        evaluated_on TEXT NOT NULL,
+                        risk_score REAL NOT NULL,
+                        risk_level TEXT,
+                        evaluated_at INTEGER NOT NULL,
+                        PRIMARY KEY(user_id, evaluated_on)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_cvd_risk_history_user_day " +
+                        "ON cvd_risk_history(user_id, evaluated_on)",
+                )
+            }
+        }
+
         private val Migration2To3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // D3 sync queue for offline uploads
@@ -179,7 +202,7 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun create(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, "rehealth-local.db")
-                .addMigrations(Migration1To2, Migration2To3)
+                .addMigrations(Migration1To2, Migration2To3, Migration3To4)
                 .fallbackToDestructiveMigration()
                 .build()
     }

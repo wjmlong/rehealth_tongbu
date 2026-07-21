@@ -24,6 +24,9 @@ interface InterventionFeedbackDao {
     @Query("SELECT * FROM intervention_feedback_queue WHERE upload_status != 'done' ORDER BY created_at DESC")
     fun observePendingFeedback(): Flow<List<InterventionFeedbackEntity>>
 
+    @Query("SELECT * FROM intervention_feedback_queue WHERE checked_at >= :since ORDER BY checked_at ASC")
+    suspend fun completedFeedbackSince(since: Long): List<InterventionFeedbackEntity>
+
     @Query("DELETE FROM intervention_feedback_queue WHERE upload_status = 'done' AND created_at < :cutoffTimestamp")
     suspend fun pruneDone(cutoffTimestamp: Long)
 

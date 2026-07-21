@@ -2259,6 +2259,7 @@ private suspend fun refreshRemoteFeatureEvaluateStatus(
     val outcome = application.remotePhmService.evaluateFeatures(vector)
     val result = outcome.result
     if (result != null) {
+        application.riskHistoryRepository.recordConfirmedRemoteRisk(result)
         target.value = RemoteFeatureEvaluateStatus(
             reachable = true,
             modelVersion = result.normalizedModelVersion,
@@ -2273,18 +2274,18 @@ private suspend fun refreshRemoteFeatureEvaluateStatus(
             summary = result.summary ?: "后端已基于本机特征完成风险评估。",
         )
     } else {
-        val fallback = application.remotePhmService.mock().todayState()
         target.value = RemoteFeatureEvaluateStatus(
             reachable = false,
-            modelVersion = "local-mock-fallback",
-            isMock = true,
-            riskLevel = fallback.label,
-            riskScore = fallback.score / 100.0,
+            modelVersion = null,
+            isMock = null,
+            riskLevel = null,
+            riskScore = null,
             requestId = outcome.requestId,
-            usedMockFallback = true,
+            usedMockFallback = false,
             fallbackReason = outcome.mockFallbackReason,
             missingFields = vector.missingFields,
-            summary = "${fallback.insight}（${outcome.error?.eventName ?: "fallback"}）",
+            summary = "暂时无法完成风险评估，请检查网络和登录状态后重试。" +
+                "（${outcome.error?.eventName ?: "unavailable"}）",
         )
     }
 }
