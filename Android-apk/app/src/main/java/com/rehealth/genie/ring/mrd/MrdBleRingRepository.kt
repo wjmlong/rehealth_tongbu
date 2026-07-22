@@ -51,6 +51,7 @@ class MrdBleRingRepository(
     private val packets = mutableListOf<ByteArray>()
     private var connectReady: CompletableDeferred<Boolean>? = null
 
+    @SuppressLint("MissingPermission")
     override suspend fun scan(): List<RingDevice> = withContext(Dispatchers.Main) {
         if (!hasBlePermission()) {
             mutableConnectionState.value = RingConnectionState.PERMISSION_REQUIRED
@@ -68,7 +69,7 @@ class MrdBleRingRepository(
         mutableConnectionState.value = RingConnectionState.SCANNING
         val found = linkedMapOf<String, RingDevice>()
         val callback = BluetoothAdapter.LeScanCallback { device, rssi, scanRecord ->
-            val name = runCatching { device.name }.getOrNull()
+            val name = if (hasBlePermission()) runCatching { device.name }.getOrNull() else null
             val advertisesMrd = scanRecord?.containsUuid(WRITE_SERVICE_UUID) == true
             if (advertisesMrd || !name.isNullOrBlank() || rssi >= -88) {
                 val displayName = when {
@@ -81,10 +82,18 @@ class MrdBleRingRepository(
                 Log.i(TAG, "scan ${device.address} $displayName $rssi adv=${scanRecord?.toHex()}")
             }
         }
-        bluetoothAdapter.stopLeScan(callback)
-        bluetoothAdapter.startLeScan(callback)
+        runCatching { bluetoothAdapter.stopLeScan(callback) }
+        val scanStarted = runCatching { bluetoothAdapter.startLeScan(callback) }.getOrDefault(false)
+        if (!scanStarted) {
+            mutableConnectionState.value = if (hasBlePermission()) {
+                RingConnectionState.ERROR
+            } else {
+                RingConnectionState.PERMISSION_REQUIRED
+            }
+            return@withContext emptyList()
+        }
         delay(6_000)
-        bluetoothAdapter.stopLeScan(callback)
+        runCatching { bluetoothAdapter.stopLeScan(callback) }
         mutableConnectionState.value = RingConnectionState.DISCONNECTED
         found.values.sortedWith(
             compareByDescending<RingDevice> { device ->
@@ -96,6 +105,7 @@ class MrdBleRingRepository(
         ).take(12)
     }
 
+    @SuppressLint("MissingPermission")
     override suspend fun connect(device: RingDevice) = withContext(Dispatchers.Main) {
         if (!hasBlePermission()) {
             mutableConnectionState.value = RingConnectionState.PERMISSION_REQUIRED
@@ -109,7 +119,15 @@ class MrdBleRingRepository(
         packets.clear()
         mutableConnectionState.value = RingConnectionState.CONNECTING
         connectReady = CompletableDeferred()
-        gatt = remote.connectGatt(context, false, callback)
+        gatt = runCatching { remote.connectGatt(context, false, callback) }.getOrNull()
+        if (gatt == null) {
+            mutableConnectionState.value = if (hasBlePermission()) {
+                RingConnectionState.ERROR
+            } else {
+                RingConnectionState.PERMISSION_REQUIRED
+            }
+            return@withContext
+        }
         val ok = withTimeoutOrNull(15_000) { connectReady?.await() } == true
         mutableConnectedDevice.value = if (ok) device else null
         mutableConnectionState.value = if (ok) RingConnectionState.CONNECTED else RingConnectionState.ERROR

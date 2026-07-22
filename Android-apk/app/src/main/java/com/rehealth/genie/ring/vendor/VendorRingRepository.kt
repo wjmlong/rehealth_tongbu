@@ -1,6 +1,7 @@
 package com.rehealth.genie.ring.vendor
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.content.Context
 import android.content.pm.PackageManager
@@ -80,6 +81,7 @@ class VendorRingRepository(
         })
     }
 
+    @SuppressLint("MissingPermission")
     private fun onConnectionChange(device: BluetoothDevice?, state: BleState) {
         when (state) {
             BleState.CONNECTING -> mutableConnectionState.value = RingConnectionState.CONNECTING
@@ -89,7 +91,11 @@ class VendorRingRepository(
                 mutableConnectionState.value = RingConnectionState.CONNECTED
                 val address = device?.address ?: savedAddress()
                 if (address != null) {
-                    val name = runCatching { device?.name }.getOrNull()
+                    val name = if (hasBlePermission()) {
+                        runCatching { device?.name }.getOrNull()
+                    } else {
+                        null
+                    }
                         ?: preferences.getString(SAVED_NAME, "MRD 智能戒指")
                     val resolved = RingDevice(address, name, null)
                     mutableConnectedDevice.value = resolved
@@ -105,6 +111,7 @@ class VendorRingRepository(
         }
     }
 
+    @SuppressLint("MissingPermission")
     override suspend fun scan(): List<RingDevice> = withContext(Dispatchers.Main) {
         if (!hasBlePermission()) {
             mutableConnectionState.value = RingConnectionState.PERMISSION_REQUIRED
@@ -113,7 +120,7 @@ class VendorRingRepository(
         mutableConnectionState.value = RingConnectionState.SCANNING
         val found = linkedMapOf<String, RingDevice>()
         val listener = SearchListener.ScanListener { device, rssi ->
-            val name = runCatching { device.name }.getOrNull()
+            val name = if (hasBlePermission()) runCatching { device.name }.getOrNull() else null
             val address = device.address ?: return@ScanListener
             val isKnownDevice = address.equals(savedAddress(), ignoreCase = true)
             val isMrdName = name?.contains("MR11", ignoreCase = true) == true ||

@@ -1,3 +1,17 @@
 # OS files
 *.DS_Store
 Thumbs.db
+
+# ---- rehealth 同步：构建/缓存/下载产物（2026-07-22 添加，避免推送到 GitHub） ----
+.codegraph/
+*.zip
+**/build/
+**/target/
+**/.venv/
+**/node_modules/
+**/__pycache__/
+*.pyc
+*.class
+.gradle/
+*.log
+/sync_to_github.log

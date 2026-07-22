@@ -1,0 +1,8 @@
+请在Windows环境执行以下命令构建APK:
+
+cd D:\rehealthAI\Android-apk
+gradlew.bat assembleDebug
+
+或者运行: full_automation.bat
+
+构建完成后，删除此文件表示完成。

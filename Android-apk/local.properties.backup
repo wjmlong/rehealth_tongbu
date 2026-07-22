@@ -1,0 +1,13 @@
+## This file must *NOT* be checked into Version Control Systems.
+sdk.dir=D:\\Android_SDK
+
+rehealth.api.base.url=http://10.0.2.2:8080/jeecg-boot/
+rehealth.model.service.base.url=http://10.0.2.2:8000/api/pias/v2
+
+# DeepSeek 大模型（首页问答 / AI 健康助手）。占位：请在本地填写真实 key，切勿提交到仓库。
+DEEPSEEK_API_KEY=
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+
+# JeecgBoot 签名密钥（与运行中的 rehealth-staging-backend 容器环境变量 JEECG_SIGNATURE_SECRET 一致）。
+# 仅用于本地构建签名 /sys/sms 请求；local.properties 已被 gitignore，不会入库。
+JEECG_SIGNATURE_SECRET=4a3d59d9c99c7317b0fb22908c340a24988c0df5018e0e44bca8cfd0d44d600b

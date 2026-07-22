@@ -1,0 +1,56 @@
+{
+  "generated_at": "2026-07-22T08:11:32.007341",
+  "system": {
+    "hostname": "DESKTOP-4OH6FIA",
+    "os": "Linux DESKTOP-4OH6FIA 6.18.33.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun 18 21:54:43 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux",
+    "python_version": "Python 3.12.3"
+  },
+  "build": {
+    "status": "success",
+    "path": "/mnt/d/rehealthAI/Android-apk/app/build/outputs/apk/debug/app-debug.apk",
+    "size_mb": 20.69,
+    "size_bytes": 21693342
+  },
+  "backend": {
+    "status": "running",
+    "pids": [
+      "17526"
+    ],
+    "count": 1
+  },
+  "output_files": {
+    "automation.log": {
+      "exists": true,
+      "size": 2308,
+      "modified": "2026-07-21T22:26:09.710848"
+    },
+    "backend.log": {
+      "exists": true,
+      "size": 42,
+      "modified": "2026-07-21T18:57:54.830093"
+    },
+    "automation_status.md": {
+      "exists": true,
+      "size": 1420,
+      "modified": "2026-07-21T19:54:54.914499"
+    },
+    "INSTALL_GUIDE.txt": {
+      "exists": false
+    },
+    "BUILD_TRIGGER.txt": {
+      "exists": false
+    },
+    "APK_READY.txt": {
+      "exists": false
+    },
+    "screenshot.png": {
+      "exists": false
+    },
+    "rehealth_logs.txt": {
+      "exists": false
+    },
+    "crash_logs.txt": {
+      "exists": false
+    }
+  }
+}

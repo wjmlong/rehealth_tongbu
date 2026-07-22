@@ -1,6 +1,6 @@
 # BLE Background Collection QA
 
-Last updated: 2026-07-09
+Last updated: 2026-07-22
 
 ## Scope
 
@@ -43,6 +43,20 @@ The production UI toggle is not part of B1. The app-facing APIs are:
 - Missing permission, unsupported Bluetooth, and Bluetooth-off states are reported in the notification instead of crashing.
 - The service uses a persistent low-importance notification with a Stop action.
 - WorkManager is recovery-only and does not collect BLE data directly.
+- Android 12+ BLE platform calls re-check `BLUETOOTH_SCAN` and
+  `BLUETOOTH_CONNECT` immediately before use. Revoking permission during a scan
+  or connection attempt must return an empty/error state without crashing.
+
+## Emulator Regression (API 31+)
+
+1. Install the debug APK on an API 31 or newer emulator.
+2. Revoke `BLUETOOTH_SCAN` and `BLUETOOTH_CONNECT` with `pm revoke`.
+3. Launch the app and open the device-binding page.
+4. Trigger scan without granting the permission prompt; verify the app remains
+   alive and exposes the permission-required state.
+5. Grant both permissions with `pm grant`, relaunch, and trigger scan again.
+6. An emulator may return no MRD devices, but the scan path must complete without
+   `SecurityException`, fatal exception, or ANR.
 
 ## Known Follow-Ups
 
