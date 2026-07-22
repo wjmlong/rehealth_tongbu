@@ -32,7 +32,7 @@
 | D3 auth + typed feedback | ❌ | ⚠️ **PARTIAL** | Core infra done, UI pending |
 | Cross-service E2E QA | ❌ | ❌ **BLOCKED by D3 UI** | Cannot test without full auth flow |
 | Physical MRD QA | ❌ | ❌ **Pending** | Hardware-dependent |
-| G3 privacy audit | ❌ | ❌ **Pending** | Can proceed in parallel |
+| G3 privacy audit | ❌ | ✅ **STATIC GATE RESOLVED** | `codex-runs/2026-07-20/G3_privacy_audit_report.md`; runtime/device conditions remain |
 
 **Progress**: 2/5 fully resolved, 1/5 core infra complete (UI pending)
 
@@ -538,7 +538,7 @@ Android (D3 core) ✅
 
 **Prerequisites**: D3 complete (so audit covers auth flow)
 
-**Status**: Can proceed in parallel with D3 UI implementation.
+**Status (2026-07-23)**: ✅ Static APK/JAR privacy gate resolved after release hardening. Runtime logcat, signed APK and physical MR11 verification remain deployment conditions. Evidence: `codex-runs/2026-07-20/G3_privacy_audit_report.md`.
 
 ---
 
@@ -551,7 +551,7 @@ Android (D3 core) ✅
 3. **D3** ⚠️ **PARTIAL** → UI + Worker + Tests required (2.5-4 days)
 4. **Cross-service E2E QA** ❌ **Blocked by D3** (1 day after D3)
 5. **Physical MRD QA** ❌ Pending (parallel, hardware-dependent)
-6. **G3 Privacy Audit** ❌ Pending (parallel, can start now)
+6. ~~**G3 Privacy Audit**~~ ✅ Static gate resolved; runtime/device verification remains
 
 ### 7.2 Time to Release
 

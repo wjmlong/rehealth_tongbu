@@ -41,6 +41,19 @@
 -keep class com.rehealth.genie.phm.PhmModels** { *; }
 -keep class com.rehealth.genie.ring.RingModels** { *; }
 
+# MRD SDK uses runtime model lookup and BLE callbacks that are not visible to R8.
+-keep class com.manridy.** { *; }
+
+# Release builds must not emit identifiers, raw BLE frames, or health values via logcat.
+-assumenosideeffects class android.util.Log {
+    public static *** v(...);
+    public static *** d(...);
+    public static *** i(...);
+    public static *** w(...);
+    public static *** e(...);
+    public static *** wtf(...);
+}
+
 # OkHttp platform used only on JVM and when Conscrypt dependency is available.
 -dontwarn org.conscrypt.**
 -dontwarn org.bouncycastle.**

@@ -36,7 +36,7 @@ spring:
     timeJobSend: false
     host: smtp.163.com
     username: jeecgos@163.com
-    password: ??
+    password: ${MAIL_PASSWORD:}
     properties:
       mail.smtp.auth: true
       smtp.ssl.enable: true
@@ -109,7 +109,7 @@ spring:
       stat-view-servlet:
         enabled: true
         loginUsername: admin
-        loginPassword: 123456
+        loginPassword: ${DRUID_LOGIN_PASSWORD:}
         allow:
       web-stat-filter:
         enabled: true
@@ -146,7 +146,7 @@ spring:
         master:
           url: jdbc:mysql://127.0.0.1:3306/jeecg-boot?characterEncoding=UTF-8&useUnicode=true&useSSL=false&tinyInt1isBit=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
           username: root
-          password: root
+          password: ${DB_PASSWORD}
           driver-class-name: com.mysql.cj.jdbc.Driver
           # 多数据源配置
           #multi-datasource1:
@@ -160,7 +160,7 @@ spring:
       database: 0
       host: 127.0.0.1
       port: 6379
-      password:
+      password: ${REDIS_PASSWORD:}
 #mybatis plus 设置
 mybatis-plus:
   mapper-locations: classpath*:org/jeecg/**/xml/*Mapper.xml
@@ -243,11 +243,11 @@ jeecg:
       port: 5432
       database: postgres
       user: postgres
-      password: postgres
+      password: ${AI_RAG_DB_PASSWORD:}
       table: embeddings
     # Brave Search 联网检索（AI Agent 工具）
     brave-search:
-      api-key: ??
+      api-key: ${BRAVE_SEARCH_API_KEY:}
       endpoint: https://api.search.brave.com/res/v1/web/search
       count: 10
       timeout: 15
@@ -263,7 +263,7 @@ jeecg:
     # 是否允许同一账号多地同时登录 （为 true 时允许一起登录, 为 false 时新登录挤掉旧登录）
     is-concurrent: true
   # 签名密钥串(前后端要一致，正式发布请自行修改)
-  signatureSecret: dd05f1c54d63749eda95f9fa6d49v442a
+  signatureSecret: ${JEECG_SIGNATURE_SECRET}
   #签名拦截接口
   signUrls: /sys/dict/getDictItems/*,/sys/dict/loadDict/*,/sys/dict/loadDictOrderByValue/*,/sys/dict/loadDictItem/*,/sys/dict/loadTreeData,/sys/api/queryTableDictItemsByCode,/sys/api/queryFilterTableDictInfo,/sys/api/queryTableDictByKeys,/sys/api/translateDictFromTable,/sys/api/translateDictFromTableByKeys,/sys/sendChangePwdSms,/sys/user/sendChangePhoneSms,/sys/sms,/desform/api/sendVerifyCode
   # local\minio\alioss
@@ -332,15 +332,15 @@ jeecg:
     # 高德地图Api配置(v2.1.3+ BI新增高德地图)
     gao-de-api:
       # 应用key
-      api-key: ??
+      api-key: ${GAODE_API_KEY:}
       # 应用秘钥
-      secret-key: ??
+      secret-key: ${GAODE_SECRET_KEY:}
   #xxl-job配置
   xxljob:
     enabled: false
     adminAddresses: http://127.0.0.1:9080/xxl-job-admin
     appname: ${spring.application.name}
-    accessToken: ''
+    accessToken: ${XXL_JOB_ACCESS_TOKEN:}
     address: 127.0.0.1:30007
     ip: 127.0.0.1
     port: 30007
@@ -349,14 +349,14 @@ jeecg:
   #分布式锁配置
   redisson:
     address: 127.0.0.1:6379
-    password:
+    password: ${REDIS_PASSWORD:}
     type: STANDALONE
     enabled: true
   # 百度开放API配置
   baidu-api:
     app-id: ??
-    api-key: ??
-    secret-key: ??
+    api-key: ${BAIDU_API_KEY:}
+    secret-key: ${BAIDU_SECRET_KEY:}
 #cas单点登录
 cas:
   prefixUrl: http://cas.example.org:8443/cas
@@ -375,27 +375,27 @@ knife4j:
   basic:
     enable: true
     username: jeecg
-    password: jeecg1314
+    password: ${KNIFE4J_BASIC_PASSWORD:}
 #第三方登录
 justauth:
   enabled: true
   type:
     GITHUB:
       client-id: ??
-      client-secret: ??
+      client-secret: ${GITHUB_OAUTH_CLIENT_SECRET:}
       redirect-uri: http://sso.test.com:8080/jeecg-boot/sys/thirdLogin/github/callback
     WECHAT_ENTERPRISE:
       client-id: ??
-      client-secret: ??
+      client-secret: ${WECHAT_ENTERPRISE_OAUTH_CLIENT_SECRET:}
       redirect-uri: http://sso.test.com:8080/jeecg-boot/sys/thirdLogin/wechat_enterprise/callback
       agent-id: ??
     DINGTALK:
       client-id: ??
-      client-secret: ??
+      client-secret: ${DINGTALK_OAUTH_CLIENT_SECRET:}
       redirect-uri: http://sso.test.com:8080/jeecg-boot/sys/thirdLogin/dingtalk/callback
     WECHAT_OPEN:
       client-id: ??
-      client-secret: ??
+      client-secret: ${WECHAT_OPEN_OAUTH_CLIENT_SECRET:}
       redirect-uri: http://sso.test.com:8080/jeecg-boot/sys/thirdLogin/wechat_open/callback
   cache:
     type: default

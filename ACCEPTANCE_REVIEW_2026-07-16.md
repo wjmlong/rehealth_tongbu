@@ -133,11 +133,11 @@
 |------|--------|----------|
 | G1 initial acceptance (2026-07-09) | ✅ Completed | `ACCEPTANCE_REPORT.md` |
 | G2 复审 (2026-07-10) | ✅ Completed | `ACCEPTANCE_REVIEW_2026-07-10.md` |
-| G3 release build privacy/log audit | ❌ Pending | Stage D - 见 2026-07-10 复审 |
+| G3 release build privacy/log audit | ✅ Static gate resolved | `codex-runs/2026-07-20/G3_privacy_audit_report.md`; runtime/device conditions remain |
 | G4 no-MySQL harness | ❌ Not started | H2 MySQL-mode + real model-service |
 | Cross-service E2E QA | ⚠️ **Pending** | Android -> backend -> model-service 完整链路实测缺失 |
 
-**Blocker level**: **Cross-service E2E QA is RELEASE BLOCKER**. G3 privacy audit is **RELEASE BLOCKER**. G4 harness 非 blocker 但强烈建议。
+**Blocker level (updated 2026-07-23)**: **Cross-service E2E QA remains a RELEASE BLOCKER**. G3 static privacy audit is resolved; signed-runtime logcat and physical-device verification remain deployment conditions. G4 harness 非 blocker 但强烈建议。
 
 ---
 
@@ -187,10 +187,10 @@
    - 依赖: 真实 MRD 设备 + Android 13+ 测试机
    - 预计工作量: 2-3 天（含 B1 blockers 验证）
 
-5. **G3 Release build privacy/log audit** ❌
-   - 状态: 未完成
-   - 影响: PII 泄露风险、日志合规性未审计
-   - 预计工作量: 1 天
+5. ~~**G3 Release build privacy/log audit**~~ ✅
+   - 状态: 静态 APK/JAR 审计与修复已完成
+   - 证据: `codex-runs/2026-07-20/G3_privacy_audit_report.md`
+   - 剩余: 签名 APK 运行时 logcat、MuMu/真机 MR11 验证
 
 ### P1 - Deferred but Documented (可在后续 patch 解决)
 

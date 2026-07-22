@@ -154,7 +154,6 @@ public class BleAdapter extends BluetoothGattCallback {
             alertLevel.setValue(pwm_data_buf);
             alertLevel.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
             status = gatt.writeCharacteristic(alertLevel);
-            Log.i(TAG, status + "-data=" + BleTool.ByteToString(pwm_data_buf));
             return status;
         } catch (Exception e) {
             return false;
@@ -167,14 +166,12 @@ public class BleAdapter extends BluetoothGattCallback {
         byte[] value = characteristic.getValue();
         MrdPushCore.getInstance().readData(value);
         putHandler(value, gatt.getDevice());
-        Log.i(TAG, "read=" + BleTool.ByteToString(value));
     }
 
     @Override
     public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
         super.onCharacteristicWrite(gatt, characteristic, status);
         MrdPushCore.getInstance().onCharacteristicWrite(status, characteristic);
-        Log.w(TAG, "write=" + BleTool.ByteToString(characteristic.getValue()));
     }
 
     private String hanKey_Device = "Device";

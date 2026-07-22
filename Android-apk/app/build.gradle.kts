@@ -20,6 +20,16 @@ fun deepSeekBaseUrl(): String =
 fun reHealthApiBaseUrl(): String =
     (localProps.getProperty("rehealth.api.base.url") ?: System.getenv("REHEALTH_API_BASE_URL")
         ?: "http://10.0.2.2:8080/jeecg-boot/").trim().trimEnd('/') + "/"
+fun reHealthReleaseApiBaseUrl(): String {
+    val configured = localProps.getProperty("rehealth.release.api.base.url")
+        ?: System.getenv("REHEALTH_RELEASE_API_BASE_URL")
+        ?: "https://api.rehealth.invalid/"
+    val normalized = configured.trim().trimEnd('/') + "/"
+    require(normalized.startsWith("https://")) {
+        "Release backend URL must use HTTPS (rehealth.release.api.base.url or REHEALTH_RELEASE_API_BASE_URL)"
+    }
+    return normalized
+}
 // JeecgBoot request-signing secret for endpoints that require the `X-Sign` header
 // (e.g. /sys/sms). It must be supplied by local.properties or the environment.
 fun signSecret(): String =
@@ -39,26 +49,32 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "REHEALTH_API_BASE_URL", "\"${reHealthApiBaseUrl()}\"")
+        buildConfigField("String", "REHEALTH_API_BASE_URL", "\"${reHealthReleaseApiBaseUrl()}\"")
         buildConfigField("String", "REHEALTH_API_TOKEN", "\"\"")
         manifestPlaceholders["usesCleartextTraffic"] = "false"
-        // DeepSeek (首页 AI 问答 / 健康助手)。key 从 local.properties 读取，缺失时留空（客户端给出占位提示）。
-        buildConfigField("String", "DEEPSEEK_API_KEY", "\"${deepSeekApiKey()}\"")
+        // Provider credentials and request-signing secrets must never enter a release APK.
+        buildConfigField("String", "DEEPSEEK_API_KEY", "\"\"")
         buildConfigField("String", "DEEPSEEK_BASE_URL", "\"${deepSeekBaseUrl()}\"")
-        // JeecgBoot sign secret for /sys/sms (X-Sign header). Override via local.properties.
-        buildConfigField("String", "JEECG_SIGN_SECRET", "\"${signSecret()}\"")
+        buildConfigField("String", "JEECG_SIGN_SECRET", "\"\"")
     }
 
     buildTypes {
         debug {
             buildConfigField("boolean", "USE_FAKE_RING", "false")
             buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", "false")
+            buildConfigField("String", "REHEALTH_API_BASE_URL", "\"${reHealthApiBaseUrl()}\"")
+            buildConfigField("String", "DEEPSEEK_API_KEY", "\"${deepSeekApiKey()}\"")
+            buildConfigField("String", "JEECG_SIGN_SECRET", "\"${signSecret()}\"")
             manifestPlaceholders["usesCleartextTraffic"] = "true"
         }
         release {
             buildConfigField("boolean", "USE_FAKE_RING", "false")
             buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", "false")
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 
