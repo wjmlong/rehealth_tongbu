@@ -5,12 +5,16 @@ import com.rehealth.genie.network.dto.HealthCheckResponse
 import com.rehealth.genie.network.dto.InterventionFeedbackRequest
 import com.rehealth.genie.network.dto.InterventionFeedbackResponse
 import com.rehealth.genie.network.dto.InterventionPlanDto
+import com.rehealth.genie.network.dto.IndividualAttributionRequestDto
+import com.rehealth.genie.network.dto.IndividualAttributionResponseDto
 import com.rehealth.genie.network.dto.MobileConfigResponse
 import com.rehealth.genie.network.dto.MobileLoginRequest
 import com.rehealth.genie.network.dto.MobileLoginResponse
 import com.rehealth.genie.network.dto.RegisterRequest
 import com.rehealth.genie.network.dto.RiskResultDto
 import com.rehealth.genie.network.dto.SendSmsRequest
+import com.rehealth.genie.network.dto.TelemetryBatchRequestDto
+import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
@@ -29,8 +33,7 @@ import java.io.IOException
  *  - Unwrap the JeecgBoot `Result` envelope and surface typed payloads.
  *  - Translate HTTP/timeout/JSON errors into [RemotePhmError] for the PHM layer.
  *
- * Out-of-scope for D1 (deferred to E2): durable measurement batch upload, hardware_db/MQ
- * ingest, raw signal streaming.
+ * Raw signal streaming remains outside this typed E2.1 measurement batch path.
  */
 class ReHealthMobileApi(
     baseUrl: String,
@@ -82,6 +85,16 @@ class ReHealthMobileApi(
         request: InterventionFeedbackRequest,
     ): RemotePhmOutcome<InterventionFeedbackResponse> =
         unwrap { api.submitInterventionFeedback(interventionId, request) }
+
+    suspend fun uploadMeasurements(
+        request: TelemetryBatchRequestDto,
+    ): RemotePhmOutcome<TelemetryBatchResponseDto> =
+        unwrap { api.uploadMeasurements(request) }
+
+    suspend fun attributeIndividual(
+        request: IndividualAttributionRequestDto,
+    ): RemotePhmOutcome<IndividualAttributionResponseDto> =
+        unwrap { api.attributeIndividual(request) }
 
     /**
      * JeecgBoot system login. No auth token is attached (the auth interceptor only adds

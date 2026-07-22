@@ -4,12 +4,13 @@ import android.content.Context
 import android.util.Log
 import androidx.work.*
 import com.rehealth.genie.ReHealthApplication
+import com.rehealth.genie.data.sync.MeasurementUploadOutcome
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 
 /**
- * D3 periodic worker that drains the intervention feedback queue.
+ * D3 periodic worker that drains durable measurement and intervention feedback queues.
  *
  * Runs every 30 minutes when:
  * - Network is available
@@ -46,6 +47,15 @@ class MeasurementSyncWorker(
         }
 
         try {
+            for (item in syncRepo.pending()) {
+                when (measurementWorkerAction(syncRepo.uploadMeasurement(item))) {
+                    MeasurementWorkerAction.RETRY -> return@withContext Result.retry()
+                    MeasurementWorkerAction.STOP_SUCCESS -> return@withContext Result.success()
+                    MeasurementWorkerAction.CONTINUE -> Unit
+                }
+            }
+            syncRepo.pruneDone()
+
             // Fetch pending feedback
             val pendingItems = feedbackRepo.getPendingUploads()
             Log.i(TAG, "Found ${pendingItems.size} pending feedback items")
@@ -162,4 +172,16 @@ class MeasurementSyncWorker(
             Log.i(TAG, "Immediate sync triggered")
         }
     }
+}
+
+internal enum class MeasurementWorkerAction {
+    CONTINUE,
+    RETRY,
+    STOP_SUCCESS,
+}
+
+internal fun measurementWorkerAction(outcome: MeasurementUploadOutcome): MeasurementWorkerAction = when (outcome) {
+    MeasurementUploadOutcome.RetryScheduled -> MeasurementWorkerAction.RETRY
+    MeasurementUploadOutcome.Paused -> MeasurementWorkerAction.STOP_SUCCESS
+    else -> MeasurementWorkerAction.CONTINUE
 }

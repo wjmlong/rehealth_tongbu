@@ -23,13 +23,16 @@ import java.time.Duration;
 public class HttpModelServiceClient implements ModelServiceClient {
     private final HttpClient httpClient;
     private final String baseUrl;
+    private final String attributionBaseUrl;
     private final long timeoutSeconds;
 
     public HttpModelServiceClient(
             @Value("${rehealth.model-service.base-url:}") String baseUrl,
+            @Value("${rehealth.attribution-service.base-url:${rehealth.model-service.base-url:}}") String attributionBaseUrl,
             @Value("${rehealth.model-service.timeout-seconds:10}") long timeoutSeconds
     ) {
         this.baseUrl = trimTrailingSlash(baseUrl);
+        this.attributionBaseUrl = trimTrailingSlash(attributionBaseUrl);
         this.timeoutSeconds = timeoutSeconds;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(timeoutSeconds))
@@ -61,8 +64,25 @@ public class HttpModelServiceClient implements ModelServiceClient {
 
     @Override
     public AttributionResponseDto evaluateAttribution(AttributionEventsRequestDto request) {
-        ensureConfigured();
-        return post("/v1/cvd/attribution/individual", request, AttributionResponseDto.class);
+        ensureConfigured(attributionBaseUrl, "rehealth.attribution-service.base-url");
+        PiasAttributionEnvelope envelope = post(
+                attributionBaseUrl,
+                "/api/pias/v2/attribute/individual",
+                request,
+                PiasAttributionEnvelope.class
+        );
+        if (!Boolean.TRUE.equals(envelope.success)) {
+            throw new IllegalStateException(
+                    envelope.message == null || envelope.message.isBlank()
+                            ? "PIAS attribution returned an unsuccessful response"
+                            : "PIAS attribution failed: " + envelope.message
+            );
+        }
+        if (envelope.result == null) {
+            throw new IllegalStateException("PIAS attribution returned no result payload");
+        }
+        enrichAttributionMetadata(envelope.result, request);
+        return envelope.result;
     }
 
     private <T> T get(String path, Class<T> responseType) {
@@ -74,7 +94,11 @@ public class HttpModelServiceClient implements ModelServiceClient {
     }
 
     private <T> T post(String path, Object body, Class<T> responseType) {
-        HttpRequest request = HttpRequest.newBuilder(uri(path))
+        return post(baseUrl, path, body, responseType);
+    }
+
+    private <T> T post(String targetBaseUrl, String path, Object body, Class<T> responseType) {
+        HttpRequest request = HttpRequest.newBuilder(uri(targetBaseUrl, path))
                 .timeout(Duration.ofSeconds(timeoutSeconds))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(JSON.toJSONString(body)))
@@ -98,16 +122,64 @@ public class HttpModelServiceClient implements ModelServiceClient {
     }
 
     private void ensureConfigured() {
-        if (!isConfigured()) {
-            throw new IllegalStateException("rehealth.model-service.base-url is not configured");
-        }
+        ensureConfigured(baseUrl, "rehealth.model-service.base-url");
     }
 
     private URI uri(String path) {
+        return uri(baseUrl, path);
+    }
+
+    private URI uri(String targetBaseUrl, String path) {
         try {
-            return URI.create(baseUrl + path);
+            return URI.create(targetBaseUrl + path);
         } catch (IllegalArgumentException e) {
-            throw new IllegalStateException("rehealth.model-service.base-url is invalid", e);
+            throw new IllegalStateException("configured service base URL is invalid", e);
+        }
+    }
+
+    private void ensureConfigured(String targetBaseUrl, String propertyName) {
+        if (targetBaseUrl == null || targetBaseUrl.isBlank()) {
+            throw new IllegalStateException(propertyName + " is not configured");
+        }
+    }
+
+    private void enrichAttributionMetadata(
+            AttributionResponseDto response,
+            AttributionEventsRequestDto request
+    ) {
+        int historyDays = request == null || request.riskHistory == null ? 0 : request.riskHistory.size();
+        long interventionDays = request == null || request.riskHistory == null
+                ? 0
+                : request.riskHistory.stream().filter(point -> Integer.valueOf(1).equals(point.intervention)).count();
+        if (response.historyDays == null) {
+            response.historyDays = historyDays;
+        }
+        if (response.minHistoryDays == null) {
+            response.minHistoryDays = 14;
+        }
+        if (response.interventionDays == null) {
+            response.interventionDays = Math.toIntExact(interventionDays);
+        }
+        if (response.interventionDataSufficient == null) {
+            response.interventionDataSufficient = interventionDays >= 7;
+        }
+        if (response.interventionEffect == null) {
+            response.interventionEffect = new AttributionResponseDto.InterventionEffectDto();
+        }
+        AttributionResponseDto.InterventionEffectDto effect = response.interventionEffect;
+        if (effect.interventionDays == null) {
+            effect.interventionDays = response.interventionDays;
+        }
+        if (effect.interventionDataSufficient == null) {
+            effect.interventionDataSufficient = response.interventionDataSufficient;
+        }
+        if (effect.attAvailable == null) {
+            effect.attAvailable = effect.individualAtt != null;
+        }
+        if (!Boolean.TRUE.equals(effect.attAvailable) && effect.attUnavailableReason == null) {
+            effect.attUnavailableReason = interventionDays < 7
+                    ? "intervention_days_lt_7"
+                    : "pias_did_not_return_att";
         }
     }
 
@@ -116,5 +188,11 @@ public class HttpModelServiceClient implements ModelServiceClient {
             return "";
         }
         return value.replaceAll("/+$", "");
+    }
+
+    private static class PiasAttributionEnvelope {
+        public Boolean success;
+        public String message;
+        public AttributionResponseDto result;
     }
 }

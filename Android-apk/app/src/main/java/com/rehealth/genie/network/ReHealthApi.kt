@@ -5,12 +5,16 @@ import com.rehealth.genie.network.dto.HealthCheckResponse
 import com.rehealth.genie.network.dto.InterventionFeedbackRequest
 import com.rehealth.genie.network.dto.InterventionFeedbackResponse
 import com.rehealth.genie.network.dto.InterventionPlanDto
+import com.rehealth.genie.network.dto.IndividualAttributionRequestDto
+import com.rehealth.genie.network.dto.IndividualAttributionResponseDto
 import com.rehealth.genie.network.dto.MobileConfigResponse
 import com.rehealth.genie.network.dto.MobileLoginRequest
 import com.rehealth.genie.network.dto.MobileLoginResponse
 import com.rehealth.genie.network.dto.RegisterRequest
 import com.rehealth.genie.network.dto.RiskResultDto
 import com.rehealth.genie.network.dto.SendSmsRequest
+import com.rehealth.genie.network.dto.TelemetryBatchRequestDto
+import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -19,33 +23,42 @@ import retrofit2.http.Path
 
 /**
  * E1 mobile API Retrofit interface. Only the D1-safe endpoints are declared.
- * All endpoints are relative to the configured base URL ending with `/rehealth/mobile`.
+ * Mobile endpoints are relative to the configured backend base URL (for example
+ * `/jeecg-boot/`) so the deployment context is preserved.
  *
- * INTENTIONALLY ABSENT: `POST /rehealth/mobile/measurements/batch`. That endpoint exists
- * in E1 but is E2-pending for durable hardware telemetry upload. D1 must not build a
- * production telemetry sync path around it.
+ * Telemetry upload targets the authenticated E2.1 durable hardware-ingest endpoint.
  */
 interface ReHealthApi {
-    @GET("/rehealth/mobile/health")
+    @GET("rehealth/mobile/health")
     suspend fun getHealth(): Response<JeecgResult<HealthCheckResponse>>
 
-    @GET("/rehealth/mobile/config")
+    @GET("rehealth/mobile/config")
     suspend fun getConfig(): Response<JeecgResult<MobileConfigResponse>>
 
-    @POST("/rehealth/mobile/features/evaluate")
+    @POST("rehealth/mobile/features/evaluate")
     suspend fun evaluateFeatures(@Body request: FeatureEvaluateRequest): Response<JeecgResult<RiskResultDto>>
 
-    @GET("/rehealth/mobile/risk/latest")
+    @GET("rehealth/mobile/risk/latest")
     suspend fun getRiskLatest(): Response<JeecgResult<RiskResultDto?>>
 
-    @GET("/rehealth/mobile/interventions/today")
+    @GET("rehealth/mobile/interventions/today")
     suspend fun getInterventionsToday(): Response<JeecgResult<InterventionPlanDto?>>
 
-    @POST("/rehealth/mobile/interventions/{id}/feedback")
+    @POST("rehealth/mobile/interventions/{id}/feedback")
     suspend fun submitInterventionFeedback(
         @Path("id") interventionId: String,
         @Body request: InterventionFeedbackRequest,
     ): Response<JeecgResult<InterventionFeedbackResponse>>
+
+    @POST("rehealth/mobile/measurements/batch")
+    suspend fun uploadMeasurements(
+        @Body request: TelemetryBatchRequestDto,
+    ): Response<JeecgResult<TelemetryBatchResponseDto>>
+
+    @POST("rehealth/mobile/attribution/events")
+    suspend fun attributeIndividual(
+        @Body request: IndividualAttributionRequestDto,
+    ): Response<JeecgResult<IndividualAttributionResponseDto>>
 
     /**
      * JeecgBoot system login. Lives under `/jeecg-boot` (not the `/rehealth/mobile`

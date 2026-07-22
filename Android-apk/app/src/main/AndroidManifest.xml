@@ -28,7 +28,7 @@
         android:name=".ReHealthApplication"
         android:allowBackup="false"
         android:label="睿禾精灵"
-        android:usesCleartextTraffic="true"
+        android:usesCleartextTraffic="${usesCleartextTraffic}"
         android:supportsRtl="true"
         android:theme="@style/Theme.ReHealthGenie">
         <service

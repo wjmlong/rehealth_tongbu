@@ -20,9 +20,6 @@ fun deepSeekBaseUrl(): String =
 fun reHealthApiBaseUrl(): String =
     (localProps.getProperty("rehealth.api.base.url") ?: System.getenv("REHEALTH_API_BASE_URL")
         ?: "http://10.0.2.2:8080/jeecg-boot/").trim().trimEnd('/') + "/"
-fun modelServiceBaseUrl(): String =
-    (localProps.getProperty("rehealth.model.service.base.url") ?: System.getenv("REHEALTH_MODEL_SERVICE_BASE_URL")
-        ?: "http://10.0.2.2:8000/api/pias/v2/").trim().trimEnd('/') + "/"
 // JeecgBoot request-signing secret for endpoints that require the `X-Sign` header
 // (e.g. /sys/sms). It must be supplied by local.properties or the environment.
 fun signSecret(): String =
@@ -43,8 +40,8 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "REHEALTH_API_BASE_URL", "\"${reHealthApiBaseUrl()}\"")
-        buildConfigField("String", "MODEL_SERVICE_BASE_URL", "\"${modelServiceBaseUrl()}\"")
         buildConfigField("String", "REHEALTH_API_TOKEN", "\"\"")
+        manifestPlaceholders["usesCleartextTraffic"] = "false"
         // DeepSeek (首页 AI 问答 / 健康助手)。key 从 local.properties 读取，缺失时留空（客户端给出占位提示）。
         buildConfigField("String", "DEEPSEEK_API_KEY", "\"${deepSeekApiKey()}\"")
         buildConfigField("String", "DEEPSEEK_BASE_URL", "\"${deepSeekBaseUrl()}\"")
@@ -56,6 +53,7 @@ android {
         debug {
             buildConfigField("boolean", "USE_FAKE_RING", "false")
             buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", "false")
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
         }
         release {
             buildConfigField("boolean", "USE_FAKE_RING", "false")

@@ -61,7 +61,7 @@ Additional implemented E1 support endpoints:
 | --- | --- | --- |
 | `GET` | `/rehealth/mobile/health` | Dev health check for the ReHealth module. |
 | `POST` | `/rehealth/mobile/interventions/generate` | Calls `model-service` `POST /v1/cvd/intervention/generate`; useful for backend/D1 integration testing. |
-| `POST` | `/rehealth/mobile/attribution/events` | Calls `model-service` `POST /v1/cvd/attribution/individual`; attribution production use remains later-stage. |
+| `POST` | `/rehealth/mobile/attribution/events` | Authenticated proxy to PIAS `POST /api/pias/v2/attribute/individual`; accepts Android's local confirmed risk history while backend attribution persistence remains pending and passes through partial/ready forecast and ATT fields. |
 
 ## Retired Legacy Risk Paths
 
@@ -93,7 +93,24 @@ rehealth:
 - `GET /health`
 - `POST /v1/cvd/risk/evaluate`
 - `POST /v1/cvd/intervention/generate`
-- `POST /v1/cvd/attribution/individual`
+- `POST /api/pias/v2/attribute/individual` through the separately configurable `rehealth.attribution-service.base-url`
+
+Attribution request shape:
+
+```json
+{
+  "risk_history": [
+    {"date": "2026-07-22", "Y": 0.219, "Z": 1}
+  ],
+  "forecast_days": 30,
+  "language": "zh"
+}
+```
+
+`risk_history` currently comes from authenticated Android local Room history because
+backend E1 attribution persistence is still pending. The response preserves PIAS
+`status`, `current_state`, `forecast`, `intervention_effect`, and user report fields;
+missing forecast/ATT values are not synthesized.
 
 If model-service is unavailable or misconfigured, E1 returns a controlled `Result.error` response. It does not silently return fake production results.
 

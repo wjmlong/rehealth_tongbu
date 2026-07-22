@@ -5,6 +5,7 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.rehealth.genie.BuildConfig
+import com.rehealth.genie.logging.SafeLogValues
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
@@ -68,7 +69,7 @@ class DeepSeekClient(
             val responseStream = if (responseCode in 200..299) connection.inputStream else connection.errorStream
             val responseText = responseStream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
             if (responseCode !in 200..299) {
-                Log.w("DeepSeekClient", "non-2xx $responseCode: $responseText")
+                Log.w("DeepSeekClient", "non-2xx code=$responseCode responseLength=${responseText.length}")
                 return@withContext "服务暂时不可用（$responseCode），请稍后再试。"
             }
             val root = JsonParser.parseString(responseText).asJsonObject
@@ -78,7 +79,7 @@ class DeepSeekClient(
                 ?.takeIf { it.isNotBlank() }
                 ?: "我暂时没有生成有效回答，请换一种方式描述。"
         } catch (e: Exception) {
-            Log.w("DeepSeekClient", "request failed", e)
+            Log.w("DeepSeekClient", "request failed error=${SafeLogValues.exceptionType(e)}")
             "暂时无法连接健康助手，请检查网络后重试。"
         } finally {
             connection.disconnect()

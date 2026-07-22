@@ -1,87 +1,94 @@
 package com.rehealth.genie.network.dto
 
-import com.google.gson.annotations.SerializedName
+import com.squareup.moshi.JsonClass
 
 /**
- * DTOs for the PIAS individual-attribution endpoint.
+ * DTOs for the authenticated ReHealth mobile attribution endpoint.
  *
- * Endpoint: POST {MODEL_SERVICE_BASE_URL}/attribute/individual
- * (model-service FastAPI, WSL2 :8000; JeecgBoot envelope format)
- *
- * Field names must match the Python pydantic models in
- * rehealth-algorithms/api/routers/pias_jeecg.py exactly.
+ * Android sends local Room history to `POST /rehealth/mobile/attribution/events`.
+ * JeecgBoot authenticates the user and proxies this PIAS-shaped payload server-side.
  */
 
 /** One day of risk history. Y = risk score (0..1), Z = 1 if intervention day. */
+@JsonClass(generateAdapter = true)
 data class AttributionHistoryPointDto(
-    @SerializedName("date") val date: String,
-    @SerializedName("Y") val y: Double,
-    @SerializedName("Z") val z: Int,
+    val date: String,
+    val Y: Double,
+    val Z: Int,
 )
 
+@JsonClass(generateAdapter = true)
 data class IndividualAttributionRequestDto(
-    @SerializedName("risk_history") val riskHistory: List<AttributionHistoryPointDto>,
-    @SerializedName("forecast_days") val forecastDays: Int = 30,
-    @SerializedName("language") val language: String = "zh",
+    val risk_history: List<AttributionHistoryPointDto>,
+    val forecast_days: Int = 30,
+    val language: String = "zh",
 )
 
 // ---- Response (inside ApiResult.result) ----
 
+@JsonClass(generateAdapter = true)
 data class AttributionCurrentStateDto(
-    @SerializedName("risk_score") val riskScore: Double? = null,
-    @SerializedName("risk_level") val riskLevel: String? = null,
-    @SerializedName("trend") val trend: String? = null,
+    val risk_score: Double? = null,
+    val risk_level: String? = null,
+    val trend: String? = null,
 )
 
+@JsonClass(generateAdapter = true)
 data class AttributionForecastRawDto(
-    @SerializedName("dates") val dates: List<String>? = null,
-    @SerializedName("no_action") val noAction: List<Double>? = null,
-    @SerializedName("with_plan") val withPlan: List<Double>? = null,
-    @SerializedName("ci_upper") val ciUpper: List<Double>? = null,
-    @SerializedName("ci_lower") val ciLower: List<Double>? = null,
+    val dates: List<String>? = null,
+    val no_action: List<Double>? = null,
+    val with_plan: List<Double>? = null,
+    val ci_upper: List<Double>? = null,
+    val ci_lower: List<Double>? = null,
 )
 
+@JsonClass(generateAdapter = true)
 data class AttributionForecastSummaryDto(
-    @SerializedName("30d_no_action") val d30NoAction: Double? = null,
-    @SerializedName("30d_with_plan") val d30WithPlan: Double? = null,
-    @SerializedName("risk_reduction") val riskReduction: Double? = null,
+    val `30d_no_action`: Double? = null,
+    val `30d_with_plan`: Double? = null,
+    val risk_reduction: Double? = null,
 )
 
+@JsonClass(generateAdapter = true)
 data class AttributionForecastDto(
-    @SerializedName("raw") val raw: AttributionForecastRawDto? = null,
-    @SerializedName("summary") val summary: AttributionForecastSummaryDto? = null,
+    val raw: AttributionForecastRawDto? = null,
+    val summary: AttributionForecastSummaryDto? = null,
 )
 
+@JsonClass(generateAdapter = true)
 data class AttributionInterventionEffectDto(
-    @SerializedName("individual_att") val individualAtt: Double? = null,
-    @SerializedName("att_ci_lower") val attCiLower: Double? = null,
-    @SerializedName("att_ci_upper") val attCiUpper: Double? = null,
-    @SerializedName("att_p_value") val attPValue: Double? = null,
-    @SerializedName("att_significant") val attSignificant: Boolean? = null,
-    @SerializedName("att_available") val attAvailable: Boolean? = null,
-    @SerializedName("att_unavailable_reason") val attUnavailableReason: String? = null,
-    @SerializedName("intervention_days") val interventionDays: Int? = null,
-    @SerializedName("intervention_data_sufficient") val interventionDataSufficient: Boolean? = null,
+    val individual_att: Double? = null,
+    val att_ci_lower: Double? = null,
+    val att_ci_upper: Double? = null,
+    val att_p_value: Double? = null,
+    val att_significant: Boolean? = null,
+    val att_available: Boolean? = null,
+    val att_unavailable_reason: String? = null,
+    val intervention_days: Int? = null,
+    val intervention_data_sufficient: Boolean? = null,
 )
 
+@JsonClass(generateAdapter = true)
 data class AttributionUserReportDto(
-    @SerializedName("headline") val headline: String? = null,
-    @SerializedName("body") val body: String? = null,
-    @SerializedName("advice") val advice: String? = null,
+    val headline: String? = null,
+    val body: String? = null,
+    val advice: String? = null,
 )
 
+@JsonClass(generateAdapter = true)
 data class AttributionReportsDto(
-    @SerializedName("user") val user: AttributionUserReportDto? = null,
+    val user: AttributionUserReportDto? = null,
 )
 
+@JsonClass(generateAdapter = true)
 data class IndividualAttributionResponseDto(
-    @SerializedName("status") val status: String? = null,
-    @SerializedName("history_days") val historyDays: Int? = null,
-    @SerializedName("min_history_days") val minHistoryDays: Int? = null,
-    @SerializedName("intervention_days") val interventionDays: Int? = null,
-    @SerializedName("intervention_data_sufficient") val interventionDataSufficient: Boolean? = null,
-    @SerializedName("current_state") val currentState: AttributionCurrentStateDto? = null,
-    @SerializedName("forecast") val forecast: AttributionForecastDto? = null,
-    @SerializedName("intervention_effect") val interventionEffect: AttributionInterventionEffectDto? = null,
-    @SerializedName("reports") val reports: AttributionReportsDto? = null,
+    val status: String? = null,
+    val history_days: Int? = null,
+    val min_history_days: Int? = null,
+    val intervention_days: Int? = null,
+    val intervention_data_sufficient: Boolean? = null,
+    val current_state: AttributionCurrentStateDto? = null,
+    val forecast: AttributionForecastDto? = null,
+    val intervention_effect: AttributionInterventionEffectDto? = null,
+    val reports: AttributionReportsDto? = null,
 )

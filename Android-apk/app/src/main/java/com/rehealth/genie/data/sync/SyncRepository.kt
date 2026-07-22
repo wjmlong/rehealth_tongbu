@@ -1,8 +1,12 @@
 package com.rehealth.genie.data.sync
 
+import com.google.gson.Gson
+import com.google.gson.JsonParseException
 import com.rehealth.genie.network.ApiResult
 import com.rehealth.genie.network.AuthState
-import com.rehealth.genie.network.AuthenticatedApiClient
+import com.rehealth.genie.network.MeasurementUploadClient
+import com.rehealth.genie.network.dto.TelemetryBatchRequestDto
+import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -11,7 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * D3 upload queue repository with 401-aware pause/resume.
  *
- * When [AuthenticatedApiClient] detects a 401:
+ * When the authenticated client detects a 401:
  * - Marks queue as [QueueState.Paused]
  * - Stops attempting uploads
  * - Notifies UI via [queueState] Flow
@@ -21,7 +25,9 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 class SyncRepository(
     private val dao: UploadQueueDao,
-    private val apiClient: AuthenticatedApiClient,
+    private val apiClient: MeasurementUploadClient,
+    private val gson: Gson = Gson(),
+    private val nowProvider: () -> Long = System::currentTimeMillis,
 ) {
 
     private val _queueState = MutableStateFlow<QueueState>(QueueState.Active)
@@ -31,11 +37,37 @@ class SyncRepository(
 
     suspend fun save(item: UploadQueueEntity) = dao.update(item)
 
-    suspend fun pending(): List<UploadQueueEntity> = dao.pending()
+    suspend fun pending(): List<UploadQueueEntity> = dao.pending(nowProvider())
 
     fun observeOutstanding(): Flow<List<UploadQueueEntity>> = dao.observeOutstanding()
 
-    suspend fun pruneDone() = dao.pruneDone(System.currentTimeMillis() - 7 * 86_400_000L)
+    suspend fun pruneDone() = dao.pruneDone(nowProvider() - 7 * 86_400_000L)
+
+    suspend fun uploadMeasurement(item: UploadQueueEntity): MeasurementUploadOutcome {
+        if (item.kind != MEASUREMENT_KIND) return MeasurementUploadOutcome.Skipped
+        val request = try {
+            gson.fromJson(item.payloadJson, TelemetryBatchRequestDto::class.java)
+                ?: return deadLetter(item)
+        } catch (_: JsonParseException) {
+            return deadLetter(item)
+        }
+        if (request.batchId.isNullOrBlank() || request.deviceId.isNullOrBlank()) {
+            return deadLetter(item)
+        }
+
+        return when (val result = apiClient.uploadMeasurements(request)) {
+            is ApiResult.Success -> handleDurableSuccess(item, result.data)
+            is ApiResult.Unauthorized -> {
+                pauseQueue()
+                MeasurementUploadOutcome.Paused
+            }
+            is ApiResult.Forbidden -> saveDeadLetter(item, "measurement_upload_forbidden")
+            is ApiResult.InvalidRequest,
+            is ApiResult.InvalidResponse -> saveDeadLetter(item, "measurement_upload_invalid")
+            is ApiResult.NetworkError -> saveRetry(item, "measurement_upload_network")
+            is ApiResult.ServiceUnavailable -> saveRetry(item, "measurement_upload_service_unavailable")
+        }
+    }
 
     /**
      * Check if queue should process items. Returns false if unauthorized or paused.
@@ -103,9 +135,53 @@ class SyncRepository(
             status = "failed",
             attempts = attempts + 1,
             lastError = error,
-            nextRetryAt = System.currentTimeMillis() + delayMs,
+            nextRetryAt = nowProvider() + delayMs,
         )
     }
+
+    private suspend fun handleDurableSuccess(
+        item: UploadQueueEntity,
+        response: TelemetryBatchResponseDto,
+    ): MeasurementUploadOutcome {
+        val durable = response.accepted && response.persisted && response.status.orEmpty().startsWith("ACCEPTED_")
+        return if (durable) {
+            dao.update(item.copy(status = "done", lastError = null))
+            MeasurementUploadOutcome.Uploaded
+        } else {
+            saveDeadLetter(item, "measurement_upload_not_persisted")
+        }
+    }
+
+    private suspend fun deadLetter(item: UploadQueueEntity): MeasurementUploadOutcome =
+        saveDeadLetter(item, "measurement_payload_invalid")
+
+    private suspend fun saveDeadLetter(
+        item: UploadQueueEntity,
+        safeError: String,
+    ): MeasurementUploadOutcome {
+        dao.update(item.copy(status = "dead_letter", lastError = safeError))
+        return MeasurementUploadOutcome.DeadLettered
+    }
+
+    private suspend fun saveRetry(
+        item: UploadQueueEntity,
+        safeError: String,
+    ): MeasurementUploadOutcome {
+        dao.update(item.nextBackoff(safeError))
+        return MeasurementUploadOutcome.RetryScheduled
+    }
+
+    private companion object {
+        const val MEASUREMENT_KIND = "telemetry_batch"
+    }
+}
+
+sealed class MeasurementUploadOutcome {
+    object Uploaded : MeasurementUploadOutcome()
+    object RetryScheduled : MeasurementUploadOutcome()
+    object DeadLettered : MeasurementUploadOutcome()
+    object Paused : MeasurementUploadOutcome()
+    object Skipped : MeasurementUploadOutcome()
 }
 
 sealed class QueueState {

@@ -1,0 +1,3 @@
+﻿Invocation: D:\rehealthAI\Android-apk\gradlew.bat :app:testDebugUnitTest --tests com.rehealth.genie.logging.SafeLogValuesTest
+Observable: blocked before test execution by KSP incremental cache NoSuchFileException.
+Prior baseline: full unit-test compilation blocked by pre-existing ReHealthMobileApiAttributionTest.kt:37 unresolved reference attributeIndividual.

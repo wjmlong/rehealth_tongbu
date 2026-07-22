@@ -1,6 +1,7 @@
 package com.rehealth.genie.network.dto
 
 import com.google.gson.annotations.SerializedName
+import com.squareup.moshi.JsonClass
 
 data class RiskEvaluateRequestDto(
     @SerializedName("featureVector") val featureVector: CvdFeatureVectorDto? = null,
@@ -61,6 +62,7 @@ data class DeviceBindResponseDto(
     @SerializedName("deviceId") val deviceId: String? = null,
 )
 
+@JsonClass(generateAdapter = true)
 data class TelemetryBatchRequestDto(
     @SerializedName("batchId") val batchId: String? = null,
     @SerializedName("deviceId") val deviceId: String? = null,
@@ -74,6 +76,7 @@ data class TelemetryBatchRequestDto(
     @SerializedName("quality") val quality: Map<String, Any>? = null,
 )
 
+@JsonClass(generateAdapter = true)
 data class TelemetryBatchResponseDto(
     @SerializedName("batchId") val batchId: String? = null,
     @SerializedName("receiptId") val receiptId: String? = null,

@@ -1,0 +1,5 @@
+target=D:\rehealthAI\backend\jeecg-boot\jeecg-boot-module\jeecg-module-rehealth\src\main\java\org\jeecg\modules\rehealth\mobile\dto\AttributionResponseDto.java
+length=6457
+scenario=single apply_patch rich DTO restoration
+compile_invocation=mvn -pl jeecg-boot-module/jeecg-module-rehealth -Dtest=HttpModelServiceClientAttributionTest test
+compile_observable=blocked: mvn not recognized; mvnw.cmd absent

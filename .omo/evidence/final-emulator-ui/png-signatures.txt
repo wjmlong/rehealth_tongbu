@@ -1,0 +1,9 @@
+attribution-bottom.png: FF FE FD FF 50 00 4E 00
+attribution-middle.png: FF FE FD FF 50 00 4E 00
+attribution-reopen.png: FF FE FD FF 50 00 4E 00
+attribution-top.png: FF FE FD FF 50 00 4E 00
+factor-expanded.png: FF FE FD FF 50 00 4E 00
+initial.png: FF FE FD FF 50 00 4E 00
+period-30.png: FF FE FD FF 50 00 4E 00
+period-90.png: FF FE FD FF 50 00 4E 00
+second-page-data.png: FF FE FD FF 50 00 4E 00

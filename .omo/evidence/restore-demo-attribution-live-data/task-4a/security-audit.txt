@@ -1,0 +1,35 @@
+SECURE ATTRIBUTION SOURCE AUDIT
+Date: 2026-07-22 Asia/Shanghai
+
+Scenario: active Android production direct PIAS references
+Invocation:
+  rg -n "PiasApiClient|MODEL_SERVICE_BASE_URL|REHEALTH_MODEL_SERVICE_BASE_URL|/attribute/individual|api/pias/v2" Android-apk/app/src/main Android-apk/app/build.gradle.kts -g '!*.disabled' -g '!*.backup'
+Observable:
+  No matches.
+
+Scenario: release cleartext policy
+Invocation:
+  rg -n "usesCleartextTraffic|manifestPlaceholders" Android-apk/app/build.gradle.kts Android-apk/app/src/main/AndroidManifest.xml
+Observable:
+  Android-apk/app/build.gradle.kts: release/default false; debug override true.
+  Android-apk/app/src/main/AndroidManifest.xml: placeholder-backed usesCleartextTraffic.
+
+Scenario: authenticated attribution route
+Invocation:
+  rg -n "attribution/events|X-Access-Token" Android-apk/app/src/main Android-apk/app/src/test
+Observable:
+  ReHealthApi declares POST /rehealth/mobile/attribution/events.
+  ReHealthMobileApi applies X-Access-Token.
+  ReHealthMobileApiAttributionTest asserts exact route, method, token header, and synthetic risk_history/Y/Z body.
+
+Scenario: no sensitive logging added
+Invocation:
+  git diff -U0 -- Android/backend attribution allowlist, inspect added lines for log/println/token/history output.
+Observable:
+  No logging calls added. Token appears only as a synthetic test header assertion.
+
+Scenario: patch hygiene
+Invocation:
+  git diff --check -- attribution allowlist
+Observable:
+  Exit 0; only repository LF-to-CRLF notices, no whitespace errors.

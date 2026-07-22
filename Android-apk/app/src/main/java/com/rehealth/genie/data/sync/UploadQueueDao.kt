@@ -18,9 +18,9 @@ interface UploadQueueDao {
 
     @Query(
         "SELECT * FROM sync_upload_queue " +
-            "WHERE status IN ('pending','failed') ORDER BY next_retry_at ASC",
+            "WHERE status IN ('pending','failed') AND next_retry_at <= :now ORDER BY next_retry_at ASC",
     )
-    suspend fun pending(): List<UploadQueueEntity>
+    suspend fun pending(now: Long): List<UploadQueueEntity>
 
     @Query("SELECT * FROM sync_upload_queue WHERE status != 'done' ORDER BY created_at DESC")
     fun observeOutstanding(): Flow<List<UploadQueueEntity>>

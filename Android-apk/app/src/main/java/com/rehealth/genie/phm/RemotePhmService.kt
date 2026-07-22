@@ -4,7 +4,8 @@ import com.rehealth.genie.features.CvdFeatureVector
 import com.rehealth.genie.features.CvdFeatureVectorDtoMapper
 import com.rehealth.genie.network.RemotePhmError
 import com.rehealth.genie.network.RemotePhmOutcome
-import com.rehealth.genie.network.PiasApiClient
+import com.rehealth.genie.network.ApiResult
+import com.rehealth.genie.network.AuthenticatedApiClient
 import com.rehealth.genie.network.ReHealthMobileApi
 import com.rehealth.genie.network.dto.AttributionHistoryPointDto
 import com.rehealth.genie.network.dto.FeatureEvaluateRequest
@@ -49,7 +50,7 @@ data class FeatureEvaluationOutcome(
  */
 class RemotePhmService(
     private val api: ReHealthMobileApi?,
-    private val piasApi: PiasApiClient? = null,
+    private val authenticatedApi: AuthenticatedApiClient? = null,
     private val mockFallback: MockPhmService = MockPhmService(),
     private val retryDelayMillis: Long = 500L,
     private val maxAttempts: Int = 2,
@@ -155,51 +156,56 @@ class RemotePhmService(
         return api.submitInterventionFeedback(interventionId, request)
     }
 
-    /** Calls PIAS with recorded risk history. No local/mock attribution is substituted. */
     suspend fun attributeIndividual(
         history: List<AttributionHistoryPoint>,
         forecastDays: Int = 30,
         language: String = "zh",
     ): IndividualAttributionResult {
         require(history.isNotEmpty()) { "暂无真实风险历史，完成风险评估后再试。" }
-        val client = requireNotNull(piasApi) { "归因服务未配置，请联系管理员。" }
+        val client = requireNotNull(authenticatedApi) { "归因服务未配置，请联系管理员。" }
         val request = IndividualAttributionRequestDto(
-            riskHistory = history.map {
+            risk_history = history.map {
                 AttributionHistoryPointDto(it.date, it.riskScore, if (it.isInterventionDay) 1 else 0)
             },
-            forecastDays = forecastDays,
+            forecast_days = forecastDays,
             language = language,
         )
-        val response = client.attributeIndividual(request).getOrElse { error ->
-            throw IllegalStateException(error.message ?: "归因服务暂时不可用，请稍后重试。", error)
+        val response = when (val outcome = client.attributeIndividual(request)) {
+            is ApiResult.Success -> outcome.data
+            is ApiResult.Unauthorized -> throw IllegalStateException("登录已失效，请重新登录后再试。")
+            is ApiResult.Forbidden -> throw IllegalStateException("当前账号无权请求归因分析。")
+            is ApiResult.InvalidRequest -> throw IllegalStateException(outcome.message)
+            is ApiResult.InvalidResponse -> throw IllegalStateException("归因服务返回无效数据，请稍后重试。")
+            is ApiResult.ServiceUnavailable -> throw IllegalStateException("归因服务暂时不可用，请稍后重试。")
+            is ApiResult.NetworkError -> throw IllegalStateException("网络连接失败，请稍后重试。")
         }
         return IndividualAttributionResult(
             status = response.status,
-            historyDays = response.historyDays,
-            minHistoryDays = response.minHistoryDays,
-            currentRiskScore = response.currentState?.riskScore,
-            riskLevel = response.currentState?.riskLevel,
-            trend = response.currentState?.trend,
-            d30NoAction = response.forecast?.summary?.d30NoAction,
-            d30WithPlan = response.forecast?.summary?.d30WithPlan,
-            riskReduction = response.forecast?.summary?.riskReduction,
-            individualAtt = response.interventionEffect?.individualAtt,
-            attCiLower = response.interventionEffect?.attCiLower,
-            attCiUpper = response.interventionEffect?.attCiUpper,
-            attPValue = response.interventionEffect?.attPValue,
-            attSignificant = response.interventionEffect?.attSignificant,
-            attAvailable = response.interventionEffect?.attAvailable,
-            attUnavailableReason = response.interventionEffect?.attUnavailableReason,
-            interventionDays = response.interventionEffect?.interventionDays ?: response.interventionDays,
-            interventionDataSufficient = response.interventionEffect?.interventionDataSufficient
-                ?: response.interventionDataSufficient,
+            historyDays = response.history_days,
+            minHistoryDays = response.min_history_days,
+            currentRiskScore = response.current_state?.risk_score,
+            riskLevel = response.current_state?.risk_level,
+            trend = response.current_state?.trend,
+            d30NoAction = response.forecast?.summary?.`30d_no_action`,
+            d30WithPlan = response.forecast?.summary?.`30d_with_plan`,
+            riskReduction = response.forecast?.summary?.risk_reduction,
+            individualAtt = response.intervention_effect?.individual_att,
+            attCiLower = response.intervention_effect?.att_ci_lower,
+            attCiUpper = response.intervention_effect?.att_ci_upper,
+            attPValue = response.intervention_effect?.att_p_value,
+            attSignificant = response.intervention_effect?.att_significant,
+            attAvailable = response.intervention_effect?.att_available,
+            attUnavailableReason = response.intervention_effect?.att_unavailable_reason,
+            interventionDays = response.intervention_effect?.intervention_days ?: response.intervention_days,
+            interventionDataSufficient = response.intervention_effect?.intervention_data_sufficient
+                ?: response.intervention_data_sufficient,
             headline = response.reports?.user?.headline,
             body = response.reports?.user?.body,
             advice = response.reports?.user?.advice,
-            forecastNoAction = response.forecast?.raw?.noAction.orEmpty(),
-            forecastWithPlan = response.forecast?.raw?.withPlan.orEmpty(),
-            forecastCiUpper = response.forecast?.raw?.ciUpper.orEmpty(),
-            forecastCiLower = response.forecast?.raw?.ciLower.orEmpty(),
+            forecastNoAction = response.forecast?.raw?.no_action.orEmpty(),
+            forecastWithPlan = response.forecast?.raw?.with_plan.orEmpty(),
+            forecastCiUpper = response.forecast?.raw?.ci_upper.orEmpty(),
+            forecastCiLower = response.forecast?.raw?.ci_lower.orEmpty(),
         )
     }
 

@@ -1,0 +1,7 @@
+PASS: exact debug APK installed with `adb -s emulator-5554 install -r`; install output was `Success`.
+PASS: workspace APK SHA-256 is `5C1807A02EB83DA60DFE09430848A4AADAFCBD5D76C06F72E3AF7CF2276C1147`.
+PASS: emulator display is 1080x2400 and `com.rehealth.genie/.MainActivity` is resumed.
+PASS: top, middle, expanded-factor, and bottom attribution screenshots and UI hierarchies are non-empty.
+PASS: bottom hierarchy contains `归因结果仅用于健康管理参考。\n不代表医学诊断，也不能替代医生建议。`; `医学诊断` is intact.
+PASS: Android crash log buffer was empty after the captured attribution interactions.
+INFO: no `app/src/androidTest` source files exist; instrumentation is unavailable and is not claimed.

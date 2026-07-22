@@ -6,6 +6,14 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import retrofit2.Response
 
+interface MeasurementUploadClient {
+    val authState: AuthState
+
+    suspend fun uploadMeasurements(
+        request: TelemetryBatchRequestDto,
+    ): ApiResult<TelemetryBatchResponseDto>
+}
+
 /**
  * D3 authenticated API client with 401 detection and queue pause.
  *
@@ -20,14 +28,14 @@ class AuthenticatedApiClient(
     private val baseUrl: String,
     private val httpClient: OkHttpClient,
     private val sessionStore: SessionStore,
-) {
+) : MeasurementUploadClient {
     private var mobileApi = ReHealthMobileApi(
         baseUrl = baseUrl,
         httpClient = httpClient,
         apiToken = sessionStore.token,
     )
 
-    var authState: AuthState = if (sessionStore.isLoggedIn) AuthState.Authorized else AuthState.Unauthorized
+    override var authState: AuthState = if (sessionStore.isLoggedIn) AuthState.Authorized else AuthState.Unauthorized
         private set
 
     suspend fun evaluateFeatures(
@@ -41,6 +49,18 @@ class AuthenticatedApiClient(
         request: InterventionFeedbackRequest,
     ): ApiResult<InterventionFeedbackResponse> = executeWithAuth {
         mobileApi.submitInterventionFeedback(interventionId, request)
+    }
+
+    override suspend fun uploadMeasurements(
+        request: TelemetryBatchRequestDto,
+    ): ApiResult<TelemetryBatchResponseDto> = executeWithAuth {
+        mobileApi.uploadMeasurements(request)
+    }
+
+    suspend fun attributeIndividual(
+        request: IndividualAttributionRequestDto,
+    ): ApiResult<IndividualAttributionResponseDto> = executeWithAuth {
+        mobileApi.attributeIndividual(request)
     }
 
     suspend fun getRiskLatest(): ApiResult<RiskResultDto?> = executeWithAuth {

@@ -1,0 +1,3 @@
+﻿STATIC_SCAN_PASS: no raw BLE address/advertising hex/JSON/payload/PPG/token/response/throwable log values in target files
+Invocation: PowerShell line-level scan of the three target source files.
+Exit code: 0

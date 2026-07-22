@@ -8,7 +8,6 @@ import com.rehealth.genie.data.sync.InterventionFeedbackRepository
 import com.rehealth.genie.data.sync.SyncRepository
 import com.rehealth.genie.network.AuthenticatedApiClient
 import com.rehealth.genie.network.BackendConfig
-import com.rehealth.genie.network.PiasApiClient
 import com.rehealth.genie.network.ReHealthBackendClient
 import com.rehealth.genie.network.ReHealthMobileApi
 import com.rehealth.genie.network.SessionStore
@@ -47,12 +46,6 @@ class ReHealthApplication : Application() {
             baseUrl = BuildConfig.REHEALTH_API_BASE_URL,
             apiToken = BuildConfig.REHEALTH_API_TOKEN.takeIf { it.isNotBlank() },
             httpClient = BackendConfig.buildHttpClient(signSecret = BuildConfig.JEECG_SIGN_SECRET),
-        )
-    }
-    val piasApiClient: PiasApiClient by lazy {
-        PiasApiClient(
-            baseUrl = BuildConfig.MODEL_SERVICE_BASE_URL,
-            httpClient = BackendConfig.buildHttpClient(),
         )
     }
     /**
@@ -102,7 +95,7 @@ class ReHealthApplication : Application() {
     val remotePhmService: RemotePhmService by lazy {
         RemotePhmService(
             api = reHealthMobileApi,
-            piasApi = piasApiClient,
+            authenticatedApi = authenticatedApiClient,
             mockFallback = MockPhmService(),
         )
     }

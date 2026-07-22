@@ -1,0 +1,16 @@
+Android full gate executed serially after harden_release_mock_chat declared the shared worktree stable.
+
+Commands and results:
+- .\\gradlew.bat testDebugUnitTest --console=plain: PASS; BUILD SUCCESSFUL in 18s.
+- .\\gradlew.bat lintDebug --console=plain: PASS; BUILD SUCCESSFUL in 1m 21s.
+- .\\gradlew.bat assembleDebug --console=plain: PASS; BUILD SUCCESSFUL in 15s.
+- .\\gradlew.bat assembleRelease --console=plain: PASS; BUILD SUCCESSFUL in 1m 34s.
+
+Artifacts:
+- app/build/outputs/apk/debug/app-debug.apk; 21,496,929 bytes; SHA-256 381315F58D3A69EF993EF59323C96CD045B79C1FAA85FF68E8182823F619DBCB
+- app/build/outputs/apk/release/app-release-unsigned.apk; 14,454,041 bytes; SHA-256 60D7C691FB536833CC42B9BC7E2E70E5B73CA66B9201E3A95FF42DE3A8FC49F9
+- aapt release manifest: usesCleartextTraffic=0, allowBackup=0, targetSdkVersion=36.
+
+Static release scan:
+- No MODEL_SERVICE_BASE_URL, PiasApiClient, DeepSeekApiClient, or provider string was found in release APK dex/xml/json/properties payload.
+- Source still contains DEEPSEEK_API_KEY BuildConfig injection and direct Authorization: Bearer usage in DeepSeekClient.kt; this is a release-risk finding even though the current local build key is blank.

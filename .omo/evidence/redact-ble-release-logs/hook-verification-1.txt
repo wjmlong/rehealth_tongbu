@@ -1,0 +1,21 @@
+Hook verification run 1 (2026-07-22)
+
+Command: PowerShell line-level scan over:
+- Android-apk/app/src/main/java/com/rehealth/genie/ring/mrd/MrdBleRingRepository.kt
+- Android-apk/app/src/main/java/com/rehealth/genie/ring/vendor/VendorRingRepository.kt
+- Android-apk/app/src/main/java/com/rehealth/genie/chat/DeepSeekClient.kt
+
+Observable:
+STATIC_SCAN_PASS: no raw BLE address/advertising hex/JSON/payload/PPG/token/response/throwable log values in target files
+
+Command: git diff --check
+Observable: DIFF_CHECK_PASS (exit code 0; only repository-wide LF/CRLF warnings were emitted)
+
+Evidence file integrity check:
+- compile-debug-kotlin.txt bytes=219
+- done-claim.md bytes=1740
+- focused-test-blocked.txt bytes=366
+- static-scan.txt bytes=212
+Observable: EVIDENCE_FILES_PASS (all expected files exist and are non-empty)
+
+Judgment: target log redaction and recorded evidence are directly verified. Gradle was intentionally not rerun per parent-agent instruction; prior compile/test outcomes remain documented in compile-debug-kotlin.txt and focused-test-blocked.txt.

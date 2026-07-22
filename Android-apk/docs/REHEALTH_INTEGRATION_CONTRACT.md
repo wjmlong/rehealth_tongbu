@@ -14,6 +14,17 @@ Current ring endpoint:
 POST /rehealth/mobile/ring/snapshots
 ```
 
+Authenticated individual attribution uses:
+
+```http
+POST /rehealth/mobile/attribution/events
+X-Access-Token: <Jeecg mobile token>
+```
+
+The app supplies confirmed local Room risk history as `risk_history` until backend
+attribution persistence is implemented. Release builds do not call PIAS directly and
+do not permit cleartext transport; local debug builds may use emulator HTTP for Jeecg.
+
 The Android app sends the latest Room snapshot after a successful ring sync. Signal payload bytes are not uploaded in the MVP; only metadata is sent.
 
 Main payload fields:

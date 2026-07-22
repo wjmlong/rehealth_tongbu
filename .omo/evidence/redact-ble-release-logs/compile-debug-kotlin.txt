@@ -1,0 +1,3 @@
+﻿Invocation: D:\rehealthAI\Android-apk\gradlew.bat :app:compileDebugKotlin with JAVA_HOME=D:\Android_Studio\jbr
+Observable: BUILD SUCCESSFUL; exit code 0
+Note: warnings only (existing Room/Android API deprecations).
