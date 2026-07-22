@@ -3,7 +3,7 @@
 # sync_to_github.sh
 # 定期把 D:\rehealthAI 同步到 GitHub 仓库 wjmlong/rehealth_tongbu。
 # 在 WSL2 内运行：使用 gh CLI 做鉴权（gh auth setup-git 让 git 走 gh 的 token），
-# 用 git 执行 add / commit / push。
+# 用 git 执行 add / commit / push。对 WSL 下 git 偶发的 TLS 中断做了重试与规避。
 #
 # 用法：
 #   bash sync_to_github.sh            # 正常同步（提交并推送）
@@ -34,6 +34,19 @@ rotate_log() {
   fi
 }
 
+# ---------------- 网络命令重试（应对 WSL GnuTLS 偶发 TLS 中断） ----------------
+git_retry() {
+  local n=1 max=4 delay=10
+  while [ "$n" -le "$max" ]; do
+    log "[try $n/$max] git $*"
+    if git "$@" >>"$LOG_FILE" 2>&1; then return 0; fi
+    log "网络命令失败（第 $n 次），${delay}s 后重试..."
+    sleep "$delay"
+    n=$((n+1))
+  done
+  return 1
+}
+
 log "=== sync start (branch=$BRANCH, dry_run=$DRY_RUN) ==="
 
 # ---------------- 1. 检查 gh ----------------
@@ -55,13 +68,20 @@ if [ ! -d "${LOCAL_DIR}/.git" ]; then
 fi
 cd "$LOCAL_DIR" || exit 1
 
+# 规避 WSL 下 git/GnuTLS 偶发的 TLS 连接中断（HTTP/1.1 更稳定）
+git config http.version HTTP/1.1 2>/dev/null || true
+
 # ---------------- 3. 确保 remote ----------------
 if ! git remote get-url origin >/dev/null 2>&1; then
   git remote add origin "$REMOTE_URL"
 fi
 
-# ---------------- 4. 拉取远端（rebase 友好） ----------------
-git fetch origin "$BRANCH" 2>&1 | tee -a "$LOG_FILE" || true
+# ---------------- 4. 仅在远端分支已存在时 fetch（带超时，避免首推无意义地挂起） ----------------
+if git ls-remote --heads origin "$BRANCH" >/dev/null 2>&1; then
+  timeout 120 git fetch origin "$BRANCH" >>"$LOG_FILE" 2>&1 || log "fetch 失败（忽略，将继续推送）"
+else
+  log "远端尚无 $BRANCH 分支，跳过 fetch"
+fi
 
 # ---------------- 5. 暂存变更 ----------------
 git add -A
@@ -104,16 +124,15 @@ if ! git commit -q -m "$MSG" >>"$LOG_FILE" 2>&1; then
   exit 1
 fi
 
-# ---------------- 9. 推送（含 rebase 兜底） ----------------
-if git push -u origin "$BRANCH" >>"$LOG_FILE" 2>&1; then
+# ---------------- 9. 推送（含重试与 rebase 兜底） ----------------
+if git_retry push -u origin "$BRANCH"; then
   log "OK: 已推送 $BRANCH"
 else
   log "fast-forward 失败，尝试 rebase 后推送..."
-  if git pull --rebase origin "$BRANCH" >>"$LOG_FILE" 2>&1 && \
-     git push -u origin "$BRANCH" >>"$LOG_FILE" 2>&1; then
+  if git_retry pull --rebase origin "$BRANCH" && git_retry push -u origin "$BRANCH"; then
     log "OK: rebase 后已推送 $BRANCH"
   else
-    log "ERROR: 推送失败，请手动检查冲突"
+    log "ERROR: 推送失败，请手动检查冲突或网络"
     exit 1
   fi
 fi
