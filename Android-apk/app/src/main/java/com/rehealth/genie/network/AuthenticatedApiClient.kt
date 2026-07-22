@@ -14,6 +14,14 @@ interface MeasurementUploadClient {
     ): ApiResult<TelemetryBatchResponseDto>
 }
 
+interface HealthInterviewUploadClient {
+    val authState: AuthState
+
+    suspend fun submitHealthInterview(
+        request: HealthInterviewSubmitRequestDto,
+    ): ApiResult<HealthInterviewSubmitRequestDto>
+}
+
 /**
  * D3 authenticated API client with 401 detection and queue pause.
  *
@@ -28,7 +36,7 @@ class AuthenticatedApiClient(
     private val baseUrl: String,
     private val httpClient: OkHttpClient,
     private val sessionStore: SessionStore,
-) : MeasurementUploadClient {
+) : MeasurementUploadClient, HealthInterviewUploadClient {
     private var mobileApi = ReHealthMobileApi(
         baseUrl = baseUrl,
         httpClient = httpClient,
@@ -55,6 +63,12 @@ class AuthenticatedApiClient(
         request: TelemetryBatchRequestDto,
     ): ApiResult<TelemetryBatchResponseDto> = executeWithAuth {
         mobileApi.uploadMeasurements(request)
+    }
+
+    override suspend fun submitHealthInterview(
+        request: HealthInterviewSubmitRequestDto,
+    ): ApiResult<HealthInterviewSubmitRequestDto> = executeWithAuth {
+        mobileApi.submitHealthInterview(request)
     }
 
     suspend fun attributeIndividual(

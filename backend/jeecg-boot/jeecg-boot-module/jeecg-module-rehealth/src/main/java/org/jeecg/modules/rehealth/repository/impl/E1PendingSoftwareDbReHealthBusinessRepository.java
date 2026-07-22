@@ -6,6 +6,8 @@ import org.jeecg.modules.rehealth.mobile.dto.DeviceBindRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.DeviceBindResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.FeedbackRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.InterventionGenerateResponseDto;
+import org.jeecg.modules.rehealth.mobile.dto.HealthInterviewSubmitRequestDto;
+import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateRequestDto;
 import org.jeecg.modules.rehealth.repository.ReHealthBusinessRepository;
@@ -17,6 +19,26 @@ import java.util.Optional;
 @Service
 @ConditionalOnProperty(name = "rehealth.software-db.enabled", havingValue = "false", matchIfMissing = true)
 public class E1PendingSoftwareDbReHealthBusinessRepository implements ReHealthBusinessRepository {
+    @Override
+    public PatientProfileDto savePatientProfile(String userId, PatientProfileDto profile) {
+        return profile;
+    }
+
+    @Override
+    public Optional<PatientProfileDto> findPatientProfile(String userId) {
+        return Optional.empty();
+    }
+
+    @Override
+    public HealthInterviewSubmitRequestDto saveHealthInterview(String userId, HealthInterviewSubmitRequestDto request) {
+        return request;
+    }
+
+    @Override
+    public Optional<HealthInterviewSubmitRequestDto> findLatestHealthInterview(String userId) {
+        return Optional.empty();
+    }
+
     @Override
     public DeviceBindResponseDto recordDeviceBinding(String userId, DeviceBindRequestDto request) {
         DeviceBindResponseDto response = new DeviceBindResponseDto();

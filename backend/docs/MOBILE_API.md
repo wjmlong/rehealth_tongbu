@@ -48,6 +48,10 @@ Only `GET /rehealth/mobile/health` is marked `@IgnoreAuth`. All production-style
 | Method | Path | E1 behavior |
 | --- | --- | --- |
 | `GET` | `/rehealth/mobile/config` | Returns API version, endpoint list, model contract, and E1 limitations. |
+| `GET` | `/rehealth/mobile/profile` | Reads the current authenticated user's persisted health profile. |
+| `PUT` | `/rehealth/mobile/profile` | Upserts the current authenticated user's health profile; returns retryable `503` envelope when software_db is disabled. |
+| `POST` | `/rehealth/mobile/interviews` | Persists typed answers and baseline summary under the current authenticated user. |
+| `GET` | `/rehealth/mobile/interviews/latest` | Reads the current authenticated user's latest persisted interview. |
 | `POST` | `/rehealth/mobile/devices/bind` | Persists the current authenticated user's binding when software_db is enabled. |
 | `POST` | `/rehealth/mobile/measurements/batch` | Validates and transactionally writes the D2 batch to the separate `hardware` datasource; duplicate retries return the existing receipt. |
 | `POST` | `/rehealth/mobile/features/evaluate` | Calls `model-service` `POST /v1/cvd/risk/evaluate`; returns controlled error if unavailable; 透传 model-service 的 model_trace 由 M1 引入的 governance trace 块到 Android 客户端，nullable 字段；详见 model-service/docs/MODEL_REGISTRY.md. |
@@ -123,7 +127,7 @@ rehealth:
     enabled: true
 ```
 
-Device bindings, feature/risk results, interventions, feedback, and attribution results are scoped using the authenticated `LoginUser.id`.
+Profiles, interviews, device bindings, feature/risk results, interventions, feedback, and attribution results are scoped using the authenticated `LoginUser.id`. Android stores a completed interview locally first, enqueues the typed payload, and retries it through WorkManager; a disabled software_db never produces a false durable success.
 
 ## D1 Notes
 

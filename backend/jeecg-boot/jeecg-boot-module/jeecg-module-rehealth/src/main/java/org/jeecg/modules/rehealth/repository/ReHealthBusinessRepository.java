@@ -6,12 +6,22 @@ import org.jeecg.modules.rehealth.mobile.dto.DeviceBindRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.DeviceBindResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.FeedbackRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.InterventionGenerateResponseDto;
+import org.jeecg.modules.rehealth.mobile.dto.HealthInterviewSubmitRequestDto;
+import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateRequestDto;
 
 import java.util.Optional;
 
 public interface ReHealthBusinessRepository {
+    PatientProfileDto savePatientProfile(String userId, PatientProfileDto profile);
+
+    Optional<PatientProfileDto> findPatientProfile(String userId);
+
+    HealthInterviewSubmitRequestDto saveHealthInterview(String userId, HealthInterviewSubmitRequestDto request);
+
+    Optional<HealthInterviewSubmitRequestDto> findLatestHealthInterview(String userId);
+
     DeviceBindResponseDto recordDeviceBinding(String userId, DeviceBindRequestDto request);
 
     void saveRiskResult(String userId, String requestId, RiskEvaluateRequestDto request, RiskEvaluateResponseDto response);

@@ -15,6 +15,8 @@ import org.jeecg.modules.rehealth.mobile.dto.FeedbackRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.HealthResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.InterventionGenerateRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.InterventionGenerateResponseDto;
+import org.jeecg.modules.rehealth.mobile.dto.HealthInterviewSubmitRequestDto;
+import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.jeecg.modules.rehealth.mobile.dto.MobileConfigResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
@@ -25,6 +27,7 @@ import org.jeecg.modules.rehealth.service.ReHealthMobileService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -52,6 +55,40 @@ public class ReHealthMobileController {
     @Operation(summary = "ReHealth mobile API config")
     public Result<MobileConfigResponseDto> config() {
         return Result.OK(mobileService.config());
+    }
+
+    @GetMapping("/profile")
+    @Operation(summary = "Get current authenticated user's health profile")
+    public Result<PatientProfileDto> profile() {
+        return Result.OK(mobileService.profile(currentUserId()));
+    }
+
+    @PutMapping("/profile")
+    @Operation(summary = "Create or update current authenticated user's health profile")
+    public Result<PatientProfileDto> updateProfile(@RequestBody PatientProfileDto profile) {
+        try {
+            return Result.OK(mobileService.saveProfile(currentUserId(), profile));
+        } catch (IllegalStateException e) {
+            return Result.error(503, "software_db persistence unavailable; retry profile update");
+        }
+    }
+
+    @PostMapping("/interviews")
+    @Operation(summary = "Persist current authenticated user's health interview")
+    public Result<HealthInterviewSubmitRequestDto> submitInterview(
+            @RequestBody HealthInterviewSubmitRequestDto request
+    ) {
+        try {
+            return Result.OK(mobileService.submitInterview(currentUserId(), request));
+        } catch (IllegalStateException e) {
+            return Result.error(503, "software_db persistence unavailable; retry health interview");
+        }
+    }
+
+    @GetMapping("/interviews/latest")
+    @Operation(summary = "Get current authenticated user's latest health interview")
+    public Result<HealthInterviewSubmitRequestDto> latestInterview() {
+        return Result.OK(mobileService.latestInterview(currentUserId()));
     }
 
     @PostMapping("/devices/bind")

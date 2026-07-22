@@ -8,6 +8,8 @@ import org.jeecg.modules.rehealth.mobile.dto.DeviceBindRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.DeviceBindResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.FeedbackRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.InterventionGenerateResponseDto;
+import org.jeecg.modules.rehealth.mobile.dto.HealthInterviewSubmitRequestDto;
+import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
 import org.jeecg.modules.rehealth.repository.ReHealthBusinessRepository;
@@ -31,6 +33,72 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
     public JdbcSoftwareDbReHealthBusinessRepository(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
+    }
+
+    @Override
+    @Transactional
+    public PatientProfileDto savePatientProfile(String userId, PatientProfileDto profile) {
+        requireUser(userId);
+        if (profile == null) {
+            throw new IllegalArgumentException("profile is required");
+        }
+        Timestamp now = Timestamp.from(Instant.now());
+        profile.patientId = userId;
+        profile.updatedAt = now.getTime();
+        String profileJson = json(profile);
+        int updated = jdbcTemplate.update("""
+                UPDATE rehealth_patient_profile
+                SET profile_json = ?, updated_at = ?
+                WHERE user_id = ?
+                """, profileJson, now, userId);
+        if (updated == 0) {
+            jdbcTemplate.update("""
+                    INSERT INTO rehealth_patient_profile (id, user_id, profile_json, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    """, UUID.randomUUID().toString(), userId, profileJson, now, now);
+        }
+        return profile;
+    }
+
+    @Override
+    public Optional<PatientProfileDto> findPatientProfile(String userId) {
+        requireUser(userId);
+        return latestJson(
+                "SELECT profile_json FROM rehealth_patient_profile WHERE user_id = ? ORDER BY updated_at DESC, id DESC",
+                userId,
+                PatientProfileDto.class
+        );
+    }
+
+    @Override
+    public HealthInterviewSubmitRequestDto saveHealthInterview(
+            String userId,
+            HealthInterviewSubmitRequestDto request
+    ) {
+        requireUser(userId);
+        if (request == null || request.answers == null || request.answers.isEmpty()) {
+            throw new IllegalArgumentException("interview answers are required");
+        }
+        Timestamp now = Timestamp.from(Instant.now());
+        if (request.generatedAt == null) {
+            request.generatedAt = now.getTime();
+        }
+        jdbcTemplate.update("""
+                INSERT INTO rehealth_health_interview (
+                    id, user_id, answers_json, baseline_json, created_at
+                ) VALUES (?, ?, ?, ?, ?)
+                """, UUID.randomUUID().toString(), userId, json(request.answers), json(request), now);
+        return request;
+    }
+
+    @Override
+    public Optional<HealthInterviewSubmitRequestDto> findLatestHealthInterview(String userId) {
+        requireUser(userId);
+        return latestJson(
+                "SELECT baseline_json FROM rehealth_health_interview WHERE user_id = ? ORDER BY created_at DESC, id DESC",
+                userId,
+                HealthInterviewSubmitRequestDto.class
+        );
     }
 
     @Override

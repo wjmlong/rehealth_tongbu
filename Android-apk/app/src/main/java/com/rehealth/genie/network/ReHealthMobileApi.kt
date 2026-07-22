@@ -2,6 +2,7 @@ package com.rehealth.genie.network
 
 import com.rehealth.genie.network.dto.FeatureEvaluateRequest
 import com.rehealth.genie.network.dto.HealthCheckResponse
+import com.rehealth.genie.network.dto.HealthInterviewSubmitRequestDto
 import com.rehealth.genie.network.dto.InterventionFeedbackRequest
 import com.rehealth.genie.network.dto.InterventionFeedbackResponse
 import com.rehealth.genie.network.dto.InterventionPlanDto
@@ -90,6 +91,14 @@ class ReHealthMobileApi(
         request: TelemetryBatchRequestDto,
     ): RemotePhmOutcome<TelemetryBatchResponseDto> =
         unwrap { api.uploadMeasurements(request) }
+
+    suspend fun submitHealthInterview(
+        request: HealthInterviewSubmitRequestDto,
+    ): RemotePhmOutcome<HealthInterviewSubmitRequestDto> =
+        unwrap { api.submitHealthInterview(request) }
+
+    suspend fun getLatestHealthInterview(): RemotePhmOutcome<HealthInterviewSubmitRequestDto?> =
+        unwrapNullable { api.getLatestHealthInterview() }
 
     suspend fun attributeIndividual(
         request: IndividualAttributionRequestDto,

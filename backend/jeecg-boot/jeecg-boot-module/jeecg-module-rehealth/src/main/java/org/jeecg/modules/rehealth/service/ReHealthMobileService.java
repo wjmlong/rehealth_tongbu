@@ -8,6 +8,8 @@ import org.jeecg.modules.rehealth.mobile.dto.FeedbackRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.HealthResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.InterventionGenerateRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.InterventionGenerateResponseDto;
+import org.jeecg.modules.rehealth.mobile.dto.HealthInterviewSubmitRequestDto;
+import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.jeecg.modules.rehealth.mobile.dto.MobileConfigResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
@@ -20,6 +22,14 @@ public interface ReHealthMobileService {
     HealthResponseDto health();
 
     MobileConfigResponseDto config();
+
+    PatientProfileDto saveProfile(String userId, PatientProfileDto profile);
+
+    PatientProfileDto profile(String userId);
+
+    HealthInterviewSubmitRequestDto submitInterview(String userId, HealthInterviewSubmitRequestDto request);
+
+    HealthInterviewSubmitRequestDto latestInterview(String userId);
 
     DeviceBindResponseDto bindDevice(String userId, DeviceBindRequestDto request);
 

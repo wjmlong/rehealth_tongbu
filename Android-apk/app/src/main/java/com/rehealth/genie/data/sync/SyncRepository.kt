@@ -5,6 +5,8 @@ import com.google.gson.JsonParseException
 import com.rehealth.genie.network.ApiResult
 import com.rehealth.genie.network.AuthState
 import com.rehealth.genie.network.MeasurementUploadClient
+import com.rehealth.genie.network.HealthInterviewUploadClient
+import com.rehealth.genie.network.dto.HealthInterviewSubmitRequestDto
 import com.rehealth.genie.network.dto.TelemetryBatchRequestDto
 import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
 import kotlinx.coroutines.flow.Flow
@@ -28,6 +30,7 @@ class SyncRepository(
     private val apiClient: MeasurementUploadClient,
     private val gson: Gson = Gson(),
     private val nowProvider: () -> Long = System::currentTimeMillis,
+    private val healthInterviewClient: HealthInterviewUploadClient? = apiClient as? HealthInterviewUploadClient,
 ) {
 
     private val _queueState = MutableStateFlow<QueueState>(QueueState.Active)
@@ -66,6 +69,38 @@ class SyncRepository(
             is ApiResult.InvalidResponse -> saveDeadLetter(item, "measurement_upload_invalid")
             is ApiResult.NetworkError -> saveRetry(item, "measurement_upload_network")
             is ApiResult.ServiceUnavailable -> saveRetry(item, "measurement_upload_service_unavailable")
+        }
+    }
+
+    suspend fun uploadQueuedItem(item: UploadQueueEntity): MeasurementUploadOutcome = when (item.kind) {
+        MEASUREMENT_KIND -> uploadMeasurement(item)
+        HEALTH_INTERVIEW_KIND -> uploadHealthInterview(item)
+        else -> MeasurementUploadOutcome.Skipped
+    }
+
+    private suspend fun uploadHealthInterview(item: UploadQueueEntity): MeasurementUploadOutcome {
+        val client = healthInterviewClient ?: return saveRetry(item, "health_interview_client_unavailable")
+        val request = try {
+            gson.fromJson(item.payloadJson, HealthInterviewSubmitRequestDto::class.java)
+                ?: return deadLetter(item)
+        } catch (_: JsonParseException) {
+            return deadLetter(item)
+        }
+        if (request.answers.isEmpty()) return deadLetter(item)
+        return when (client.submitHealthInterview(request)) {
+            is ApiResult.Success -> {
+                dao.update(item.copy(status = "done", lastError = null))
+                MeasurementUploadOutcome.Uploaded
+            }
+            is ApiResult.Unauthorized -> {
+                pauseQueue()
+                MeasurementUploadOutcome.Paused
+            }
+            is ApiResult.Forbidden -> saveDeadLetter(item, "health_interview_forbidden")
+            is ApiResult.InvalidRequest,
+            is ApiResult.InvalidResponse -> saveDeadLetter(item, "health_interview_invalid")
+            is ApiResult.NetworkError -> saveRetry(item, "health_interview_network")
+            is ApiResult.ServiceUnavailable -> saveRetry(item, "health_interview_service_unavailable")
         }
     }
 
@@ -173,6 +208,7 @@ class SyncRepository(
 
     private companion object {
         const val MEASUREMENT_KIND = "telemetry_batch"
+        const val HEALTH_INTERVIEW_KIND = "health_interview"
     }
 }
 

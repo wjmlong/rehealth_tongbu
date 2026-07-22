@@ -10,6 +10,8 @@ import org.jeecg.modules.rehealth.mobile.dto.FeedbackRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.HealthResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.InterventionGenerateRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.InterventionGenerateResponseDto;
+import org.jeecg.modules.rehealth.mobile.dto.HealthInterviewSubmitRequestDto;
+import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.jeecg.modules.rehealth.mobile.dto.MobileConfigResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
@@ -77,6 +79,10 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
         response.endpoints = List.of(
                 "GET /rehealth/mobile/health",
                 "GET /rehealth/mobile/config",
+                "GET /rehealth/mobile/profile",
+                "PUT /rehealth/mobile/profile",
+                "POST /rehealth/mobile/interviews",
+                "GET /rehealth/mobile/interviews/latest",
                 "POST /rehealth/mobile/devices/bind",
                 "POST /rehealth/mobile/measurements/batch",
                 "POST /rehealth/mobile/features/evaluate",
@@ -97,6 +103,31 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
                 "group attribution and settlement evidence are not patient mobile APIs"
         );
         return response;
+    }
+
+    @Override
+    public PatientProfileDto saveProfile(String userId, PatientProfileDto profile) {
+        requireSoftwareDb();
+        return businessRepository.savePatientProfile(userId, profile);
+    }
+
+    @Override
+    public PatientProfileDto profile(String userId) {
+        return businessRepository.findPatientProfile(userId).orElse(null);
+    }
+
+    @Override
+    public HealthInterviewSubmitRequestDto submitInterview(
+            String userId,
+            HealthInterviewSubmitRequestDto request
+    ) {
+        requireSoftwareDb();
+        return businessRepository.saveHealthInterview(userId, request);
+    }
+
+    @Override
+    public HealthInterviewSubmitRequestDto latestInterview(String userId) {
+        return businessRepository.findLatestHealthInterview(userId).orElse(null);
     }
 
     @Override
@@ -148,5 +179,11 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
         AttributionResponseDto response = modelServiceClient.evaluateAttribution(request);
         businessRepository.recordAttributionResult(userId, request, response);
         return response;
+    }
+
+    private void requireSoftwareDb() {
+        if (!softwareDbEnabled) {
+            throw new IllegalStateException("software_db persistence is disabled");
+        }
     }
 }

@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.h2.jdbcx.JdbcDataSource;
 import org.jeecg.modules.rehealth.mobile.dto.DeviceBindRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.InterventionGenerateResponseDto;
+import org.jeecg.modules.rehealth.mobile.dto.HealthInterviewSubmitRequestDto;
+import org.jeecg.modules.rehealth.mobile.dto.HealthInterviewAnswerDto;
+import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,6 +16,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 
 import java.util.UUID;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -59,6 +63,32 @@ class JdbcSoftwareDbReHealthBusinessRepositoryTest {
         assertEquals(0.73, repository.findLatestRiskResult("user-b").orElseThrow().riskScore);
         assertEquals("plan-a", repository.findLatestInterventionPlan("user-a").orElseThrow().planId);
         assertTrue(repository.findLatestInterventionPlan("user-b").isEmpty());
+    }
+
+    @Test
+    void profileUpsertAndLatestInterviewAreIsolatedByAuthenticatedUser() {
+        PatientProfileDto firstProfile = new PatientProfileDto();
+        firstProfile.name = "first";
+        repository.savePatientProfile("user-a", firstProfile);
+        PatientProfileDto updatedProfile = new PatientProfileDto();
+        updatedProfile.name = "updated";
+        repository.savePatientProfile("user-a", updatedProfile);
+
+        HealthInterviewSubmitRequestDto interview = new HealthInterviewSubmitRequestDto();
+        HealthInterviewAnswerDto answer = new HealthInterviewAnswerDto();
+        answer.questionId = "profile";
+        answer.topic = "PROFILE";
+        answer.content = "32 岁";
+        interview.answers = List.of(answer);
+        interview.generatedAt = 1_726_000_000_000L;
+        repository.saveHealthInterview("user-a", interview);
+
+        assertEquals(1, count("rehealth_patient_profile"));
+        assertEquals("updated", repository.findPatientProfile("user-a").orElseThrow().name);
+        assertTrue(repository.findPatientProfile("user-b").isEmpty());
+        assertEquals(1_726_000_000_000L,
+                repository.findLatestHealthInterview("user-a").orElseThrow().generatedAt);
+        assertTrue(repository.findLatestHealthInterview("user-b").isEmpty());
     }
 
     private void saveRisk(String userId, String requestId, double score) {

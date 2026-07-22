@@ -207,3 +207,15 @@ APK 构建成功：
 - 当前 Demo 手机号/验证码登录仍未换成正式 Jeecg 登录/401 重新登录流程；本轮一次性构建 Token 只能用于本机联调，不能上线。
 - 健康初识回答只保存自然语言摘要，尚未可靠结构化到年龄、BMI、病史等 CVD16 字段；真实模型本轮只有 SBP/DBP/exercise_days 来自抓包，其余字段由模型缺失值管线处理，不能解释为完整个人健康画像。
 - PIAS 需要至少 14 天风险与干预/对照历史；本轮只有末点来自真实 MR11→CatBoost，之前 13 天是明确标注的验证历史，因此不能作为真实因果干预结论。
+
+## 9. 2026-07-23 健康档案与访谈云同步补齐
+
+- 当前权威仓库为 `D:\rehealthAI`，分支为 `codex/real-device`；本节覆盖并纠正报告中仍指向 `D:\rehealth_demo\Android-apk` 的历史路径说明。
+- 后端新增认证用户隔离的 `GET/PUT /rehealth/mobile/profile`、`POST /rehealth/mobile/interviews`、`GET /rehealth/mobile/interviews/latest`，复用现有 `rehealth_patient_profile` 与 `rehealth_health_interview` 表。
+- Android 健康初识页面的布局、动画、问题编排和导航未改变；完成访谈时先保存本地摘要，再把类型化回答和基线写入 Room 上传队列，由 WorkManager 在有网且登录有效时同步。
+- software_db 未启用时，后端返回可重试的 `503` 业务响应，Android 不会把未持久化访谈误标为成功。
+- H2 聚焦测试通过：4 项，覆盖档案 upsert、访谈持久化、用户隔离和路由契约。
+- Android 聚焦单测通过：访谈 DTO 路由、队列上传、基线映射。
+- Android 完整门禁通过：`testDebugUnitTest`、`lintDebug`、`assembleDebug`、`assembleRelease`；Debug APK 为 `D:\rehealthAI\Android-apk\app\build\outputs\apk\debug\app-debug.apk`（21,420,227 字节，SHA-256 `fea219584d1f0b5c8a19cca4d2e5fff28399466c2d94c4b18da87d0f088a9da0`）。
+- ReHealth 后端模块完整测试通过：22 项，0 失败、0 错误。
+- 官方 AVD 已按用户要求移除，等待用户安装网易 MuMu；因此本节未执行新的模拟器 UI 验证，也未声称完成真机戒指验证。

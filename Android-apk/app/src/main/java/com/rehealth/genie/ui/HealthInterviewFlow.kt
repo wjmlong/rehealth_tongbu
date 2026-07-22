@@ -69,8 +69,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rehealth.genie.R
+import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.interview.HealthBaseline
+import com.rehealth.genie.interview.HealthInterviewSyncViewModel
 import com.rehealth.genie.interview.InterviewAnswer
 import com.rehealth.genie.interview.MockHealthInterviewModel
 import com.rehealth.genie.ui.theme.Canvas
@@ -88,6 +91,10 @@ fun HealthInterviewFlow(
     completionLabel: String = "进入睿禾精灵",
 ) {
     val context = LocalContext.current
+    val application = context.applicationContext as ReHealthApplication
+    val syncViewModel: HealthInterviewSyncViewModel = viewModel(
+        factory = remember(application) { HealthInterviewSyncViewModel.Factory(application) },
+    )
     val model = remember { MockHealthInterviewModel() }
     val answers = remember { mutableStateListOf<InterviewAnswer>() }
     var input by remember { mutableStateOf("") }
@@ -165,7 +172,13 @@ fun HealthInterviewFlow(
     }
 
     if (baseline != null) {
-        BaselineResultScreen(baseline!!, completionLabel, onComplete)
+        BaselineResultScreen(
+            baseline = baseline!!,
+            answers = answers,
+            completionLabel = completionLabel,
+            onComplete = onComplete,
+            onSync = syncViewModel::enqueue,
+        )
         return
     }
 
@@ -332,8 +345,10 @@ private fun UserBubble(text: String) {
 @Composable
 private fun BaselineResultScreen(
     baseline: HealthBaseline,
+    answers: List<InterviewAnswer>,
     completionLabel: String,
     onComplete: () -> Unit,
+    onSync: (List<InterviewAnswer>, HealthBaseline) -> Unit,
 ) {
     val context = LocalContext.current
     LazyColumn(
@@ -405,6 +420,7 @@ private fun BaselineResultScreen(
                         .putString("health_baseline", summary)
                         .putLong("health_baseline_updated_at", baseline.generatedAt)
                         .apply()
+                    onSync(answers, baseline)
                     onComplete()
                 },
                 modifier = Modifier.fillMaxWidth().height(54.dp),

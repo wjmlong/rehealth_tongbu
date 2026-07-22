@@ -2,6 +2,7 @@ package com.rehealth.genie.network
 
 import com.rehealth.genie.network.dto.FeatureEvaluateRequest
 import com.rehealth.genie.network.dto.HealthCheckResponse
+import com.rehealth.genie.network.dto.HealthInterviewSubmitRequestDto
 import com.rehealth.genie.network.dto.InterventionFeedbackRequest
 import com.rehealth.genie.network.dto.InterventionFeedbackResponse
 import com.rehealth.genie.network.dto.InterventionPlanDto
@@ -54,6 +55,14 @@ interface ReHealthApi {
     suspend fun uploadMeasurements(
         @Body request: TelemetryBatchRequestDto,
     ): Response<JeecgResult<TelemetryBatchResponseDto>>
+
+    @POST("rehealth/mobile/interviews")
+    suspend fun submitHealthInterview(
+        @Body request: HealthInterviewSubmitRequestDto,
+    ): Response<JeecgResult<HealthInterviewSubmitRequestDto>>
+
+    @GET("rehealth/mobile/interviews/latest")
+    suspend fun getLatestHealthInterview(): Response<JeecgResult<HealthInterviewSubmitRequestDto?>>
 
     @POST("rehealth/mobile/attribution/events")
     suspend fun attributeIndividual(

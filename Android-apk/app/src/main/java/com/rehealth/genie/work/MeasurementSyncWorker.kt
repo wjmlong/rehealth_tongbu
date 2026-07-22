@@ -48,7 +48,7 @@ class MeasurementSyncWorker(
 
         try {
             for (item in syncRepo.pending()) {
-                when (measurementWorkerAction(syncRepo.uploadMeasurement(item))) {
+                when (measurementWorkerAction(syncRepo.uploadQueuedItem(item))) {
                     MeasurementWorkerAction.RETRY -> return@withContext Result.retry()
                     MeasurementWorkerAction.STOP_SUCCESS -> return@withContext Result.success()
                     MeasurementWorkerAction.CONTINUE -> Unit

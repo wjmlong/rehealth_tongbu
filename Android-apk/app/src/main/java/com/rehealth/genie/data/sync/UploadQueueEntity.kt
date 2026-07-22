@@ -10,7 +10,7 @@ import androidx.room.PrimaryKey
  * backend and updates status with exponential backoff.
  *
  * kind values: "telemetry_batch" | "feature_evaluate" | "intervention_feedback"
- *              | "device_bind" | "attribution_events"
+ *              | "device_bind" | "attribution_events" | "health_interview"
  * status values: "pending" | "uploading" | "done" | "failed"
  */
 @Entity(tableName = "sync_upload_queue")

@@ -28,8 +28,8 @@ Planned tables:
 | Table | Purpose | E1 status |
 | --- | --- | --- |
 | `rehealth_device_binding` | User-to-device binding. | Implemented. |
-| `rehealth_patient_profile` | ReHealth profile reference. | Schema ready; profile service pending. |
-| `rehealth_health_interview` | Health interview/business profile fields. | Schema ready; interview persistence pending. |
+| `rehealth_patient_profile` | ReHealth profile reference. | Implemented via authenticated `GET/PUT /profile`. |
+| `rehealth_health_interview` | Health interview/business profile fields. | Implemented via authenticated `POST /interviews` and `GET /interviews/latest`. |
 | `rehealth_cvd_feature_vector` | CVD 16 vector and feature quality metadata. | Implemented via `/features/evaluate`. |
 | `rehealth_cvd_risk_result` | Risk score, level, contributions, model version, missing fields, warnings, summary. | Implemented with per-user latest read. |
 | `rehealth_intervention_plan` | Conservative model-service intervention response. | Implemented with per-user latest read. |
