@@ -12,9 +12,9 @@
 - Android 12+ `BLUETOOTH_SCAN` / `BLUETOOTH_CONNECT` 权限申请、永久拒绝跳系统设置，以及权限撤销竞态保护。
 - Room 中真实测量、睡眠、活动历史数据的 1/7/30/90 天聚合展示。
 - `POST /rehealth/mobile/features/evaluate` 风险评估请求、`X-Access-Token` 鉴权、snake/camel 响应解析和网络/401/403/5xx/空结果状态。
-- 归因页真实风险分和真实特征贡献映射。预测曲线、饮食记录、干预计划在后端未返回时显示空状态，不再展示固定 Demo 数据。
+- 归因页真实风险分和真实特征贡献映射；PIAS 可用时展示其真实返回的预测曲线，饮食记录和干预计划在后端未返回时保持空状态，不再展示固定 Demo 数据。
 
-尚未完成或无法在当前环境确认：实体 MRD 戒指的真实 GATT 服务发现、通知数据解析和多轮测量；真实后端联调需要用户提供 `REHEALTH_API_BASE_URL` 和 `REHEALTH_API_TOKEN`；健康采访仍使用明确命名的 `MockHealthInterviewModel`。
+尚未完成或无法在当前环境确认：实体 MRD 戒指的真实 GATT 服务发现、通知数据解析和多轮测量；生产登录仍需将 Demo 手机验证码流程接入 Jeecg 会话，而不是构建时 Token；健康采访仍使用明确命名的 `MockHealthInterviewModel`，其自然语言回答尚未结构化映射到 CVD16。
 
 APK 构建成功：
 
@@ -30,6 +30,7 @@ APK 构建成功：
 - 当前提交前 HEAD：`93c1a728d4d65d3f8504fdd6d6c0f307d724de89`
 - 最终提交哈希：`48bf5af` (`feat(android): integrate live data into demo UI`)
 - 本轮 MRD/PIAS 验证提交：`b666b76` (`feat(android): validate MRD replay and PIAS flow`)
+- 本轮上线前链路修复提交：`c370b12` (`fix(android): validate live risk and animate PIAS curves`)
 
 比对报告中曾将本地真实能力工作树称为另一个 `work/D3...` 分支；实际本次按 Git 和文件内容核对后，最终工作区是 `D:\rehealth_demo\Android-apk` 的 `codex/real-device`，真实能力参考为 `D:\rehealthAI\Android-apk`。两者 UI 不能混用。
 
@@ -43,6 +44,14 @@ APK 构建成功：
 - `app/src/main/java/com/rehealth/genie/ring/data/RingDataDao.kt`：增加近期测量、睡眠、活动历史流查询。
 - `app/src/main/java/com/rehealth/genie/ring/mrd/MrdBleRingRepository.kt`：扫描/连接/GATT/通知/写入/关闭前权限检查；移除生产日志中的设备地址和原始健康 payload。
 - `app/src/main/java/com/rehealth/genie/ui/ReHealthApp.kt`：恢复并保留完整 Demo Compose UI；第二页改为 Room 时间窗口聚合；归因页和模型页接入真实风险状态、空状态和刷新；移除固定风险曲线、午餐、干预和个人统计展示；设备页补全权限状态机。
+
+2026-07-22 上线前复核补充修改：
+
+- `app/src/main/java/com/rehealth/genie/live/LiveRiskRepository.kt`：缺失特征的 `FeatureSource` 从协议不支持的 `MISSING` 修正为 `UNKNOWN`；有有效步数观察但未达阈值时发送真实派生的 `exercise_days=0`。
+- `app/src/main/java/com/rehealth/genie/ring/RingViewModel.kt`：PIAS 抓包验证历史末点锚定本次真实后端风险分，同时保留 7 天对照/7 天干预与“验证历史重放”标识。
+- `app/src/main/java/com/rehealth/genie/ui/ReHealthApp.kt`：仅在既有 `MiniChart` 内增加 1 秒逐段描线动画；不改变归因页布局、卡片、导航或交互。
+- `app/src/test/java/com/rehealth/genie/live/LiveRiskFeatureMapperTest.kt`：锁定真实抓包血压、步数和 model-service 质量来源契约。
+- `app/src/test/java/com/rehealth/genie/ring/ReplayPiasHistoryTest.kt`：锁定 14 天验证历史的真实风险末点与干预/对照分组。
 
 新增：
 
@@ -119,8 +128,8 @@ APK 构建成功：
 
 - 必须用实体 MRD 戒指在 Android 12+ 真机验证 GATT 服务 UUID、通知订阅、协议包解析、测量时长、断线重连和 Room 落库。
 - 当前风险请求只从戒指数据生成 SBP/DBP、运动天数，其余 CVD 字段标记为 `MISSING`；应接入健康档案和临床报告输入后再进行完整模型评估。
-- 后端地址和 Token 需要通过未提交的 `local.properties` 或环境变量配置；不得提交密钥。
-- 真实干预计划、风险历史曲线、饮食记录 API 尚未接入，页面保留原 Demo 编排但只展示空状态。
+- 后端地址和 Token 需要通过未提交的 `local.properties`、环境变量或后续正式登录会话配置；不得提交密钥。
+- 真实干预计划和饮食记录 API 尚未接入；风险预测曲线已接真实 PIAS，页面保留原 Demo 编排。
 - `HealthInterviewFlow` 仍使用 `MockHealthInterviewModel`，需要后续接入真实健康档案服务。
 - 旧的 `MockRingRepository`、`MockPhmService` 文件保留给 Preview/测试隔离，正式 `ReHealthApplication` 使用 `MrdBleRingRepository`。
 
@@ -133,7 +142,7 @@ APK 构建成功：
 - API 31 模拟器已完成：访客 onboarding、BLE 权限、搜索重放设备、连接、自动采集、Room 写入、第二页展示和归因页 PIAS 展示。
 - 重放设备显示名称为 `MR11 真实抓包重放（非实时测量）`，来源为 `mrd_capture_replay`；页面明确提示这不是实时人体测量。
 - 第二页保留原 Demo 编排，显示厂商 SDK 解析值：心率 70 bpm、HRV 34 ms、血氧 99.5%（UI 取整为 99%）、血压 107/69 mmHg、步数 165；没有温度抓包，因此体温保持空状态；空睡眠包不会伪造睡眠时长。
-- 归因页保留原卡片、周期选择和交互，PIAS 返回 `ready`、当前风险 0.501、趋势与 30 天两条预测曲线。风险主卡因未配置 Jeecg Token 正确显示未登录状态，没有用 Mock 风险补位。
+- 归因页保留原卡片、周期选择和交互；本轮配置一次性 Jeecg 测试会话后，真实风险主卡返回 2.38%，PIAS 返回 `ready`、当前风险约 2.4% 以及 30 天两条预测曲线，没有用 Mock 风险补位。
 
 ### 厂商 SDK 文档复核
 
@@ -169,8 +178,32 @@ APK 构建成功：
 - 仪器测试：API 31 AVD 上 1/1 通过。
 - APK：`D:\rehealth_demo\Android-apk\app\build\outputs\apk\debug\app-debug.apk`，29,667,305 字节。
 
-### 尚未验证
+### 2026-07-22 上线前端到端实测
+
+- 使用 `POST /sys/mLogin` 的本地测试账户取得一次性 JWT；Token 只注入 Gradle 进程和模拟器联调 APK，不写入源码、报告或 `local.properties`。
+- API 31 模拟器完整走通：Demo 登录/8 步健康初识 → BLE 权限 → 搜索并连接 MR11 抓包重放设备 → 厂商 SDK 解析 → Room 写入 6 条 → 第二页展示 → Jeecg `/features/evaluate` → 真实 CatBoost/SHAP → 归因页 → 真实 PIAS。
+- 后端返回 HTTP 200：`riskScore=0.0238`、`riskLevel=low`、16 项 `featureContributions`、`isMock=false`，模型版本 `cvd-core16-catboost-20260710T173543Z`，贡献方法 `shap_via_catboost`。
+- 第二页实测：心率 70、血氧 99、血压 107/69；体温保持 `--`；SDK 验证还覆盖 HRV 34、步数 165；空睡眠包不伪造记录。
+- PIAS 返回 `ready`；14 天显式验证历史的末点锚定真实后端风险，页面报告当前风险 2.4%、30 天计划差异 0.1%，并持续显示“真实 MR11 抓包 + 验证历史重放，不是实时人体测量”。
+- 归因页显示真实 CatBoost 风险、16 项 SHAP 贡献；两条 PIAS 预测曲线来自服务端 `no_action`/`with_plan` 数组，由原 `MiniChart` 在 1 秒内逐段描线。
+- 动画证据：`D:\rehealthAI\outputs\attribution-animation-start.png`、`attribution-animation-mid.png`、`attribution-animation-end.png`，以及 `pias-animation-start.png`、`pias-animation-mid.png`、`pias-animation-end.png`。
+
+### 最终构建门禁
+
+| 命令 | 结果 |
+|---|---|
+| `.\gradlew.bat lintDebug testDebugUnitTest assembleDebug assembleRelease connectedDebugAndroidTest` | 成功；133 tasks，API 31 仪器测试 1/1 |
+| `git diff --check` | 成功；只有工作区 LF/CRLF 提示，无 whitespace error |
+| Release BuildConfig 审计 | `REHEALTH_CAPTURE_REPLAY=false`，`REHEALTH_API_TOKEN=""` |
+
+- Debug APK：`D:\rehealth_demo\Android-apk\app\build\outputs\apk\debug\app-debug.apk`，29,667,305 字节。
+- Release APK：`D:\rehealth_demo\Android-apk\app\build\outputs\apk\release\app-release-unsigned.apk`，13,271,604 字节；未签名，不能作为商店发布包。
+
+### 尚未验证 / 发布阻塞
 
 - 没有实体 MRD 戒指，因此真实射频扫描、GATT 服务发现、通知时序、断线重连和人体测量仍需真机验证。
 - 本轮是厂商 SDK + 真实 MR11 抓包的软件重放验证，不是当前用户的生理测量。
-- 未配置有效 `REHEALTH_API_TOKEN`，所以本轮没有在模拟器内执行受保护的 Jeecg 风险评估；后端、model-service 和 PIAS 服务健康已分别验证。
+- 物理 MR11 戒指的射频、GATT、通知时序、断线重连、长时间采集和人体读数仍未验证；抓包重放不能替代这些真机门禁。
+- 当前 Demo 手机号/验证码登录仍未换成正式 Jeecg 登录/401 重新登录流程；本轮一次性构建 Token 只能用于本机联调，不能上线。
+- 健康初识回答只保存自然语言摘要，尚未可靠结构化到年龄、BMI、病史等 CVD16 字段；真实模型本轮只有 SBP/DBP/exercise_days 来自抓包，其余字段由模型缺失值管线处理，不能解释为完整个人健康画像。
+- PIAS 需要至少 14 天风险与干预/对照历史；本轮只有末点来自真实 MR11→CatBoost，之前 13 天是明确标注的验证历史，因此不能作为真实因果干预结论。

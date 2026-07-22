@@ -427,7 +427,10 @@ private fun MainShell(
                     when (selected) {
                         Tab.Home -> HomeScreen(onStartInterview = { showInterview = true })
                         Tab.Data -> DataScreen(ringState, ringViewModel, canonicalRiskStatus, onMeasure)
-                        Tab.Attribution -> AttributionScreen(ringState, canonicalRiskStatus)
+                        Tab.Attribution -> AttributionScreen(
+                            ringState = ringState,
+                            evaluation = canonicalRiskStatus.value?.toAttributionRiskEvaluation(),
+                        )
                         Tab.Model -> ModelScreen(ringState, canonicalRiskStatus)
                         Tab.Profile -> ProfileScreen(
                             state = ringState,
@@ -1310,246 +1313,6 @@ private fun MiniChart(points: List<Float>, color: Color, modifier: Modifier) {
 }
 
 @Composable
-private fun AttributionScreen(
-    state: RingUiState,
-    canonicalRiskStatus: androidx.compose.runtime.State<RemoteFeatureEvaluateStatus?>,
-) {
-    val feedbackViewModel: InterventionFeedbackViewModel = viewModel(
-        factory = InterventionFeedbackViewModel.Factory(LocalContext.current),
-    )
-    val plan = state.patientMvp?.interventionPlan.orEmpty()
-    val checkIns = state.patientMvp?.recentCheckins.orEmpty()
-    val current = canonicalRiskStatus.value
-    // 真实贡献因素：来自后端 /rehealth/mobile/features/evaluate 返回的 featureContributions
-    val contributions = remember(current) {
-        current?.featureContributions.orEmpty()
-            .toList()
-            .sortedByDescending { kotlin.math.abs(it.second) }
-            .take(12)
-    }
-    Page("本周归因报告", "基于真实健康数据与模型评估") {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            CardBlock {
-                Text("健康改善得分", color = Ink, fontWeight = FontWeight.SemiBold)
-                val score = current?.riskScore?.let { (it * 100).toInt() } ?: 0
-                Text(
-                    if (current != null) "$score 分" else "评估中",
-                    color = Mint,
-                    fontSize = 35.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(vertical = 8.dp),
-                )
-                Text(
-                    current?.summary ?: "同步戒指数据并请求后端评估后生成得分",
-                    color = Muted,
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp,
-                )
-            }
-            CardBlock {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("贡献因素（真实模型返回）", color = Ink, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.weight(1f))
-                    val riskCount = contributions.count { it.second >= 0.0 }
-                    val protectiveCount = contributions.size - riskCount
-                    Row(
-                        modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(MintSoft).padding(horizontal = 10.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text("风险因子 $riskCount · 保护因子 $protectiveCount", color = Mint, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-                Spacer(Modifier.height(10.dp))
-                if (contributions.isEmpty()) {
-                    Text("后端暂未返回贡献因素，同步数据后展示。", color = Muted, fontSize = 12.sp)
-                } else {
-                    val maxWeight = contributions.maxOfOrNull { kotlin.math.abs(it.second) } ?: 1.0
-                    AttributionCategoryOrder.forEach { category ->
-                        val group = contributions.filter { attributionCategory(it.first) == category }
-                        if (group.isNotEmpty()) {
-                            AttributionCategoryBlock(category = category, factors = group, maxWeight = maxWeight, state = state)
-                        }
-                    }
-                    Text(
-                        "标注「模拟」的指标由前端基于健康档案与模型贡献权重估算，真实检验数据接入后自动替换。",
-                        color = Muted,
-                        fontSize = 10.sp,
-                        lineHeight = 14.sp,
-                        modifier = Modifier.padding(top = 10.dp),
-                    )
-                }
-            }
-            CardBlock {
-                Text("今日干预计划", color = Ink, fontWeight = FontWeight.SemiBold)
-                Text("根据风险分、戒指数据和健康档案生成", color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp, bottom = 8.dp))
-                if (plan.isEmpty()) {
-                    Text("同步健康数据后生成今日计划", color = Muted, fontSize = 12.sp)
-                } else {
-                    plan.forEachIndexed { index, item ->
-                        PatientPlanRow(item = item, feedbackViewModel = feedbackViewModel)
-                        if (index != plan.lastIndex) Spacer(Modifier.height(8.dp))
-                    }
-                }
-            }
-            CardBlock {
-                Text("反馈打卡", color = Ink, fontWeight = FontWeight.SemiBold)
-                Text(
-                    if (checkIns.isEmpty()) "今天还没有反馈，完成计划后点打卡" else "已记录 ${checkIns.size} 次反馈，最近一次 ${formatSyncTime(checkIns.first().checkedAt ?: System.currentTimeMillis())}",
-                    color = Muted,
-                    fontSize = 11.sp,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-            }
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(MintSoft).padding(14.dp)) {
-                Icon(Icons.Outlined.Shield, null, tint = Mint, modifier = Modifier.size(18.dp))
-                Text("归因结果用于健康管理参考，不代表医学诊断。", color = Muted, fontSize = 11.sp, modifier = Modifier.padding(start = 8.dp))
-            }
-        }
-    }
-}
-
-private val AttributionCategoryOrder = listOf(
-    "基础体征",
-    "血压与代谢",
-    "生活方式",
-    "病史与家族史",
-    "其他",
-)
-
-private fun attributionCategory(field: String): String = when (field) {
-    "age", "gender", "bmi" -> "基础体征"
-    "sbp", "dbp", "fasting_glucose", "total_cholesterol", "ldl", "hdl", "triglycerides" -> "血压与代谢"
-    "exercise_days", "smoking", "drinking" -> "生活方式"
-    "diabetes_history", "hypertension_history", "family_history" -> "病史与家族史"
-    else -> "其他"
-}
-
-/**
- * 真实可变的当前值：来自健康档案（age/gender/bmi/吸烟/饮酒/病史/家族史）或实时戒指测量（血压）。
- * 其余特征（血脂、血糖等）后端暂未下发，返回 null 由 UI 省略。
- */
-private data class FactorValue(val text: String, val simulated: Boolean)
-
-/**
- * 真实值优先（健康档案 / 实时戒指测量）。
- * 对于后端暂未下发真实值的指标（血脂、血糖、运动天数等），按"保留 API 接口"策略，
- * 由前端基于已有健康档案 + 后端模型返回的贡献权重做确定性估算，并明确标记为"模拟"，
- * 真实检验数据接入后无需改动 UI 即可替换。
- */
-private fun factorLiveValue(field: String, weight: Double, state: RingUiState): FactorValue? {
-    val profile = state.patientMvp?.profile
-    val real = when (field) {
-        "age" -> profile?.age?.let { "${it} 岁" }
-        "gender" -> profile?.gender?.let { if (it == "male") "男" else if (it == "female") "女" else it }
-        "bmi" -> profile?.bmi?.let { String.format(Locale.getDefault(), "%.1f", it) }
-        "smoking" -> profile?.smoking?.let { if (it) "是" else "否" }
-        "drinking" -> profile?.drinking?.let { if (it) "是" else "否" }
-        "diabetes_history" -> profile?.diabetesHistory?.let { if (it) "有" else "无" }
-        "hypertension_history" -> profile?.hypertensionHistory?.let { if (it) "有" else "无" }
-        "family_history" -> profile?.familyHistory?.let { if (it) "有" else "无" }
-        "sbp" -> state.measurements[RingMetricType.BLOOD_PRESSURE]?.primaryValue?.toInt()?.let { "$it mmHg" }
-        "dbp" -> state.measurements[RingMetricType.BLOOD_PRESSURE]?.secondaryValue?.toInt()?.let { "$it mmHg" }
-        else -> null
-    }
-    if (real != null) return FactorValue(real, simulated = false)
-
-    // 无真实数据：保留接口，前端基于档案 + 模型贡献权重做确定性"模拟"估算
-    val simulated = when (field) {
-        "fasting_glucose" -> {
-            val base = 5.1 + (if (profile?.diabetesHistory == true) 1.6 else 0.0)
-            val adj = ((profile?.bmi ?: 22.0) - 22.0) * 0.06 + weight * 0.4
-            String.format(Locale.getDefault(), "%.1f mmol/L", (base + adj).coerceIn(4.0, 9.0))
-        }
-        "total_cholesterol" -> {
-            val base = 4.0 + (if (profile?.hypertensionHistory == true) 0.5 else 0.0) + weight * 0.5
-            String.format(Locale.getDefault(), "%.1f mmol/L", base.coerceIn(3.0, 7.0))
-        }
-        "ldl" -> {
-            val base = 2.2 + (if (profile?.smoking == true) 0.3 else 0.0) + weight * 0.35
-            String.format(Locale.getDefault(), "%.1f mmol/L", base.coerceIn(1.5, 4.5))
-        }
-        "hdl" -> {
-            val base = 1.4 - (if (profile?.smoking == true) 0.2 else 0.0) + weight * 0.15
-            String.format(Locale.getDefault(), "%.1f mmol/L", base.coerceIn(0.8, 2.2))
-        }
-        "triglycerides" -> {
-            val base = 1.1 + (if (profile?.drinking == true) 0.4 else 0.0) + weight * 0.3
-            String.format(Locale.getDefault(), "%.1f mmol/L", base.coerceIn(0.6, 3.5))
-        }
-        "exercise_days" -> {
-            val base = 3 + (if (profile?.smoking == false && profile?.drinking == false) 1 else 0) + (weight * -2).toInt()
-            "${base.coerceIn(0, 7)} 天/周"
-        }
-        else -> null
-    }
-    return simulated?.let { FactorValue(it, simulated = true) }
-}
-
-@Composable
-private fun AttributionCategoryBlock(
-    category: String,
-    factors: List<Pair<String, Double>>,
-    maxWeight: Double,
-    state: RingUiState,
-) {
-    Text(category, color = Mint, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 6.dp))
-    factors.forEach { (field, weight) ->
-        AttributionFactorRow(field = field, weight = weight, liveValue = factorLiveValue(field, weight, state), maxWeight = maxWeight)
-    }
-}
-
-@Composable
-private fun AttributionFactorRow(
-    field: String,
-    weight: Double,
-    liveValue: FactorValue?,
-    maxWeight: Double,
-) {
-    val absValue = kotlin.math.abs(weight)
-    val fraction by animateFloatAsState(
-        targetValue = if (maxWeight > 0) (absValue / maxWeight).toFloat().coerceIn(0f, 1f) else 0f,
-        animationSpec = tween(durationMillis = 700),
-        label = "attr-bar-$field",
-    )
-    val isRisk = weight >= 0.0
-    val barColor = if (isRisk) Color(0xFFE39A22) else Mint
-    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(field.cvdFieldLabel(), color = Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            if (liveValue != null) {
-                if (liveValue.simulated) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(liveValue.text, color = Muted, fontSize = 11.sp)
-                        Spacer(Modifier.width(5.dp))
-                        Box(
-                            modifier = Modifier.clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFFFDEFE0))
-                                .border(1.dp, Color(0xFFE8C089), RoundedCornerShape(6.dp))
-                                .padding(horizontal = 5.dp, vertical = 1.dp),
-                        ) {
-                            Text("模拟", color = Color(0xFFB7791F), fontSize = 9.sp)
-                        }
-                    }
-                } else {
-                    Text(liveValue.text, color = Muted, fontSize = 11.sp)
-                }
-                Spacer(Modifier.width(8.dp))
-            }
-            Text(
-                "${if (isRisk) "↑" else "↓"} ${(absValue * 100).toInt()}%",
-                color = barColor,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-            )
-        }
-        Spacer(Modifier.height(6.dp))
-        Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(MintSoft)) {
-            Box(Modifier.fillMaxWidth(fraction).height(6.dp).clip(RoundedCornerShape(3.dp)).background(barColor))
-        }
-    }
-}
-
-@Composable
 private fun ModelScreen(
     state: RingUiState,
     canonicalRiskStatus: androidx.compose.runtime.State<RemoteFeatureEvaluateStatus?>,
@@ -2236,6 +1999,14 @@ private data class RemoteFeatureEvaluateStatus(
             else -> "不可用"
         }
 }
+
+private fun RemoteFeatureEvaluateStatus.toAttributionRiskEvaluation(): AttributionRiskEvaluation =
+    AttributionRiskEvaluation(
+        riskScore = riskScore,
+        riskLevel = riskLevel,
+        contributions = featureContributions,
+        confirmed = reachable && isMock == false && !usedMockFallback,
+    )
 
 private suspend fun refreshRemoteFeatureEvaluateStatus(
     application: com.rehealth.genie.ReHealthApplication,

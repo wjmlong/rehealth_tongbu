@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "active_work_id": "restore-demo-attribution-live-data-20260722",
+  "works": {
+    "restore-demo-attribution-live-data-20260722": {
+      "work_id": "restore-demo-attribution-live-data-20260722",
+      "active_plan": ".omo/plans/restore-demo-attribution-live-data.md",
+      "plan_name": "restore-demo-attribution-live-data",
+      "session_ids": ["codex:restore-demo-attribution-live-data-20260722"],
+      "status": "active",
+      "worktree_path": "D:\\rehealthAI"
+    }
+  }
+}

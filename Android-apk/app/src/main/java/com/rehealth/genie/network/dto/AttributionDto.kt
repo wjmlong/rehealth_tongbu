@@ -58,6 +58,10 @@ data class AttributionInterventionEffectDto(
     @SerializedName("att_ci_upper") val attCiUpper: Double? = null,
     @SerializedName("att_p_value") val attPValue: Double? = null,
     @SerializedName("att_significant") val attSignificant: Boolean? = null,
+    @SerializedName("att_available") val attAvailable: Boolean? = null,
+    @SerializedName("att_unavailable_reason") val attUnavailableReason: String? = null,
+    @SerializedName("intervention_days") val interventionDays: Int? = null,
+    @SerializedName("intervention_data_sufficient") val interventionDataSufficient: Boolean? = null,
 )
 
 data class AttributionUserReportDto(
@@ -71,6 +75,11 @@ data class AttributionReportsDto(
 )
 
 data class IndividualAttributionResponseDto(
+    @SerializedName("status") val status: String? = null,
+    @SerializedName("history_days") val historyDays: Int? = null,
+    @SerializedName("min_history_days") val minHistoryDays: Int? = null,
+    @SerializedName("intervention_days") val interventionDays: Int? = null,
+    @SerializedName("intervention_data_sufficient") val interventionDataSufficient: Boolean? = null,
     @SerializedName("current_state") val currentState: AttributionCurrentStateDto? = null,
     @SerializedName("forecast") val forecast: AttributionForecastDto? = null,
     @SerializedName("intervention_effect") val interventionEffect: AttributionInterventionEffectDto? = null,

@@ -174,6 +174,9 @@ class RemotePhmService(
             throw IllegalStateException(error.message ?: "归因服务暂时不可用，请稍后重试。", error)
         }
         return IndividualAttributionResult(
+            status = response.status,
+            historyDays = response.historyDays,
+            minHistoryDays = response.minHistoryDays,
             currentRiskScore = response.currentState?.riskScore,
             riskLevel = response.currentState?.riskLevel,
             trend = response.currentState?.trend,
@@ -185,6 +188,11 @@ class RemotePhmService(
             attCiUpper = response.interventionEffect?.attCiUpper,
             attPValue = response.interventionEffect?.attPValue,
             attSignificant = response.interventionEffect?.attSignificant,
+            attAvailable = response.interventionEffect?.attAvailable,
+            attUnavailableReason = response.interventionEffect?.attUnavailableReason,
+            interventionDays = response.interventionEffect?.interventionDays ?: response.interventionDays,
+            interventionDataSufficient = response.interventionEffect?.interventionDataSufficient
+                ?: response.interventionDataSufficient,
             headline = response.reports?.user?.headline,
             body = response.reports?.user?.body,
             advice = response.reports?.user?.advice,
