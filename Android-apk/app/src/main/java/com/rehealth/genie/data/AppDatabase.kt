@@ -61,22 +61,24 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         private val Migration3To4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS cvd_risk_history (
-                        user_id TEXT NOT NULL,
-                        evaluated_on TEXT NOT NULL,
-                        risk_score REAL NOT NULL,
-                        risk_level TEXT,
-                        evaluated_at INTEGER NOT NULL,
-                        PRIMARY KEY(user_id, evaluated_on)
-                    )
-                    """.trimIndent(),
-                )
-                db.execSQL(
-                    "CREATE INDEX IF NOT EXISTS index_cvd_risk_history_user_day " +
-                        "ON cvd_risk_history(user_id, evaluated_on)",
-                )
+                val tables = buildSet {
+                    db.query("SELECT name FROM sqlite_master WHERE type = 'table'").use { cursor ->
+                        val nameIndex = cursor.getColumnIndex("name")
+                        while (cursor.moveToNext()) {
+                            add(cursor.getString(nameIndex))
+                        }
+                    }
+                }
+                VersionThreeSchemaSql.forExistingTables(tables).forEach(db::execSQL)
+                val columns = buildSet {
+                    db.query("PRAGMA table_info(cvd_risk_history)").use { cursor ->
+                        val nameIndex = cursor.getColumnIndex("name")
+                        while (cursor.moveToNext()) {
+                            add(cursor.getString(nameIndex))
+                        }
+                    }
+                }
+                RiskHistoryMigrationSql.forColumns(columns).forEach(db::execSQL)
             }
         }
 

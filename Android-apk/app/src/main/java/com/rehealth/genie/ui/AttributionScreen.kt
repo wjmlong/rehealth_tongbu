@@ -3,6 +3,7 @@ package com.rehealth.genie.ui
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,6 +21,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -56,22 +59,23 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rehealth.genie.BuildConfig
 import com.rehealth.genie.ReHealthApplication
+import com.rehealth.genie.network.PatientProfilePayload
 import com.rehealth.genie.phm.AttributionHistoryPoint
 import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.RingUiState
-import com.rehealth.genie.ui.theme.Canvas as AppCanvas
-import com.rehealth.genie.ui.theme.Ink
-import com.rehealth.genie.ui.theme.Line
-import com.rehealth.genie.ui.theme.Mint
-import com.rehealth.genie.ui.theme.MintSoft
-import com.rehealth.genie.ui.theme.Muted
+import com.rehealth.genie.ui.theme.AttributionDimensions as Dimensions
+import com.rehealth.genie.ui.theme.AttributionMotion as Motion
+import com.rehealth.genie.ui.theme.AttributionOpacity as Opacity
+import com.rehealth.genie.ui.theme.AttributionPalette as Palette
+import com.rehealth.genie.ui.theme.AttributionTypography as Type
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.util.Date
@@ -136,6 +140,7 @@ fun AttributionScreen(
     }
 
     val remote = refreshState.data ?: AttributionRemoteData(emptyList(), null)
+    val attributionProfile = AttributionDataProvenance.trustedProfile(ringState.patientMvp)
     val uiState = AttributionUiMapper.map(
         AttributionUiInput(
             period = selectedPeriod,
@@ -157,7 +162,7 @@ fun AttributionScreen(
                 )
             },
             allowDebugReplay = BuildConfig.DEBUG,
-            factorValues = attributionFactorValues(ringState),
+            factorValues = attributionFactorValues(ringState, attributionProfile),
             interventions = ringState.patientMvp?.interventionPlan.orEmpty().map { intervention ->
                 AttributionInterventionInput(
                     id = intervention.id,
@@ -188,23 +193,23 @@ private fun AttributionContent(
     onRetry: () -> Unit,
 ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize().background(AppCanvas).statusBarsPadding(),
-        contentPadding = PaddingValues(18.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxSize().background(Palette.Page).statusBarsPadding(),
+        contentPadding = PaddingValues(Dimensions.ScreenPadding),
+        verticalArrangement = Arrangement.spacedBy(Dimensions.SectionGap),
     ) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("健康归因", color = Ink, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+                    Text("健康归因", color = Palette.TextPrimary, style = Type.PageTitle)
                     Text(
                         "个人改善路径 · 近 ${state.period.selectorLabel}",
-                        color = Muted,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 4.dp),
+                        color = Palette.TextSecondary,
+                        style = Type.PageSubtitle,
+                        modifier = Modifier.padding(top = Dimensions.PageSubtitleTop),
                     )
                 }
                 IconButton(onClick = onRetry) {
-                    Icon(Icons.Outlined.Refresh, "刷新归因数据", tint = Mint)
+                    Icon(Icons.Outlined.Refresh, "刷新归因数据", tint = Palette.Accent)
                 }
             }
         }
@@ -229,16 +234,20 @@ private fun AttributionContent(
         item { AttributionPlanCard(state.interventions, feedbackViewModel) }
         item {
             Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
-                    .background(MintSoft).padding(14.dp),
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(Dimensions.DisclaimerRadius))
+                    .background(Palette.AccentSoft).padding(Dimensions.DisclaimerPadding),
             ) {
-                Icon(Icons.Outlined.Shield, null, tint = Mint, modifier = Modifier.size(18.dp))
+                Icon(
+                    Icons.Outlined.Shield,
+                    null,
+                    tint = Palette.Accent,
+                    modifier = Modifier.size(Dimensions.DisclaimerIcon),
+                )
                 Text(
-                    "归因结果仅用于健康管理参考，不代表医学诊断，也不能替代医生建议。",
-                    color = Muted,
-                    fontSize = 11.sp,
-                    lineHeight = 17.sp,
-                    modifier = Modifier.padding(start = 8.dp),
+                    "归因结果仅用于健康管理参考。\n不代表医学诊断，也不能替代医生建议。",
+                    color = Palette.TextSecondary,
+                    style = Type.Body,
+                    modifier = Modifier.weight(1f).padding(start = Dimensions.DisclaimerIconGap),
                 )
             }
         }
@@ -251,23 +260,27 @@ private fun AttributionPeriodSelector(
     onSelected: (AttributionPeriod) -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-            .background(Color.White).padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(Dimensions.SelectorRadius))
+            .background(Palette.Surface).padding(Dimensions.SelectorPadding).selectableGroup(),
+        horizontalArrangement = Arrangement.spacedBy(Dimensions.SelectorGap),
     ) {
         AttributionPeriod.entries.forEach { period ->
             val active = selected == period
             Box(
-                modifier = Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
-                    .background(if (active) Mint else Color.Transparent)
-                    .clickable { onSelected(period) }
-                    .padding(vertical = 9.dp),
+                modifier = Modifier.weight(1f).clip(RoundedCornerShape(Dimensions.SelectorItemRadius))
+                    .background(if (active) Palette.Accent else Palette.Transparent)
+                    .selectable(
+                        selected = active,
+                        role = Role.Tab,
+                        onClick = { onSelected(period) },
+                    )
+                    .padding(vertical = Dimensions.SelectorItemVerticalPadding),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     period.selectorLabel,
-                    color = if (active) Color.White else Muted,
-                    fontSize = 12.sp,
+                    color = if (active) Palette.OnAccent else Palette.TextSecondary,
+                    style = Type.Selector,
                     fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
                 )
             }
@@ -283,22 +296,25 @@ private fun AttributionRefreshBanner(
     onRetry: () -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp))
-            .background(if (canRetry) Color(0xFFFFF4E4) else MintSoft)
-            .padding(horizontal = 12.dp, vertical = 9.dp),
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(Dimensions.BannerRadius))
+            .background(if (canRetry) Palette.SurfaceWarning else Palette.AccentSoft)
+            .padding(
+                horizontal = Dimensions.BannerHorizontalPadding,
+                vertical = Dimensions.BannerVerticalPadding,
+            ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (loading) {
             CircularProgressIndicator(
-                modifier = Modifier.size(16.dp),
-                color = Mint,
-                strokeWidth = 2.dp,
+                modifier = Modifier.size(Dimensions.BannerSpinner),
+                color = Palette.Accent,
+                strokeWidth = Dimensions.BannerSpinnerStroke,
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(Dimensions.BannerSpinnerGap))
         }
-        Text(message, color = Muted, fontSize = 11.sp, modifier = Modifier.weight(1f))
+        Text(message, color = Palette.TextSecondary, style = Type.Body, modifier = Modifier.weight(1f))
         if (canRetry) {
-            TextButton(onClick = onRetry) { Text("重试", color = Mint, fontSize = 11.sp) }
+            TextButton(onClick = onRetry) { Text("重试", color = Palette.Accent, style = Type.Body) }
         }
     }
 }
@@ -308,55 +324,55 @@ private fun AttributionSummaryCard(state: AttributionUiState) {
     AttributionCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("健康改善", color = Ink, fontWeight = FontWeight.SemiBold)
+                Text("健康改善得分", color = Palette.TextPrimary, style = Type.CardTitle)
                 val improvementColor = when {
-                    state.improvementPoints == null -> Muted
-                    state.improvementPoints >= 0.0 -> Mint
-                    else -> Color(0xFFE36B61)
+                    state.improvementPoints == null -> Palette.TextSecondary
+                    state.improvementPoints >= 0.0 -> Palette.Accent
+                    else -> Palette.ImprovementWorsening
                 }
                 Text(
                     if (state.improvementPoints == null) "--" else "${state.improvementText} 个百分点",
                     color = improvementColor,
-                    fontSize = 27.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 6.dp),
+                    style = Type.SummaryScore,
+                    modifier = Modifier.padding(top = Dimensions.SummaryScoreTop),
                 )
                 Text(
                     state.improvementMessage,
-                    color = Muted,
-                    fontSize = 10.sp,
-                    modifier = Modifier.padding(top = 3.dp),
+                    color = Palette.TextSecondary,
+                    style = Type.Detail,
+                    modifier = Modifier.padding(top = Dimensions.SummarySupportingTop),
                 )
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("当前风险", color = Muted, fontSize = 11.sp)
+                Text("当前风险", color = Palette.TextSecondary, style = Type.Body)
                 Text(
                     state.currentRiskText,
-                    color = Ink,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 4.dp),
+                    color = Palette.TextPrimary,
+                    style = Type.RiskScore,
+                    modifier = Modifier.padding(top = Dimensions.PageSubtitleTop),
                 )
                 Text(
                     riskLevelLabel(state.riskLevel),
-                    color = Mint,
-                    fontSize = 10.sp,
-                    modifier = Modifier.padding(top = 3.dp),
+                    color = Palette.Accent,
+                    style = Type.Detail,
+                    modifier = Modifier.padding(top = Dimensions.SummarySupportingTop),
                 )
             }
         }
         if (state.selectedHistory.size >= 2) {
             AttributionHistoryChart(
                 history = state.selectedHistory,
-                modifier = Modifier.fillMaxWidth().height(76.dp).padding(top = 10.dp),
+                modifier = Modifier.fillMaxWidth().height(Dimensions.HistoryChartHeight)
+                    .padding(top = Dimensions.HistoryChartTop),
             )
         } else {
             Box(
-                modifier = Modifier.fillMaxWidth().height(60.dp).padding(top = 10.dp)
-                    .clip(RoundedCornerShape(12.dp)).background(Color(0xFFF7FBFA)),
+                modifier = Modifier.fillMaxWidth().height(Dimensions.HistoryEmptyHeight)
+                    .padding(top = Dimensions.HistoryChartTop)
+                    .clip(RoundedCornerShape(Dimensions.ContentRadius)).background(Palette.SurfaceSubtle),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("已确认风险趋势正在积累", color = Muted, fontSize = 11.sp)
+                Text("已确认风险趋势正在积累", color = Palette.TextSecondary, style = Type.Body)
             }
         }
     }
@@ -370,8 +386,12 @@ private fun AttributionPiasCard(
     AttributionCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("个人风险趋势", color = Ink, fontWeight = FontWeight.SemiBold)
-                Text("PIAS 固定 30 天预测 · 执行计划与维持现状", color = Muted, fontSize = 10.sp)
+                Text("个人风险趋势", color = Palette.TextPrimary, style = Type.CardTitle)
+                Text(
+                    "PIAS 固定 30 天预测 · 执行计划与维持现状",
+                    color = Palette.TextSecondary,
+                    style = Type.Detail,
+                )
             }
             Text(
                 when (pias) {
@@ -381,10 +401,13 @@ private fun AttributionPiasCard(
                     AttributionPiasUiState.Empty -> "待生成"
                     AttributionPiasUiState.Loading -> "计算中"
                 },
-                color = Mint,
-                fontSize = 10.sp,
-                modifier = Modifier.clip(CircleShape).background(MintSoft)
-                    .padding(horizontal = 9.dp, vertical = 5.dp),
+                color = Palette.Accent,
+                style = Type.Detail,
+                modifier = Modifier.clip(CircleShape).background(Palette.AccentSoft)
+                    .padding(
+                        horizontal = Dimensions.StatusHorizontalPadding,
+                        vertical = Dimensions.StatusVerticalPadding,
+                    ),
             )
         }
         when (pias) {
@@ -393,18 +416,18 @@ private fun AttributionPiasCard(
             is AttributionPiasUiState.Failed -> {
                 AttributionCompactMessage(pias.message)
                 TextButton(onClick = onRetry, modifier = Modifier.align(Alignment.End)) {
-                    Text("重新计算", color = Mint, fontSize = 11.sp)
+                    Text("重新计算", color = Palette.Accent, style = Type.Body)
                 }
             }
             is AttributionPiasUiState.Accumulating -> {
                 AttributionCompactMessage(
-                    "已有 ${pias.historyDays} 天记录，至少需要 ${pias.minHistoryDays} 天才能生成完整预测。",
+                    "已有 ${pias.historyDays} 天记录，还需 ${pias.remainingDays} 天才能生成完整预测。",
                 )
                 LinearProgressIndicator(
                     progress = { (pias.historyDays.toFloat() / pias.minHistoryDays.coerceAtLeast(1)).coerceIn(0f, 1f) },
-                    modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
-                    color = Mint,
-                    trackColor = MintSoft,
+                    modifier = Modifier.fillMaxWidth().height(Dimensions.AccumulationProgressHeight).clip(CircleShape),
+                    color = Palette.Accent,
+                    trackColor = Palette.AccentSoft,
                 )
             }
             is AttributionPiasUiState.Ready -> AttributionPiasReadyContent(pias)
@@ -417,39 +440,40 @@ private fun AttributionPiasReadyContent(pias: AttributionPiasUiState.Ready) {
     if (pias.forecast.chartAvailable) {
         AttributionForecastChart(
             forecast = pias.forecast,
-            modifier = Modifier.fillMaxWidth().height(150.dp).padding(top = 12.dp),
+            modifier = Modifier.fillMaxWidth().height(Dimensions.ForecastChartHeight)
+                .padding(top = Dimensions.ForecastChartTop),
         )
     } else {
         AttributionCompactMessage("PIAS 已完成分析，本次未返回可绘制的预测序列。")
     }
     Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = Dimensions.LegendTop),
+        horizontalArrangement = Arrangement.spacedBy(Dimensions.LegendGap),
     ) {
-        AttributionLegend(Color(0xFFF28B82), "维持现状")
-        AttributionLegend(Mint, "执行计划")
-        AttributionLegend(Color(0xFF9BAFAA), "95% 参考区间")
+        AttributionLegend(Palette.ForecastNoAction, "维持现状")
+        AttributionLegend(Palette.Accent, "执行计划")
+        AttributionLegend(Palette.ForecastInterval, "95% 参考区间")
     }
     Row(
-        Modifier.fillMaxWidth().padding(top = 14.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        Modifier.fillMaxWidth().padding(top = Dimensions.ForecastMetricsTop),
+        horizontalArrangement = Arrangement.spacedBy(Dimensions.ForecastMetricGap),
     ) {
         AttributionForecastMetric(
             label = "维持现状",
             value = pias.forecast.d30NoAction.asPercent(),
-            color = Color(0xFFF28B82),
+            color = Palette.ForecastNoAction,
             modifier = Modifier.weight(1f),
         )
         AttributionForecastMetric(
             label = "执行计划",
             value = pias.forecast.d30WithPlan.asPercent(),
-            color = Mint,
+            color = Palette.Accent,
             modifier = Modifier.weight(1f),
         )
         AttributionForecastMetric(
             label = "预计降低",
             value = pias.forecast.riskReduction.asPercent(signed = true),
-            color = Color(0xFF4E7BFF),
+            color = Palette.ForecastReduction,
             modifier = Modifier.weight(1f),
         )
     }
@@ -463,7 +487,12 @@ private fun AttributionPiasReadyContent(pias: AttributionPiasUiState.Ready) {
         }
         is AttributionAttUiState.Unavailable -> "个体 ATT 暂不可用：${att.reason}"
     }
-    Text(attText, color = Muted, fontSize = 10.sp, lineHeight = 15.sp, modifier = Modifier.padding(top = 11.dp))
+    Text(
+        attText,
+        color = Palette.TextSecondary,
+        style = Type.Detail,
+        modifier = Modifier.padding(top = Dimensions.AttTop),
+    )
 }
 
 @Composable
@@ -471,40 +500,60 @@ private fun AttributionActivityCard(activity: AttributionActivityUi?) {
     AttributionCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("今日行为记录", color = Ink, fontWeight = FontWeight.SemiBold)
-                Text("本机 Room 中最近一次戒指活动", color = Muted, fontSize = 10.sp)
+                Text("今日行为记录", color = Palette.TextPrimary, style = Type.CardTitle)
+                Text("本机 Room 中最近一次戒指活动", color = Palette.TextSecondary, style = Type.Detail)
             }
             Text(
                 if (activity == null) "待记录" else "已记录",
-                color = Mint,
-                fontSize = 10.sp,
-                modifier = Modifier.clip(CircleShape).background(MintSoft)
-                    .padding(horizontal = 9.dp, vertical = 5.dp),
+                color = Palette.Accent,
+                style = Type.Detail,
+                modifier = Modifier.clip(CircleShape).background(Palette.AccentSoft)
+                    .padding(
+                        horizontal = Dimensions.StatusHorizontalPadding,
+                        vertical = Dimensions.StatusVerticalPadding,
+                    ),
             )
         }
         if (activity == null) {
             AttributionCompactMessage("暂无可展示的真实活动记录；同步 MR11 戒指后自动更新。")
         } else {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-                    .clip(RoundedCornerShape(14.dp)).background(Color(0xFFFFF8EE)).padding(12.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = Dimensions.ActivityContentTop)
+                    .clip(RoundedCornerShape(Dimensions.ActivityContentRadius))
+                    .background(Palette.ActivitySurface).padding(Dimensions.ActivityContentPadding),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
-                    Modifier.size(42.dp).clip(CircleShape).background(Color(0xFFFFE7C6)),
+                    Modifier.size(Dimensions.ActivityBadgeSize).clip(CircleShape)
+                        .background(Palette.ActivityBadge),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("行", color = Color(0xFFE88625), fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text("行", color = Palette.ActivityAccent, style = Type.ActivityGlyph)
                 }
-                Column(Modifier.weight(1f).padding(start = 10.dp)) {
-                    Text(activityTypeLabel(activity.activityType), color = Ink, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    Text(formatActivityTime(activity.startedAt), color = Muted, fontSize = 9.sp, modifier = Modifier.padding(top = 3.dp))
+                Column(Modifier.weight(1f).padding(start = Dimensions.ActivityTextGap)) {
+                    Text(
+                        activityTypeLabel(activity.activityType),
+                        color = Palette.TextPrimary,
+                        style = Type.Selector,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        formatActivityTime(activity.startedAt),
+                        color = Palette.TextSecondary,
+                        style = Type.Micro,
+                        modifier = Modifier.padding(top = Dimensions.ActivitySupportingTop),
+                    )
                 }
-                Text(activity.provenanceLabel, color = Mint, fontSize = 9.sp, textAlign = TextAlign.End)
+                Text(
+                    activity.provenanceLabel,
+                    color = Palette.Accent,
+                    style = Type.Micro,
+                    textAlign = TextAlign.End,
+                )
             }
             Row(
-                Modifier.fillMaxWidth().padding(top = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                Modifier.fillMaxWidth().padding(top = Dimensions.ActivityMetricsTop),
+                horizontalArrangement = Arrangement.spacedBy(Dimensions.ActivityMetricGap),
             ) {
                 AttributionActivityMetric("步数", "${activity.steps}", Modifier.weight(1f))
                 AttributionActivityMetric("时长", "${activity.durationMinutes} 分", Modifier.weight(1f))
@@ -522,28 +571,34 @@ private fun AttributionActivityCard(activity: AttributionActivityUi?) {
 @Composable
 private fun AttributionFactorsCard(groups: List<AttributionFactorGroupUi>) {
     var expandedFactor by remember { mutableStateOf<String?>(null) }
-    val maxContribution = groups.flatMap { it.factors }
-        .mapNotNull { it.contribution }
-        .maxOfOrNull { kotlin.math.abs(it) }
+    val factors = groups.flatMap { it.factors }
+    val absoluteContributions = factors.mapNotNull { factor ->
+        factor.contribution?.let { contribution -> kotlin.math.abs(contribution) }
+    }
+    val maxContribution = absoluteContributions.maxOrNull()
         ?.takeIf { it > 0.0 }
         ?: 1.0
+    val totalContribution = absoluteContributions.sum().takeIf { it > 0.0 }
+    val ranks = factors.mapIndexed { index, factor -> factor.key to index + 1 }.toMap()
     AttributionCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("贡献因素", color = Ink, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            Text("16 项 · 点击查看依据", color = Muted, fontSize = 10.sp)
+            Text("贡献因素", color = Palette.TextPrimary, style = Type.CardTitle, modifier = Modifier.weight(1f))
+            Text("16 项 · 点击查看依据", color = Palette.TextSecondary, style = Type.Detail)
         }
         groups.forEach { group ->
             Text(
                 group.title,
-                color = Mint,
-                fontSize = 11.sp,
+                color = Palette.Accent,
+                style = Type.Body,
                 fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 14.dp),
+                modifier = Modifier.padding(top = Dimensions.FactorGroupTop),
             )
             group.factors.forEach { factor ->
                 AttributionFactorRow(
+                    rank = ranks.getValue(factor.key),
                     factor = factor,
                     maxContribution = maxContribution,
+                    totalContribution = totalContribution,
                     expanded = expandedFactor == factor.key,
                     onClick = {
                         expandedFactor = if (expandedFactor == factor.key) null else factor.key
@@ -556,50 +611,88 @@ private fun AttributionFactorsCard(groups: List<AttributionFactorGroupUi>) {
 
 @Composable
 private fun AttributionFactorRow(
+    rank: Int,
     factor: AttributionFactorUi,
     maxContribution: Double,
+    totalContribution: Double?,
     expanded: Boolean,
     onClick: () -> Unit,
 ) {
     val contribution = factor.contribution
     val fraction by animateFloatAsState(
         targetValue = contribution?.let { (kotlin.math.abs(it) / maxContribution).toFloat().coerceIn(0f, 1f) } ?: 0f,
-        animationSpec = tween(650),
+        animationSpec = tween(Motion.ProgressMillis),
         label = "attribution-${factor.key}",
     )
     val contributionColor = when {
-        contribution == null -> Muted
-        contribution >= 0.0 -> Color(0xFFE39A22)
-        else -> Mint
+        contribution == null -> Palette.TextSecondary
+        contribution >= 0.0 -> Palette.ContributionRisk
+        else -> Palette.Accent
+    }
+    val contributionScore = contribution?.let { String.format(Locale.US, "%+.3f", it) } ?: "--"
+    val contributionShare = if (contribution == null || totalContribution == null) {
+        "贡献占比 --"
+    } else {
+        val percentage = kotlin.math.abs(contribution) / totalContribution * 100.0
+        "绝对贡献占比 ${String.format(Locale.US, "%.1f%%", percentage)}"
     }
     Column(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(top = 10.dp),
+        modifier = Modifier.fillMaxWidth()
+            .semantics {
+                stateDescription = if (expanded) "已展开" else "已收起"
+            }
+            .clickable(role = Role.Button, onClickLabel = if (expanded) "收起依据" else "查看依据", onClick = onClick)
+            .padding(top = Dimensions.FactorRowTop),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(factor.label, color = Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                Text(factor.value ?: "当前值未提供", color = Muted, fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp))
+            Box(
+                Modifier.size(Dimensions.FactorRankSize).clip(CircleShape).background(Palette.AccentSoft),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(rank.toString(), color = Palette.Accent, style = Type.Selector, fontWeight = FontWeight.Bold)
+            }
+            Column(Modifier.weight(1f).padding(start = Dimensions.FactorContentGap)) {
+                Text(factor.label, color = Palette.TextPrimary, style = Type.FactorTitle)
+                Text(
+                    factor.value ?: "当前值未提供",
+                    color = Palette.TextSecondary,
+                    style = Type.Detail,
+                    modifier = Modifier.padding(top = Dimensions.FactorSupportingTop),
+                )
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    contribution?.let { String.format(Locale.US, "%+.3f", it) } ?: "未提供",
+                    contributionScore,
                     color = contributionColor,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = Type.FactorScore,
                 )
-                Text(if (expanded) "收起" else "详情", color = Muted, fontSize = 9.sp, modifier = Modifier.padding(top = 3.dp))
+                Text(
+                    contributionShare,
+                    color = Palette.TextSecondary,
+                    style = Type.Micro,
+                    modifier = Modifier.padding(top = Dimensions.FactorSupportingTop),
+                )
+                Text(
+                    if (expanded) "收起" else "详情",
+                    color = Palette.TextSecondary,
+                    style = Type.Micro,
+                    modifier = Modifier.padding(top = Dimensions.FactorSupportingTop),
+                )
             }
         }
         LinearProgressIndicator(
             progress = { fraction },
-            modifier = Modifier.fillMaxWidth().padding(top = 7.dp).height(5.dp).clip(CircleShape),
+            modifier = Modifier.fillMaxWidth()
+                .padding(start = Dimensions.FactorIndent, top = Dimensions.FactorBarTop)
+                .height(Dimensions.FactorBarHeight).clip(CircleShape),
             color = contributionColor,
-            trackColor = Color(0xFFF0F5F3),
+            trackColor = Palette.FactorTrack,
         )
         if (expanded) {
             Column(
-                Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFF7FBFA)).padding(10.dp),
+                Modifier.fillMaxWidth().padding(start = Dimensions.FactorIndent, top = Dimensions.FactorDetailTop)
+                    .clip(RoundedCornerShape(Dimensions.ContentRadius))
+                    .background(Palette.SurfaceSubtle).padding(Dimensions.FactorDetailPadding),
             ) {
                 Text(
                     if (contribution == null) {
@@ -607,14 +700,23 @@ private fun AttributionFactorRow(
                     } else {
                         "模型返回贡献值 ${String.format(Locale.US, "%+.3f", contribution)}；正值表示风险方向，负值表示保护方向。"
                     },
-                    color = Ink,
-                    fontSize = 10.sp,
-                    lineHeight = 15.sp,
+                    color = Palette.TextPrimary,
+                    style = Type.Detail,
                 )
-                Text("数据来源：已确认云端风险评估与本机健康档案。", color = Muted, fontSize = 9.sp, modifier = Modifier.padding(top = 5.dp))
+                Text(
+                    "数据来源：已确认云端风险评估与本机健康档案。",
+                    color = Palette.TextSecondary,
+                    style = Type.Micro,
+                    modifier = Modifier.padding(top = Dimensions.FactorEvidenceTop),
+                )
             }
         }
-        HorizontalDivider(color = Line, modifier = Modifier.padding(top = 10.dp))
+        if (rank != AttributionUiMapper.CANONICAL_FACTOR_KEYS.size) {
+            HorizontalDivider(
+                color = Palette.Border,
+                modifier = Modifier.padding(start = Dimensions.FactorIndent, top = Dimensions.FactorDividerTop),
+            )
+        }
     }
 }
 
@@ -628,10 +730,10 @@ private fun AttributionPlanCard(
     AttributionCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("个性化干预计划", color = Ink, fontWeight = FontWeight.SemiBold)
-                Text("仅展示带真实服务端 ID 的计划", color = Muted, fontSize = 10.sp)
+                Text("个性化干预计划", color = Palette.TextPrimary, style = Type.CardTitle)
+                Text("仅展示带真实服务端 ID 的计划", color = Palette.TextSecondary, style = Type.Detail)
             }
-            Text("${interventions.size} 项", color = Mint, fontSize = 11.sp)
+            Text("${interventions.size} 项", color = Palette.Accent, style = Type.Body)
         }
         if (interventions.isEmpty()) {
             AttributionCompactMessage("暂无可展示的服务端干预计划；本地启发式建议不会显示为真实计划。")
@@ -648,19 +750,25 @@ private fun AttributionPlanCard(
                     )
                 }
                 feedbackState.message?.let { message ->
-                    Text(message, color = Mint, fontSize = 10.sp, modifier = Modifier.padding(top = 8.dp))
+                    Text(
+                        message,
+                        color = Palette.Accent,
+                        style = Type.Detail,
+                        modifier = Modifier.padding(top = Dimensions.PlanFeedbackTop),
+                    )
                 }
             }
             Button(
                 onClick = { expanded = !expanded },
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(46.dp),
-                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = Dimensions.PlanButtonTop)
+                    .height(Dimensions.PlanButtonHeight),
+                shape = RoundedCornerShape(Dimensions.PlanButtonRadius),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (expanded) MintSoft else Mint,
-                    contentColor = if (expanded) Mint else Color.White,
+                    containerColor = if (expanded) Palette.AccentSoft else Palette.Accent,
+                    contentColor = if (expanded) Palette.Accent else Palette.OnAccent,
                 ),
             ) {
-                Text(if (expanded) "收起干预计划" else "查看详细干预计划")
+                Text(if (expanded) "收起干预计划" else "查看详细干预计划", style = Type.ButtonLabel)
             }
         }
     }
@@ -673,23 +781,51 @@ private fun AttributionInterventionRow(
     enabled: Boolean,
     onFeedback: (String) -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth().padding(top = 12.dp)) {
+    Column(Modifier.fillMaxWidth().padding(top = Dimensions.InterventionTop)) {
         Row(verticalAlignment = Alignment.Top) {
-            Box(Modifier.size(27.dp).clip(CircleShape).background(MintSoft), contentAlignment = Alignment.Center) {
-                Text(number.toString().padStart(2, '0'), color = Mint, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            Box(
+                Modifier.size(Dimensions.InterventionRankSize).clip(CircleShape).background(Palette.AccentSoft),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    number.toString().padStart(2, '0'),
+                    color = Palette.Accent,
+                    style = Type.Micro,
+                    fontWeight = FontWeight.Bold,
+                )
             }
-            Column(Modifier.weight(1f).padding(start = 9.dp)) {
-                Text(intervention.title, color = Ink, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                intervention.action?.let { Text(it, color = Ink, fontSize = 10.sp, lineHeight = 15.sp, modifier = Modifier.padding(top = 3.dp)) }
+            Column(Modifier.weight(1f).padding(start = Dimensions.InterventionContentGap)) {
+                Text(
+                    intervention.title,
+                    color = Palette.TextPrimary,
+                    style = Type.Selector,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                intervention.action?.let {
+                    Text(
+                        it,
+                        color = Palette.TextPrimary,
+                        style = Type.Detail,
+                        modifier = Modifier.padding(top = Dimensions.InterventionSupportingTop),
+                    )
+                }
                 val detail = listOfNotNull(intervention.duration, intervention.reason).joinToString(" · ")
                 if (detail.isNotBlank()) {
-                    Text(detail, color = Muted, fontSize = 9.sp, lineHeight = 14.sp, modifier = Modifier.padding(top = 3.dp))
+                    Text(
+                        detail,
+                        color = Palette.TextSecondary,
+                        style = Type.Micro,
+                        modifier = Modifier.padding(top = Dimensions.InterventionSupportingTop),
+                    )
                 }
             }
         }
         Row(
-            Modifier.fillMaxWidth().padding(start = 36.dp, top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            Modifier.fillMaxWidth().padding(
+                start = Dimensions.InterventionActionIndent,
+                top = Dimensions.InterventionActionsTop,
+            ),
+            horizontalArrangement = Arrangement.spacedBy(Dimensions.InterventionActionGap),
         ) {
             AttributionFeedbackButton(
                 label = "完成",
@@ -711,7 +847,7 @@ private fun AttributionInterventionRow(
                 onClick = { onFeedback("skipped") },
             )
         }
-        HorizontalDivider(color = Line, modifier = Modifier.padding(top = 10.dp))
+        HorizontalDivider(color = Palette.Border, modifier = Modifier.padding(top = Dimensions.InterventionDividerTop))
     }
 }
 
@@ -726,21 +862,21 @@ private fun AttributionFeedbackButton(
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.height(32.dp),
-        contentPadding = PaddingValues(horizontal = 5.dp, vertical = 0.dp),
+        modifier = modifier.height(Dimensions.FeedbackButtonHeight),
+        contentPadding = PaddingValues(horizontal = Dimensions.FeedbackButtonHorizontalPadding),
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (primary) Mint else Color.White,
-            contentColor = if (primary) Color.White else Mint,
+            containerColor = if (primary) Palette.Accent else Palette.Surface,
+            contentColor = if (primary) Palette.OnAccent else Palette.Accent,
         ),
     ) {
         if (primary) {
-            Icon(Icons.Outlined.Check, null, modifier = Modifier.size(12.dp))
-            Spacer(Modifier.width(3.dp))
+            Icon(Icons.Outlined.Check, null, modifier = Modifier.size(Dimensions.FeedbackIconSize))
+            Spacer(Modifier.width(Dimensions.FeedbackIconGap))
         } else if (label == "不适用") {
-            Icon(Icons.Outlined.Close, null, modifier = Modifier.size(12.dp))
-            Spacer(Modifier.width(3.dp))
+            Icon(Icons.Outlined.Close, null, modifier = Modifier.size(Dimensions.FeedbackIconSize))
+            Spacer(Modifier.width(Dimensions.FeedbackIconGap))
         }
-        Text(label, fontSize = 9.sp)
+        Text(label, style = Type.Micro)
     }
 }
 
@@ -748,11 +884,11 @@ private fun AttributionFeedbackButton(
 private fun AttributionCard(content: @Composable ColumnScope.() -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Line),
+        shape = RoundedCornerShape(Dimensions.CardRadius),
+        colors = CardDefaults.cardColors(containerColor = Palette.Surface),
+        border = BorderStroke(Dimensions.CardBorder, Palette.Border),
     ) {
-        Column(Modifier.padding(16.dp), content = content)
+        Column(Modifier.padding(Dimensions.CardPadding), content = content)
     }
 }
 
@@ -760,53 +896,82 @@ private fun AttributionCard(content: @Composable ColumnScope.() -> Unit) {
 private fun AttributionCompactMessage(message: String) {
     Text(
         message,
-        color = Muted,
-        fontSize = 11.sp,
-        lineHeight = 17.sp,
-        modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-            .clip(RoundedCornerShape(12.dp)).background(Color(0xFFF7FBFA)).padding(11.dp),
+        color = Palette.TextSecondary,
+        style = Type.Body,
+        modifier = Modifier.fillMaxWidth().padding(top = Dimensions.MessageTop)
+            .clip(RoundedCornerShape(Dimensions.ContentRadius))
+            .background(Palette.SurfaceSubtle).padding(Dimensions.MessagePadding),
     )
 }
 
 @Composable
 private fun AttributionLoadingMessage(message: String) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-            .clip(RoundedCornerShape(12.dp)).background(Color(0xFFF7FBFA)).padding(11.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = Dimensions.MessageTop)
+            .clip(RoundedCornerShape(Dimensions.ContentRadius))
+            .background(Palette.SurfaceSubtle).padding(Dimensions.MessagePadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CircularProgressIndicator(modifier = Modifier.size(17.dp), color = Mint, strokeWidth = 2.dp)
-        Text(message, color = Muted, fontSize = 11.sp, modifier = Modifier.padding(start = 9.dp))
+        CircularProgressIndicator(
+            modifier = Modifier.size(Dimensions.MessageSpinner),
+            color = Palette.Accent,
+            strokeWidth = Dimensions.MessageSpinnerStroke,
+        )
+        Text(
+            message,
+            color = Palette.TextSecondary,
+            style = Type.Body,
+            modifier = Modifier.padding(start = Dimensions.MessageSpinnerGap),
+        )
     }
 }
 
 @Composable
 private fun AttributionActivityMetric(label: String, value: String, modifier: Modifier) {
     Column(
-        modifier.clip(RoundedCornerShape(10.dp)).background(Color(0xFFF8FBFA)).padding(vertical = 7.dp),
+        modifier.clip(RoundedCornerShape(Dimensions.ActivityMetricRadius)).background(Palette.SurfaceMetric)
+            .padding(vertical = Dimensions.ActivityMetricVerticalPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(value, color = Ink, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-        Text(label, color = Muted, fontSize = 8.sp, modifier = Modifier.padding(top = 2.dp))
+        Text(value, color = Palette.TextPrimary, style = Type.Detail, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        Text(
+            label,
+            color = Palette.TextSecondary,
+            style = Type.MetricLabel,
+            modifier = Modifier.padding(top = Dimensions.ActivityMetricLabelTop),
+        )
     }
 }
 
 @Composable
 private fun AttributionLegend(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(7.dp).clip(CircleShape).background(color))
-        Text(label, color = Muted, fontSize = 9.sp, modifier = Modifier.padding(start = 4.dp))
+        Box(Modifier.size(Dimensions.LegendDot).clip(CircleShape).background(color))
+        Text(
+            label,
+            color = Palette.TextSecondary,
+            style = Type.Micro,
+            modifier = Modifier.padding(start = Dimensions.LegendLabelGap),
+        )
     }
 }
 
 @Composable
 private fun AttributionForecastMetric(label: String, value: String, color: Color, modifier: Modifier) {
     Column(
-        modifier.clip(RoundedCornerShape(12.dp)).background(color.copy(alpha = 0.08f))
-            .padding(horizontal = 9.dp, vertical = 8.dp),
+        modifier.clip(RoundedCornerShape(Dimensions.ContentRadius)).background(color.copy(alpha = Opacity.MetricTint))
+            .padding(
+                horizontal = Dimensions.ForecastMetricHorizontalPadding,
+                vertical = Dimensions.ForecastMetricVerticalPadding,
+            ),
     ) {
-        Text(label, color = Muted, fontSize = 9.sp)
-        Text(value, color = color, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 3.dp))
+        Text(label, color = Palette.TextSecondary, style = Type.Micro)
+        Text(
+            value,
+            color = color,
+            style = Type.ForecastMetric,
+            modifier = Modifier.padding(top = Dimensions.ForecastMetricValueTop),
+        )
     }
 }
 
@@ -818,16 +983,20 @@ private fun AttributionHistoryChart(history: List<AttributionHistoryPoint>, modi
         val minimum = values.minOrNull() ?: return@Canvas
         val maximum = values.maxOrNull() ?: return@Canvas
         val range = (maximum - minimum).coerceAtLeast(0.01f)
-        val top = 5.dp.toPx()
-        val bottom = size.height - 5.dp.toPx()
+        val top = Dimensions.HistoryChartInset.toPx()
+        val bottom = size.height - Dimensions.HistoryChartInset.toPx()
         val path = Path()
         values.forEachIndexed { index, value ->
             val x = size.width * index / values.lastIndex
             val y = bottom - ((value - minimum) / range) * (bottom - top)
             if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
-            drawCircle(Mint, radius = 3.dp.toPx(), center = Offset(x, y))
+            drawCircle(Palette.Accent, radius = Dimensions.HistoryChartDotRadius.toPx(), center = Offset(x, y))
         }
-        drawPath(path, Mint, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round))
+        drawPath(
+            path,
+            Palette.Accent,
+            style = Stroke(width = Dimensions.HistoryChartStroke.toPx(), cap = StrokeCap.Round),
+        )
     }
 }
 
@@ -847,10 +1016,10 @@ private fun AttributionForecastChart(forecast: AttributionForecastUi, modifier: 
         val padding = ((rawMaximum - rawMinimum) * 0.15).coerceAtLeast(0.01)
         val minimum = (rawMinimum - padding).coerceAtLeast(0.0)
         val maximum = (rawMaximum + padding).coerceAtMost(1.0).coerceAtLeast(minimum + 0.01)
-        val left = 8.dp.toPx()
-        val right = size.width - 8.dp.toPx()
-        val top = 8.dp.toPx()
-        val bottom = size.height - 8.dp.toPx()
+        val left = Dimensions.ForecastChartInset.toPx()
+        val right = size.width - Dimensions.ForecastChartInset.toPx()
+        val top = Dimensions.ForecastChartInset.toPx()
+        val bottom = size.height - Dimensions.ForecastChartInset.toPx()
         fun point(index: Int, value: Double): Offset {
             val x = left + (right - left) * index / (count - 1)
             val y = bottom - ((value - minimum) / (maximum - minimum)).toFloat() * (bottom - top)
@@ -858,7 +1027,12 @@ private fun AttributionForecastChart(forecast: AttributionForecastUi, modifier: 
         }
         repeat(4) { index ->
             val y = top + (bottom - top) * index / 3f
-            drawLine(Color(0xFFE7F0ED), Offset(left, y), Offset(right, y), 1.dp.toPx())
+            drawLine(
+                Palette.ChartGrid,
+                Offset(left, y),
+                Offset(right, y),
+                Dimensions.ForecastGridStroke.toPx(),
+            )
         }
         if (forecast.ciLower.size >= count && forecast.ciUpper.size >= count) {
             val confidencePath = Path()
@@ -872,24 +1046,26 @@ private fun AttributionForecastChart(forecast: AttributionForecastUi, modifier: 
                 confidencePath.lineTo(position.x, position.y)
             }
             confidencePath.close()
-            drawPath(confidencePath, Color(0xFF9BAFAA).copy(alpha = 0.16f))
+            drawPath(confidencePath, Palette.ForecastInterval.copy(alpha = Opacity.ForecastInterval))
         }
         fun drawSeries(values: List<Double>, color: Color, width: Float) {
             val path = Path()
             values.take(count).forEachIndexed { index, value ->
                 val position = point(index, value)
                 if (index == 0) path.moveTo(position.x, position.y) else path.lineTo(position.x, position.y)
-                drawCircle(color, radius = 2.6.dp.toPx(), center = position)
+                drawCircle(color, radius = Dimensions.ForecastDotRadius.toPx(), center = position)
             }
             drawPath(path, color, style = Stroke(width = width, cap = StrokeCap.Round))
         }
-        drawSeries(forecast.noAction, Color(0xFFF28B82), 2.dp.toPx())
-        drawSeries(forecast.withPlan, Mint, 2.5.dp.toPx())
+        drawSeries(forecast.noAction, Palette.ForecastNoAction, Dimensions.ForecastNoActionStroke.toPx())
+        drawSeries(forecast.withPlan, Palette.Accent, Dimensions.ForecastPlanStroke.toPx())
     }
 }
 
-private fun attributionFactorValues(state: RingUiState): Map<String, String> = buildMap {
-    val profile = state.patientMvp?.profile
+private fun attributionFactorValues(
+    state: RingUiState,
+    profile: PatientProfilePayload?,
+): Map<String, String> = buildMap {
     profile?.age?.let { put("age", "$it 岁") }
     profile?.gender?.let { gender ->
         put("gender", when (gender.lowercase()) { "male" -> "男"; "female" -> "女"; else -> gender })

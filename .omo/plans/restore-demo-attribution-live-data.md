@@ -25,6 +25,7 @@ Your next move: Execute this already-approved plan.
 - Work only in canonical Git root `D:/rehealthAI`; preserve existing dirty root files.
 - Restore target attribution structure/interactions from `7008f2f`: period selector, improvement/current-risk card, mini chart, dual PIAS chart/legend/metrics, behavior card, grouped expandable factors, intervention plan.
 - Map current canonical Jeecg feature evaluation, risk history, PIAS, Room activity/MR11 and intervention data; no mock fallback.
+- Route release attribution through authenticated Jeecg `POST /rehealth/mobile/attribution/events`; Android release must never transmit risk history directly to unauthenticated/cleartext PIAS. Expand the existing backend proxy response only as needed to preserve forecast/ATT fields required by the restored UI.
 - Define improvement as `(oldest selected-period confirmed risk - newest confirmed risk) * 100` percentage points, signed and rounded to one decimal; if fewer than two confirmed points exist, show `--` and an inline accumulation message.
 - Define 7/30/90-day selector as a filter for persisted confirmed risk history and improvement baseline only. PIAS forecast remains explicitly a 30-day forecast and does not pretend to change horizon with the selector.
 - Render the historical behavior-card anatomy as a real activity card using Room steps/duration/calories/distance; never label ring activity as a meal or invent macronutrients.
@@ -38,6 +39,7 @@ Your next move: Execute this already-approved plan.
 - No fixed demo score/meal/calorie/factor/plan values in production.
 - No unrelated UI/backend/schema refactor; no inferior UI imports.
 - No JWT/password/token/API key/local.properties/APK/raw health data in Git.
+- No unauthenticated or cleartext release transmission of cardiovascular history; no direct PIAS production path.
 - No overwrite/revert of pre-existing dirty files.
 
 ## Verification strategy
@@ -90,12 +92,20 @@ Your next move: Execute this already-approved plan.
   Commit: N
 
 - [ ] 4. Build and independently validate emulator fidelity/runtime
-  What to do / Must NOT do: Run unit/lint/debug/release/instrumentation as available; install exact APK on API31 emulator, capture every scroll region/state and compare to target; test backend failure/retry without altering UI.
+  What to do / Must NOT do: Run unit/lint/debug/release/instrumentation as available; install exact APK on API31 emulator, capture every scroll region/state and compare to target; test backend failure/retry without altering UI. If a pre-existing upgrade blocker prevents the current screen from rendering, add only the smallest migration-compatible fix with a failing-first regression test; do not clear user data to hide an upgrade failure.
   Parallelization: Wave 3 | Blocked by: 3 | Blocks: 5
   References: Gradle wrapper, target screenshots, `D:/Android_SDK/platform-tools/adb.exe`, existing Android tests.
-  Acceptance criteria: Build/test gates pass; fresh captures show target anatomy and real/replay provenance; animation progresses; no crash/blank/clipped text; independent visual reviewers approve.
+  Acceptance criteria: Build/test gates pass; existing Room v3 data upgrades to v4 without missing-column/index crash; fresh captures show target anatomy and real/replay provenance; animation progresses; no crash/blank/clipped text; independent visual reviewers approve.
   QA scenarios: `.\gradlew.bat --no-daemon testDebugUnitTest lintDebug assembleDebug assembleRelease`; ADB install/input/uiautomator/screencap/screenrecord. Evidence `.omo/qa/restore-demo-attribution-live-data/task-4/`.
   Commit: N
+
+- [ ] 4A. Route attribution through authenticated Jeecg proxy
+  What to do / Must NOT do: Reuse the implemented authenticated backend `POST /rehealth/mobile/attribution/events`, add the missing Android Retrofit/client mapping, and expand backend response DTO/model-client mapping for the rich PIAS forecast/ATT fields the target UI already consumes. Keep local Room history as request input while backend persistence remains pending. Remove or debug-gate any direct PIAS Android runtime path; release must fail closed and never send health history over unauthenticated cleartext HTTP. Do not duplicate a new controller or bypass existing auth.
+  Parallelization: Wave 3 | Blocked by: 3 | Blocks: 5
+  References: backend `ReHealthMobileController.java:125-132`; `ReHealthMobileServiceImpl.java:141-144`; `HttpModelServiceClient.java:63-66`; Android `ReHealthApi.kt`, `AuthenticatedApiClient.kt`, `RemotePhmService.kt`, `PiasApiClient.kt`; `backend/docs/CANONICAL_BACKEND_RISK_PATH.md`.
+  Acceptance criteria: Characterization/failing tests prove current direct client bypass; after fix Android calls exact authenticated mobile route through existing interceptor, backend forwards synthetic history to model client and returns required current/forecast/ATT/status fields, release contains no active direct PIAS URL/path, error/401/timeout map to user-readable failure, no raw health history/token logging.
+  QA scenarios: Backend focused Maven tests and Android focused Gradle tests; synthetic authenticated curl through local Jeecg when runtime available; `assembleRelease` plus source/BuildConfig assertion proving release has no direct PIAS path. Evidence `.omo/qa/restore-demo-attribution-live-data/task-4a/`.
+  Commit: N | grouped with final feature commit
 
 - [ ] 5. Review all dirty code, document, commit and push
   What to do / Must NOT do: Preserve/review existing dirty root changes, update integration report, run secret/scope/diff checks, then use two commit allowlists. Feature commit: only Android attribution state/DTO/repository/UI/tests and integration-report edits produced/verified by this task. Separate synchronization commit: pre-existing `.gitattributes`, `.gitignore`, `sync_to_github.sh`, `_lfs_*.sh`, and output screenshots only after independent inspection proves they contain no secrets, unsafe paths, generated archives or broken commands. Never stage `.omo`, `Android-apk/build/`, APKs, `local.properties`, `sync_to_github.log`, raw QA/health/API data, or any unreviewed archive. Push current branch.

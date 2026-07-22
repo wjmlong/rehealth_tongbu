@@ -1,0 +1,32 @@
+{
+  "DoneClaim": {
+    "task": "Restore Demo attribution anatomy with live Android data and fix preserved-v3 Room upgrade",
+    "changed_files": [
+      "Android-apk/app/src/main/java/com/rehealth/genie/data/AppDatabase.kt",
+      "Android-apk/app/src/main/java/com/rehealth/genie/data/RiskHistoryMigrationSql.kt",
+      "Android-apk/app/src/test/java/com/rehealth/genie/data/RiskHistoryMigrationTest.kt",
+      "Android-apk/app/src/test/java/com/rehealth/genie/network/PiasApiClientTest.kt"
+    ],
+    "tests": [
+      "gradlew.bat --no-daemon testDebugUnitTest lintDebug assembleDebug: BUILD SUCCESSFUL in 1m 45s",
+      "RiskHistoryMigrationTest: red before migration reconciliation; green after lossless/fail-closed fix",
+      "AttributionUiStateTest + PiasApiClientTest: BUILD SUCCESSFUL in 25s"
+    ],
+    "manual_qa": [
+      ".omo/qa/restore-demo-attribution-live-data/task-4/absolute-final/top.png",
+      ".omo/qa/restore-demo-attribution-live-data/task-4/absolute-final/middle.png",
+      ".omo/qa/restore-demo-attribution-live-data/task-4/absolute-final/bottom.png",
+      ".omo/qa/restore-demo-attribution-live-data/task-4/absolute-final/crash-check.txt"
+    ],
+    "cleanup": [
+      "temporary debug journal removed",
+      "pulled installed APK removed",
+      "no debug instrumentation or generated APK staged"
+    ],
+    "risks": [
+      "legacy unscoped risk rows are preserved under __legacy_unscoped__ and intentionally excluded from authenticated-user queries",
+      "schema recognition validates the exact known column set; the installed known v3 shape was verified end-to-end",
+      "reference reviewer non-blocking notes: greener mint accent and omitted rank bubbles in honest empty factor rows"
+    ]
+  }
+}

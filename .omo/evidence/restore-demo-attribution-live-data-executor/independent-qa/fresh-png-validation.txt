@@ -1,0 +1,6 @@
+fresh-attribution-top.png: signature=89-50-4E-47-0D-0A-1A-0A dimensions=1080x2400 bytes=198257
+fresh-factor-expanded.png: signature=89-50-4E-47-0D-0A-1A-0A dimensions=1080x2400 bytes=220753
+fresh-period-30.png: signature=89-50-4E-47-0D-0A-1A-0A dimensions=1080x2400 bytes=179344
+fresh-period-90.png: signature=89-50-4E-47-0D-0A-1A-0A dimensions=1080x2400 bytes=198396
+fresh-scroll-bottom.png: signature=89-50-4E-47-0D-0A-1A-0A dimensions=1080x2400 bytes=220745
+fresh-scroll-middle.png: signature=89-50-4E-47-0D-0A-1A-0A dimensions=1080x2400 bytes=220745

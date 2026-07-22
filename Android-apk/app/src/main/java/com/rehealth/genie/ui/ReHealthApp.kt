@@ -2020,7 +2020,7 @@ private suspend fun refreshRemoteFeatureEvaluateStatus(
     val activities = runCatching { dao.getActivitiesSince(since) }.getOrDefault(emptyList())
     val vector = HealthFeatureExtractor(nowProvider = { now }).extract(
         HealthMemorySnapshot.fromPatientProfile(
-            profile = state.patientMvp?.profile,
+            profile = AttributionDataProvenance.trustedProfile(state.patientMvp),
             ringMeasurements = measurements,
             ringActivities = activities,
             ringSleepSessions = state.sleep?.let { listOf(it) }.orEmpty(),

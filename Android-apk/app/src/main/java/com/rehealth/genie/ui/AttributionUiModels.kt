@@ -112,7 +112,10 @@ sealed interface AttributionPiasUiState {
     data class Accumulating(
         val historyDays: Int,
         val minHistoryDays: Int,
-    ) : AttributionPiasUiState
+    ) : AttributionPiasUiState {
+        val remainingDays: Int
+            get() = (minHistoryDays - historyDays).coerceAtLeast(0)
+    }
 
     data class Ready(
         val forecast: AttributionForecastUi,

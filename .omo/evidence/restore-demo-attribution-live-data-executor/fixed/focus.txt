@@ -1,0 +1,2 @@
+﻿    mResumedActivity: ActivityRecord{ed7bb4 u0 com.rehealth.genie/.MainActivity t86}
+  ResumedActivity: ActivityRecord{ed7bb4 u0 com.rehealth.genie/.MainActivity t86}

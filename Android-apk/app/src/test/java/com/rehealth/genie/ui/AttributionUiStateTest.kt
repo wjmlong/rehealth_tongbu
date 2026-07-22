@@ -121,6 +121,7 @@ class AttributionUiStateTest {
 
         assertEquals(5, accumulating.historyDays)
         assertEquals(14, accumulating.minHistoryDays)
+        assertEquals(9, accumulating.remainingDays)
         assertIs<AttributionAttUiState.Unavailable>(ready.att)
     }
 

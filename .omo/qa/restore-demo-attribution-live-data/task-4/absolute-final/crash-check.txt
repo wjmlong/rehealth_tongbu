@@ -1,0 +1,4 @@
+Scenario: launch exact final APK against the preserved version-3 database, open Attribution, and scroll top-to-bottom.
+Invocation: adb -s emulator-5554 logcat -d -v threadtime AndroidRuntime:E *:S
+Binary observable: zero AndroidRuntime error lines; com.rehealth.genie remained the resumed activity during capture.
+Result: PASS
