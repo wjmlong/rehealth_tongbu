@@ -11,6 +11,9 @@
 #
 set -uo pipefail
 
+# 确保 git-lfs 等在 PATH 中（非交互/计划任务环境可能 PATH 较精简）
+export PATH="/usr/local/bin:$PATH"
+
 # ---------------- 配置 ----------------
 LOCAL_DIR="/mnt/d/rehealthAI"
 REMOTE_URL="https://github.com/wjmlong/rehealth_tongbu.git"
@@ -86,6 +89,24 @@ fi
 # ---------------- 5. 暂存变更 ----------------
 git add -A
 
+# 强制纳入所有命中 Git LFS 规则的文件（即使被 .gitignore 忽略）。
+# 注意：不能用 `git lfs ls-files --others`（该参数不存在，且该命令基于
+# `git ls-files --others`，会自动跳过被忽略的文件，导致大文件永远不被暂存）。
+# 正确做法：直接从 .gitattributes 解析 filter=lfs 的路径，用 git add -f 强制暂存，
+# git-lfs 的 clean 过滤器会把实际内容替换为指针（pointer）对象。
+if [ -f .gitattributes ]; then
+  while IFS= read -r lfs_path; do
+    [ -z "$lfs_path" ] && continue
+    if [ -f "$lfs_path" ]; then
+      if git add -f -- "$lfs_path" >/dev/null 2>&1; then
+        log "已强制暂存 LFS 文件: $lfs_path"
+      else
+        log "WARN: 无法暂存 LFS 文件 $lfs_path"
+      fi
+    fi
+  done < <(grep -E 'filter=lfs' .gitattributes 2>/dev/null | awk '{print $1}')
+fi
+
 if git diff --cached --quiet; then
   log "没有需要同步的变更，结束。"
   rotate_log
@@ -95,6 +116,8 @@ fi
 
 # ---------------- 6. 大文件保护（GitHub 单文件 100MB 上限） ----------------
 BIG=$(git diff --cached --diff-filter=AM --name-only | while read -r f; do
+  # 已标记为 Git LFS 跟踪的大文件由 git-lfs 处理，直接放行
+  if git check-attr filter -- "$f" 2>/dev/null | grep -q "filter: lfs"; then continue; fi
   if [ -f "$f" ]; then
     sz=$(stat -c%s "$f" 2>/dev/null || echo 0)
     if [ "$sz" -gt 104857600 ]; then echo "$f ($((sz/1024/1024))MB)"; fi

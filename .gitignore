@@ -15,3 +15,5 @@ Thumbs.db
 .gradle/
 *.log
 /sync_to_github.log
+
+/sync_debug.log

@@ -1,0 +1,6 @@
+# Git LFS: 跟踪所有超过 100MB 的大文件（2026-07-22 补充）
+Android-apk/build/emulator-36.4.10.zip filter=lfs diff=lfs merge=lfs -text
+model-service/.venv/Lib/site-packages/catboost/_catboost.pyd filter=lfs diff=lfs merge=lfs -text
+backend/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.9.2.jar filter=lfs diff=lfs merge=lfs -text
+.codegraph/codegraph.db filter=lfs diff=lfs merge=lfs -text
+tools/commandlinetools-win_latest.zip filter=lfs diff=lfs merge=lfs -text
