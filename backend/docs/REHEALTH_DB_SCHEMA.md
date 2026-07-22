@@ -35,7 +35,7 @@ Planned tables:
 | `rehealth_intervention_plan` | Conservative model-service intervention response. | Implemented with per-user latest read. |
 | `rehealth_intervention_feedback` | User feedback/adherence/check-in. | Implemented via `/interventions/{id}/feedback`. |
 | `rehealth_attribution_result` | PIAS request and result snapshot. | Implemented via `/attribution/events`. |
-| `rehealth_model_request_log` | Minimal request metadata without raw PII or raw telemetry payloads. | Schema ready; audit writer pending. |
+| `rehealth_model_request_log` | Minimal request metadata without raw PII or raw telemetry payloads. | Implemented for risk, intervention, and attribution model calls. |
 | `rehealth_upload_batch` | Software-side upload status/materialized summary. | Deferred. |
 
 Transaction strategy:
@@ -46,13 +46,14 @@ Transaction strategy:
 
 ## hardware_db Boundary
 
-Owner: future `rehealth-ingest-service`/hardware ingestion module.
+Owner: ReHealth hardware ingestion/query boundary, with a future dedicated ingest service remaining an optional scaling step.
 
 E1 Java boundary:
 
 ```text
 org.jeecg.modules.rehealth.ingest.HardwareIngestionPort
-org.jeecg.modules.rehealth.ingest.impl.E2PendingHardwareIngestionPort
+org.jeecg.modules.rehealth.ingest.writer.JdbcHardwareTelemetryWriter
+org.jeecg.modules.rehealth.ingest.query.JdbcHardwareTelemetryQuery
 ```
 
 Planned tables:
@@ -69,7 +70,7 @@ Planned tables:
 | `rehealth_hw_quality_flag` | Data quality flags. | Deferred to E2. |
 | `rehealth_hw_ingestion_event` | Ingestion state, rejection, retry, dead-letter metadata. | Deferred to E2. |
 
-When `rehealth.hardware-db.enabled=true`, `/measurements/batch` writes a transactionally idempotent batch through `JdbcHardwareTelemetryWriter`. When disabled, it returns 503 so Android keeps the batch queued.
+When `rehealth.hardware-db.enabled=true`, `/measurements/batch` writes a transactionally idempotent batch through `JdbcHardwareTelemetryWriter`, and `/measurements/recent` returns the authenticated user's normalized recent telemetry through `JdbcHardwareTelemetryQuery`. Raw signal payloads are neither written nor returned. When disabled, both paths return 503 rather than claiming durable or mock success.
 
 ## Provisioning
 
@@ -79,9 +80,7 @@ Apply `db/software/mysql/V1__create_rehealth_software_tables.sql` to the Jeecg p
 
 E2 must add:
 
-- Real `hardware_db` datasource configuration or external time-series/ClickHouse choice.
-- Idempotency key constraints for batches.
-- Batch writer and validation rules.
+- Production provisioning and measured validation of the real `hardware_db` datasource.
 - MQ or stream transport if required by concurrency target.
 - Retention policy for raw telemetry, especially PPG/RRI.
 - Migrations or explicit schema deployment scripts.

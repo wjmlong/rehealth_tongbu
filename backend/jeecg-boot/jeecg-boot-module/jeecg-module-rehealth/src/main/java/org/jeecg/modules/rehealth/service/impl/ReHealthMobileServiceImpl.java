@@ -1,6 +1,7 @@
 package org.jeecg.modules.rehealth.service.impl;
 
 import org.jeecg.modules.rehealth.ingest.HardwareIngestionPort;
+import org.jeecg.modules.rehealth.ingest.query.HardwareTelemetryQuery;
 import org.jeecg.modules.rehealth.config.ReHealthIngestProperties;
 import org.jeecg.modules.rehealth.mobile.dto.AttributionEventsRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.AttributionResponseDto;
@@ -15,6 +16,7 @@ import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.jeecg.modules.rehealth.mobile.dto.MobileConfigResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
+import org.jeecg.modules.rehealth.mobile.dto.RecentTelemetryResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.TelemetryBatchRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.TelemetryBatchResponseDto;
 import org.jeecg.modules.rehealth.model.ModelServiceClient;
@@ -31,6 +33,7 @@ import java.util.Map;
 public class ReHealthMobileServiceImpl implements ReHealthMobileService {
     private final ModelServiceClient modelServiceClient;
     private final HardwareIngestionPort hardwareIngestionPort;
+    private final HardwareTelemetryQuery hardwareTelemetryQuery;
     private final ReHealthBusinessRepository businessRepository;
     private final ReHealthIngestProperties ingestProperties;
     private final boolean softwareDbEnabled;
@@ -38,12 +41,14 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
     public ReHealthMobileServiceImpl(
             ModelServiceClient modelServiceClient,
             HardwareIngestionPort hardwareIngestionPort,
+            HardwareTelemetryQuery hardwareTelemetryQuery,
             ReHealthBusinessRepository businessRepository,
             ReHealthIngestProperties ingestProperties,
             @Value("${rehealth.software-db.enabled:false}") boolean softwareDbEnabled
     ) {
         this.modelServiceClient = modelServiceClient;
         this.hardwareIngestionPort = hardwareIngestionPort;
+        this.hardwareTelemetryQuery = hardwareTelemetryQuery;
         this.businessRepository = businessRepository;
         this.ingestProperties = ingestProperties;
         this.softwareDbEnabled = softwareDbEnabled;
@@ -85,6 +90,7 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
                 "GET /rehealth/mobile/interviews/latest",
                 "POST /rehealth/mobile/devices/bind",
                 "POST /rehealth/mobile/measurements/batch",
+                "GET /rehealth/mobile/measurements/recent",
                 "POST /rehealth/mobile/features/evaluate",
                 "GET /rehealth/mobile/risk/latest",
                 "POST /rehealth/mobile/interventions/generate",
@@ -141,10 +147,25 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
     }
 
     @Override
+    public RecentTelemetryResponseDto recentTelemetry(String userId, int limit) {
+        return hardwareTelemetryQuery.recentForUser(userId, limit);
+    }
+
+    @Override
     public RiskEvaluateResponseDto evaluateFeatures(String userId, RiskEvaluateRequestDto request) {
-        RiskEvaluateResponseDto response = modelServiceClient.evaluateRisk(request);
-        businessRepository.saveRiskResult(userId, request == null ? null : request.requestId, request, response);
-        return response;
+        String requestId = request == null ? null : request.requestId;
+        try {
+            RiskEvaluateResponseDto response = modelServiceClient.evaluateRisk(request);
+            businessRepository.saveRiskResult(userId, requestId, request, response);
+            businessRepository.recordModelRequest(
+                    userId, requestId, "RISK_EVALUATE",
+                    response == null ? null : response.modelVersion, "SUCCESS"
+            );
+            return response;
+        } catch (RuntimeException failure) {
+            recordModelFailure(userId, requestId, "RISK_EVALUATE", failure);
+            throw failure;
+        }
     }
 
     @Override
@@ -154,9 +175,18 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
 
     @Override
     public InterventionGenerateResponseDto generateIntervention(String userId, InterventionGenerateRequestDto request) {
-        InterventionGenerateResponseDto response = modelServiceClient.generateIntervention(request);
-        businessRepository.saveInterventionPlan(userId, response);
-        return response;
+        try {
+            InterventionGenerateResponseDto response = modelServiceClient.generateIntervention(request);
+            businessRepository.saveInterventionPlan(userId, response);
+            businessRepository.recordModelRequest(
+                    userId, response == null ? null : response.planId, "INTERVENTION_GENERATE",
+                    response == null ? null : response.modelVersion, "SUCCESS"
+            );
+            return response;
+        } catch (RuntimeException failure) {
+            recordModelFailure(userId, null, "INTERVENTION_GENERATE", failure);
+            throw failure;
+        }
     }
 
     @Override
@@ -176,14 +206,36 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
 
     @Override
     public AttributionResponseDto recordAttributionEvents(String userId, AttributionEventsRequestDto request) {
-        AttributionResponseDto response = modelServiceClient.evaluateAttribution(request);
-        businessRepository.recordAttributionResult(userId, request, response);
-        return response;
+        try {
+            AttributionResponseDto response = modelServiceClient.evaluateAttribution(request);
+            businessRepository.recordAttributionResult(userId, request, response);
+            businessRepository.recordModelRequest(
+                    userId, null, "ATTRIBUTION_EVALUATE",
+                    response == null ? null : response.modelVersion, "SUCCESS"
+            );
+            return response;
+        } catch (RuntimeException failure) {
+            recordModelFailure(userId, null, "ATTRIBUTION_EVALUATE", failure);
+            throw failure;
+        }
     }
 
     private void requireSoftwareDb() {
         if (!softwareDbEnabled) {
             throw new IllegalStateException("software_db persistence is disabled");
+        }
+    }
+
+    private void recordModelFailure(
+            String userId,
+            String requestId,
+            String operation,
+            RuntimeException originalFailure
+    ) {
+        try {
+            businessRepository.recordModelRequest(userId, requestId, operation, null, "FAILED");
+        } catch (RuntimeException auditFailure) {
+            originalFailure.addSuppressed(auditFailure);
         }
     }
 }

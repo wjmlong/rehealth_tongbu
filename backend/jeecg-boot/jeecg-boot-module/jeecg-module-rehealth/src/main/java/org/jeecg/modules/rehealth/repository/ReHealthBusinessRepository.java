@@ -22,6 +22,14 @@ public interface ReHealthBusinessRepository {
 
     Optional<HealthInterviewSubmitRequestDto> findLatestHealthInterview(String userId);
 
+    void recordModelRequest(
+            String userId,
+            String requestId,
+            String operation,
+            String modelVersion,
+            String outcome
+    );
+
     DeviceBindResponseDto recordDeviceBinding(String userId, DeviceBindRequestDto request);
 
     void saveRiskResult(String userId, String requestId, RiskEvaluateRequestDto request, RiskEvaluateResponseDto response);

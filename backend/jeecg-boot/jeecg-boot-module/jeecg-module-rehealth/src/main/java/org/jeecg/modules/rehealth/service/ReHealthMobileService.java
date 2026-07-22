@@ -13,6 +13,7 @@ import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.jeecg.modules.rehealth.mobile.dto.MobileConfigResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
+import org.jeecg.modules.rehealth.mobile.dto.RecentTelemetryResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.TelemetryBatchRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.TelemetryBatchResponseDto;
 
@@ -34,6 +35,8 @@ public interface ReHealthMobileService {
     DeviceBindResponseDto bindDevice(String userId, DeviceBindRequestDto request);
 
     TelemetryBatchResponseDto acceptTelemetryBatch(TelemetryBatchRequestDto request);
+
+    RecentTelemetryResponseDto recentTelemetry(String userId, int limit);
 
     RiskEvaluateResponseDto evaluateFeatures(String userId, RiskEvaluateRequestDto request);
 

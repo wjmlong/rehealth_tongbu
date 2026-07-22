@@ -219,3 +219,12 @@ APK 构建成功：
 - Android 完整门禁通过：`testDebugUnitTest`、`lintDebug`、`assembleDebug`、`assembleRelease`；Debug APK 为 `D:\rehealthAI\Android-apk\app\build\outputs\apk\debug\app-debug.apk`（21,420,227 字节，SHA-256 `fea219584d1f0b5c8a19cca4d2e5fff28399466c2d94c4b18da87d0f088a9da0`）。
 - ReHealth 后端模块完整测试通过：22 项，0 失败、0 错误。
 - 官方 AVD 已按用户要求移除，等待用户安装网易 MuMu；因此本节未执行新的模拟器 UI 验证，也未声称完成真机戒指验证。
+
+## 10. 2026-07-23 模型审计与硬件近期数据查询
+
+- 本轮未修改 Android Compose UI。
+- software_db 的 `rehealth_model_request_log` 已接入风险评估、干预生成和归因调用，只保存请求 ID、操作、模型版本、结果与时间；不保存请求体、Token、手机号或原始健康数据。
+- 新增认证接口 `GET /rehealth/mobile/measurements/recent?limit=50`，从独立 hardware_db 返回当前登录用户的近期标准化测量、睡眠和活动记录；限制范围为 1–200，不返回 PPG/RRI 或其他原始信号载荷。
+- hardware_db 未启用时返回可重试 `503`，不会回退为 Mock；查询测试验证了跨用户隔离和按时间倒序限量。
+- 聚焦 Maven 测试 6 项通过，覆盖审计落库、近期数据查询和控制器接口契约。
+- 仍待完成：真实 MySQL 8 部署验证、网易 MuMu UI 回归、物理 MR11 长时间采集，以及 Jeecg 低代码管理页。低代码生成还需要确定可连接的 Jeecg 数据库/API 与前端工程目标，不能靠猜测生成到错误环境。

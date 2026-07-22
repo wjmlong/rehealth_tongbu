@@ -91,6 +91,34 @@ class JdbcSoftwareDbReHealthBusinessRepositoryTest {
         assertTrue(repository.findLatestHealthInterview("user-b").isEmpty());
     }
 
+    @Test
+    void recordsMinimalModelRequestMetadataWithoutHealthPayload() {
+        repository.recordModelRequest(
+                "user-a",
+                "request-a",
+                "RISK_EVALUATE",
+                "model-v1",
+                "SUCCESS"
+        );
+
+        assertEquals(1, count("rehealth_model_request_log"));
+        assertEquals("user-a", jdbcTemplate.queryForObject(
+                "SELECT user_id FROM rehealth_model_request_log WHERE request_id = ?",
+                String.class,
+                "request-a"
+        ));
+        assertEquals("RISK_EVALUATE", jdbcTemplate.queryForObject(
+                "SELECT operation FROM rehealth_model_request_log WHERE request_id = ?",
+                String.class,
+                "request-a"
+        ));
+        assertEquals("SUCCESS", jdbcTemplate.queryForObject(
+                "SELECT outcome FROM rehealth_model_request_log WHERE request_id = ?",
+                String.class,
+                "request-a"
+        ));
+    }
+
     private void saveRisk(String userId, String requestId, double score) {
         RiskEvaluateRequestDto request = new RiskEvaluateRequestDto();
         request.requestId = requestId;

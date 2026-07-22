@@ -20,6 +20,7 @@ import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.jeecg.modules.rehealth.mobile.dto.MobileConfigResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
+import org.jeecg.modules.rehealth.mobile.dto.RecentTelemetryResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.TelemetryBatchRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.TelemetryBatchResponseDto;
 import org.jeecg.modules.rehealth.ingest.writer.HardwarePersistenceUnavailableException;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
@@ -107,6 +109,18 @@ public class ReHealthMobileController {
             return Result.OK(mobileService.acceptTelemetryBatch(request));
         } catch (HardwarePersistenceUnavailableException e) {
             return Result.error(503, "hardware telemetry persistence unavailable; retry the same batchId");
+        }
+    }
+
+    @GetMapping("/measurements/recent")
+    @Operation(summary = "Read current authenticated user's recent normalized telemetry")
+    public Result<RecentTelemetryResponseDto> recentTelemetry(
+            @RequestParam(value = "limit", defaultValue = "50") int limit
+    ) {
+        try {
+            return Result.OK(mobileService.recentTelemetry(currentUserId(), limit));
+        } catch (HardwarePersistenceUnavailableException e) {
+            return Result.error(503, "hardware telemetry query unavailable; retry after hardware_db is enabled");
         }
     }
 

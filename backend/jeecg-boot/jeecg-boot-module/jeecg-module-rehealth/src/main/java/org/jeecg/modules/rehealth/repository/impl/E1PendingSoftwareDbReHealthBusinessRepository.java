@@ -40,6 +40,16 @@ public class E1PendingSoftwareDbReHealthBusinessRepository implements ReHealthBu
     }
 
     @Override
+    public void recordModelRequest(
+            String userId,
+            String requestId,
+            String operation,
+            String modelVersion,
+            String outcome
+    ) {
+    }
+
+    @Override
     public DeviceBindResponseDto recordDeviceBinding(String userId, DeviceBindRequestDto request) {
         DeviceBindResponseDto response = new DeviceBindResponseDto();
         response.deviceId = request == null ? null : request.deviceId;

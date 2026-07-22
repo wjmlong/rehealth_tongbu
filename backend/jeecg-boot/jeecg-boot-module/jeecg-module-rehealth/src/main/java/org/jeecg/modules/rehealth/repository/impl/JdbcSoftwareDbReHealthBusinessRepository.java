@@ -102,6 +102,29 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
     }
 
     @Override
+    public void recordModelRequest(
+            String userId,
+            String requestId,
+            String operation,
+            String modelVersion,
+            String outcome
+    ) {
+        requireUser(userId);
+        if (operation == null || operation.isBlank()) {
+            throw new IllegalArgumentException("model operation is required");
+        }
+        if (outcome == null || outcome.isBlank()) {
+            throw new IllegalArgumentException("model outcome is required");
+        }
+        jdbcTemplate.update("""
+                INSERT INTO rehealth_model_request_log (
+                    id, user_id, request_id, operation, model_version, outcome, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, UUID.randomUUID().toString(), userId, requestId, operation,
+                modelVersion, outcome, Timestamp.from(Instant.now()));
+    }
+
+    @Override
     @Transactional
     public DeviceBindResponseDto recordDeviceBinding(String userId, DeviceBindRequestDto request) {
         requireUser(userId);
