@@ -18,6 +18,7 @@ import org.jeecg.modules.rehealth.mobile.dto.TelemetryBatchResponseDto;
 import org.jeecg.modules.rehealth.model.ModelServiceClient;
 import org.jeecg.modules.rehealth.repository.ReHealthBusinessRepository;
 import org.jeecg.modules.rehealth.service.ReHealthMobileService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
@@ -30,17 +31,20 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
     private final HardwareIngestionPort hardwareIngestionPort;
     private final ReHealthBusinessRepository businessRepository;
     private final ReHealthIngestProperties ingestProperties;
+    private final boolean softwareDbEnabled;
 
     public ReHealthMobileServiceImpl(
             ModelServiceClient modelServiceClient,
             HardwareIngestionPort hardwareIngestionPort,
             ReHealthBusinessRepository businessRepository,
-            ReHealthIngestProperties ingestProperties
+            ReHealthIngestProperties ingestProperties,
+            @Value("${rehealth.software-db.enabled:false}") boolean softwareDbEnabled
     ) {
         this.modelServiceClient = modelServiceClient;
         this.hardwareIngestionPort = hardwareIngestionPort;
         this.businessRepository = businessRepository;
         this.ingestProperties = ingestProperties;
+        this.softwareDbEnabled = softwareDbEnabled;
     }
 
     @Override
@@ -50,7 +54,7 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
         response.service = "rehealth-mobile-api";
         response.module = "jeecg-module-rehealth";
         response.modelServiceConfigured = modelServiceClient.isConfigured();
-        response.dependencies.put("software_db", "interface_ready_e1_persistence_pending");
+        response.dependencies.put("software_db", softwareDbEnabled ? "enabled" : "disabled_pending_repository");
         response.dependencies.put("hardware_ingest", "e2_1_durable_direct_write");
         response.dependencies.put("hardware_db", ingestProperties.isHardwareDbEnabled() ? "enabled" : "disabled_returns_503");
         response.dependencies.put("raw_signal_upload", ingestProperties.isRawSignalUploadEnabled() ? "enabled" : "disabled_default");
@@ -64,7 +68,7 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
         MobileConfigResponseDto response = new MobileConfigResponseDto();
         response.apiVersion = "e2.1";
         response.modelContract = "model-service /v1/cvd risk, intervention, attribution";
-        response.softwareDbPersistenceEnabled = false;
+        response.softwareDbPersistenceEnabled = softwareDbEnabled;
         response.hardwareIngestEnabled = true;
         response.ingestMode = ingestProperties.getIngestMode();
         response.ingestQueueType = ingestProperties.getQueueType();
@@ -83,7 +87,9 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
                 "POST /rehealth/mobile/attribution/events"
         );
         response.limitations = List.of(
-                "software_db tables and mappers are not implemented in E1",
+                softwareDbEnabled
+                        ? "software_db schema must be provisioned before enabling persistence"
+                        : "software_db persistence is disabled until schema and datasource are configured",
                 "hardware telemetry requires the separate named hardware datasource",
                 "MQ/stream deployment and pressure testing remain production follow-up",
                 "raw signal upload is disabled by default",
@@ -94,8 +100,8 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
     }
 
     @Override
-    public DeviceBindResponseDto bindDevice(DeviceBindRequestDto request) {
-        return businessRepository.recordDeviceBinding(request);
+    public DeviceBindResponseDto bindDevice(String userId, DeviceBindRequestDto request) {
+        return businessRepository.recordDeviceBinding(userId, request);
     }
 
     @Override
@@ -104,42 +110,43 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
     }
 
     @Override
-    public RiskEvaluateResponseDto evaluateFeatures(RiskEvaluateRequestDto request) {
+    public RiskEvaluateResponseDto evaluateFeatures(String userId, RiskEvaluateRequestDto request) {
         RiskEvaluateResponseDto response = modelServiceClient.evaluateRisk(request);
-        businessRepository.saveRiskResult(request == null ? null : request.requestId, response);
+        businessRepository.saveRiskResult(userId, request == null ? null : request.requestId, request, response);
         return response;
     }
 
     @Override
-    public RiskEvaluateResponseDto latestRisk() {
-        return businessRepository.findLatestRiskResult().orElse(null);
+    public RiskEvaluateResponseDto latestRisk(String userId) {
+        return businessRepository.findLatestRiskResult(userId).orElse(null);
     }
 
     @Override
-    public InterventionGenerateResponseDto generateIntervention(InterventionGenerateRequestDto request) {
+    public InterventionGenerateResponseDto generateIntervention(String userId, InterventionGenerateRequestDto request) {
         InterventionGenerateResponseDto response = modelServiceClient.generateIntervention(request);
-        businessRepository.saveInterventionPlan(response);
+        businessRepository.saveInterventionPlan(userId, response);
         return response;
     }
 
     @Override
-    public InterventionGenerateResponseDto latestIntervention() {
-        return businessRepository.findLatestInterventionPlan().orElse(null);
+    public InterventionGenerateResponseDto latestIntervention(String userId) {
+        return businessRepository.findLatestInterventionPlan(userId).orElse(null);
     }
 
     @Override
-    public Map<String, Object> submitFeedback(String interventionId, FeedbackRequestDto request) {
-        businessRepository.saveFeedback(interventionId, request);
+    public Map<String, Object> submitFeedback(String userId, String interventionId, FeedbackRequestDto request) {
+        businessRepository.saveFeedback(userId, interventionId, request);
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("interventionId", interventionId);
-        response.put("status", "SOFTWARE_DB_INTERFACE_READY_E1_PERSISTENCE_PENDING");
-        response.put("persisted", false);
+        response.put("status", softwareDbEnabled ? "SOFTWARE_DB_COMMITTED" : "SOFTWARE_DB_DISABLED");
+        response.put("persisted", softwareDbEnabled);
         return response;
     }
 
     @Override
-    public AttributionResponseDto recordAttributionEvents(AttributionEventsRequestDto request) {
-        businessRepository.recordAttributionEvents(request);
-        return modelServiceClient.evaluateAttribution(request);
+    public AttributionResponseDto recordAttributionEvents(String userId, AttributionEventsRequestDto request) {
+        AttributionResponseDto response = modelServiceClient.evaluateAttribution(request);
+        businessRepository.recordAttributionResult(userId, request, response);
+        return response;
     }
 }

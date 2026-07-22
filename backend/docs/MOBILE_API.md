@@ -48,12 +48,12 @@ Only `GET /rehealth/mobile/health` is marked `@IgnoreAuth`. All production-style
 | Method | Path | E1 behavior |
 | --- | --- | --- |
 | `GET` | `/rehealth/mobile/config` | Returns API version, endpoint list, model contract, and E1 limitations. |
-| `POST` | `/rehealth/mobile/devices/bind` | Routes to `ReHealthBusinessRepository`; E1 returns explicit software_db persistence-pending status. |
+| `POST` | `/rehealth/mobile/devices/bind` | Persists the current authenticated user's binding when software_db is enabled. |
 | `POST` | `/rehealth/mobile/measurements/batch` | Validates and transactionally writes the D2 batch to the separate `hardware` datasource; duplicate retries return the existing receipt. |
 | `POST` | `/rehealth/mobile/features/evaluate` | Calls `model-service` `POST /v1/cvd/risk/evaluate`; returns controlled error if unavailable; 透传 model-service 的 model_trace 由 M1 引入的 governance trace 块到 Android 客户端，nullable 字段；详见 model-service/docs/MODEL_REGISTRY.md. |
-| `GET` | `/rehealth/mobile/risk/latest` | Reads latest risk through software repository boundary; E1 returns `null` until persistence is implemented. |
-| `GET` | `/rehealth/mobile/interventions/today` | Reads latest intervention through software repository boundary; E1 returns `null` until persistence is implemented. |
-| `POST` | `/rehealth/mobile/interventions/{id}/feedback` | Routes feedback through software repository boundary with explicit persistence-pending status. |
+| `GET` | `/rehealth/mobile/risk/latest` | Reads the authenticated user's latest persisted risk. |
+| `GET` | `/rehealth/mobile/interventions/today` | Reads the authenticated user's latest persisted intervention. |
+| `POST` | `/rehealth/mobile/interventions/{id}/feedback` | Persists feedback under the authenticated user. |
 
 Additional implemented E1 support endpoints:
 
@@ -61,7 +61,7 @@ Additional implemented E1 support endpoints:
 | --- | --- | --- |
 | `GET` | `/rehealth/mobile/health` | Dev health check for the ReHealth module. |
 | `POST` | `/rehealth/mobile/interventions/generate` | Calls `model-service` `POST /v1/cvd/intervention/generate`; useful for backend/D1 integration testing. |
-| `POST` | `/rehealth/mobile/attribution/events` | Authenticated proxy to PIAS `POST /api/pias/v2/attribute/individual`; accepts Android's local confirmed risk history while backend attribution persistence remains pending and passes through partial/ready forecast and ATT fields. |
+| `POST` | `/rehealth/mobile/attribution/events` | Authenticated proxy to PIAS `POST /api/pias/v2/attribute/individual`; persists request/result under the current user when software_db is enabled. |
 
 ## Retired Legacy Risk Paths
 
@@ -107,12 +107,23 @@ Attribution request shape:
 }
 ```
 
-`risk_history` currently comes from authenticated Android local Room history because
-backend E1 attribution persistence is still pending. The response preserves PIAS
+`risk_history` currently comes from authenticated Android local Room history. The response preserves PIAS
 `status`, `current_state`, `forecast`, `intervention_effect`, and user report fields;
 missing forecast/ATT values are not synthesized.
 
 If model-service is unavailable or misconfigured, E1 returns a controlled `Result.error` response. It does not silently return fake production results.
+
+## software_db Configuration
+
+Run `db/software/mysql/V1__create_rehealth_software_tables.sql` on the primary Jeecg datasource and configure:
+
+```yaml
+rehealth:
+  software-db:
+    enabled: true
+```
+
+Device bindings, feature/risk results, interventions, feedback, and attribution results are scoped using the authenticated `LoginUser.id`.
 
 ## D1 Notes
 

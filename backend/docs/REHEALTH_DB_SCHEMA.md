@@ -1,6 +1,6 @@
 # ReHealth DB Schema E1
 
-Status: E1 schema boundary document. No database migrations are added in E1.
+Status: software_db and hardware_db MVP schema scripts are implemented; production provisioning remains deployment-owned.
 
 ## Decision
 
@@ -9,7 +9,7 @@ ReHealth uses two logical databases:
 - `software_db`: user/business/application records.
 - `hardware_db`: high-volume wearable telemetry and ingestion records.
 
-E1 creates Java interfaces and DTO boundaries only. E2 owns physical hardware ingestion tables, MQ, and high-concurrency writer implementation.
+The ReHealth module provides conditional JDBC writers for both database domains. They stay disabled until their schemas and datasource settings are provisioned.
 
 ## software_db Boundary
 
@@ -20,20 +20,22 @@ E1 Java boundary:
 ```text
 org.jeecg.modules.rehealth.repository.ReHealthBusinessRepository
 org.jeecg.modules.rehealth.repository.impl.E1PendingSoftwareDbReHealthBusinessRepository
+org.jeecg.modules.rehealth.repository.impl.JdbcSoftwareDbReHealthBusinessRepository
 ```
 
 Planned tables:
 
 | Table | Purpose | E1 status |
 | --- | --- | --- |
-| `rehealth_device_binding` | User-to-device binding. | Interface only. |
-| `rehealth_patient_profile` | ReHealth profile reference. | Deferred. |
-| `rehealth_health_interview` | Health interview/business profile fields. | Deferred. |
-| `rehealth_cvd_feature_vector` | CVD 16 vector and feature quality metadata. | Interface only via `/features/evaluate`. |
-| `rehealth_cvd_risk_result` | Risk score, level, contributions, model version, missing fields, warnings, summary. | Interface only. |
-| `rehealth_intervention_plan` | Conservative model-service intervention response. | Interface only. |
-| `rehealth_intervention_feedback` | User feedback/adherence/check-in. | Interface only via `/interventions/{id}/feedback`. |
-| `rehealth_model_request_log` | Minimal request metadata without raw PII or raw telemetry payloads. | Deferred. |
+| `rehealth_device_binding` | User-to-device binding. | Implemented. |
+| `rehealth_patient_profile` | ReHealth profile reference. | Schema ready; profile service pending. |
+| `rehealth_health_interview` | Health interview/business profile fields. | Schema ready; interview persistence pending. |
+| `rehealth_cvd_feature_vector` | CVD 16 vector and feature quality metadata. | Implemented via `/features/evaluate`. |
+| `rehealth_cvd_risk_result` | Risk score, level, contributions, model version, missing fields, warnings, summary. | Implemented with per-user latest read. |
+| `rehealth_intervention_plan` | Conservative model-service intervention response. | Implemented with per-user latest read. |
+| `rehealth_intervention_feedback` | User feedback/adherence/check-in. | Implemented via `/interventions/{id}/feedback`. |
+| `rehealth_attribution_result` | PIAS request and result snapshot. | Implemented via `/attribution/events`. |
+| `rehealth_model_request_log` | Minimal request metadata without raw PII or raw telemetry payloads. | Schema ready; audit writer pending. |
 | `rehealth_upload_batch` | Software-side upload status/materialized summary. | Deferred. |
 
 Transaction strategy:
@@ -67,13 +69,11 @@ Planned tables:
 | `rehealth_hw_quality_flag` | Data quality flags. | Deferred to E2. |
 | `rehealth_hw_ingestion_event` | Ingestion state, rejection, retry, dead-letter metadata. | Deferred to E2. |
 
-E1 `/measurements/batch` returns:
+When `rehealth.hardware-db.enabled=true`, `/measurements/batch` writes a transactionally idempotent batch through `JdbcHardwareTelemetryWriter`. When disabled, it returns 503 so Android keeps the batch queued.
 
-- `accepted=false`
-- `persisted=false`
-- `status=INGEST_INTERFACE_READY_E2_PENDING`
+## Provisioning
 
-This is intentional so Android D1 does not mistake API reachability for durable hardware ingestion.
+Apply `db/software/mysql/V1__create_rehealth_software_tables.sql` to the Jeecg primary software datasource, then set `rehealth.software-db.enabled=true`. Every mobile business write/read derives ownership from the authenticated Jeecg user; client-supplied user IDs are not accepted for these records.
 
 ## E2 Migration Requirements
 

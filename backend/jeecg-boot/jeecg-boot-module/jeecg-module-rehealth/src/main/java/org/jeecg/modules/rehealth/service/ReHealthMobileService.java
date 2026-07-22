@@ -21,19 +21,19 @@ public interface ReHealthMobileService {
 
     MobileConfigResponseDto config();
 
-    DeviceBindResponseDto bindDevice(DeviceBindRequestDto request);
+    DeviceBindResponseDto bindDevice(String userId, DeviceBindRequestDto request);
 
     TelemetryBatchResponseDto acceptTelemetryBatch(TelemetryBatchRequestDto request);
 
-    RiskEvaluateResponseDto evaluateFeatures(RiskEvaluateRequestDto request);
+    RiskEvaluateResponseDto evaluateFeatures(String userId, RiskEvaluateRequestDto request);
 
-    RiskEvaluateResponseDto latestRisk();
+    RiskEvaluateResponseDto latestRisk(String userId);
 
-    InterventionGenerateResponseDto generateIntervention(InterventionGenerateRequestDto request);
+    InterventionGenerateResponseDto generateIntervention(String userId, InterventionGenerateRequestDto request);
 
-    InterventionGenerateResponseDto latestIntervention();
+    InterventionGenerateResponseDto latestIntervention(String userId);
 
-    Map<String, Object> submitFeedback(String interventionId, FeedbackRequestDto request);
+    Map<String, Object> submitFeedback(String userId, String interventionId, FeedbackRequestDto request);
 
-    AttributionResponseDto recordAttributionEvents(AttributionEventsRequestDto request);
+    AttributionResponseDto recordAttributionEvents(String userId, AttributionEventsRequestDto request);
 }

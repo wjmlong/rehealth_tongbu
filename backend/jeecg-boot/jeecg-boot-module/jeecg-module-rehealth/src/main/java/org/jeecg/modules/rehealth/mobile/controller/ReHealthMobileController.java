@@ -57,7 +57,7 @@ public class ReHealthMobileController {
     @PostMapping("/devices/bind")
     @Operation(summary = "Bind wearable device to current ReHealth user")
     public Result<DeviceBindResponseDto> bindDevice(@RequestBody DeviceBindRequestDto request) {
-        return Result.OK(mobileService.bindDevice(request));
+        return Result.OK(mobileService.bindDevice(currentUserId(), request));
     }
 
     @PostMapping("/measurements/batch")
@@ -85,7 +85,7 @@ public class ReHealthMobileController {
     @Operation(summary = "Evaluate canonical CVD feature vector through model-service")
     public Result<RiskEvaluateResponseDto> evaluateFeatures(@RequestBody RiskEvaluateRequestDto request) {
         try {
-            return Result.OK(mobileService.evaluateFeatures(request));
+            return Result.OK(mobileService.evaluateFeatures(currentUserId(), request));
         } catch (IllegalStateException e) {
             return Result.error("model-service risk evaluation unavailable: " + e.getMessage());
         }
@@ -94,14 +94,14 @@ public class ReHealthMobileController {
     @GetMapping("/risk/latest")
     @Operation(summary = "Get latest persisted CVD risk result when software_db persistence is enabled")
     public Result<RiskEvaluateResponseDto> latestRisk() {
-        return Result.OK(mobileService.latestRisk());
+        return Result.OK(mobileService.latestRisk(currentUserId()));
     }
 
     @PostMapping("/interventions/generate")
     @Operation(summary = "Generate conservative intervention through model-service")
     public Result<InterventionGenerateResponseDto> generateIntervention(@RequestBody InterventionGenerateRequestDto request) {
         try {
-            return Result.OK(mobileService.generateIntervention(request));
+            return Result.OK(mobileService.generateIntervention(currentUserId(), request));
         } catch (IllegalStateException e) {
             return Result.error("model-service intervention generation unavailable: " + e.getMessage());
         }
@@ -110,7 +110,7 @@ public class ReHealthMobileController {
     @GetMapping("/interventions/today")
     @Operation(summary = "Get latest persisted intervention plan when software_db persistence is enabled")
     public Result<InterventionGenerateResponseDto> todayIntervention() {
-        return Result.OK(mobileService.latestIntervention());
+        return Result.OK(mobileService.latestIntervention(currentUserId()));
     }
 
     @PostMapping("/interventions/{id}/feedback")
@@ -119,14 +119,14 @@ public class ReHealthMobileController {
             @PathVariable("id") String interventionId,
             @RequestBody FeedbackRequestDto request
     ) {
-        return Result.OK(mobileService.submitFeedback(interventionId, request));
+        return Result.OK(mobileService.submitFeedback(currentUserId(), interventionId, request));
     }
 
     @PostMapping("/attribution/events")
     @Operation(summary = "Evaluate individual attribution event history through model-service")
     public Result<AttributionResponseDto> attributionEvents(@RequestBody AttributionEventsRequestDto request) {
         try {
-            return Result.OK(mobileService.recordAttributionEvents(request));
+            return Result.OK(mobileService.recordAttributionEvents(currentUserId(), request));
         } catch (IllegalStateException e) {
             return Result.error("model-service attribution evaluation unavailable: " + e.getMessage());
         }
