@@ -1,0 +1,3 @@
+﻿Surface: Android emulator-5554 / com.rehealth.genie
+Invocation: adb -s emulator-5554 install -r app-debug.apk; adb -s emulator-5554 shell am start -n com.rehealth.genie/com.rehealth.genie.MainActivity; adb -s emulator-5554 shell screencap -p /sdcard/final_qa.png; adb -s emulator-5554 pull /sdcard/final_qa.png <evidence-dir>
+Observed: install failed due system provider failure; activity service unavailable; screencap failed because remote file was not created. No app data was cleared.

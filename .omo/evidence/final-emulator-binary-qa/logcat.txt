@@ -1,0 +1,1048 @@
+﻿--------- beginning of system
+07-22 16:29:23.390  2174  2174 I SystemServiceManager: Starting phase 520
+07-22 16:29:23.390  2174  2174 I SystemServerTiming: OnBootPhase_520
+07-22 16:29:23.390  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.security.FileIntegrityService
+07-22 16:29:23.390  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.security.FileIntegrityService took to complete: 0ms
+07-22 16:29:23.390  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.pm.Installer
+07-22 16:29:23.391  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.pm.Installer took to complete: 0ms
+07-22 16:29:23.392  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.os.DeviceIdentifiersPolicyService
+07-22 16:29:23.392  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.os.DeviceIdentifiersPolicyService took to complete: 0ms
+07-22 16:29:23.394  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.uri.UriGrantsManagerService$Lifecycle
+07-22 16:29:23.394  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.uri.UriGrantsManagerService$Lifecycle took to complete: 0ms
+07-22 16:29:23.394  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.powerstats.PowerStatsService
+07-22 16:29:23.394  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.powerstats.PowerStatsService took to complete: 0ms
+07-22 16:29:23.394  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.wm.ActivityTaskManagerService$Lifecycle
+07-22 16:29:23.395  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.wm.ActivityTaskManagerService$Lifecycle took to complete: 0ms
+07-22 16:29:23.395  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.am.ActivityManagerService$Lifecycle
+07-22 16:29:23.395  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.am.ActivityManagerService$Lifecycle took to complete: 0ms
+07-22 16:29:23.395  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.pm.DataLoaderManagerService
+07-22 16:29:23.397  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.pm.DataLoaderManagerService took to complete: 0ms
+07-22 16:29:23.397  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.power.PowerManagerService
+07-22 16:29:23.398  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.power.PowerManagerService took to complete: 0ms
+07-22 16:29:23.398  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.power.ThermalManagerService
+07-22 16:29:23.398  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.power.ThermalManagerService took to complete: 0ms
+07-22 16:29:23.398  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.power.hint.HintManagerService
+07-22 16:29:23.398  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.power.hint.HintManagerService took to complete: 0ms
+07-22 16:29:23.401  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.recoverysystem.RecoverySystemService$Lifecycle
+07-22 16:29:23.401  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.recoverysystem.RecoverySystemService$Lifecycle took to complete: 0ms
+07-22 16:29:23.402  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.lights.LightsService
+07-22 16:29:23.402  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.lights.LightsService took to complete: 0ms
+07-22 16:29:23.402  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.display.DisplayManagerService
+07-22 16:29:23.403  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.display.DisplayManagerService took to complete: 0ms
+07-22 16:29:23.403  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.pm.verify.domain.DomainVerificationService
+07-22 16:29:23.403  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.pm.verify.domain.DomainVerificationService took to complete: 0ms
+07-22 16:29:23.403  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.pm.PackageInstallerService$Lifecycle
+07-22 16:29:23.403  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.pm.PackageInstallerService$Lifecycle took to complete: 0ms
+07-22 16:29:23.404  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.pm.UserManagerService$LifeCycle
+07-22 16:29:23.404  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.pm.UserManagerService$LifeCycle took to complete: 0ms
+07-22 16:29:23.404  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.om.OverlayManagerService
+07-22 16:29:23.404  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.om.OverlayManagerService took to complete: 0ms
+07-22 16:29:23.404  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.SensorPrivacyService
+07-22 16:29:23.404  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.SensorPrivacyService took to complete: 0ms
+07-22 16:29:23.405  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.sensors.SensorService
+07-22 16:29:23.406  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.sensors.SensorService took to complete: 2ms
+07-22 16:29:23.406  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.SystemConfigService
+07-22 16:29:23.407  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.SystemConfigService took to complete: 0ms
+07-22 16:29:23.407  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.BatteryService
+07-22 16:29:23.407  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.BatteryService took to complete: 0ms
+07-22 16:29:23.407  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.usage.UsageStatsService
+07-22 16:29:23.407  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.usage.UsageStatsService took to complete: 0ms
+07-22 16:29:23.413  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.webkit.WebViewUpdateService
+07-22 16:29:23.413  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.webkit.WebViewUpdateService took to complete: 0ms
+07-22 16:29:23.413  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.CachedDeviceStateService
+07-22 16:29:23.413  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.CachedDeviceStateService took to complete: 0ms
+07-22 16:29:23.414  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.BinderCallsStatsService$LifeCycle
+07-22 16:29:23.420  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.BinderCallsStatsService$LifeCycle took to complete: 0ms
+07-22 16:29:23.420  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.LooperStatsService$Lifecycle
+07-22 16:29:23.420  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.LooperStatsService$Lifecycle took to complete: 0ms
+07-22 16:29:23.420  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.rollback.RollbackManagerService
+07-22 16:29:23.420  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.rollback.RollbackManagerService took to complete: 0ms
+07-22 16:29:23.421  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.os.NativeTombstoneManagerService
+07-22 16:29:23.421  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.os.NativeTombstoneManagerService took to complete: 0ms
+07-22 16:29:23.421  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.os.BugreportManagerService
+07-22 16:29:23.421  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.os.BugreportManagerService took to complete: 0ms
+07-22 16:29:23.421  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.gpu.GpuService
+07-22 16:29:23.424  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.gpu.GpuService took to complete: 0ms
+07-22 16:29:23.426  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.security.KeyChainSystemService
+07-22 16:29:23.426  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.security.KeyChainSystemService took to complete: 0ms
+07-22 16:29:23.427  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.telecom.TelecomLoaderService
+07-22 16:29:23.427  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.telecom.TelecomLoaderService took to complete: 0ms
+07-22 16:29:23.428  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.accounts.AccountManagerService$Lifecycle
+07-22 16:29:23.428  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.accounts.AccountManagerService$Lifecycle took to complete: 0ms
+07-22 16:29:23.428  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.content.ContentService$Lifecycle
+07-22 16:29:23.428  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.content.ContentService$Lifecycle took to complete: 0ms
+07-22 16:29:23.428  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.DropBoxManagerService
+07-22 16:29:23.428  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.DropBoxManagerService took to complete: 0ms
+07-22 16:29:23.429  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.role.RoleService
+07-22 16:29:23.429  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.role.RoleService took to complete: 0ms
+07-22 16:29:23.429  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.vibrator.VibratorManagerService$Lifecycle
+07-22 16:29:23.431  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.vibrator.VibratorManagerService$Lifecycle took to complete: 2ms
+07-22 16:29:23.431  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.alarm.AlarmManagerService
+07-22 16:29:23.432  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.alarm.AlarmManagerService took to complete: 0ms
+07-22 16:29:23.432  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.devicestate.DeviceStateManagerService
+07-22 16:29:23.432  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.devicestate.DeviceStateManagerService took to complete: 0ms
+07-22 16:29:23.432  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.camera.CameraServiceProxy
+07-22 16:29:23.432  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.camera.CameraServiceProxy took to complete: 0ms
+07-22 16:29:23.432  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.BluetoothService
+07-22 16:29:23.433  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.BluetoothService took to complete: 0ms
+07-22 16:29:23.433  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.connectivity.IpConnectivityMetrics
+07-22 16:29:23.433  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.connectivity.IpConnectivityMetrics took to complete: 1ms
+07-22 16:29:23.433  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.net.watchlist.NetworkWatchlistService$Lifecycle
+07-22 16:29:23.434  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.net.watchlist.NetworkWatchlistService$Lifecycle took to complete: 0ms
+07-22 16:29:23.436  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.PinnerService
+07-22 16:29:23.438  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.PinnerService took to complete: 2ms
+07-22 16:29:23.438  2174  2174 I SystemServerTiming: OnBootPhase_520_com.google.android.startop.iorap.IorapForwardingService
+07-22 16:29:23.441  2174  2174 D SystemServerTiming: OnBootPhase_520_com.google.android.startop.iorap.IorapForwardingService took to complete: 3ms
+07-22 16:29:23.442  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.integrity.AppIntegrityManagerService
+07-22 16:29:23.442  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.integrity.AppIntegrityManagerService took to complete: 0ms
+07-22 16:29:23.442  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.inputmethod.InputMethodManagerService$Lifecycle
+07-22 16:29:23.444  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.inputmethod.InputMethodManagerService$Lifecycle took to complete: 0ms
+07-22 16:29:23.444  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.accessibility.AccessibilityManagerService$Lifecycle
+07-22 16:29:23.444  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.accessibility.AccessibilityManagerService$Lifecycle took to complete: 0ms
+07-22 16:29:23.444  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.StorageManagerService$Lifecycle
+07-22 16:29:23.445  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.StorageManagerService$Lifecycle took to complete: 0ms
+07-22 16:29:23.445  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.usage.StorageStatsService$Lifecycle
+07-22 16:29:23.445  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.usage.StorageStatsService$Lifecycle took to complete: 0ms
+07-22 16:29:23.445  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.UiModeManagerService
+07-22 16:29:23.445  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.UiModeManagerService took to complete: 0ms
+07-22 16:29:23.447  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.locksettings.LockSettingsService$Lifecycle
+07-22 16:29:23.447  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.locksettings.LockSettingsService$Lifecycle took to complete: 0ms
+07-22 16:29:23.448  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.testharness.TestHarnessModeService
+07-22 16:29:23.448  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.testharness.TestHarnessModeService took to complete: 1ms
+07-22 16:29:23.448  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.DeviceIdleController
+07-22 16:29:23.448  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.DeviceIdleController took to complete: 0ms
+07-22 16:29:23.449  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.devicepolicy.DevicePolicyManagerService$Lifecycle
+07-22 16:29:23.450  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.devicepolicy.DevicePolicyManagerService$Lifecycle took to complete: 0ms
+07-22 16:29:23.451  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.musicrecognition.MusicRecognitionManagerService
+07-22 16:29:23.452  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.musicrecognition.MusicRecognitionManagerService took to complete: 2ms
+07-22 16:29:23.452  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.contentcapture.ContentCaptureManagerService
+07-22 16:29:23.452  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.contentcapture.ContentCaptureManagerService took to complete: 0ms
+07-22 16:29:23.453  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.systemcaptions.SystemCaptionsManagerService
+07-22 16:29:23.453  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.systemcaptions.SystemCaptionsManagerService took to complete: 0ms
+07-22 16:29:23.453  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.texttospeech.TextToSpeechManagerService
+07-22 16:29:23.453  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.texttospeech.TextToSpeechManagerService took to complete: 0ms
+07-22 16:29:23.454  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.speech.SpeechRecognitionManagerService
+07-22 16:29:23.456  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.speech.SpeechRecognitionManagerService took to complete: 1ms
+07-22 16:29:23.456  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.appprediction.AppPredictionManagerService
+07-22 16:29:23.456  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.appprediction.AppPredictionManagerService took to complete: 0ms
+07-22 16:29:23.456  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.contentsuggestions.ContentSuggestionsManagerService
+07-22 16:29:23.458  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.contentsuggestions.ContentSuggestionsManagerService took to complete: 1ms
+07-22 16:29:23.458  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.searchui.SearchUiManagerService
+07-22 16:29:23.458  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.searchui.SearchUiManagerService took to complete: 0ms
+07-22 16:29:23.458  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.smartspace.SmartspaceManagerService
+07-22 16:29:23.458  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.smartspace.SmartspaceManagerService took to complete: 0ms
+07-22 16:29:23.458  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.graphics.fonts.FontManagerService$Lifecycle
+07-22 16:29:23.459  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.graphics.fonts.FontManagerService$Lifecycle took to complete: 0ms
+07-22 16:29:23.459  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.textservices.TextServicesManagerService$Lifecycle
+07-22 16:29:23.459  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.textservices.TextServicesManagerService$Lifecycle took to complete: 0ms
+07-22 16:29:23.459  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.textclassifier.TextClassificationManagerService$Lifecycle
+07-22 16:29:23.461  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.textclassifier.TextClassificationManagerService$Lifecycle took to complete: 0ms
+07-22 16:29:23.461  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.NetworkScoreService$Lifecycle
+07-22 16:29:23.461  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.NetworkScoreService$Lifecycle took to complete: 0ms
+07-22 16:29:23.461  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.wifi.WifiService
+07-22 16:29:23.462  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.wifi.WifiService took to complete: 0ms
+07-22 16:29:23.462  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.wifi.scanner.WifiScanningService
+07-22 16:29:23.462  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.wifi.scanner.WifiScanningService took to complete: 0ms
+07-22 16:29:23.462  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.wifi.p2p.WifiP2pService
+07-22 16:29:23.462  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.wifi.p2p.WifiP2pService took to complete: 0ms
+07-22 16:29:23.462  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.ConnectivityServiceInitializer
+07-22 16:29:23.463  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.ConnectivityServiceInitializer took to complete: 0ms
+07-22 16:29:23.463  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.notification.NotificationManagerService
+07-22 16:29:23.463  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.notification.NotificationManagerService took to complete: 0ms
+07-22 16:29:23.463  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.storage.DeviceStorageMonitorService
+07-22 16:29:23.463  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.storage.DeviceStorageMonitorService took to complete: 0ms
+07-22 16:29:23.464  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.location.LocationManagerService$Lifecycle
+07-22 16:29:23.465  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.location.LocationManagerService$Lifecycle took to complete: 0ms
+07-22 16:29:23.465  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.timedetector.TimeDetectorService$Lifecycle
+07-22 16:29:23.467  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.timedetector.TimeDetectorService$Lifecycle took to complete: 0ms
+07-22 16:29:23.469  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.timezonedetector.TimeZoneDetectorService$Lifecycle
+07-22 16:29:23.474  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.timezonedetector.TimeZoneDetectorService$Lifecycle took to complete: 0ms
+07-22 16:29:23.474  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.timezonedetector.location.LocationTimeZoneManagerService$Lifecycle
+07-22 16:29:23.474  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.timezonedetector.location.LocationTimeZoneManagerService$Lifecycle took to complete: 0ms
+07-22 16:29:23.475  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.search.SearchManagerService$Lifecycle
+07-22 16:29:23.475  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.search.SearchManagerService$Lifecycle took to complete: 0ms
+07-22 16:29:23.475  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.wallpaper.WallpaperManagerService$Lifecycle
+07-22 16:29:23.476  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.wallpaper.WallpaperManagerService$Lifecycle took to complete: 0ms
+07-22 16:29:23.477  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.audio.AudioService$Lifecycle
+07-22 16:29:23.477  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.audio.AudioService$Lifecycle took to complete: 0ms
+07-22 16:29:23.477  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.soundtrigger_middleware.SoundTriggerMiddlewareService$Lifecycle
+07-22 16:29:23.478  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.soundtrigger_middleware.SoundTriggerMiddlewareService$Lifecycle took to complete: 0ms
+07-22 16:29:23.478  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.DockObserver
+07-22 16:29:23.478  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.DockObserver took to complete: 0ms
+07-22 16:29:23.479  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.midi.MidiService$Lifecycle
+07-22 16:29:23.479  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.midi.MidiService$Lifecycle took to complete: 0ms
+07-22 16:29:23.479  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.adb.AdbService$Lifecycle
+07-22 16:29:23.479  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.adb.AdbService$Lifecycle took to complete: 0ms
+07-22 16:29:23.479  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.usb.UsbService$Lifecycle
+07-22 16:29:23.480  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.usb.UsbService$Lifecycle took to complete: 0ms
+07-22 16:29:23.480  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.twilight.TwilightService
+07-22 16:29:23.480  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.twilight.TwilightService took to complete: 0ms
+07-22 16:29:23.480  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.display.color.ColorDisplayService
+07-22 16:29:23.481  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.display.color.ColorDisplayService took to complete: 0ms
+07-22 16:29:23.481  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.job.JobSchedulerService
+07-22 16:29:23.481  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.job.JobSchedulerService took to complete: 1ms
+07-22 16:29:23.481  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.soundtrigger.SoundTriggerService
+07-22 16:29:23.481  2174  2174 D SoundTriggerService: onBootPhase: 520 : false
+07-22 16:29:23.481  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.soundtrigger.SoundTriggerService took to complete: 0ms
+07-22 16:29:23.482  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.trust.TrustManagerService
+07-22 16:29:23.482  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.trust.TrustManagerService took to complete: 0ms
+07-22 16:29:23.484  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.backup.BackupManagerService$Lifecycle
+07-22 16:29:23.484  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.backup.BackupManagerService$Lifecycle took to complete: 0ms
+07-22 16:29:23.484  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.appwidget.AppWidgetService
+07-22 16:29:23.484  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.appwidget.AppWidgetService took to complete: 0ms
+07-22 16:29:23.485  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.voiceinteraction.VoiceInteractionManagerService
+07-22 16:29:23.485  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.voiceinteraction.VoiceInteractionManagerService took to complete: 0ms
+07-22 16:29:23.485  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.apphibernation.AppHibernationService
+07-22 16:29:23.486  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.apphibernation.AppHibernationService took to complete: 0ms
+07-22 16:29:23.486  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.GestureLauncherService
+07-22 16:29:23.486  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.GestureLauncherService took to complete: 0ms
+07-22 16:29:23.487  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.SensorNotificationService
+07-22 16:29:23.488  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.SensorNotificationService took to complete: 0ms
+07-22 16:29:23.488  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.emergency.EmergencyAffordanceService
+07-22 16:29:23.488  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.emergency.EmergencyAffordanceService took to complete: 0ms
+07-22 16:29:23.489  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.dreams.DreamManagerService
+07-22 16:29:23.489  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.dreams.DreamManagerService took to complete: 1ms
+07-22 16:29:23.489  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.blob.BlobStoreManagerService
+07-22 16:29:23.489  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.blob.BlobStoreManagerService took to complete: 0ms
+07-22 16:29:23.489  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.print.PrintManagerService
+07-22 16:29:23.491  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.print.PrintManagerService took to complete: 2ms
+07-22 16:29:23.491  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.companion.CompanionDeviceManagerService
+07-22 16:29:23.493  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.companion.CompanionDeviceManagerService took to complete: 0ms
+07-22 16:29:23.493  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.restrictions.RestrictionsManagerService
+07-22 16:29:23.495  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.restrictions.RestrictionsManagerService took to complete: 0ms
+07-22 16:29:23.495  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.media.MediaSessionService
+07-22 16:29:23.495  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.media.MediaSessionService took to complete: 0ms
+07-22 16:29:23.496  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.media.MediaResourceMonitorService
+07-22 16:29:23.496  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.media.MediaResourceMonitorService took to complete: 0ms
+07-22 16:29:23.496  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.biometrics.sensors.fingerprint.FingerprintService
+07-22 16:29:23.496  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.biometrics.sensors.fingerprint.FingerprintService took to complete: 0ms
+07-22 16:29:23.496  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.biometrics.BiometricService
+07-22 16:29:23.497  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.biometrics.BiometricService took to complete: 0ms
+07-22 16:29:23.499  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.biometrics.AuthService
+07-22 16:29:23.499  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.biometrics.AuthService took to complete: 0ms
+07-22 16:29:23.499  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.pm.ShortcutService$Lifecycle
+07-22 16:29:23.499  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.pm.ShortcutService$Lifecycle took to complete: 0ms
+07-22 16:29:23.501  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.pm.LauncherAppsService
+07-22 16:29:23.501  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.pm.LauncherAppsService took to complete: 0ms
+07-22 16:29:23.501  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.pm.CrossProfileAppsService
+07-22 16:29:23.501  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.pm.CrossProfileAppsService took to complete: 0ms
+07-22 16:29:23.501  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.people.PeopleService
+07-22 16:29:23.501  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.people.PeopleService took to complete: 0ms
+07-22 16:29:23.502  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.media.metrics.MediaMetricsManagerService
+07-22 16:29:23.505  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.media.metrics.MediaMetricsManagerService took to complete: 3ms
+07-22 16:29:23.506  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.media.projection.MediaProjectionManagerService
+07-22 16:29:23.506  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.media.projection.MediaProjectionManagerService took to complete: 0ms
+07-22 16:29:23.507  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.slice.SliceManagerService$Lifecycle
+07-22 16:29:23.507  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.slice.SliceManagerService$Lifecycle took to complete: 0ms
+07-22 16:29:23.508  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.stats.StatsCompanion$Lifecycle
+07-22 16:29:23.508  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.stats.StatsCompanion$Lifecycle took to complete: 0ms
+07-22 16:29:23.508  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.scheduling.RebootReadinessManagerService$Lifecycle
+07-22 16:29:23.510  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.scheduling.RebootReadinessManagerService$Lifecycle took to complete: 0ms
+07-22 16:29:23.511  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.stats.pull.StatsPullAtomService
+07-22 16:29:23.511  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.stats.pull.StatsPullAtomService took to complete: 0ms
+07-22 16:29:23.511  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.incident.IncidentCompanionService
+07-22 16:29:23.511  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.incident.IncidentCompanionService took to complete: 0ms
+07-22 16:29:23.511  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.MmsServiceBroker
+07-22 16:29:23.512  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.MmsServiceBroker took to complete: 0ms
+07-22 16:29:23.512  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.autofill.AutofillManagerService
+07-22 16:29:23.512  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.autofill.AutofillManagerService took to complete: 0ms
+07-22 16:29:23.512  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.translation.TranslationManagerService
+07-22 16:29:23.512  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.translation.TranslationManagerService took to complete: 0ms
+07-22 16:29:23.514  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.clipboard.ClipboardService
+07-22 16:29:23.516  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.clipboard.ClipboardService took to complete: 1ms
+07-22 16:29:23.516  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.appbinding.AppBindingService$Lifecycle
+07-22 16:29:23.516  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.appbinding.AppBindingService$Lifecycle took to complete: 0ms
+07-22 16:29:23.517  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.tracing.TracingServiceProxy
+07-22 16:29:23.517  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.tracing.TracingServiceProxy took to complete: 0ms
+07-22 16:29:23.517  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.policy.PermissionPolicyService
+07-22 16:29:23.517  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.policy.PermissionPolicyService took to complete: 0ms
+07-22 16:29:23.520  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.pm.StagingManager$Lifecycle
+07-22 16:29:23.520  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.pm.StagingManager$Lifecycle took to complete: 0ms
+07-22 16:29:23.520  2174  2174 I SystemServerTiming: OnBootPhase_520_com.android.server.app.GameManagerService$Lifecycle
+07-22 16:29:23.520  2174  2174 D SystemServerTiming: OnBootPhase_520_com.android.server.app.GameManagerService$Lifecycle took to complete: 0ms
+07-22 16:29:23.520  2174  2174 D SystemServerTiming: OnBootPhase_520 took to complete: 130ms
+07-22 16:29:23.521  2174  2174 D SystemServerTiming: StartBootPhaseDeviceSpecificServicesReady took to complete: 131ms
+07-22 16:29:23.521  2174  2174 I SystemServerTiming: AppSearchManagerService
+07-22 16:29:23.521  2174  2174 I SystemServiceManager: Starting com.android.server.appsearch.AppSearchManagerService
+07-22 16:29:23.524  2174  2174 D SystemServerTiming: AppSearchManagerService took to complete: 3ms
+07-22 16:29:23.524  2174  2174 I SystemServerTiming: StartMediaCommunicationService
+07-22 16:29:23.526  2174  2174 I SystemServiceManager: Starting com.android.server.media.MediaCommunicationService
+07-22 16:29:23.527  2174  2174 D SystemServerTiming: StartMediaCommunicationService took to complete: 2ms
+07-22 16:29:23.527  2174  2174 I SystemServerTiming: PhaseActivityManagerReady
+07-22 16:29:23.527  2174  2174 I SystemServerTiming: controllersReady
+07-22 16:29:23.530  2174  2239 I SystemServerTimingAsync: InitThreadPoolExec:Update app-ops uidState in case package android changed
+07-22 16:29:23.530  2174  2239 D SystemServerInitThreadPool: Started executing Update app-ops uidState in case package android changed
+07-22 16:29:23.530  2174  2239 D SystemServerInitThreadPool: Finished executing Update app-ops uidState in case package android changed
+07-22 16:29:23.531  2174  2239 D SystemServerTimingAsync: InitThreadPoolExec:Update app-ops uidState in case package android changed took to complete: 0ms
+07-22 16:29:23.531  2174  2174 D SystemServerTiming: controllersReady took to complete: 3ms
+07-22 16:29:23.532  2174  2174 I SystemServerTiming: killProcesses
+07-22 16:29:23.532  2174  2174 D SystemServerTiming: killProcesses took to complete: 0ms
+07-22 16:29:23.536  2174  2174 I ActivityManager: System now ready
+07-22 16:29:23.536  2174  2174 I SystemServerTiming: updateTopComponentForFactoryTest
+07-22 16:29:23.538  2174  2174 D SystemServerTiming: updateTopComponentForFactoryTest took to complete: 0ms
+07-22 16:29:23.538  2174  2174 I SystemServerTiming: registerActivityLaunchObserver
+07-22 16:29:23.539  2174  2174 D SystemServerTiming: registerActivityLaunchObserver took to complete: 0ms
+07-22 16:29:23.544  2174  2174 I SystemServerTiming: watchDeviceProvisioning
+--------- beginning of crash
+07-22 16:29:23.557  2174  2193 E AndroidRuntime: *** FATAL EXCEPTION IN SYSTEM PROCESS: android.io
+07-22 16:29:23.557  2174  2193 E AndroidRuntime: android.util.proto.ProtoParseException: Unexpected wire type: 7 at offset 0x1
+07-22 16:29:23.557  2174  2193 E AndroidRuntime: mFieldNumber : 0xe
+07-22 16:29:23.557  2174  2193 E AndroidRuntime: mWireType : 0x7
+07-22 16:29:23.557  2174  2193 E AndroidRuntime: mState : 0x1
+07-22 16:29:23.557  2174  2193 E AndroidRuntime: mDiscardedBytes : 0x0
+07-22 16:29:23.557  2174  2193 E AndroidRuntime: mOffset : 0x1
+07-22 16:29:23.557  2174  2193 E AndroidRuntime: mExpectedObjectTokenStack : null
+07-22 16:29:23.557  2174  2193 E AndroidRuntime: mDepth : 0xffffffff
+07-22 16:29:23.557  2174  2193 E AndroidRuntime: mBuffer : [B@f3521a4
+07-22 16:29:23.557  2174  2193 E AndroidRuntime: mBufferSize : 0x2000
+07-22 16:29:23.557  2174  2193 E AndroidRuntime: mEnd : 0x2000
+07-22 16:29:23.557  2174  2193 E AndroidRuntime: 	at android.util.proto.ProtoInputStream.skip(ProtoInputStream.java:838)
+07-22 16:29:23.557  2174  2193 E AndroidRuntime: 	at android.util.proto.ProtoInputStream.nextField(ProtoInputStream.java:226)
+07-22 16:29:23.557  2174  2193 E AndroidRuntime: 	at com.android.server.am.AppExitInfoTracker.loadExistingProcessExitInfo(AppExitInfoTracker.java:664)
+07-22 16:29:23.557  2174  2193 E AndroidRuntime: 	at com.android.server.am.AppExitInfoTracker.lambda$onSystemReady$0$AppExitInfoTracker(AppExitInfoTracker.java:279)
+07-22 16:29:23.557  2174  2193 E AndroidRuntime: 	at com.android.server.am.AppExitInfoTracker$$ExternalSyntheticLambda2.run(Unknown Source:2)
+07-22 16:29:23.557  2174  2193 E AndroidRuntime: 	at android.os.Handler.handleCallback(Handler.java:938)
+07-22 16:29:23.557  2174  2193 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:99)
+07-22 16:29:23.557  2174  2193 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:201)
+07-22 16:29:23.557  2174  2193 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:288)
+07-22 16:29:23.557  2174  2193 E AndroidRuntime: 	at android.os.HandlerThread.run(HandlerThread.java:67)
+07-22 16:29:23.557  2174  2193 E AndroidRuntime: 	at com.android.server.ServiceThread.run(ServiceThread.java:44)
+07-22 16:29:23.565  2174  2193 I DropBoxManagerService: add tag=system_server_crash isTagEnabled=true flags=0x2
+--------- beginning of main
+07-22 16:29:23.573  2174  2193 I Process : Sending signal. PID: 2174 SIG: 9
+07-22 16:29:25.209   200   200 I lowmemorykiller: lmkd data connection dropped
+07-22 16:29:25.209   200   200 I lowmemorykiller: closing lmkd data connection
+07-22 16:29:25.362  2111  2146 I CaptureStateNotifier: Listener binder died
+07-22 16:29:25.363   343   345 E IPCThreadState: attemptIncStrongHandle(3): Not supported
+07-22 16:29:25.363   343   345 E IPCThreadState: attemptIncStrongHandle(5): Not supported
+07-22 16:29:25.364   343  1636 E IPCThreadState: attemptIncStrongHandle(1): Not supported
+07-22 16:29:25.364  2110  2110 E Zygote  : Zygote failed to write to system_server FD: Connection refused
+07-22 16:29:25.364   343  1636 E IPCThreadState: attemptIncStrongHandle(2): Not supported
+07-22 16:29:25.364  2110  2110 I Zygote  : Process 2174 exited due to signal 9 (Killed)
+07-22 16:29:25.364  2110  2110 E Zygote  : Exit zygote because system server (pid 2174) has terminated
+07-22 16:29:25.365  2321  2321 E wpa_supplicant: Client died. Terminating...
+07-22 16:29:25.367  2321  2321 I wpa_supplicant: nl80211: deinit ifname=p2p-dev-wlan0 disabled_11b_rates=0
+--------- beginning of kernel
+07-22 16:29:25.367     0     0 I init    : Service 'zygote' (pid 2110) received signal 9
+07-22 16:29:25.370     0     0 I init    : Sending signal 9 to service 'zygote' (pid 2110) process group...
+07-22 16:29:25.371     0     0 I libprocessgroup: Successfully killed process cgroup uid 0 pid 2110 in 0ms
+07-22 16:29:25.371     0     0 E init    : process with updatable components 'zygote' exited 4 times before boot completed
+07-22 16:29:25.394     0     0 I init    : starting service 'exec 28 (/system/bin/vdc volume abort_fuse)'...
+07-22 16:29:25.397     0     0 I init    : Command 'write /sys/power/state on' action=onrestart (<Service 'zygote' onrestart>:2) took 0ms and failed: Unable to write to file '/sys/power/state': Unable to write file contents: Invalid argument
+07-22 16:29:25.416     0     0 I init    : Sending signal 9 to service 'audioserver' (pid 2111) process group...
+07-22 16:29:25.440  2117  2132 I r_submix: adev_close()
+07-22 16:29:25.471  2321  2321 I wpa_supplicant: p2p-dev-wlan0: CTRL-EVENT-TERMINATING 
+07-22 16:29:25.442     0     0 I libprocessgroup: Successfully killed process cgroup uid 1041 pid 2111 in 21ms
+07-22 16:29:25.453     0     0 I init    : Sending signal 9 to service 'cameraserver' (pid 2112) process group...
+07-22 16:29:25.473     0     0 I libprocessgroup: Successfully killed process cgroup uid 1047 pid 2112 in 12ms
+07-22 16:29:25.479     0     0 I init    : Sending signal 9 to service 'media' (pid 2113) process group...
+07-22 16:29:25.489     0     0 I libprocessgroup: Successfully killed process cgroup uid 1013 pid 2113 in 7ms
+07-22 16:29:25.493     0     0 I init    : Sending signal 9 to service 'netd' (pid 2114) process group...
+07-22 16:29:25.504     0     0 I libprocessgroup: Successfully killed process cgroup uid 0 pid 2114 in 8ms
+07-22 16:29:25.509     0     0 I init    : Sending signal 9 to service 'wificond' (pid 2116) process group...
+07-22 16:29:25.537  2321  2321 I wpa_supplicant: nl80211: deinit ifname=wlan0 disabled_11b_rates=0
+07-22 16:29:25.538  2321  2321 E wpa_supplicant: Error deregistering for death notification for iface callback object
+07-22 16:29:25.539  2321  2321 I wpa_supplicant: wlan0: CTRL-EVENT-TERMINATING 
+07-22 16:29:25.520     0     0 I libprocessgroup: Successfully killed process cgroup uid 1010 pid 2116 in 9ms
+07-22 16:29:25.528     0     0 I init    : Service 'audioserver' (pid 2111) received signal 9
+07-22 16:29:25.531     0     0 I init    : Sending signal 9 to service 'vendor.audio-hal' (pid 2117) process group...
+07-22 16:29:25.551     0     0 I libprocessgroup: Successfully killed process cgroup uid 1041 pid 2117 in 16ms
+07-22 16:29:25.554     0     0 I init    : Command 'restart vendor.audio-hal-4-0-msd' action=onrestart (<Service 'audioserver' onrestart>:2) took 0ms and failed: service vendor.audio-hal-4-0-msd not found
+07-22 16:29:25.556     0     0 I init    : Command 'restart audio_proxy_service' action=onrestart (<Service 'audioserver' onrestart>:3) took 0ms and failed: service audio_proxy_service not found
+07-22 16:29:25.557     0     0 I init    : Command 'restart vendor.audio-hal-2-0' action=onrestart (<Service 'audioserver' onrestart>:4) took 0ms and failed: service vendor.audio-hal-2-0 not found
+07-22 16:29:25.558     0     0 I init    : Command 'restart audio-hal-2-0' action=onrestart (<Service 'audioserver' onrestart>:5) took 0ms and failed: service audio-hal-2-0 not found
+07-22 16:29:25.561     0     0 I init    : Service 'cameraserver' (pid 2112) received signal 9
+07-22 16:29:25.563     0     0 I init    : Service 'media' (pid 2113) received signal 9
+07-22 16:29:25.570     0     0 I init    : Service 'netd' (pid 2114) received signal 9
+07-22 16:29:25.572     0     0 I init    : Command 'restart zygote_secondary' action=onrestart (<Service 'netd' onrestart>:2) took 0ms and failed: service zygote_secondary not found
+07-22 16:29:25.599     0     0 I init    : Service 'wificond' (pid 2116) received signal 9
+07-22 16:29:25.610     0     0 I init    : Service 'vendor.audio-hal' (pid 2117) received signal 9
+07-22 16:29:25.618     0     0 I init    : Service 'wpa_supplicant' (pid 2321) exited with status 0 oneshot service took 2.704000 seconds in background
+07-22 16:29:25.621     0     0 I init    : Sending signal 9 to service 'wpa_supplicant' (pid 2321) process group...
+07-22 16:29:25.621     0     0 I libprocessgroup: Successfully killed process cgroup uid 0 pid 2321 in 0ms
+07-22 16:29:25.634     0     0 I init    : Service 'exec 28 (/system/bin/vdc volume abort_fuse)' (pid 2332) exited with status 0 oneshot service took 0.233000 seconds in background
+07-22 16:29:25.638     0     0 I init    : Sending signal 9 to service 'exec 28 (/system/bin/vdc volume abort_fuse)' (pid 2332) process group...
+07-22 16:29:25.644     0     0 I libprocessgroup: Successfully killed process cgroup uid 1000 pid 2332 in 0ms
+07-22 16:29:25.648     0     0 I init    : Untracked pid 2118 received signal 9
+07-22 16:29:25.648     0     0 I init    : Untracked pid 2119 received signal 9
+07-22 16:29:25.648     0     0 I init    : processing action (sys.init.updatable_crashing=1) from (/system/etc/init/flags_health_check.rc:10)
+07-22 16:29:25.648     0     0 I init    : starting service 'exec 29 (/system/bin/flags_health_check UPDATABLE_CRASHING)'...
+07-22 16:29:25.681  2334  2334 I flags_health_check: ServerConfigurableFlagsReset reset_mode value: 1
+07-22 16:29:25.682  2334  2334 I flags_health_check: ServerConfigurableFlagsReset updatable crashing detected, resetting flags.
+07-22 16:29:25.663     0     0 I binder  : undelivered death notification, 00007c8581163090
+07-22 16:29:25.665     0     0 I init    : SVC_EXEC service 'exec 29 (/system/bin/flags_health_check UPDATABLE_CRASHING)' pid 2334 (uid 1000 gid 1000+0 context default) started; waiting...
+07-22 16:29:25.669     0     0 I init    : starting service 'zygote'...
+07-22 16:29:25.669     0     0 I init    : Created socket '/dev/socket/zygote', mode 660, user 0, group 1000
+07-22 16:29:25.678     0     0 I init    : Created socket '/dev/socket/usap_pool_primary', mode 660, user 0, group 1000
+07-22 16:29:25.689     0     0 I init    : starting service 'audioserver'...
+07-22 16:29:25.697     0     0 I init    : starting service 'cameraserver'...
+07-22 16:29:25.705     0     0 I init    : starting service 'media'...
+07-22 16:29:25.741  2336  2336 I FastMixerState: sMaxFastTracks = 8
+07-22 16:29:25.746  2336  2336 V MediaUtils: physMem: 2063470592
+07-22 16:29:25.746  2336  2336 V MediaUtils: requested limit: 412694100
+07-22 16:29:25.747  2336  2336 I libc    : malloc_limit: Allocation limit enabled, max size 412694100 bytes
+07-22 16:29:25.749  2336  2336 I audioserver: ServiceManager: 0x7441e9702bb0
+07-22 16:29:25.722     0     0 I init    : starting service 'netd'...
+07-22 16:29:25.724     0     0 I init    : Created socket '/dev/socket/dnsproxyd', mode 660, user 0, group 3003
+07-22 16:29:25.725     0     0 I init    : Created socket '/dev/socket/mdns', mode 660, user 0, group 1000
+07-22 16:29:25.725     0     0 I init    : Created socket '/dev/socket/fwmarkd', mode 660, user 0, group 3003
+07-22 16:29:25.760  2339  2339 I netdClient: Skipping libnetd_client init since *we* are netd
+07-22 16:29:25.763  2339  2339 I netd    : netd 1.0 starting
+07-22 16:29:25.764  2339  2339 I netd    : Pid file removed
+07-22 16:29:25.764  2339  2339 I netd    : SIGPIPE is blocked
+07-22 16:29:25.740     0     0 I init    : starting service 'wificond'...
+07-22 16:29:25.747     0     0 I init    : starting service 'vendor.audio-hal'...
+07-22 16:29:25.757     0     0 I init    : Service 'exec 29 (/system/bin/flags_health_check UPDATABLE_CRASHING)' (pid 2334) exited with status 0 waiting took 0.092000 seconds
+07-22 16:29:25.757     0     0 I init    : Sending signal 9 to service 'exec 29 (/system/bin/flags_health_check UPDATABLE_CRASHING)' (pid 2334) process group...
+07-22 16:29:25.757     0     0 I libprocessgroup: Successfully killed process cgroup uid 1000 pid 2334 in 0ms
+07-22 16:29:25.772  2335  2335 D AndroidRuntime: >>>>>> START com.android.internal.os.ZygoteInit uid 0 <<<<<<
+07-22 16:29:25.775  2339  2339 I netd    : setCloseOnExec(dnsproxyd)
+07-22 16:29:25.775  2339  2339 I netd    : setCloseOnExec(fwmarkd)
+07-22 16:29:25.775  2339  2339 I netd    : setCloseOnExec(mdns)
+07-22 16:29:25.775  2339  2339 I netd    : BPF programs are loaded
+07-22 16:29:25.776  2339  2339 I netd    : NetlinkManager instanced
+07-22 16:29:25.776  2339  2339 I netd    : enter NetworkController ctor
+07-22 16:29:25.776  2335  2335 I AndroidRuntime: Using default boot image
+07-22 16:29:25.776  2335  2335 I AndroidRuntime: Leaving lock profiling enabled
+07-22 16:29:25.776  2339  2339 I netd    : leave NetworkController ctor
+07-22 16:29:25.776  2339  2339 I netd    : enter TetherController ctor
+07-22 16:29:25.777  2335  2335 I zygote64: option[0]=-Xzygote
+07-22 16:29:25.777  2335  2335 I zygote64: option[1]=exit
+07-22 16:29:25.777  2337  2337 I cameraserver: ServiceManager: 0x70d002aceb80
+07-22 16:29:25.777  2335  2335 I zygote64: option[2]=vfprintf
+07-22 16:29:25.777  2337  2337 I CameraService: CameraService started (pid=2337)
+07-22 16:29:25.777  2335  2335 I zygote64: option[3]=sensitiveThread
+07-22 16:29:25.777  2337  2337 I CameraService: CameraService process starting
+07-22 16:29:25.777  2335  2335 I zygote64: option[4]=-verbose:gc
+07-22 16:29:25.777  2339  2339 D TetherController: Setting IP forward enable = 0
+07-22 16:29:25.777  2335  2335 I zygote64: option[5]=-XX:PerfettoHprof=true
+07-22 16:29:25.778  2335  2335 I zygote64: option[6]=-XX:PerfettoJavaHeapStackProf=true
+07-22 16:29:25.778  2336  2336 W BatteryNotifier: batterystats service unavailable!
+07-22 16:29:25.778  2335  2335 I zygote64: option[7]=-Xprimaryzygote
+07-22 16:29:25.778  2335  2335 I zygote64: option[8]=-Xms8m
+07-22 16:29:25.778  2337  2337 W BatteryNotifier: batterystats service unavailable!
+07-22 16:29:25.778  2335  2335 I zygote64: option[9]=-Xmx512m
+07-22 16:29:25.778  2335  2335 I zygote64: option[10]=-XX:HeapGrowthLimit=192m
+07-22 16:29:25.778  2335  2335 I zygote64: option[11]=-XX:HeapMinFree=512k
+07-22 16:29:25.779  2335  2335 I zygote64: option[12]=-XX:HeapMaxFree=8m
+07-22 16:29:25.779  2335  2335 I zygote64: option[13]=-XX:HeapTargetUtilization=0.75
+07-22 16:29:25.779  2335  2335 I zygote64: option[14]=-Xusejit:true
+07-22 16:29:25.779  2335  2335 I zygote64: option[15]=-Xjitsaveprofilinginfo
+07-22 16:29:25.779  2335  2335 I zygote64: option[16]=-XMadviseWillNeedVdexFileSize:104857600
+07-22 16:29:25.779  2335  2335 I zygote64: option[17]=-XMadviseWillNeedOdexFileSize:104857600
+07-22 16:29:25.779  2335  2335 I zygote64: option[18]=-XMadviseWillNeedArtFileSize:4294967295
+07-22 16:29:25.780  2335  2335 I zygote64: option[19]=-XjdwpOptions:suspend=n,server=y
+07-22 16:29:25.780  2335  2335 I zygote64: option[20]=-XjdwpProvider:default
+07-22 16:29:25.782   206   206 I hwservicemanager: getTransport: Cannot find entry android.hardware.audio@7.0::IDevicesFactory/default in either framework or device VINTF manifest.
+07-22 16:29:25.783   206   206 I hwservicemanager: getTransport: Cannot find entry android.hardware.audio@7.0::IDevicesFactory/default in either framework or device VINTF manifest.
+07-22 16:29:25.783  2337  2337 W BatteryNotifier: batterystats service unavailable!
+07-22 16:29:25.783  2335  2335 I zygote64: option[21]=-Xopaque-jni-ids:swapable
+07-22 16:29:25.784  2335  2335 I zygote64: option[22]=-Xlockprofthreshold:500
+07-22 16:29:25.784  2335  2335 I zygote64: option[23]=-Xcompiler-option
+07-22 16:29:25.784  2339  2339 I netd    : leave TetherController ctor
+07-22 16:29:25.784  2335  2335 I zygote64: option[24]=--instruction-set-variant=x86_64
+07-22 16:29:25.784  2335  2335 I zygote64: option[25]=-Xcompiler-option
+07-22 16:29:25.784  2339  2339 D FirewallController: Could not read /proc/self/uid_map, max uid defaulting to 4294967294
+07-22 16:29:25.784  2335  2335 I zygote64: option[26]=--instruction-set-features=default
+07-22 16:29:25.784  2335  2335 I zygote64: option[27]=-Xcompiler-option
+07-22 16:29:25.785  2335  2335 I zygote64: option[28]=--generate-mini-debug-info
+07-22 16:29:25.785  2335  2335 I zygote64: option[29]=-Ximage-compiler-option
+07-22 16:29:25.785  2335  2335 I zygote64: option[30]=--runtime-arg
+07-22 16:29:25.785  2335  2335 I zygote64: option[31]=-Ximage-compiler-option
+07-22 16:29:25.785  2335  2335 I zygote64: option[32]=-Xms64m
+07-22 16:29:25.785  2335  2335 I zygote64: option[33]=-Ximage-compiler-option
+07-22 16:29:25.785  2335  2335 I zygote64: option[34]=--runtime-arg
+07-22 16:29:25.786  2335  2335 I zygote64: option[35]=-Ximage-compiler-option
+07-22 16:29:25.786  2335  2335 I zygote64: option[36]=-Xmx64m
+07-22 16:29:25.786  2335  2335 I zygote64: option[37]=-Ximage-compiler-option
+07-22 16:29:25.786  2335  2335 I zygote64: option[38]=--dirty-image-objects=/system/etc/dirty-image-objects
+07-22 16:29:25.786  2335  2335 I zygote64: option[39]=-Ximage-compiler-option
+07-22 16:29:25.786  2335  2335 I zygote64: option[40]=--instruction-set-variant=x86_64
+07-22 16:29:25.786  2335  2335 I zygote64: option[41]=-Ximage-compiler-option
+07-22 16:29:25.787  2335  2335 I zygote64: option[42]=--instruction-set-features=default
+07-22 16:29:25.787  2335  2335 I zygote64: option[43]=-Ximage-compiler-option
+07-22 16:29:25.787  2335  2335 I zygote64: option[44]=--generate-mini-debug-info
+07-22 16:29:25.787  2335  2335 I zygote64: option[45]=-Duser.locale=en-US
+07-22 16:29:25.787  2335  2335 I zygote64: option[46]=-XX:NativeBridge=libndk_translation.so
+07-22 16:29:25.787  2335  2335 I zygote64: option[47]=--cpu-abilist=x86_64,arm64-v8a
+07-22 16:29:25.787  2335  2335 I zygote64: option[48]=-Xcore-platform-api-policy:just-warn
+07-22 16:29:25.788  2335  2335 I zygote64: option[49]=-Xfingerprint:google/sdk_gphone64_x86_64/emulator64_x86_64_arm64:12/SE1A.220826.008/10564458:userdebug/dev-keys
+07-22 16:29:25.788  2341  2341 E LegacySupport: Could not get passthrough implementation for android.hardware.audio@7.0::IDevicesFactory/default.
+07-22 16:29:25.789  2340  2340 I wificond: wificond is starting up...
+07-22 16:29:25.789  2335  2335 I zygote64: Core platform API reporting enabled, enforcing=false
+07-22 16:29:25.790   202   202 I servicemanager: Notifying apexservice they have clients: 1
+07-22 16:29:25.790   202   202 I servicemanager: Notifying apexservice they have clients: 0
+07-22 16:29:25.797   206   206 I hwservicemanager: Since android.hardware.audio@6.0::IDevicesFactory/default is not registered, trying to start it as a lazy HAL.
+07-22 16:29:25.777     0     0 I AidlLazyServiceRegistrar: Process has 1 (of 1 available) client(s) in use after notification apexservice has clients: 1
+07-22 16:29:25.779     0     0 I AidlLazyServiceRegistrar: Process has 0 (of 1 available) client(s) in use after notification apexservice has clients: 0
+07-22 16:29:25.785     0     0 I init    : processing action (init.svc.media=*) from (/system/etc/init/mediaserver.rc:1)
+07-22 16:29:25.797  2340  2340 I HidlServiceManagement: Registered android.system.wifi.keystore@1.0::IKeystore/default
+07-22 16:29:25.797   206   206 I hwservicemanager: Since android.hardware.audio@6.0::IDevicesFactory/default is not registered, trying to start it as a lazy HAL.
+07-22 16:29:25.798  2336  2336 I HidlServiceManagement: getService: Trying again for android.hardware.audio@6.0::IDevicesFactory/default...
+07-22 16:29:25.802  2337  2337 I CameraProviderManager: Connecting to new camera provider: internal/0, isRemote? 1
+07-22 16:29:25.803  2341  2341 I HidlServiceManagement: Registered android.hardware.audio@6.0::IDevicesFactory/default
+07-22 16:29:25.803  2341  2341 I HidlServiceManagement: Removing namespace from process name android.hardware.audio.service to audio.service.
+07-22 16:29:25.804  2341  2341 I LegacySupport: Registration complete for android.hardware.audio@6.0::IDevicesFactory/default.
+07-22 16:29:25.810  2337  2337 I CameraProviderManager: Enumerating new camera device: device@3.7/internal/1
+07-22 16:29:25.810   354   415 W StreamConfigurationMap: StreamConfigurationMap: ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS missing, maxResolution ? true!
+07-22 16:29:25.810   354   415 W StreamConfigurationMap: StreamConfigurationMap: ANDROID_SCALER_AVAILABLE_MIN_FRAME_DURATIONS missing!, max resolution ? true
+07-22 16:29:25.820   354   415 W StreamConfigurationMap: StreamConfigurationMap: ANDROID_SCALER_AVAILABLE_STALL_DURATIONS missing! maxResolution ? true
+07-22 16:29:25.820   354   415 I EmulatedCameraDeviceHwlImpl: Create: Created EmulatedCameraDeviceHwlImpl for camera 1
+07-22 16:29:25.821   354   415 D GCH_Utils: FindLibraryPaths: Unable to open directory /vendor/lib64/camera/capture_sessions/ (No such file or directory)
+07-22 16:29:25.821   354   415 I GCH_CameraDevice: Create: Created a camera device for public(1)
+07-22 16:29:25.821   206   206 I hwservicemanager: getTransport: Cannot find entry android.hardware.audio.effect@7.0::IEffectsFactory/default in either framework or device VINTF manifest.
+07-22 16:29:25.803     0     0 I AidlLazyServiceRegistrar: Trying to shut down the service. No clients in use for any service in process.
+07-22 16:29:25.814     0     0 E init    : Control message: Could not find 'android.hardware.audio@6.0::IDevicesFactory/default' for ctl.interface_start from pid: 206 (/system/bin/hwservicemanager)
+07-22 16:29:25.824     0     0 I AidlLazyServiceRegistrar: Unregistered all clients and exiting
+07-22 16:29:25.825     0     0 I init    : processing action (init.svc.media=*) from (/system/etc/init/mediaserver.rc:1)
+07-22 16:29:25.825  2341  2341 E LegacySupport: Could not get passthrough implementation for android.hardware.audio.effect@7.0::IEffectsFactory/default.
+07-22 16:29:25.832  2337  2337 I CameraProviderManager: Camera provider internal/0 ready with 1 camera devices
+07-22 16:29:25.834   202   202 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-22 16:29:25.845  2341  2341 I HidlServiceManagement: Registered android.hardware.audio.effect@6.0::IEffectsFactory/default
+07-22 16:29:25.845  2337  2337 I CameraProviderManager: Connecting to new camera provider: legacy/0, isRemote? 1
+07-22 16:29:25.845  2341  2341 I LegacySupport: Registration complete for android.hardware.audio.effect@6.0::IEffectsFactory/default.
+07-22 16:29:25.847   206   206 I hwservicemanager: getTransport: Cannot find entry android.hardware.soundtrigger@2.3::ISoundTriggerHw/default in either framework or device VINTF manifest.
+07-22 16:29:25.847   206  2351 W libc    : Unable to set property "ctl.interface_start" to "android.hardware.audio@6.0::IDevicesFactory/default": error code: 0x20
+07-22 16:29:25.847   206  2351 I hwservicemanager: Tried to start android.hardware.audio@6.0::IDevicesFactory/default as a lazy service, but was unable to. Usually this happens when a service is not installed, but if the service is intended to be used as a lazy service, then it may be configured incorrectly.
+07-22 16:29:25.847  2341  2341 E LegacySupport: Could not get passthrough implementation for android.hardware.soundtrigger@2.3::ISoundTriggerHw/default.
+07-22 16:29:25.851  2341  2341 I HidlServiceManagement: Registered android.hardware.soundtrigger@2.2::ISoundTriggerHw/default
+07-22 16:29:25.851  2341  2341 I LegacySupport: Registration complete for android.hardware.soundtrigger@2.2::ISoundTriggerHw/default.
+07-22 16:29:25.852   206   206 I hwservicemanager: getTransport: Cannot find entry android.hardware.bluetooth.audio@2.1::IBluetoothAudioProvidersFactory/default in either framework or device VINTF manifest.
+07-22 16:29:25.853  2341  2341 I BTAudioProviderA2dpSoftware: A2dpSoftwareAudioProvider - size of audio buffer 7680 byte(s)
+07-22 16:29:25.853  2341  2341 I BTAudioProviderHearingAid: HearingAidAudioProvider - size of audio buffer 3584 byte(s)
+07-22 16:29:25.858   206   206 I hwservicemanager: getTransport: Cannot find entry android.hardware.bluetooth.audio@2.1::IBluetoothAudioProvidersFactory/default in either framework or device VINTF manifest.
+07-22 16:29:25.861  2341  2341 E HidlServiceManagement: Service android.hardware.bluetooth.audio@2.1::IBluetoothAudioProvidersFactory/default must be in VINTF manifest in order to register/get.
+07-22 16:29:25.862  2341  2341 E LegacySupport: Could not register service android.hardware.bluetooth.audio@2.1::IBluetoothAudioProvidersFactory/default (-2147483648).
+07-22 16:29:25.863  2341  2341 E LegacySupport: Could not get passthrough implementation for android.hardware.bluetooth.audio@2.0::IBluetoothAudioProvidersFactory/default.
+07-22 16:29:25.863  2341  2341 W audiohalservice: Could not register Bluetooth Audio API
+07-22 16:29:25.863   206   206 I hwservicemanager: getTransport: Cannot find entry android.hardware.bluetooth.a2dp@1.0::IBluetoothAudioOffload/default in either framework or device VINTF manifest.
+07-22 16:29:25.864  2341  2341 E LegacySupport: Could not get passthrough implementation for android.hardware.bluetooth.a2dp@1.0::IBluetoothAudioOffload/default.
+07-22 16:29:25.864  2341  2341 W audiohalservice: Could not register Bluetooth Audio Offload API
+07-22 16:29:25.844     0     0 I init    : Service 'apexd' (pid 2323) exited with status 0 oneshot service took 2.836000 seconds in background
+07-22 16:29:25.871  2337  2337 I CameraProviderManager: Camera provider legacy/0 ready with 0 camera devices
+07-22 16:29:25.873  2337  2337 I CameraService: onDeviceStatusChanged: Status changed for cameraId=1, newStatus=1
+07-22 16:29:25.873  2337  2337 I CameraService: onDeviceStatusChanged: Unknown camera ID 1, a new camera is added
+07-22 16:29:25.854     0     0 I init    : Sending signal 9 to service 'apexd' (pid 2323) process group...
+07-22 16:29:25.858     0     0 I libprocessgroup: Successfully killed process cgroup uid 0 pid 2323 in 0ms
+07-22 16:29:25.883  2337  2337 I cameraserver: Waiting for activity service
+07-22 16:29:25.892   206   206 I hw-BpHwBinder: onLastStrongRef automatically unlinking death recipients
+07-22 16:29:25.901   206  2353 W libc    : Unable to set property "ctl.interface_start" to "android.hardware.audio@6.0::IDevicesFactory/default": error code: 0x20
+07-22 16:29:25.901   206  2353 I hwservicemanager: Tried to start android.hardware.audio@6.0::IDevicesFactory/default as a lazy service, but was unable to. Usually this happens when a service is not installed, but if the service is intended to be used as a lazy service, then it may be configured incorrectly.
+07-22 16:29:25.882     0     0 E init    : Control message: Could not find 'android.hardware.audio@6.0::IDevicesFactory/default' for ctl.interface_start from pid: 206 (/system/bin/hwservicemanager)
+07-22 16:29:25.882     0     0 I init    : processing action (init.svc.audioserver=running) from (/system/etc/init/audioserver.rc:38)
+07-22 16:29:25.893     0     0 I init    : Command 'start vendor.audio-hal-4-0-msd' action=init.svc.audioserver=running (/system/etc/init/audioserver.rc:40) took 0ms and failed: service vendor.audio-hal-4-0-msd not found
+07-22 16:29:25.905  2337  2348 W CameraProviderManager: addProviderLocked: Camera provider HAL with name 'internal/0' already registered
+07-22 16:29:25.908  2337  2348 W CameraProviderManager: addProviderLocked: Camera provider HAL with name 'legacy/0' already registered
+07-22 16:29:25.901     0     0 I init    : Command 'start audio_proxy_service' action=init.svc.audioserver=running (/system/etc/init/audioserver.rc:41) took 0ms and failed: service audio_proxy_service not found
+07-22 16:29:25.924  2335  2335 D zygote64: Time zone APEX ICU file found: /apex/com.android.tzdata/etc/icu/icu_tzdata.dat
+07-22 16:29:25.901     0     0 I init    : Command 'start vendor.audio-hal-2-0' action=init.svc.audioserver=running (/system/etc/init/audioserver.rc:43) took 0ms and failed: service vendor.audio-hal-2-0 not found
+07-22 16:29:25.924  2335  2335 D zygote64: I18n APEX ICU file found: /apex/com.android.i18n/etc/icu/icudt68l.dat
+07-22 16:29:25.927  2339  2339 I netd    : Creating child chains: 139879us
+07-22 16:29:25.927  2339  2339 I netd    : Setting up OEM hooks: 216us
+07-22 16:29:25.929   206   206 I hwservicemanager: getTransport: Cannot find entry android.hardware.audio.effect@7.0::IEffectsFactory/default in either framework or device VINTF manifest.
+07-22 16:29:25.929  2339  2339 I netd    : Setting up FirewallController hooks: 1731us
+07-22 16:29:25.932  2335  2335 I zygote64: Using memfd for future sealing
+07-22 16:29:25.933  2335  2335 W zygote64: Unexpected CPU variant for X86 using defaults: x86_64
+07-22 16:29:25.918     0     0 I init    : Command 'start audio-hal-2-0' action=init.svc.audioserver=running (/system/etc/init/audioserver.rc:44) took 0ms and failed: service audio-hal-2-0 not found
+07-22 16:29:25.947  2339  2339 I netd    : Setting up TetherController hooks: 17873us
+07-22 16:29:25.950  2336  2336 I AudioFlinger: Using default 3000 mSec as standby time.
+07-22 16:29:25.951  2339  2339 I netd    : Setting up BandwidthController hooks: 4615us
+07-22 16:29:25.952  2339  2339 I netd    : Setting up IdletimerController hooks: 181us
+07-22 16:29:25.952   498  1840 W AudioAnalytics: (key=audio.flinger) Audioflinger constructor event detected
+07-22 16:29:25.941     0     0 I init    : processing action (init.svc.media=*) from (/system/etc/init/mediaserver.rc:1)
+07-22 16:29:25.955     0     0 I init    : processing action (init.svc.mediadrm=running) from (/vendor/etc/init/android.hardware.drm@1.4-service.widevine.rc:1)
+07-22 16:29:25.959     0     0 I init    : processing action (init.svc.mediadrm=running) from (/vendor/etc/init/android.hardware.drm@1.4-service.widevine.rc:1)
+07-22 16:29:25.986  2339  2339 I netd    : Setting up StrictController hooks: 34234us
+07-22 16:29:25.988  2339  2339 I netd    : Initializing ClatdController: 60us
+07-22 16:29:25.989  2339  2339 I netd    : Initializing traffic control: 710us
+07-22 16:29:25.980     0     0 I init    : processing action (init.svc.mediadrm=running) from (/vendor/etc/init/android.hardware.drm@1.4-service.widevine.rc:1)
+07-22 16:29:26.002  2339  2339 I netd    : Enabling bandwidth control: 12722us
+07-22 16:29:26.002  2339  2339 E netd    : Error adding route 0.0.0.0/0 -> (null) dummy0 to table 1002: File exists
+07-22 16:29:26.006  2339  2339 I netd    : Initializing RouteController: 4503us
+07-22 16:29:26.006  2339  2339 D XfrmController: XfrmController::ipSecAddXfrmInterface, line=1479
+07-22 16:29:26.006  2335  2335 D Zygote  : begin preload
+07-22 16:29:26.007  2335  2335 I Zygote  : Calling ZygoteHooks.beginPreload()
+07-22 16:29:26.016  2339  2339 D XfrmController: XfrmController::ipSecRemoveTunnelInterface, line=1692
+07-22 16:29:26.017  2339  2339 D XfrmController: deviceName=ipsec_test
+07-22 16:29:26.018  2338  2338 I mediaserver: ServiceManager: 0x7d612ed93a90
+07-22 16:29:26.024  2338  2338 W BatteryNotifier: batterystats service unavailable!
+07-22 16:29:26.025  2338  2338 W BatteryNotifier: batterystats service unavailable!
+07-22 16:29:26.030  2336  2336 D APM_EngineLoader: Loaded engine from libaudiopolicyenginedefault.so
+07-22 16:29:26.030  2336  2336 D APM::AudioPolicyEngine/Base: loadAudioPolicyEngineConfig: No configuration found, using default matching phone experience.
+07-22 16:29:26.032  2336  2336 W APM::AudioPolicyEngine/Base: loadAudioPolicyEngineConfig: No configuration of AUDIO_STREAM_CALL_ASSISTANT found, using default volume configuration
+07-22 16:29:26.034  2336  2336 I AudioFlinger: loadHwModule() Loaded primary audio interface, handle 10
+07-22 16:29:26.034  2336  2336 I AudioFlinger: openOutput() this 0x7442d970b3c0, module 10 Device type:0x2,@:, SamplingRate 44100, Format 0x000001, Channels 0x3, flags 0x2
+07-22 16:29:26.035  2336  2336 I AudioFlinger: HAL output buffer size 976 frames, normal sink buffer size 976 frames
+07-22 16:29:26.044   206   206 I hwservicemanager: getTransport: Cannot find entry android.hardware.audio.effect@7.0::IEffectsFactory/default in either framework or device VINTF manifest.
+07-22 16:29:26.046  2335  2335 D Zygote64Timing: BeginPreload took to complete: 39ms
+07-22 16:29:26.046  2335  2335 I Zygote  : Preloading classes...
+07-22 16:29:26.064  2336  2336 I BufferProvider: found effect "Multichannel Downmix To Stereo" from The Android Open Source Project
+07-22 16:29:26.064  2341  2341 E android.hardware.audio@6.0-impl.ranchu: device/generic/goldfish/audio/stream_out.cpp:setEventCallback:469 failure: Result::NOT_SUPPORTED
+07-22 16:29:26.064  2336  2336 D AudioFlinger: Failed to add event callback
+07-22 16:29:26.065  2341  2341 E android.hardware.audio@6.0-impl.ranchu: device/generic/goldfish/audio/primary_device.cpp:getParameters:234 failure: Result::NOT_SUPPORTED
+07-22 16:29:26.066  2336  2374 I AudioFlinger: AudioFlinger's thread 0x744469c2ea70 tid=2374 ready to run
+07-22 16:29:26.066  2336  2374 W AudioFlinger: no wake lock to update, system not ready yet
+07-22 16:29:26.067  2336  2374 D AudioFlinger: ro.audio.silent is ignored since no output device is set
+07-22 16:29:26.068  2341  2341 E android.hardware.audio@6.0-impl.ranchu: device/generic/goldfish/audio/stream_out.cpp:getPresentationPosition:501 failure: Result::INVALID_STATE
+07-22 16:29:26.071  2336  2374 W AudioFlinger: no wake lock to update, system not ready yet
+07-22 16:29:26.072  2336  2374 D AudioFlinger: ro.audio.silent is ignored since no output device is set
+07-22 16:29:26.093  2336  2336 W AudioFlinger: moveEffects() bad srcOutput 0
+07-22 16:29:26.125  2339  2339 D XfrmController: Sending Netlink XFRM Message: XFRM_MSG_FLUSHSA
+07-22 16:29:26.126  2339  2339 D XfrmController: Sending Netlink XFRM Message: XFRM_MSG_FLUSHPOLICY
+07-22 16:29:26.126  2339  2339 I netd    : Initializing XfrmController: 120379us
+07-22 16:29:26.130  2339  2339 I libnetd_resolv: resolv_init: Initializing resolver
+07-22 16:29:26.133  2339  2339 D MDnsDS  : MDnsSdListener::Hander starting up
+07-22 16:29:26.134  2339  2382 D MDnsDS  : MDnsSdListener starting to monitor
+07-22 16:29:26.134  2339  2382 D MDnsDS  : Going to poll with pollCount 1
+07-22 16:29:26.134  2339  2339 I netd    : Registering NetdNativeService: 444us
+07-22 16:29:26.139  2336  2336 I AudioFlinger: openOutput() this 0x7442d970b3c0, module 10 Device type:0x10000,@:, SamplingRate 44100, Format 0x000001, Channels 0x3, flags 0
+07-22 16:29:26.140  2336  2336 I AudioFlinger: HAL output buffer size 976 frames, normal sink buffer size 976 frames
+07-22 16:29:26.142  2341  2341 E android.hardware.audio@6.0-impl.ranchu: device/generic/goldfish/audio/stream_out.cpp:setEventCallback:469 failure: Result::NOT_SUPPORTED
+07-22 16:29:26.142  2336  2336 D AudioFlinger: Failed to add event callback
+07-22 16:29:26.142  2339  2339 I HidlServiceManagement: Registered android.system.net.netd@1.1::INetd/default
+07-22 16:29:26.142  2336  2387 I AudioFlinger: AudioFlinger's thread 0x744469bd5a70 tid=2387 ready to run
+07-22 16:29:26.142  2339  2339 I netd    : Registering NetdHwService: 7962us
+07-22 16:29:26.142  2341  2341 E android.hardware.audio@6.0-impl.ranchu: device/generic/goldfish/audio/primary_device.cpp:getParameters:234 failure: Result::NOT_SUPPORTED
+07-22 16:29:26.143  2339  2339 I netd    : Netd started in 379278us
+07-22 16:29:26.143  2336  2387 W AudioFlinger: no wake lock to update, system not ready yet
+07-22 16:29:26.143  2336  2387 D AudioFlinger: ro.audio.silent is ignored since no output device is set
+07-22 16:29:26.143  2341  2341 E android.hardware.audio@6.0-impl.ranchu: device/generic/goldfish/audio/stream_out.cpp:getPresentationPosition:501 failure: Result::INVALID_STATE
+07-22 16:29:26.145  2336  2387 W AudioFlinger: no wake lock to update, system not ready yet
+07-22 16:29:26.145  2336  2387 D AudioFlinger: ro.audio.silent is ignored since no output device is set
+07-22 16:29:26.157  2335  2335 I Typeface: Preloading /system/fonts/Roboto-Regular.ttf
+07-22 16:29:26.157  2335  2335 I Typeface: Preloading /system/fonts/RobotoStatic-Regular.ttf
+07-22 16:29:26.175  2336  2388 I AudioFlinger: AudioFlinger's thread 0x744469a01c60 tid=2388 ready to run
+07-22 16:29:26.177  2336  2390 I AudioFlinger: AudioFlinger's thread 0x744469a01c60 tid=2390 ready to run
+07-22 16:29:26.179  2336  2392 I AudioFlinger: AudioFlinger's thread 0x744466164c60 tid=2392 ready to run
+07-22 16:29:26.181  2336  2392 W AudioFlinger: no wake lock to update, system not ready yet
+07-22 16:29:26.184  2341  2341 I r_submix: adev_open(name=audio_hw_if)
+07-22 16:29:26.185  2341  2341 I r_submix: adev_init_check()
+07-22 16:29:26.185  2336  2336 I AudioFlinger: loadHwModule() Loaded r_submix audio interface, handle 18
+07-22 16:29:26.185  2341  2341 D r_submix: adev_open_input_stream(addr=0)
+07-22 16:29:26.186  2341  2341 D r_submix: submix_audio_device_create_pipe_l(addr=0, idx=9)
+07-22 16:29:26.186  2341  2341 D r_submix:   now using address 0 for route 9
+07-22 16:29:26.189  2336  2394 I AudioFlinger: AudioFlinger's thread 0x744466164c60 tid=2394 ready to run
+07-22 16:29:26.191  2336  2336 I audioserver: Waiting for activity service
+07-22 16:29:26.191  2341  2341 D r_submix: adev_close_input_stream()
+07-22 16:29:26.194  2341  2341 D r_submix: submix_audio_device_release_pipe_l(idx=9) addr=0
+07-22 16:29:26.195  2341  2341 D r_submix: submix_audio_device_destroy_pipe_l(): pipe destroyed
+07-22 16:29:26.203  2335  2335 E ActivityRecognitionHardware: activity_recognition HAL is deprecated. class_init is effectively a no-op
+07-22 16:29:26.611  2335  2335 D MtpDeviceJNI: register_android_mtp_MtpDevice
+07-22 16:29:26.794  2335  2335 I zygote64: Thread[1,tid=2335,Native,Thread*=0x74c020baf7b0,peer=0x133001e8,"main"] recursive attempt to load library "librtp_jni.so"
+07-22 16:29:26.865  2335  2335 W Zygote  : Class not found for preloading: android.view.SurfaceView$2
+07-22 16:29:27.144  2335  2363 I zygote64: Background concurrent copying GC freed 77307(4517KB) AllocSpace objects, 2(44KB) LOS objects, 49% free, 8319KB/16MB, paused 996us,122us total 169.924ms
+07-22 16:29:27.278  2335  2335 I Zygote  : ...preloaded 13903 classes in 1232ms.
+07-22 16:29:27.279  2335  2335 D Zygote64Timing: PreloadClasses took to complete: 1232ms
+07-22 16:29:27.289  2335  2335 D ApplicationLoaders: Created zygote-cached class loader: /system/framework/android.hidl.base-V1.0-java.jar
+07-22 16:29:27.299  2335  2335 D ApplicationLoaders: Created zygote-cached class loader: /system/framework/android.hidl.manager-V1.0-java.jar
+07-22 16:29:27.309  2335  2335 D ApplicationLoaders: Created zygote-cached class loader: /system/framework/android.test.base.jar
+07-22 16:29:27.309  2335  2335 D Zygote64Timing: CacheNonBootClasspathClassLoaders took to complete: 30ms
+07-22 16:29:27.310  2335  2335 I Zygote  : Preloading resources...
+07-22 16:29:27.317  2335  2335 W Resources: Preloaded drawable resource #0x1080285 (android:drawable/dialog_background_material) that varies with configuration!!
+07-22 16:29:27.337  2335  2335 I Zygote  : ...preloaded 64 resources in 28ms.
+07-22 16:29:27.347  2335  2335 I Zygote  : ...preloaded 41 resources in 9ms.
+07-22 16:29:27.347  2335  2335 D Zygote64Timing: PreloadResources took to complete: 37ms
+07-22 16:29:27.412  2335  2335 I Zygote  : Preloading shared libraries...
+07-22 16:29:27.421  2335  2335 I Zygote  : Called ZygoteHooks.endPreload()
+07-22 16:29:27.421  2335  2335 I Zygote  : Installed AndroidKeyStoreProvider in 1ms.
+07-22 16:29:27.425  2335  2335 I Zygote  : Warmed up JCA providers in 3ms.
+07-22 16:29:27.425  2335  2335 D Zygote  : end preload
+07-22 16:29:27.427  2335  2335 D Zygote64Timing: ZygotePreload took to complete: 1420ms
+07-22 16:29:27.490  2335  2335 I zygote64: Explicit concurrent copying GC freed 21821(1407KB) AllocSpace objects, 1(28KB) LOS objects, 49% free, 8805KB/17MB, paused 773us,110us total 61.773ms
+07-22 16:29:27.550  2335  2335 I zygote64: Explicit concurrent copying GC freed 2762(153KB) AllocSpace objects, 0(0B) LOS objects, 49% free, 8716KB/17MB, paused 1.269ms,118us total 55.213ms
+07-22 16:29:27.550  2335  2335 D Zygote64Timing: PostZygoteInitGC took to complete: 123ms
+07-22 16:29:27.553  2335  2335 D Zygote64Timing: ZygoteInit took to complete: 1565ms
+07-22 16:29:28.160  2335  2362 I zygote64: Verified 2763 classes from mainline modules in 2.062s
+07-22 16:29:28.265  2335  2335 D Zygote  : Forked child process 2400
+07-22 16:29:28.266  2335  2335 I Zygote  : System server process 2400 has been created
+07-22 16:29:28.267  2335  2335 I Zygote  : Accepting command socket connections
+07-22 16:29:28.311  2400  2400 W system_server: Unexpected CPU variant for X86 using defaults: x86_64
+07-22 16:29:28.313  2400  2400 W system_server: Failed to upload odrefresh metrics: metrics file '/data/misc/odrefresh/odrefresh-metrics.txt' could not be opened: No such file or directory
+07-22 16:29:28.315   462   475 I adbd    : jdwp connection from 2400
+07-22 16:29:28.329  2400  2400 I SystemServerTiming: InitBeforeStartServices
+07-22 16:29:28.333  2400  2400 I SystemServer: Entered the Android system server!
+07-22 16:29:28.455  2400  2400 E UsbAlsaJackDetectorJNI: Can't register UsbAlsaJackDetector native methods
+07-22 16:29:28.468  2400  2400 I SystemServerInitThreadPool: Creating instance with 4 threads
+07-22 16:29:28.545  2400  2400 D SystemServerTiming: InitBeforeStartServices took to complete: 215ms
+07-22 16:29:28.545  2400  2400 I SystemServerTiming: StartServices
+07-22 16:29:28.546  2400  2400 I SystemServerTiming: startBootstrapServices
+07-22 16:29:28.546  2400  2400 I SystemServerTiming: StartWatchdog
+07-22 16:29:28.557  2400  2400 D SystemServerTiming: StartWatchdog took to complete: 10ms
+07-22 16:29:28.559  2400  2400 I SystemServer: Reading configuration...
+07-22 16:29:28.559  2400  2400 I SystemServerTiming: ReadingSystemConfig
+07-22 16:29:28.560  2400  2400 D SystemServerTiming: ReadingSystemConfig took to complete: 0ms
+07-22 16:29:28.561  2400  2400 I SystemServerTiming: PlatformCompat
+07-22 16:29:28.562  2400  2424 I SystemServerTimingAsync: InitThreadPoolExec:ReadingSystemConfig
+07-22 16:29:28.563  2400  2424 D SystemServerInitThreadPool: Started executing ReadingSystemConfig
+07-22 16:29:28.563  2400  2400 D CompatConfig: Found a config file: /system/etc/compatconfig/icu4j-platform-compat-config.xml
+07-22 16:29:28.564  2400  2424 I SystemConfig: Reading permissions from /system/etc/sysconfig/hiddenapi-package-whitelist.xml
+07-22 16:29:28.564  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@7f3d3e7
+07-22 16:29:28.565  2400  2424 I incfs   : Initial API level of the device: 31
+07-22 16:29:28.566  2400  2424 I incfs   : ro.incremental.enable: yes
+07-22 16:29:28.567  2400  2424 I incfs   : isFsAvailable: true
+07-22 16:29:28.567  2400  2424 I incfs   : isFsAvailable: true
+07-22 16:29:28.567  2400  2424 I incfs   : IncFs_Features: v2
+07-22 16:29:28.568  2400  2424 I SystemConfig: Reading permissions from /system/etc/sysconfig/preinstalled-packages-platform.xml
+07-22 16:29:28.569  2400  2400 D CompatConfig: Found a config file: /system/etc/compatconfig/services-platform-compat-config.xml
+07-22 16:29:28.569  2400  2424 I SystemConfig: Reading permissions from /system/etc/sysconfig/framework-sysconfig.xml
+07-22 16:29:28.570  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@d1fc783
+07-22 16:29:28.573  2400  2424 I SystemConfig: Reading permissions from /system/etc/permissions/org.apache.http.legacy.xml
+07-22 16:29:28.573  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@acfb939
+07-22 16:29:28.575  2400  2424 I SystemConfig: Reading permissions from /system/etc/permissions/android.software.webview.xml
+07-22 16:29:28.577  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@8d58df
+07-22 16:29:28.578  2400  2424 I SystemConfig: Reading permissions from /system/etc/permissions/android.test.mock.xml
+07-22 16:29:28.582  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@69aff5
+07-22 16:29:28.584  2400  2424 I SystemConfig: Reading permissions from /system/etc/permissions/android.test.base.xml
+07-22 16:29:28.584  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@618a3fb
+07-22 16:29:28.591  2400  2424 I SystemConfig: Reading permissions from /system/etc/permissions/com.android.location.provider.xml
+07-22 16:29:28.591  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@1725671
+07-22 16:29:28.592  2400  2424 I SystemConfig: Reading permissions from /system/etc/permissions/com.android.nfc_extras.xml
+07-22 16:29:28.593  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@94384d7
+07-22 16:29:28.594  2400  2424 I SystemConfig: Reading permissions from /system/etc/permissions/android.test.runner.xml
+07-22 16:29:28.595  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@c84e8ad
+07-22 16:29:28.596  2400  2424 I SystemConfig: Reading permissions from /system/etc/permissions/com.android.media.remotedisplay.xml
+07-22 16:29:28.596  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@1d19773
+07-22 16:29:28.597  2400  2424 I SystemConfig: Reading permissions from /system/etc/permissions/privapp-permissions-platform.xml
+07-22 16:29:28.598  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@4b462a9
+07-22 16:29:28.599  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@e93b02e
+07-22 16:29:28.600  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@62437cf
+07-22 16:29:28.601  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@f87055c
+07-22 16:29:28.605  2400  2424 I SystemConfig: Reading permissions from /system/etc/permissions/com.android.mediadrm.signer.xml
+07-22 16:29:28.605  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@7aea13a
+07-22 16:29:28.606  2400  2424 I SystemConfig: Reading permissions from /system/etc/permissions/android.software.live_wallpaper.xml
+07-22 16:29:28.607  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@22d1b48
+07-22 16:29:28.608  2400  2424 I SystemConfig: Reading permissions from /system/etc/permissions/javax.obex.xml
+07-22 16:29:28.608  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@e559706
+07-22 16:29:28.609  2400  2424 I SystemConfig: Reading permissions from /system/etc/permissions/com.android.future.usb.accessory.xml
+07-22 16:29:28.610  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@f9ca3f4
+07-22 16:29:28.611  2400  2424 I SystemConfig: Reading permissions from /system/etc/permissions/privapp-permissions-google.xml
+07-22 16:29:28.611  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@e241d92
+07-22 16:29:28.612  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@74f4363
+07-22 16:29:28.613  2400  2424 I SystemConfig: Reading permissions from /system/etc/permissions/platform.xml
+07-22 16:29:28.614  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@c8e4819
+07-22 16:29:28.615  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@ee280de
+07-22 16:29:28.616  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@368b2bf
+07-22 16:29:28.619  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@8c47d8c
+07-22 16:29:28.620  2400  2424 I SystemConfig: Reading permissions from /vendor/etc/permissions/android.hardware.camera.full.xml
+07-22 16:29:28.621  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@a91ccea
+07-22 16:29:28.623  2400  2424 I SystemConfig: Reading permissions from /vendor/etc/permissions/android.hardware.camera.ar.xml
+07-22 16:29:28.623  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@f01e678
+07-22 16:29:28.624  2400  2424 I SystemConfig: Reading permissions from /vendor/etc/permissions/android.software.autofill.xml
+07-22 16:29:28.625  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@837cdb6
+07-22 16:29:28.626  2400  2424 I SystemConfig: Reading permissions from /vendor/etc/permissions/android.hardware.bluetooth_le.xml
+07-22 16:29:28.627  2400  2424 I SystemConfig: Reading permissions from /vendor/etc/permissions/android.hardware.fingerprint.xml
+07-22 16:29:28.628  2400  2424 I SystemConfig: Reading permissions from /vendor/etc/permissions/android.hardware.camera.concurrent.xml
+07-22 16:29:28.628  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@daaf224
+07-22 16:29:28.630  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@647cb53
+07-22 16:29:28.631  2400  2424 I SystemConfig: Reading permissions from /vendor/etc/permissions/android.software.opengles.deqp.level.xml
+07-22 16:29:28.632  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@8246989
+07-22 16:29:28.635  2400  2424 I SystemConfig: Reading permissions from /vendor/etc/permissions/handheld_core_hardware.xml
+07-22 16:29:28.635  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@cf9c9af
+07-22 16:29:28.636  2400  2424 I SystemConfig: Reading permissions from /vendor/etc/permissions/android.hardware.wifi.passpoint.xml
+07-22 16:29:28.636  2400  2424 I SystemConfig: Reading permissions from /vendor/etc/permissions/android.hardware.vulkan.version.xml
+07-22 16:29:28.636  2400  2424 I SystemConfig: Reading permissions from /vendor/etc/permissions/android.hardware.bluetooth.xml
+07-22 16:29:28.637  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@a2351cb
+07-22 16:29:28.637  2400  2424 I SystemConfig: Reading permissions from /vendor/etc/permissions/android.hardware.vulkan.compute.xml
+07-22 16:29:28.638  2400  2424 I SystemConfig: Reading permissions from /vendor/etc/permissions/android.hardware.camera.raw.xml
+07-22 16:29:28.638  2400  2424 I SystemConfig: Reading permissions from /vendor/etc/permissions/android.hardware.hardware_keystore.km41.xml
+07-22 16:29:28.638  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@d133fa7
+07-22 16:29:28.639  2400  2424 I SystemConfig: Reading permissions from /vendor/etc/permissions/android.hardware.identity_credential.xml
+07-22 16:29:28.639  2400  2424 I SystemConfig: Reading permissions from /vendor/etc/permissions/android.hardware.wifi.direct.xml
+07-22 16:29:28.639  2400  2424 I SystemConfig: Reading permissions from /vendor/etc/permissions/android.hardware.wifi.xml
+07-22 16:29:28.639  2400  2424 I SystemConfig: Reading permissions from /vendor/etc/permissions/android.hardware.camera.front.xml
+07-22 16:29:28.640  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@a2eb9c0
+07-22 16:29:28.640  2400  2424 I SystemConfig: Reading permissions from /vendor/etc/permissions/android.hardware.vulkan.level.xml
+07-22 16:29:28.641  2400  2424 I SystemConfig: Reading permissions from /vendor/etc/permissions/android.hardware.touchscreen.multitouch.jazzhand.xml
+07-22 16:29:28.641  2400  2424 I SystemConfig: Reading permissions from /vendor/etc/permissions/android.hardware.camera.flash-autofocus.xml
+07-22 16:29:28.642  2400  2424 I SystemConfig: Reading permissions from /vendor/etc/permissions/android.software.vulkan.deqp.level.xml
+07-22 16:29:28.643  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@cad9b5
+07-22 16:29:28.643  2400  2424 I SystemConfig: Reading permissions from /product/etc/sysconfig/google-hiddenapi-package-whitelist.xml
+07-22 16:29:28.643  2400  2424 I SystemConfig: Reading permissions from /product/etc/sysconfig/google-staged-installer-whitelist.xml
+07-22 16:29:28.644  2400  2424 I SystemConfig: Reading permissions from /product/etc/sysconfig/preinstalled-packages-platform-aosp-product.xml
+07-22 16:29:28.644  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@61c5c31
+07-22 16:29:28.644  2400  2424 I SystemConfig: Reading permissions from /product/etc/sysconfig/preinstalled-packages-platform-handheld-product.xml
+07-22 16:29:28.645  2400  2424 I SystemConfig: Reading permissions from /product/etc/sysconfig/google_build.xml
+07-22 16:29:28.645  2400  2424 I SystemConfig: Reading permissions from /product/etc/sysconfig/disable-zero-touch.xml
+07-22 16:29:28.645  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@7298a6d
+07-22 16:29:28.646  2400  2424 I SystemConfig: Reading permissions from /product/etc/sysconfig/preinstalled-packages-platform-overlays.xml
+07-22 16:29:28.646  2400  2424 I SystemConfig: Reading permissions from /product/etc/sysconfig/wellbeing.xml
+07-22 16:29:28.647  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@4412f0
+07-22 16:29:28.647  2400  2424 I SystemConfig: Reading permissions from /product/etc/sysconfig/google.xml
+07-22 16:29:28.648  2400  2424 I SystemConfig: Adding association: com.google.android.as <- com.android.bluetooth
+07-22 16:29:28.648  2400  2424 I SystemConfig: Adding association: com.google.android.as <- com.android.providers.contacts
+07-22 16:29:28.648  2400  2424 I SystemConfig: Adding association: com.google.android.as <- com.android.providers.media
+07-22 16:29:28.648  2400  2424 I SystemConfig: Adding association: com.google.android.as <- com.android.providers.telephony
+07-22 16:29:28.649  2400  2424 I SystemConfig: Adding association: com.google.android.as <- com.android.systemui
+07-22 16:29:28.651  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@f0c3aee
+07-22 16:29:28.651  2400  2424 I SystemConfig: Adding association: com.google.android.as <- com.google.android.providers.media.module
+07-22 16:29:28.652  2400  2424 I SystemConfig: Adding association: com.google.android.as <- com.google.android.as.oss
+07-22 16:29:28.652  2400  2424 I SystemConfig: Adding association: com.google.android.as.oss <- com.google.android.as
+07-22 16:29:28.652  2400  2424 I SystemConfig: Reading permissions from /product/etc/permissions/privapp-permissions-google-p.xml
+07-22 16:29:28.653  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@1ef6e1c
+07-22 16:29:28.655  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@c269a25
+07-22 16:29:28.657  2400  2424 I SystemConfig: Reading permissions from /product/etc/permissions/com.google.android.dialer.support.xml
+07-22 16:29:28.657  2400  2424 I SystemConfig: Reading permissions from /product/etc/permissions/split-permissions-google.xml
+07-22 16:29:28.659  2400  2424 I SystemConfig: Reading permissions from /product/etc/permissions/com.android.contacts.xml
+07-22 16:29:28.660  2400  2424 I SystemConfig: Reading permissions from /product/etc/permissions/android.hardware.telephony.euicc.xml
+07-22 16:29:28.661  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@e4bb3a1
+07-22 16:29:28.661  2400  2424 I SystemConfig: Reading permissions from /product/etc/permissions/privapp-permissions-sdk-google.xml
+07-22 16:29:28.664  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@1164b4
+07-22 16:29:28.668  2400  2424 I SystemConfig: Reading permissions from /product/etc/permissions/com.android.imsserviceentitlement.xml
+07-22 16:29:28.669  2400  2424 I SystemConfig: Reading permissions from /product/etc/permissions/com.android.dialer.xml
+07-22 16:29:28.669  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@5288b23
+07-22 16:29:28.670  2400  2424 I SystemConfig: Reading permissions from /product/etc/permissions/android.software.verified_boot.xml
+07-22 16:29:28.670  2400  2424 I SystemConfig: Reading permissions from /product/etc/permissions/privapp-permissions-goldfish.xml
+07-22 16:29:28.671  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@2f33b9e
+07-22 16:29:28.671  2400  2424 W SystemConfig: No directory /system_ext/etc/sysconfig, skipping
+07-22 16:29:28.672  2400  2424 I SystemConfig: Reading permissions from /system_ext/etc/permissions/com.android.emergency.xml
+07-22 16:29:28.672  2400  2424 I SystemConfig: Reading permissions from /system_ext/etc/permissions/com.google.android.sdksetup.xml
+07-22 16:29:28.672  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@8eb5695
+07-22 16:29:28.673  2400  2424 I SystemConfig: Reading permissions from /system_ext/etc/permissions/androidx.window.sidecar.xml
+07-22 16:29:28.673  2400  2424 I SystemConfig: Reading permissions from /system_ext/etc/permissions/com.android.emulator.radio.config.xml
+07-22 16:29:28.674  2400  2424 I SystemConfig: Reading permissions from /system_ext/etc/permissions/com.android.carrierconfig.xml
+07-22 16:29:28.674  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@b77c711
+07-22 16:29:28.675  2400  2424 I SystemConfig: Reading permissions from /system_ext/etc/permissions/com.android.settings.xml
+07-22 16:29:28.675  2400  2424 I SystemConfig: Reading permissions from /system_ext/etc/permissions/com.android.launcher3.xml
+07-22 16:29:28.675  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@c3162e4
+07-22 16:29:28.676  2400  2424 I SystemConfig: Reading permissions from /system_ext/etc/permissions/com.android.systemui.xml
+07-22 16:29:28.683  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@5e2ce02
+07-22 16:29:28.684  2400  2424 I SystemConfig: Reading permissions from /system_ext/etc/permissions/com.android.storagemanager.xml
+07-22 16:29:28.685  2400  2424 I SystemConfig: Reading permissions from /system_ext/etc/permissions/privapp-permissions-google-se.xml
+07-22 16:29:28.685  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@6a34749
+07-22 16:29:28.687  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@eb3c84e
+07-22 16:29:28.687  2400  2424 I SystemConfig: Reading permissions from /apex/com.android.ipsec/etc/permissions/android.net.ipsec.ike.xml
+07-22 16:29:28.688  2400  2424 W SystemConfig: Failed to read public libraries file /vendor/etc/public.libraries.txt
+07-22 16:29:28.688  2400  2424 W SystemConfig: java.io.FileNotFoundException: /vendor/etc/public.libraries.txt: open failed: ENOENT (No such file or directory)
+07-22 16:29:28.688  2400  2424 W SystemConfig: 	at libcore.io.IoBridge.open(IoBridge.java:575)
+07-22 16:29:28.688  2400  2424 W SystemConfig: 	at java.io.FileInputStream.<init>(FileInputStream.java:160)
+07-22 16:29:28.688  2400  2424 W SystemConfig: 	at java.io.FileReader.<init>(FileReader.java:72)
+07-22 16:29:28.688  2400  2424 W SystemConfig: 	at com.android.server.SystemConfig.readPublicLibrariesListFile(SystemConfig.java:1601)
+07-22 16:29:28.688  2400  2424 W SystemConfig: 	at com.android.server.SystemConfig.readPublicNativeLibrariesList(SystemConfig.java:1583)
+07-22 16:29:28.688  2400  2424 W SystemConfig: 	at com.android.server.SystemConfig.<init>(SystemConfig.java:484)
+07-22 16:29:28.688  2400  2424 W SystemConfig: 	at com.android.server.SystemConfig.getInstance(SystemConfig.java:272)
+07-22 16:29:28.688  2400  2424 W SystemConfig: 	at com.android.server.SystemServer$$ExternalSyntheticLambda6.run(Unknown Source:0)
+07-22 16:29:28.688  2400  2424 W SystemConfig: 	at com.android.server.SystemServerInitThreadPool.lambda$submitTask$0$SystemServerInitThreadPool(SystemServerInitThreadPool.java:105)
+07-22 16:29:28.688  2400  2424 W SystemConfig: 	at com.android.server.SystemServerInitThreadPool$$ExternalSyntheticLambda0.run(Unknown Source:6)
+07-22 16:29:28.688  2400  2424 W SystemConfig: 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:462)
+07-22 16:29:28.688  2400  2424 W SystemConfig: 	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+07-22 16:29:28.688  2400  2424 W SystemConfig: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167)
+07-22 16:29:28.688  2400  2424 W SystemConfig: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:641)
+07-22 16:29:28.688  2400  2424 W SystemConfig: 	at com.android.internal.util.ConcurrentUtils$1$1.run(ConcurrentUtils.java:65)
+07-22 16:29:28.688  2400  2424 W SystemConfig: Caused by: android.system.ErrnoException: open failed: ENOENT (No such file or directory)
+07-22 16:29:28.688  2400  2424 W SystemConfig: 	at libcore.io.Linux.open(Native Method)
+07-22 16:29:28.688  2400  2424 W SystemConfig: 	at libcore.io.ForwardingOs.open(ForwardingOs.java:567)
+07-22 16:29:28.688  2400  2424 W SystemConfig: 	at libcore.io.BlockGuardOs.open(BlockGuardOs.java:273)
+07-22 16:29:28.688  2400  2424 W SystemConfig: 	at libcore.io.IoBridge.open(IoBridge.java:561)
+07-22 16:29:28.688  2400  2424 W SystemConfig: 	... 14 more
+07-22 16:29:28.688  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@6881b5a
+07-22 16:29:28.690  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@1e5418b
+07-22 16:29:28.691  2400  2424 D SystemConfig: readAllPermissions took to complete: 128ms
+07-22 16:29:28.692  2400  2424 D SystemServerInitThreadPool: Finished executing ReadingSystemConfig
+07-22 16:29:28.692  2400  2424 D SystemServerTimingAsync: InitThreadPoolExec:ReadingSystemConfig took to complete: 129ms
+07-22 16:29:28.694  2400  2400 D CompatConfig: Found a config file: /system/etc/compatconfig/documents-ui-compat-config.xml
+07-22 16:29:28.694  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@4479681
+07-22 16:29:28.700  2400  2400 D CompatConfig: Found a config file: /system/etc/compatconfig/calendar-provider-compat-config.xml
+07-22 16:29:28.700  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@5646b67
+07-22 16:29:28.702  2400  2400 D CompatConfig: Found a config file: /system/etc/compatconfig/framework-platform-compat-config.xml
+07-22 16:29:28.704  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@7d619bd
+07-22 16:29:28.705  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@72ebbb2
+07-22 16:29:28.706  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@9c25703
+07-22 16:29:28.708  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@d942680
+07-22 16:29:28.709  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@2cf94b9
+07-22 16:29:28.711  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@1c8e0fe
+07-22 16:29:28.720  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@989605f
+07-22 16:29:28.722  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@3552aac
+07-22 16:29:28.725  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@b4bc375
+07-22 16:29:28.727  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@64e0f0a
+07-22 16:29:28.729  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@38da37b
+07-22 16:29:28.730  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@7404598
+07-22 16:29:28.731  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@72221f1
+07-22 16:29:28.733  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@14611d6
+07-22 16:29:28.734  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@5c8fc57
+07-22 16:29:28.735  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@5c02344
+07-22 16:29:28.736  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@825ec2d
+07-22 16:29:28.737  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@de97562
+07-22 16:29:28.739  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@9f706f3
+07-22 16:29:28.743  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@53e2fb0
+07-22 16:29:28.751  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@221e29
+07-22 16:29:28.753  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@6d85ae
+07-22 16:29:28.755  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@ff11f4f
+07-22 16:29:28.756  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@74e96dc
+07-22 16:29:28.760  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@89573e5
+07-22 16:29:28.762  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@9104eba
+07-22 16:29:28.765  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@1ca616b
+07-22 16:29:28.767  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@9c44c8
+07-22 16:29:28.769  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@a2e6961
+07-22 16:29:28.771  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@be49c86
+07-22 16:29:28.773  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@daba947
+07-22 16:29:28.782  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@394e574
+07-22 16:29:28.785  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@73a9d
+07-22 16:29:28.788  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@95dfb12
+07-22 16:29:28.789  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@16f92e3
+07-22 16:29:28.790  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@9d4e4e0
+07-22 16:29:28.800  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@2a1e399
+07-22 16:29:28.802  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@39cb65e
+07-22 16:29:28.803  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@3fe7a3f
+07-22 16:29:28.804  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@8536f0c
+07-22 16:29:28.805  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@6a42055
+07-22 16:29:28.809  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@c79da6a
+07-22 16:29:28.811  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@86a7b5b
+07-22 16:29:28.812  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@a4e6ff8
+07-22 16:29:28.814  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@b536cd1
+07-22 16:29:28.816  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@8533336
+07-22 16:29:28.817  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@6cb7237
+07-22 16:29:28.818  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@ef693a4
+07-22 16:29:28.820  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@4d1050d
+07-22 16:29:28.823  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@1974cc2
+07-22 16:29:28.824  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@6dafad3
+07-22 16:29:28.826  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@5db4610
+07-22 16:29:28.828  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@e15e509
+07-22 16:29:28.829  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@911730e
+07-22 16:29:28.831  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@850712f
+07-22 16:29:28.832  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@616b33c
+07-22 16:29:28.834  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@eaec8c5
+07-22 16:29:28.839  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@ef5b21a
+07-22 16:29:28.843  2400  2400 D CompatConfig: Found a config file: /system/system_ext/etc/compatconfig/settings-platform-compat-config.xml
+07-22 16:29:28.846  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@c39c728
+07-22 16:29:28.847  2400  2400 I ApexManagerTiming: getActiveApexInfos_noCache
+07-22 16:29:28.848   202   202 I servicemanager: Since 'apexservice' could not be found, trying to start it as a lazy AIDL service
+07-22 16:29:28.837     0     0 I init    : starting service 'apexd'...
+07-22 16:29:28.843     0     0 I init    : Control message: Processed ctl.interface_start for 'aidl/apexservice' from pid: 202 (/system/bin/servicemanager)
+07-22 16:29:28.845     0     0 I apexd   : Scanning /system/apex for pre-installed ApexFiles
+07-22 16:29:28.845     0     0 I apexd   : Found pre-installed APEX /system/apex/com.android.i18n.apex
+07-22 16:29:28.845     0     0 I apexd   : Found pre-installed APEX /system/apex/com.android.vndk.current.apex
+07-22 16:29:28.861     0     0 I apexd   : Found pre-installed APEX /system/apex/com.google.android.art.apex
+07-22 16:29:28.864     0     0 I apexd   : Found pre-installed APEX /system/apex/com.google.android.media.swcodec.apex
+07-22 16:29:28.864     0     0 I apexd   : Found pre-installed APEX /system/apex/com.google.android.telephony.apex
+07-22 16:29:28.875     0     0 I apexd   : Found pre-installed APEX /system/apex/com.google.android.scheduling.apex
+07-22 16:29:28.878     0     0 I apexd   : Found pre-installed APEX /system/apex/com.google.android.media.apex
+07-22 16:29:28.878     0     0 I apexd   : Found pre-installed APEX /system/apex/com.google.android.cellbroadcast.apex
+07-22 16:29:28.878     0     0 I apexd   : Found pre-installed APEX /system/apex/com.google.android.os.statsd.apex
+07-22 16:29:28.892     0     0 I apexd   : Found pre-installed APEX /system/apex/com.google.android.ipsec.apex
+07-22 16:29:28.895     0     0 I apexd   : Found pre-installed APEX /system/apex/com.google.mainline.primary.libs.apex
+07-22 16:29:28.895     0     0 I apexd   : Found pre-installed APEX /system/apex/com.google.android.adbd.apex
+07-22 16:29:28.895     0     0 I apexd   : Found pre-installed APEX /system/apex/com.google.android.sdkext.apex
+07-22 16:29:28.906     0     0 I apexd   : Found pre-installed APEX /system/apex/com.google.android.tzdata3.apex
+07-22 16:29:28.910     0     0 I apexd   : Found pre-installed APEX /system/apex/com.google.android.neuralnetworks.apex
+07-22 16:29:28.910     0     0 I apexd   : Found pre-installed APEX /system/apex/com.google.android.appsearch.apex
+07-22 16:29:28.921     0     0 I apexd   : Found pre-installed APEX /system/apex/com.google.android.resolv.apex
+07-22 16:29:28.923     0     0 I apexd   : Found pre-installed APEX /system/apex/com.android.runtime.apex
+07-22 16:29:28.923     0     0 I apexd   : Found pre-installed APEX /system/apex/com.google.android.permission.apex
+07-22 16:29:28.940     0     0 I apexd   : Found pre-installed APEX /system/apex/com.android.apex.cts.shim.apex
+07-22 16:29:28.951     0     0 I apexd   : Found pre-installed APEX /system/apex/com.google.android.mediaprovider.apex
+07-22 16:29:28.955     0     0 I apexd   : Found pre-installed APEX /system/apex/com.google.android.conscrypt.apex
+07-22 16:29:28.955     0     0 I apexd   : Found pre-installed APEX /system/apex/com.google.android.wifi.apex
+07-22 16:29:28.963     0     0 I apexd   : Found pre-installed APEX /system/apex/com.google.android.tethering.apex
+07-22 16:29:28.967     0     0 I apexd   : Found pre-installed APEX /system/apex/com.google.android.extservices.apex
+07-22 16:29:28.967     0     0 I apexd   : Scanning /system_ext/apex for pre-installed ApexFiles
+07-22 16:29:28.967     0     0 W apexd   : /system_ext/apex does not exist. Skipping
+07-22 16:29:28.967     0     0 I apexd   : Scanning /product/apex for pre-installed ApexFiles
+07-22 16:29:28.967     0     0 W apexd   : /product/apex does not exist. Skipping
+07-22 16:29:28.988     0     0 I apexd   : Scanning /vendor/apex for pre-installed ApexFiles
+07-22 16:29:28.991     0     0 W apexd   : /vendor/apex does not exist. Skipping
+07-22 16:29:29.000     0     0 I apexd   : Populating APEX database from mounts...
+07-22 16:29:29.004     0     0 I apexd   : Found "/apex/com.android.i18n@1" backed by file /system/apex/com.android.i18n.apex
+07-22 16:29:29.013     0     0 I apexd   : Found "/apex/com.android.vndk.v31@1" backed by file /system/apex/com.android.vndk.current.apex
+07-22 16:29:29.016     0     0 I apexd   : Found "/apex/com.android.telephony@1" backed by file /system/apex/com.google.android.telephony.apex
+07-22 16:29:29.016     0     0 I apexd   : Found "/apex/com.android.scheduling@310727000" backed by file /system/apex/com.google.android.scheduling.apex
+07-22 16:29:29.027     0     0 I apexd   : Found "/apex/com.android.tzdata@310727000" backed by file /system/apex/com.google.android.tzdata3.apex
+07-22 16:29:29.031     0     0 I apexd   : Found "/apex/com.android.conscrypt@310727000" backed by file /system/apex/com.google.android.conscrypt.apex
+07-22 16:29:29.031     0     0 I apexd   : Found "/apex/com.android.ipsec@310727000" backed by file /system/apex/com.google.android.ipsec.apex
+07-22 16:29:29.031     0     0 I apexd   : Found "/apex/com.android.mediaprovider@310731000" backed by file /system/apex/com.google.android.mediaprovider.apex
+07-22 16:29:29.031     0     0 I apexd   : Found "/apex/com.android.media@310731000" backed by file /system/apex/com.google.android.media.apex
+07-22 16:29:29.046     0     0 I apexd   : Found "/apex/com.android.os.statsd@310727000" backed by file /system/apex/com.google.android.os.statsd.apex
+07-22 16:29:29.050     0     0 I apexd   : Found "/apex/com.android.neuralnetworks@310727000" backed by file /system/apex/com.google.android.neuralnetworks.apex
+07-22 16:29:29.050     0     0 I apexd   : Found "/apex/com.android.cellbroadcast@310733000" backed by file /system/apex/com.google.android.cellbroadcast.apex
+07-22 16:29:29.061     0     0 I apexd   : Found "/apex/com.android.adbd@310727002" backed by file /system/apex/com.google.android.adbd.apex
+07-22 16:29:29.065     0     0 I apexd   : Found "/apex/com.android.appsearch@300000000" backed by file /system/apex/com.google.android.appsearch.apex
+07-22 16:29:29.065     0     0 I apexd   : Found "/apex/com.android.media.swcodec@310727000" backed by file /system/apex/com.google.android.media.swcodec.apex
+07-22 16:29:29.076     0     0 I apexd   : Found "/apex/com.android.apex.cts.shim@1" backed by file /system/apex/com.android.apex.cts.shim.apex
+07-22 16:29:29.080     0     0 I apexd   : Found "/apex/com.android.sdkext@310729000" backed by file /system/apex/com.google.android.sdkext.apex
+07-22 16:29:29.080     0     0 I apexd   : Found "/apex/com.android.wifi@310733000" backed by file /system/apex/com.google.android.wifi.apex
+07-22 16:29:29.092     0     0 I apexd   : Found "/apex/com.android.tethering@310733000" backed by file /system/apex/com.google.android.tethering.apex
+07-22 16:29:29.099     0     0 I apexd   : Found "/apex/com.android.art@310924000" backed by file /system/apex/com.google.android.art.apex
+07-22 16:29:29.107     0     0 I apexd   : Found "/apex/com.android.permission@310733000" backed by file /system/apex/com.google.android.permission.apex
+07-22 16:29:29.111     0     0 I apexd   : Found "/apex/com.android.extservices@310727000" backed by file /system/apex/com.google.android.extservices.apex
+07-22 16:29:29.111     0     0 I apexd   : Found "/apex/com.google.mainline.primary.libs@310005800" backed by file /system/apex/com.google.mainline.primary.libs.apex
+07-22 16:29:29.123     0     0 I apexd   : Found "/apex/com.android.runtime@1" backed by file /system/apex/com.android.runtime.apex
+07-22 16:29:29.127     0     0 I apexd   : Found "/apex/com.android.resolv@310733000" backed by file /system/apex/com.google.android.resolv.apex
+07-22 16:29:29.127     0     0 I apexd   : 25 packages restored.
+07-22 16:29:29.138     0     0 I apexd   : Scanning /data/apex/active for data ApexFiles
+07-22 16:29:29.160   202   202 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-22 16:29:29.141     0     0 I AidlLazyServiceRegistrar: Registering service apexservice
+07-22 16:29:29.148     0     0 I AidlLazyServiceRegistrar: Trying to shut down the service. No clients in use for any service in process.
+07-22 16:29:29.170   202   202 I servicemanager: Tried to unregister apexservice, but there is about to be a client.
+07-22 16:29:29.158     0     0 I AidlLazyServiceRegistrar: Failed to unregister service apexservice (Status(-5, EX_ILLEGAL_STATE): '')
+07-22 16:29:29.198  2400  2400 D ApexManagerTiming: getActiveApexInfos_noCache took to complete: 351ms
+07-22 16:29:29.198  2400  2400 D CompatConfig: No directory /apex/com.android.wifi/etc/compatconfig, skipping
+07-22 16:29:29.200  2400  2400 D CompatConfig: No directory /apex/com.android.adbd/etc/compatconfig, skipping
+07-22 16:29:29.201  2400  2400 D CompatConfig: No directory /apex/com.android.apex.cts.shim/etc/compatconfig, skipping
+07-22 16:29:29.201  2400  2400 D CompatConfig: Found a config file: /apex/com.android.mediaprovider/etc/compatconfig/media-provider-platform-compat-config.xml
+07-22 16:29:29.202  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@8fe330f
+07-22 16:29:29.205  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@4647f9c
+07-22 16:29:29.207  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@c540da5
+07-22 16:29:29.212  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@e90457a
+07-22 16:29:29.216  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@ef4f12b
+07-22 16:29:29.218  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@207f988
+07-22 16:29:29.220  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@29cdf21
+07-22 16:29:29.222  2400  2400 D CompatConfig: No directory /apex/com.android.media/etc/compatconfig, skipping
+07-22 16:29:29.222  2400  2400 D CompatConfig: No directory /apex/com.android.tzdata/etc/compatconfig, skipping
+07-22 16:29:29.222  2400  2400 D CompatConfig: No directory /apex/com.android.media.swcodec/etc/compatconfig, skipping
+07-22 16:29:29.223  2400  2400 D CompatConfig: No directory /apex/com.android.telephony/etc/compatconfig, skipping
+07-22 16:29:29.223  2400  2400 D CompatConfig: No directory /apex/com.android.neuralnetworks/etc/compatconfig, skipping
+07-22 16:29:29.223  2400  2400 D CompatConfig: No directory /apex/com.android.ipsec/etc/compatconfig, skipping
+07-22 16:29:29.223  2400  2400 D CompatConfig: No directory /apex/com.android.runtime/etc/compatconfig, skipping
+07-22 16:29:29.224  2400  2400 D CompatConfig: No directory /apex/com.android.permission/etc/compatconfig, skipping
+07-22 16:29:29.224  2400  2400 D CompatConfig: No directory /apex/com.android.vndk.v31/etc/compatconfig, skipping
+07-22 16:29:29.230  2400  2400 D CompatConfig: No directory /apex/com.android.conscrypt/etc/compatconfig, skipping
+07-22 16:29:29.232  2400  2400 D CompatConfig: No directory /apex/com.android.sdkext/etc/compatconfig, skipping
+07-22 16:29:29.232  2400  2400 D CompatConfig: No directory /apex/com.android.appsearch/etc/compatconfig, skipping
+07-22 16:29:29.232  2400  2400 D CompatConfig: No directory /apex/com.android.i18n/etc/compatconfig, skipping
+07-22 16:29:29.233  2400  2400 D CompatConfig: No directory /apex/com.android.extservices/etc/compatconfig, skipping
+07-22 16:29:29.233  2400  2400 D CompatConfig: Found a config file: /apex/com.android.art/etc/compatconfig/libcore-platform-compat-config.xml
+07-22 16:29:29.234  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@94f7507
+07-22 16:29:29.235  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@6e72634
+07-22 16:29:29.237  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@e474c5d
+07-22 16:29:29.238  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@a8e09d2
+07-22 16:29:29.239  2400  2400 D CompatConfig: Adding: com.android.server.compat.config.Change@fe45aa3
+07-22 16:29:29.246  2400  2400 D CompatConfig: No directory /apex/com.android.scheduling/etc/compatconfig, skipping
+07-22 16:29:29.246  2400  2400 D CompatConfig: No directory /apex/com.android.resolv/etc/compatconfig, skipping
+07-22 16:29:29.246  2400  2400 D CompatConfig: No directory /apex/com.android.tethering/etc/compatconfig, skipping
+07-22 16:29:29.247  2400  2400 D CompatConfig: No directory /apex/com.google.mainline.primary.libs/etc/compatconfig, skipping
+07-22 16:29:29.247  2400  2400 D CompatConfig: No directory /apex/com.android.cellbroadcast/etc/compatconfig, skipping
+07-22 16:29:29.247  2400  2400 D CompatConfig: No directory /apex/com.android.os.statsd/etc/compatconfig, skipping
+07-22 16:29:29.250  2400  2400 D SystemServerTiming: PlatformCompat took to complete: 689ms
+07-22 16:29:29.251  2400  2400 I SystemServerTiming: StartFileIntegrityService
+07-22 16:29:29.251  2400  2400 I SystemServiceManager: Starting com.android.server.security.FileIntegrityService
+07-22 16:29:29.254  2400  2400 D SystemServerTiming: StartFileIntegrityService took to complete: 3ms
+07-22 16:29:29.255  2400  2400 I SystemServerTiming: StartInstaller
+07-22 16:29:29.255  2400  2400 I SystemServiceManager: Starting com.android.server.pm.Installer
+07-22 16:29:29.262   495   500 D installd: Found quota mount /dev/block/dm-5 at /data
+07-22 16:29:29.263   495   500 D installd: Found quota mount /dev/block/dm-5 at /data/user/0
+07-22 16:29:29.264  2400  2400 D SystemServerTiming: StartInstaller took to complete: 9ms
+07-22 16:29:29.264  2400  2400 I SystemServerTiming: DeviceIdentifiersPolicyService
+07-22 16:29:29.265  2400  2400 I SystemServiceManager: Starting com.android.server.os.DeviceIdentifiersPolicyService
+07-22 16:29:29.265  2400  2400 D SystemServerTiming: DeviceIdentifiersPolicyService took to complete: 1ms
+07-22 16:29:29.266  2400  2400 I SystemServerTiming: UriGrantsManagerService
+07-22 16:29:29.266  2400  2400 I SystemServiceManager: Starting com.android.server.uri.UriGrantsManagerService$Lifecycle
+07-22 16:29:29.267  2400  2400 D SystemServerTiming: UriGrantsManagerService took to complete: 1ms
+07-22 16:29:29.267  2400  2400 I SystemServerTiming: StartPowerStatsService
+07-22 16:29:29.267  2400  2400 I SystemServiceManager: Starting com.android.server.powerstats.PowerStatsService
+07-22 16:29:29.268   202   202 E servicemanager: Could not find android.hardware.power.stats.IPowerStats/default in the VINTF manifest.
+07-22 16:29:29.274  2400  2400 D SystemServerTiming: StartPowerStatsService took to complete: 6ms
+07-22 16:29:29.274  2400  2400 I SystemServerTiming: StartIStatsService
+07-22 16:29:29.276  2400  2400 I HidlServiceManagement: Registered android.frameworks.stats@1.0::IStats/default
+07-22 16:29:29.277   202   202 I servicemanager: Found android.frameworks.stats.IStats/default in framework VINTF manifest.
+07-22 16:29:29.277  2400  2400 D SystemServerTiming: StartIStatsService took to complete: 3ms
+07-22 16:29:29.277  2400  2400 I SystemServerTiming: MemtrackProxyService
+07-22 16:29:29.278   206   206 I hwservicemanager: getTransport: Cannot find entry android.hardware.memtrack@1.0::IMemtrack/default in either framework or device VINTF manifest.
+07-22 16:29:29.279   202   202 E servicemanager: Could not find android.hardware.memtrack.IMemtrack/default in the VINTF manifest.
+07-22 16:29:29.279  2400  2400 I Stability: Interface set with vintf stability wire protocol version 1 downgraded to system stability wire protocol version 1 stability
+07-22 16:29:29.279  2400  2400 D SystemServerTiming: MemtrackProxyService took to complete: 2ms
+07-22 16:29:29.280  2400  2400 I SystemServerTiming: StartActivityManager
+07-22 16:29:29.280  2400  2400 I SystemServiceManager: Starting com.android.server.wm.ActivityTaskManagerService$Lifecycle
+07-22 16:29:29.283  2400  2400 I SystemServiceManager: Starting com.android.server.am.ActivityManagerService$Lifecycle
+07-22 16:29:29.284  2400  2400 I ActivityManager: Memory class: 192
+07-22 16:29:29.292  2400  2437 I Binder  : Setting heavy hitter watcher config: false, 0, 0.0
+07-22 16:29:29.311  2400  2400 E KernelSingleProcCpuThreadRdr: Failed to start tracking process CPU times for 2400
+07-22 16:29:29.312  2400  2400 D BatteryStatsImpl: Reading daily items from /data/system/batterystats-daily.xml
