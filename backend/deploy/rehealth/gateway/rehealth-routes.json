@@ -18,6 +18,24 @@
         "args": {
           "parts": "1"
         }
+      },
+      {
+        "name": "RemoveRequestHeader",
+        "args": {
+          "name": "X-ReHealth-User-Id"
+        }
+      },
+      {
+        "name": "RemoveRequestHeader",
+        "args": {
+          "name": "X-ReHealth-Tenant-Id"
+        }
+      },
+      {
+        "name": "RemoveRequestHeader",
+        "args": {
+          "name": "X-ReHealth-Device-Id"
+        }
       }
     ],
     "uri": "lb://rehealth-device-service"
@@ -38,6 +56,24 @@
         "name": "StripPrefix",
         "args": {
           "parts": "1"
+        }
+      },
+      {
+        "name": "RemoveRequestHeader",
+        "args": {
+          "name": "X-ReHealth-User-Id"
+        }
+      },
+      {
+        "name": "RemoveRequestHeader",
+        "args": {
+          "name": "X-ReHealth-Tenant-Id"
+        }
+      },
+      {
+        "name": "RemoveRequestHeader",
+        "args": {
+          "name": "X-ReHealth-Device-Id"
         }
       }
     ],

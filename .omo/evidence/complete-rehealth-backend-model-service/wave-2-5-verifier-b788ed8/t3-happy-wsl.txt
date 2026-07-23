@@ -1,0 +1,67 @@
+[[1;34mINFO[m] Scanning for projects...
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m--------------< [0;36mcom.rehealth:rehealth-telemetry-contract[0;1m >--------------[m
+[[1;34mINFO[m] [1mBuilding ReHealth telemetry contract 1.0.0-SNAPSHOT[m
+[[1;34mINFO[m] [1m--------------------------------[ jar ]---------------------------------[m
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m--- [0;32mmaven-resources-plugin:2.6:resources[m [1m(default-resources)[m @ [36mrehealth-telemetry-contract[0;1m ---[m
+[[1;34mINFO[m] Using 'UTF-8' encoding to copy filtered resources.
+[[1;34mINFO[m] skip non existing resourceDirectory /mnt/d/rehealthAI/backend/contracts/telemetry/src/main/resources
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m--- [0;32mmaven-compiler-plugin:3.13.0:compile[m [1m(default-compile)[m @ [36mrehealth-telemetry-contract[0;1m ---[m
+[[1;34mINFO[m] Nothing to compile - all classes are up to date.
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m--- [0;32mmaven-resources-plugin:2.6:testResources[m [1m(default-testResources)[m @ [36mrehealth-telemetry-contract[0;1m ---[m
+[[1;34mINFO[m] Using 'UTF-8' encoding to copy filtered resources.
+[[1;34mINFO[m] Copying 1 resource
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m--- [0;32mmaven-compiler-plugin:3.13.0:testCompile[m [1m(default-testCompile)[m @ [36mrehealth-telemetry-contract[0;1m ---[m
+[[1;34mINFO[m] Nothing to compile - all classes are up to date.
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m--- [0;32mmaven-surefire-plugin:3.5.3:test[m [1m(default-test)[m @ [36mrehealth-telemetry-contract[0;1m ---[m
+[[1;34mINFO[m] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[[1;34mINFO[m] 
+[[1;34mINFO[m] -------------------------------------------------------
+[[1;34mINFO[m]  T E S T S
+[[1;34mINFO[m] -------------------------------------------------------
+[[1;34mINFO[m] Running com.rehealth.contracts.telemetry.v1.[1mTelemetryContractRejectionTest[m
+[[1;34mINFO[m] [1;32mTests run: [0;1;32m5[m, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 11.64 s -- in com.rehealth.contracts.telemetry.v1.[1mTelemetryContractRejectionTest[m
+[[1;34mINFO[m] Running com.rehealth.contracts.telemetry.v1.[1mTelemetryLegacyCompatibilityTest[m
+[[1;31mERROR[m] [1;31mTests [0;1mrun: [0;1m2[m, [1;31mFailures: [0;1;31m1[m, Errors: 0, Skipped: 0, Time elapsed: 0.298 s[1;31m <<< FAILURE![m -- in com.rehealth.contracts.telemetry.v1.[1mTelemetryLegacyCompatibilityTest[m
+[[1;31mERROR[m] com.rehealth.contracts.telemetry.v1.TelemetryLegacyCompatibilityTest.preservesLegacyAndroidShapeWhenFixtureRoundTrips -- Time elapsed: 0.273 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: [TelemetryValidationError[code=raw_signal.disabled, path=quality, message=raw signal payload fields are disabled]] ==> expected: <true> but was: <false>
+	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+	at org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:42)
+	at org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:191)
+	at com.rehealth.contracts.telemetry.v1.TelemetryLegacyCompatibilityTest.preservesLegacyAndroidShapeWhenFixtureRoundTrips(TelemetryLegacyCompatibilityTest.java:38)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+[[1;34mINFO[m] 
+[[1;34mINFO[m] Results:
+[[1;34mINFO[m] 
+[[1;31mERROR[m] [1;31mFailures: [m
+[[1;31mERROR[m] [1;31m  TelemetryLegacyCompatibilityTest.preservesLegacyAndroidShapeWhenFixtureRoundTrips:38 [TelemetryValidationError[code=raw_signal.disabled, path=quality, message=raw signal payload fields are disabled]] ==> expected: <true> but was: <false>[m
+[[1;34mINFO[m] 
+[[1;31mERROR[m] [1;31mTests run: 7, Failures: 1, Errors: 0, Skipped: 0[m
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m------------------------------------------------------------------------[m
+[[1;34mINFO[m] [1;31mBUILD FAILURE[m
+[[1;34mINFO[m] [1m------------------------------------------------------------------------[m
+[[1;34mINFO[m] Total time:  50.137 s
+[[1;34mINFO[m] Finished at: 2026-07-23T15:40:49+08:00
+[[1;34mINFO[m] [1m------------------------------------------------------------------------[m
+[[1;31mERROR[m] Failed to execute goal [32morg.apache.maven.plugins:maven-surefire-plugin:3.5.3:test[m [1m(default-test)[m on project [36mrehealth-telemetry-contract[m: [1;31mThere are test failures.[m
+[[1;31mERROR[m] [1;31m[m
+[[1;31mERROR[m] [1;31mSee /mnt/d/rehealthAI/backend/contracts/telemetry/target/surefire-reports for the individual test results.[m
+[[1;31mERROR[m] [1;31mSee dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.[m
+[[1;31mERROR[m] -> [1m[Help 1][m
+[[1;31mERROR[m] 
+[[1;31mERROR[m] To see the full stack trace of the errors, re-run Maven with the [1m-e[m switch.
+[[1;31mERROR[m] Re-run Maven using the [1m-X[m switch to enable full debug logging.
+[[1;31mERROR[m] 
+[[1;31mERROR[m] For more information about the errors and possible solutions, please read the following articles:
+[[1;31mERROR[m] [1m[Help 1][m http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

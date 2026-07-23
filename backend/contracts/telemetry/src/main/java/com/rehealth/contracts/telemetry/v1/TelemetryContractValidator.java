@@ -136,9 +136,25 @@ public final class TelemetryContractValidator {
     }
 
     private boolean isRawSignalKey(String key) {
-        String normalized = key.toLowerCase(Locale.ROOT).replace("-", "_");
-        return normalized.contains("raw") || normalized.contains("ppg") || normalized.contains("rri")
-                || normalized.contains("waveform") || normalized.contains("signal_samples");
+        String normalized = key
+                .replace("-", "_")
+                .replaceAll("([a-z0-9])([A-Z])", "$1_$2")
+                .toLowerCase(Locale.ROOT);
+        if (normalized.equals("raw_signal_excluded")) {
+            return false;
+        }
+        return normalized.equals("raw")
+                || normalized.equals("raw_signal")
+                || normalized.equals("raw_data")
+                || normalized.equals("raw_ppg")
+                || normalized.equals("raw_signal_samples")
+                || normalized.equals("raw_bytes")
+                || normalized.equals("ppg")
+                || normalized.equals("ppg_samples")
+                || normalized.equals("rri")
+                || normalized.equals("rri_samples")
+                || normalized.equals("waveform")
+                || normalized.equals("signal_samples");
     }
 
     private void requireText(List<TelemetryValidationError> errors, String value, String path) {

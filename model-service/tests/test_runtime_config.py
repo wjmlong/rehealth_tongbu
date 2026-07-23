@@ -25,6 +25,21 @@ def test_loads_explicit_development_configuration() -> None:
     assert config.mock_attribution_enabled is False
 
 
+@pytest.mark.parametrize("runtime_mode", ["production", "staging"])
+def test_loads_protected_configuration_with_secure_service_boundary(runtime_mode: str) -> None:
+    config = load_runtime_config(
+        {
+            "REHEALTH_RUNTIME_MODE": runtime_mode,
+            "REHEALTH_ATTRIBUTION_MODE": "pias",
+            "REHEALTH_MODEL_SERVICE_BASE_URL": "https://model.internal.example",
+            "REHEALTH_PROVIDER_CREDENTIAL_FILE": "/run/secrets/provider_credential",
+        }
+    )
+
+    assert config.service_base_url == "https://model.internal.example"
+    assert config.provider_credential_file == "/run/secrets/provider_credential"
+
+
 def test_loads_explicit_demo_configuration_with_visible_provenance() -> None:
     config = load_runtime_config(
         {
@@ -88,5 +103,27 @@ def test_rejects_invalid_boolean_value() -> None:
             {
                 "REHEALTH_RUNTIME_MODE": "demo",
                 "REHEALTH_DEMO_ENABLED": "sometimes",
+            }
+        )
+
+
+def test_rejects_insecure_model_service_url_in_production() -> None:
+    with pytest.raises(RuntimeConfigurationError, match="SECURE_URL_REQUIRED"):
+        load_runtime_config(
+            {
+                "REHEALTH_RUNTIME_MODE": "production",
+                "REHEALTH_MODEL_SERVICE_BASE_URL": "http://models.example.com",
+                "REHEALTH_PROVIDER_CREDENTIAL_FILE": "/run/secrets/provider_credential",
+            }
+        )
+
+
+def test_rejects_embedded_provider_secret_in_production() -> None:
+    with pytest.raises(RuntimeConfigurationError, match="EMBEDDED_SECRET_FORBIDDEN"):
+        load_runtime_config(
+            {
+                "REHEALTH_RUNTIME_MODE": "production",
+                "REHEALTH_MODEL_SERVICE_BASE_URL": "https://model.internal.example",
+                "REHEALTH_PROVIDER_SECRET": "do-not-ship",
             }
         )

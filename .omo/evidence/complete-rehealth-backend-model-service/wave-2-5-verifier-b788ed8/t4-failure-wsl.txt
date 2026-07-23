@@ -1,0 +1,19 @@
+[[1;34mINFO[m] Scanning for projects...
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m-----------< [0;36morg.jeecgframework.boot3:jeecg-module-rehealth[0;1m >-----------[m
+[[1;34mINFO[m] [1mBuilding jeecg-module-rehealth 3.9.2[m
+[[1;34mINFO[m] [1m--------------------------------[ jar ]---------------------------------[m
+[[1;33mWARNING[m] The POM for org.jeecgframework.boot3:jeecg-boot-base-core:jar:3.9.2 is missing, no dependency information available
+[[1;34mINFO[m] [1m------------------------------------------------------------------------[m
+[[1;34mINFO[m] [1;31mBUILD FAILURE[m
+[[1;34mINFO[m] [1m------------------------------------------------------------------------[m
+[[1;34mINFO[m] Total time:  26.339 s
+[[1;34mINFO[m] Finished at: 2026-07-23T15:42:43+08:00
+[[1;34mINFO[m] [1m------------------------------------------------------------------------[m
+[[1;31mERROR[m] Failed to execute goal on project [36mjeecg-module-rehealth[m: [1;31mCould not resolve dependencies for project org.jeecgframework.boot3:jeecg-module-rehealth:jar:3.9.2: org.jeecgframework.boot3:jeecg-boot-base-core:jar:3.9.2 was not found in https://maven.aliyun.com/repository/public during a previous attempt. This failure was cached in the local repository and resolution is not reattempted until the update interval of aliyun has elapsed or updates are forced[m -> [1m[Help 1][m
+[[1;31mERROR[m] 
+[[1;31mERROR[m] To see the full stack trace of the errors, re-run Maven with the [1m-e[m switch.
+[[1;31mERROR[m] Re-run Maven using the [1m-X[m switch to enable full debug logging.
+[[1;31mERROR[m] 
+[[1;31mERROR[m] For more information about the errors and possible solutions, please read the following articles:
+[[1;31mERROR[m] [1m[Help 1][m http://cwiki.apache.org/confluence/display/MAVEN/DependencyResolutionException

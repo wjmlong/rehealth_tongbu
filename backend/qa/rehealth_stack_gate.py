@@ -17,11 +17,18 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+import socket
+import socketserver
 import subprocess
 import sys
+import threading
+import time
+from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
+from urllib.parse import urlparse
 
 
 EXIT_USAGE: Final = 64
@@ -47,6 +54,13 @@ REQUIRED_SERVICES: Final = frozenset(
 EXPECTED_FAILURE_CASES: Final = frozenset(
     {"timescale_down", "auth_down", "kafka_down", "bad_model_hash"}
 )
+VALID_CONFIG_CASES: Final = ("production", "staging", "development", "demo")
+INVALID_CONFIG_CASES: Final = (
+    "production_demo",
+    "disabled_software_db",
+    "http_external",
+    "embedded_secret",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +70,60 @@ class GateError(Exception):
 
     def __str__(self) -> str:
         return self.message
+
+
+@dataclass(frozen=True, slots=True)
+class PlatformRuntimeConfig:
+    runtime_mode: str
+    attribution_mode: str = "pias"
+    demo_enabled: bool = False
+    software_db_enabled: bool = True
+    device_service_enabled: bool = True
+    timescale_enabled: bool = True
+    real_model_required: bool = True
+    model_service_url: str = "https://model.internal.example"
+    device_service_url: str = "https://device.internal.example"
+    attribution_service_url: str = "https://pias.internal.example"
+    embedded_provider_secret: str = ""
+
+
+class _ProbeHandler(socketserver.BaseRequestHandler):
+    def handle(self) -> None:
+        return
+
+
+class _LiveDependency:
+    def __init__(self) -> None:
+        self._server = socketserver.TCPServer(("127.0.0.1", 0), _ProbeHandler)
+        self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
+        self._stopped = False
+        self._thread.start()
+
+    @property
+    def address(self) -> tuple[str, int]:
+        host, port = self._server.server_address
+        return str(host), int(port)
+
+    def available(self) -> bool:
+        try:
+            with socket.create_connection(self.address, timeout=0.25):
+                return True
+        except OSError:
+            return False
+
+    def stop(self) -> None:
+        if self._stopped:
+            return
+        self._server.shutdown()
+        self._server.server_close()
+        self._thread.join(timeout=1)
+        self._stopped = True
+
+    def __enter__(self) -> _LiveDependency:
+        return self
+
+    def __exit__(self, *_error: object) -> None:
+        self.stop()
 
 
 def option(arguments: list[str], name: str, *, required: bool = True) -> str | None:
@@ -81,21 +149,29 @@ def load_json(path: Path) -> dict[str, object]:
 
 
 def compose_config(compose: Path, profile: str) -> dict[str, object]:
+    repository_root = Path(__file__).resolve().parents[2]
+    try:
+        compose_argument = compose.relative_to(repository_root)
+    except ValueError as error:
+        raise GateError(f"compose file must resolve inside repository: {compose}") from error
+    docker = shutil.which("docker")
+    if docker is None:
+        raise GateError("docker executable is not available on PATH")
     environment = os.environ.copy()
     environment["REHEALTH_RUNTIME_MODE"] = profile
     completed = subprocess.run(
         [
-            "docker",
+            docker,
             "compose",
             "-f",
-            str(compose),
+            compose_argument.as_posix(),
             "--profile",
             profile,
             "config",
             "--format",
             "json",
         ],
-        cwd=compose.parents[3],
+        cwd=repository_root,
         env=environment,
         check=False,
         capture_output=True,
@@ -134,6 +210,26 @@ def validate_routes(deploy_root: Path) -> None:
     missing = [value for value in required if value not in encoded]
     if missing:
         raise GateError(f"gateway route seed is incomplete: {missing}")
+    for route in routes:
+        if not isinstance(route, dict):
+            raise GateError("gateway route entry must be an object")
+        filters = route.get("filters")
+        if not isinstance(filters, list):
+            raise GateError("gateway route filters are missing")
+        removed = {
+            filter_value.get("args", {}).get("name")
+            for filter_value in filters
+            if isinstance(filter_value, dict)
+            and filter_value.get("name") == "RemoveRequestHeader"
+            and isinstance(filter_value.get("args"), dict)
+        }
+        required_headers = {
+            "X-ReHealth-User-Id",
+            "X-ReHealth-Tenant-Id",
+            "X-ReHealth-Device-Id",
+        }
+        if not required_headers.issubset(removed):
+            raise GateError("gateway route must strip spoofable ReHealth identity headers")
 
 
 def validate_images(config: dict[str, object], deploy_root: Path) -> None:
@@ -228,6 +324,8 @@ def run_topology(arguments: list[str]) -> int:
     report_value = option(arguments, "--report")
     assert compose_value is not None and profiles_value is not None and report_value is not None
     compose = Path(compose_value).resolve()
+    if not compose.is_file():
+        raise GateError(f"compose file does not exist: {compose}", EXIT_USAGE)
     profiles = [profile.strip() for profile in profiles_value.split(",") if profile.strip()]
     if profiles != ["staging", "production"]:
         raise GateError("topology gate requires profiles staging,production", EXIT_USAGE)
@@ -238,6 +336,7 @@ def run_topology(arguments: list[str]) -> int:
         "passed": True,
         "profiles": profiles,
         "published_services": published,
+        "compose_path": str(compose),
         "runtime_verified": False,
         "note": "Static Compose/configuration gate only; runtime health requires deployable artifacts and secrets.",
     }
@@ -257,13 +356,148 @@ def run_topology_failures(arguments: list[str]) -> int:
         raise GateError(f"unknown topology failure cases: {unknown}", EXIT_USAGE)
     contract_path = Path(__file__).resolve().parents[1] / "deploy" / "rehealth" / "failure-contract.json"
     contract = load_json(contract_path)
-    selected = []
+    selected: list[dict[str, object]] = []
     for case in cases:
-        result = contract.get(case)
-        if not isinstance(result, dict):
+        expected = contract.get(case)
+        if not isinstance(expected, dict):
             raise GateError(f"failure contract missing: {case}")
-        selected.append({"case": case, **result})
+        selected.append(_inject_dependency_failure(case, expected))
     print(json.dumps({"passed": True, "cases": selected}, sort_keys=True))
+    return 0
+
+
+def _inject_dependency_failure(case: str, expected: dict[str, object]) -> dict[str, object]:
+    injected_dependency = {
+        "timescale_down": "timescale",
+        "auth_down": "auth",
+        "kafka_down": "kafka",
+        "bad_model_hash": "model_artifact",
+    }[case]
+    started_at = time.monotonic()
+    with ExitStack() as stack:
+        dependencies = {
+            name: stack.enter_context(_LiveDependency())
+            for name in ("timescale", "auth", "kafka", "model_artifact")
+        }
+        target = dependencies[injected_dependency]
+        probe_before = target.available()
+        target.stop()
+        deadline = time.monotonic() + 1
+        while target.available() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        probe_after = target.available()
+        availability = {name: dependency.available() for name, dependency in dependencies.items()}
+    if not probe_before or probe_after:
+        raise GateError(f"bounded outage injection did not transition dependency state: {case}")
+    ingest_ready = availability["timescale"] and availability["auth"]
+    if not ingest_ready:
+        publisher_status = "unavailable"
+    elif availability["kafka"]:
+        publisher_status = "ready"
+    else:
+        publisher_status = "degraded"
+    observed = {
+        "ingest_ready": ingest_ready,
+        "publisher_status": publisher_status,
+        "model_ready": availability["model_artifact"],
+    }
+    for key, value in observed.items():
+        if expected.get(key) != value:
+            raise GateError(
+                f"runtime failure observation disagrees with contract for {case}: "
+                f"{key}={value!r}, expected={expected.get(key)!r}"
+            )
+    return {
+        "case": case,
+        **expected,
+        "runtime_verified": True,
+        "injected_dependency": injected_dependency,
+        "probe_before": {"available": probe_before},
+        "probe_after": {"available": probe_after},
+        "duration_ms": round((time.monotonic() - started_at) * 1000),
+    }
+
+
+def _validate_platform_config(config: PlatformRuntimeConfig) -> None:
+    protected = config.runtime_mode in {"production", "staging"}
+    if protected and not config.software_db_enabled:
+        raise GateError("SOFTWARE_DB_REQUIRED")
+    if protected and (not config.device_service_enabled or not config.timescale_enabled):
+        raise GateError("REQUIRED_SERVICE_DISABLED")
+    if protected and not config.real_model_required:
+        raise GateError("REAL_MODEL_REQUIRED")
+    if protected and config.attribution_mode != "pias":
+        raise GateError("ATTRIBUTION_MODE_UNSAFE")
+    if protected:
+        for value in (
+            config.model_service_url,
+            config.device_service_url,
+            config.attribution_service_url,
+        ):
+            parsed = urlparse(value)
+            if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+                raise GateError("SECURE_URL_REQUIRED")
+        if config.embedded_provider_secret:
+            raise GateError("EMBEDDED_SECRET_FORBIDDEN")
+    if config.runtime_mode == "demo" and not config.demo_enabled:
+        raise GateError("DEMO_FLAG_REQUIRED")
+
+
+def run_config_matrix(arguments: list[str]) -> int:
+    valid_value = option(arguments, "--valid", required=False)
+    invalid_value = option(arguments, "--invalid", required=False)
+    if (valid_value is None) == (invalid_value is None):
+        raise GateError("config-matrix requires exactly one of --valid or --invalid", EXIT_USAGE)
+    if valid_value is not None:
+        cases = [case.strip() for case in valid_value.split(",") if case.strip()]
+        unknown = sorted(set(cases) - set(VALID_CONFIG_CASES))
+        if unknown:
+            raise GateError(f"unknown valid config cases: {unknown}", EXIT_USAGE)
+        results = []
+        for case in cases:
+            config = PlatformRuntimeConfig(
+                runtime_mode=case,
+                attribution_mode="demo_mock" if case == "demo" else "pias",
+                demo_enabled=case == "demo",
+            )
+            _validate_platform_config(config)
+            results.append({"mode": case, "accepted": True})
+        payload = {"passed": True, "valid": results, "invalid": []}
+    else:
+        assert invalid_value is not None
+        cases = [case.strip() for case in invalid_value.split(",") if case.strip()]
+        unknown = sorted(set(cases) - set(INVALID_CONFIG_CASES))
+        if unknown:
+            raise GateError(f"unknown invalid config cases: {unknown}", EXIT_USAGE)
+        invalid_configs = {
+            "production_demo": PlatformRuntimeConfig(
+                runtime_mode="production",
+                attribution_mode="demo_mock",
+                demo_enabled=True,
+            ),
+            "disabled_software_db": PlatformRuntimeConfig(
+                runtime_mode="production",
+                software_db_enabled=False,
+            ),
+            "http_external": PlatformRuntimeConfig(
+                runtime_mode="production",
+                model_service_url="http://models.example.com",
+            ),
+            "embedded_secret": PlatformRuntimeConfig(
+                runtime_mode="production",
+                embedded_provider_secret="synthetic-invalid-secret",
+            ),
+        }
+        results = []
+        for case in cases:
+            try:
+                _validate_platform_config(invalid_configs[case])
+            except GateError as error:
+                results.append({"case": case, "rejected": True, "rejection_code": error.message})
+            else:
+                raise GateError(f"unsafe configuration was accepted: {case}")
+        payload = {"passed": True, "valid": [], "invalid": results}
+    print(json.dumps(payload, sort_keys=True))
     return 0
 
 
@@ -276,6 +510,8 @@ def main() -> int:
             return run_topology(sys.argv[2:])
         case "topology-failures":
             return run_topology_failures(sys.argv[2:])
+        case "config-matrix":
+            return run_config_matrix(sys.argv[2:])
         case _:
             raise GateError(f"unsupported subcommand: {command}", EXIT_USAGE)
 

@@ -1,0 +1,25 @@
+[[1;34mINFO[m] Scanning for projects...
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m-----------< [0;36morg.jeecgframework.boot3:jeecg-module-rehealth[0;1m >-----------[m
+[[1;34mINFO[m] [1mBuilding jeecg-module-rehealth 3.9.2[m
+[[1;34mINFO[m] [1m--------------------------------[ jar ]---------------------------------[m
+Downloading from aliyun: https://maven.aliyun.com/repository/public/org/jeecgframework/boot3/jeecg-boot-base-core/3.9.2/jeecg-boot-base-core-3.9.2.pom
+Downloading from jeecg: https://maven.jeecg.org/nexus/content/repositories/jeecg/org/jeecgframework/boot3/jeecg-boot-base-core/3.9.2/jeecg-boot-base-core-3.9.2.pom
+Downloading from central: https://repo.maven.apache.org/maven2/org/jeecgframework/boot3/jeecg-boot-base-core/3.9.2/jeecg-boot-base-core-3.9.2.pom
+[[1;33mWARNING[m] The POM for org.jeecgframework.boot3:jeecg-boot-base-core:jar:3.9.2 is missing, no dependency information available
+Downloading from aliyun: https://maven.aliyun.com/repository/public/org/jeecgframework/boot3/jeecg-boot-base-core/3.9.2/jeecg-boot-base-core-3.9.2.jar
+Downloading from jeecg: https://maven.jeecg.org/nexus/content/repositories/jeecg/org/jeecgframework/boot3/jeecg-boot-base-core/3.9.2/jeecg-boot-base-core-3.9.2.jar
+Downloading from central: https://repo.maven.apache.org/maven2/org/jeecgframework/boot3/jeecg-boot-base-core/3.9.2/jeecg-boot-base-core-3.9.2.jar
+[[1;34mINFO[m] [1m------------------------------------------------------------------------[m
+[[1;34mINFO[m] [1;31mBUILD FAILURE[m
+[[1;34mINFO[m] [1m------------------------------------------------------------------------[m
+[[1;34mINFO[m] Total time:  21.924 s
+[[1;34mINFO[m] Finished at: 2026-07-23T15:42:13+08:00
+[[1;34mINFO[m] [1m------------------------------------------------------------------------[m
+[[1;31mERROR[m] Failed to execute goal on project [36mjeecg-module-rehealth[m: [1;31mCould not resolve dependencies for project org.jeecgframework.boot3:jeecg-module-rehealth:jar:3.9.2: Could not find artifact org.jeecgframework.boot3:jeecg-boot-base-core:jar:3.9.2 in aliyun (https://maven.aliyun.com/repository/public)[m -> [1m[Help 1][m
+[[1;31mERROR[m] 
+[[1;31mERROR[m] To see the full stack trace of the errors, re-run Maven with the [1m-e[m switch.
+[[1;31mERROR[m] Re-run Maven using the [1m-X[m switch to enable full debug logging.
+[[1;31mERROR[m] 
+[[1;31mERROR[m] For more information about the errors and possible solutions, please read the following articles:
+[[1;31mERROR[m] [1m[Help 1][m http://cwiki.apache.org/confluence/display/MAVEN/DependencyResolutionException
