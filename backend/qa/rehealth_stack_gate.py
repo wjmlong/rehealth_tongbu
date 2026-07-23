@@ -26,11 +26,18 @@ import threading
 import time
 from contextlib import ExitStack
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final
 from urllib.parse import urlparse
 
 from kafka_lifecycle_gate import KafkaGateError, run_kafka_gate
+from cutover_gate import (
+    CosignVerifier,
+    CutoverRequest,
+    GateError as CutoverGateError,
+    execute_cutover,
+)
 
 
 EXIT_USAGE: Final = 64
@@ -228,10 +235,16 @@ def validate_routes(deploy_root: Path) -> None:
         required_headers = {
             "X-ReHealth-User-Id",
             "X-ReHealth-Tenant-Id",
-            "X-ReHealth-Device-Id",
         }
         if not required_headers.issubset(removed):
             raise GateError("gateway route must strip spoofable ReHealth identity headers")
+        preserved = {
+            "X-Access-Token",
+            "X-Tenant-Id",
+            "X-ReHealth-Device-Id",
+        }
+        if preserved & removed:
+            raise GateError("gateway route strips required authentication or binding context")
 
 
 def validate_images(config: dict[str, object], deploy_root: Path) -> None:
@@ -503,6 +516,52 @@ def run_config_matrix(arguments: list[str]) -> int:
     return 0
 
 
+def run_cutover(arguments: list[str]) -> int:
+    repository_root = Path(__file__).resolve().parents[2]
+    gateway_root = repository_root / "backend" / "deploy" / "rehealth" / "gateway"
+    reconciliation_value = option(arguments, "--reconciliation")
+    signature_value = option(arguments, "--signature")
+    verify_key_env = option(arguments, "--verify-key-env")
+    action = option(arguments, "--action", required=False) or "apply"
+    cases_value = option(arguments, "--cases", required=False)
+    approval_value = option(arguments, "--approval", required=False)
+    routes_value = option(arguments, "--route-config", required=False)
+    audit_value = option(arguments, "--audit", required=False)
+    assert reconciliation_value is not None and signature_value is not None
+    assert verify_key_env is not None
+    key_value = os.environ.get(verify_key_env)
+    if not key_value:
+        raise GateError(f"verification key environment variable is unset: {verify_key_env}")
+    key_path = Path(key_value).resolve()
+    if not key_path.is_file():
+        raise GateError("verification key environment variable must name a public-key file")
+    cases = () if cases_value is None else tuple(
+        case.strip() for case in cases_value.split(",") if case.strip()
+    )
+    request = CutoverRequest(
+        approval=Path(approval_value).resolve()
+        if approval_value is not None
+        else gateway_root / "cutover-approval.json",
+        reconciliation=Path(reconciliation_value).resolve(),
+        signature=Path(signature_value).resolve(),
+        public_key=key_path,
+        routes=Path(routes_value).resolve()
+        if routes_value is not None
+        else gateway_root / "rehealth-routes.json",
+        audit=Path(audit_value).resolve()
+        if audit_value is not None
+        else gateway_root / "deployment-audit.json",
+        action=action,
+        cases=cases,
+    )
+    try:
+        payload = execute_cutover(request, CosignVerifier(), datetime.now(UTC))
+    except CutoverGateError as error:
+        raise GateError(str(error)) from error
+    print(json.dumps(payload, sort_keys=True))
+    return 0
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         raise GateError("missing subcommand", EXIT_USAGE)
@@ -514,6 +573,8 @@ def main() -> int:
             return run_topology_failures(sys.argv[2:])
         case "config-matrix":
             return run_config_matrix(sys.argv[2:])
+        case "cutover":
+            return run_cutover(sys.argv[2:])
         case "kafka":
             fixture_value = option(sys.argv[2:], "--fixture")
             report_value = option(sys.argv[2:], "--report")

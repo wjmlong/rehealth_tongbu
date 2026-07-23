@@ -105,7 +105,7 @@ def test_config_matrix_executes_invalid_runtime_cases() -> None:
 
 
 def test_unknown_subcommand_is_explicitly_unsupported() -> None:
-    result = run_gate("cutover")
+    result = run_gate("not-a-command")
 
     assert result.returncode == 64
     assert "unsupported" in result.stderr.lower()

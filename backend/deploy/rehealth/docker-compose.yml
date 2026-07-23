@@ -53,10 +53,13 @@ services:
       SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
       SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
       REHEALTH_GATEWAY_ROUTE_SEED: /etc/rehealth/gateway/rehealth-routes.json
+      REHEALTH_DEVICE_SERVICE_URL: http://device-service:8091
     volumes:
       - ./gateway/rehealth-routes.json:/etc/rehealth/gateway/rehealth-routes.json:ro
     depends_on:
       nacos:
+        condition: service_healthy
+      device-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9999/actuator/health/readiness"]

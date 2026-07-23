@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rehealth.example/schemas/gateway-cutover-audit-v1.json",
+  "title": "ReHealth Gateway telemetry cutover audit",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "recordedAt",
+    "action",
+    "status",
+    "authority",
+    "routeOwner",
+    "reconciliationSha256",
+    "signatureSha256",
+    "publicKeySha256",
+    "ciSigner",
+    "gitSha"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "rehealth.gateway-cutover-audit.v1"},
+    "recordedAt": {"type": "string", "format": "date-time"},
+    "action": {"const": "telemetry-authority-cutover"},
+    "status": {"const": "applied"},
+    "authority": {"const": "timescale"},
+    "routeOwner": {"const": "rehealth-device-service"},
+    "reconciliationSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "signatureSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "publicKeySha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "ciSigner": {"type": "string", "minLength": 1},
+    "gitSha": {"type": "string", "pattern": "^[a-f0-9]{40}$"}
+  }
+}

@@ -5,14 +5,23 @@
     "name": "Path",
     "args": {
       "_genkey_0": "/jeecg-boot/rehealth/mobile/measurements/batch",
-      "_genkey_1": "/jeecg-boot/rehealth/mobile/measurements/recent",
-      "_genkey_2": "/jeecg-boot/rehealth/device-ops/**"
+      "_genkey_1": "/jeecg-boot/rehealth/mobile/measurements/recent"
     }
   }],
   "filters": [{
     "name": "StripPrefix",
     "args": {
       "parts": "1"
+    }
+  }, {
+    "name": "RemoveRequestHeader",
+    "args": {
+      "name": "X-ReHealth-User-Id"
+    }
+  }, {
+    "name": "RemoveRequestHeader",
+    "args": {
+      "name": "X-ReHealth-Tenant-Id"
     }
   }],
   "uri": "lb://rehealth-device-service"
@@ -29,6 +38,16 @@
     "name": "StripPrefix",
     "args": {
       "parts": "1"
+    }
+  }, {
+    "name": "RemoveRequestHeader",
+    "args": {
+      "name": "X-ReHealth-User-Id"
+    }
+  }, {
+    "name": "RemoveRequestHeader",
+    "args": {
+      "name": "X-ReHealth-Tenant-Id"
     }
   }],
   "uri": "lb://jeecg-system"

@@ -35,3 +35,55 @@ Its `runtime_verified` field applies only to that temporary failure harness.
 Device Service readiness requires TimescaleDB and Jeecg identity resolution.
 Kafka is intentionally not a readiness dependency: an outage degrades the
 publisher and leaves committed Outbox rows pending while ingestion stays ready.
+
+## Telemetry authority cutover
+
+`backend/qa/rehealth_stack_gate.py cutover` is the only supported route switch.
+The checked-in approval descriptor is bound to the approved Todo 10 staging
+volume clone by exact reconciliation, signature and cosign public-key hashes,
+the pre-cutover Git SHA, both database fingerprints and both schema versions.
+The gate descriptor-reads the exact files, rejects symlinks and files changed
+during a read, verifies the non-expired reconciliation and cosign signature,
+then atomically replaces the route seed and deployment audit record.
+
+```powershell
+$env:REHEALTH_CUTOVER_VERIFY_KEY = (
+  Resolve-Path backend/deploy/rehealth/gateway/cutover-verification.pub
+).Path
+
+D:\rehealthAI\model-service\.venv\Scripts\python.exe `
+  backend/qa/rehealth_stack_gate.py cutover `
+  --reconciliation <approved-bundle>\reconciliation.json `
+  --signature <approved-bundle>\reconciliation.sig `
+  --verify-key-env REHEALTH_CUTOVER_VERIFY_KEY
+```
+
+The exact public paths remain
+`/jeecg-boot/rehealth/mobile/measurements/batch` and
+`/jeecg-boot/rehealth/mobile/measurements/recent`. Their order `-100` route is
+owned only by `rehealth-device-service`; the Jeecg business wildcard stays at
+`-90`, so the legacy MySQL telemetry writer is not externally reachable. The
+route preserves `X-Access-Token`, `X-Tenant-Id`, and the device selector used
+for binding authorization while removing client-supplied ReHealth user and
+tenant identity headers. Device Service returns the existing
+`success/message/code/result/timestamp` Result-compatible envelope.
+
+Failure cases are executable and must leave the route and audit bytes unchanged:
+
+```powershell
+D:\rehealthAI\model-service\.venv\Scripts\python.exe `
+  backend/qa/rehealth_stack_gate.py cutover `
+  --reconciliation <approved-bundle>\reconciliation.json `
+  --signature <approved-bundle>\reconciliation.sig `
+  --verify-key-env REHEALTH_CUTOVER_VERIFY_KEY `
+  --cases bad_signature,expired_report,dirty_reconciliation,stale_git_sha,dsn_mismatch,route_collision
+```
+
+Before authority is established, `--action rollback` retains the Jeecg/MySQL
+route. After a successful cutover, the same application rollback retains the
+Device Service/Timescale route. Routing data back to MySQL is a separate data
+authority reversal and is forbidden without a new, separately approved and
+signed Timescale-to-MySQL reconciliation.
+
+Production publishes only the `edge` port. Gateway, Jeecg, Device Service,
+TimescaleDB and all other dependencies remain on internal Compose networks.

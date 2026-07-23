@@ -7,8 +7,7 @@
         "name": "Path",
         "args": {
           "_genkey_0": "/jeecg-boot/rehealth/mobile/measurements/batch",
-          "_genkey_1": "/jeecg-boot/rehealth/mobile/measurements/recent",
-          "_genkey_2": "/jeecg-boot/rehealth/device-ops/**"
+          "_genkey_1": "/jeecg-boot/rehealth/mobile/measurements/recent"
         }
       }
     ],
@@ -29,12 +28,6 @@
         "name": "RemoveRequestHeader",
         "args": {
           "name": "X-ReHealth-Tenant-Id"
-        }
-      },
-      {
-        "name": "RemoveRequestHeader",
-        "args": {
-          "name": "X-ReHealth-Device-Id"
         }
       }
     ],
@@ -68,12 +61,6 @@
         "name": "RemoveRequestHeader",
         "args": {
           "name": "X-ReHealth-Tenant-Id"
-        }
-      },
-      {
-        "name": "RemoveRequestHeader",
-        "args": {
-          "name": "X-ReHealth-Device-Id"
         }
       }
     ],

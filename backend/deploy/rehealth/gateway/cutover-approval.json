@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "rehealth.telemetry-cutover-approval.v1",
+  "approvalStatus": "approved",
+  "artifactState": "clean",
+  "ciSigner": "todo10-staging-volume-clone-cosign",
+  "expectedGitSha": "6f0ded1b21fc46fba74c9d14b40a05be41423664",
+  "reconciliationSha256": "a77d47eb83900a2a8253c9ce6b8cb481dd0763bc69d9c1c76064ce503df466be",
+  "signatureSha256": "8dae0bc2cb73d3cf61e0cbfa589e210ef950cc998ae3169c4cb0a473af6ef1f9",
+  "publicKeySha256": "f936728d07ff92270f0b7e0407ace45ab9e45c7f83b7c4dfb233c030936f42f8",
+  "source": {
+    "dsnFingerprint": "sha256:d793ab06a3d79c93ea34d5197bd1aea990a103207d6b021937a261f77afa8a15",
+    "schemaVersion": "mysql-hardware-v1"
+  },
+  "target": {
+    "dsnFingerprint": "sha256:b7400b7b32d85710910884e856428d9220619e0ade97fa6f10dce76fef7504dd",
+    "schemaVersion": "timescale-hardware-v3"
+  }
+}
