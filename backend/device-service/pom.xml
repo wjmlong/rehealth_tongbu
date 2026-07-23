@@ -11,6 +11,7 @@
 
     <properties>
         <java.version>17</java.version>
+        <cases></cases>
         <spring-boot.version>3.5.5</spring-boot.version>
         <springdoc.version>2.8.13</springdoc.version>
         <archunit.version>1.4.1</archunit.version>
@@ -144,6 +145,9 @@
                         <include>**/*Test.java</include>
                         <include>**/*IT.java</include>
                     </includes>
+                    <systemPropertyVariables>
+                        <cases>${cases}</cases>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
             <plugin>
