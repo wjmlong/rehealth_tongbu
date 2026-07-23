@@ -1,6 +1,8 @@
 package com.rehealth.device;
 
-import org.flywaydb.core.api.FlywayException;
+import com.rehealth.device.config.TimescaleDatabaseProperties;
+import com.rehealth.device.config.TimescaleMigrationConfiguration;
+import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.output.MigrateResult;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -25,13 +27,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class TimescaleMigrationIT {
     private static GenericContainer<?> timescale;
     private static GenericContainer<?> postgres;
+    private static String timescaleAdminUrl;
+    private static String postgresAdminUrl;
 
     @BeforeAll
     static void startTimescale() {
         if (caseEnabled("unsupported_extension")) {
-            postgres = TimescaleTestDatabase.start(TimescaleTestDatabase.POSTGRES_IMAGE);
-        } else {
-            timescale = TimescaleTestDatabase.start(TimescaleTestDatabase.TIMESCALE_IMAGE);
+            postgresAdminUrl = System.getenv("POSTGRES_TEST_JDBC_URL");
+            if (postgresAdminUrl == null || postgresAdminUrl.isBlank()) {
+                postgres = TimescaleTestDatabase.start(TimescaleTestDatabase.POSTGRES_IMAGE);
+            }
+        }
+        if (caseEnabled("happy")
+                || caseEnabled("duplicate_source")
+                || caseEnabled("timezone_roundtrip")) {
+            timescaleAdminUrl = System.getenv("TIMESCALE_TEST_JDBC_URL");
+            if (timescaleAdminUrl == null || timescaleAdminUrl.isBlank()) {
+                timescale = TimescaleTestDatabase.start(TimescaleTestDatabase.TIMESCALE_IMAGE);
+            }
         }
     }
 
@@ -46,11 +59,11 @@ class TimescaleMigrationIT {
     }
 
     @Test
-    void cleanAndUpgradedMigrationsValidateAndExposeExpectedPolicies() throws SQLException {
+    void cleanAndUpgradedMigrationsValidateAndExposeExpectedPolicies() throws Exception {
         requireCase("happy");
-        TimescaleTestDatabase clean = TimescaleTestDatabase.create(timescale);
+        TimescaleTestDatabase clean = createTimescaleDatabase();
 
-        MigrateResult first = clean.flyway().migrate();
+        MigrateResult first = configuredFlyway(clean).migrate();
         clean.flyway().validate();
         MigrateResult second = clean.flyway().migrate();
 
@@ -85,7 +98,7 @@ class TimescaleMigrationIT {
                     """));
         }
 
-        TimescaleTestDatabase upgraded = TimescaleTestDatabase.create(timescale);
+        TimescaleTestDatabase upgraded = createTimescaleDatabase();
         assertEquals(2, upgraded.flywayAtVersion("2").migrate().migrationsExecuted);
         assertEquals(1, upgraded.flyway().migrate().migrationsExecuted);
         upgraded.flyway().validate();
@@ -94,16 +107,20 @@ class TimescaleMigrationIT {
     @Test
     void duplicateSourceAndBatchKeysAreRejected() throws SQLException {
         requireCase("duplicate_source");
-        TimescaleTestDatabase database = TimescaleTestDatabase.create(timescale);
+        TimescaleTestDatabase database = createTimescaleDatabase();
         database.flyway().migrate();
 
         try (Connection connection = database.connect(); Statement statement = connection.createStatement()) {
             statement.execute(batchInsert(
-                    "00000000-0000-0000-0000-000000000001", "batch-1", "receipt-1"));
+                    "00000000-0000-0000-0000-000000000001",
+                    "batch-1",
+                    "10000000-0000-0000-0000-000000000001"));
             SQLException duplicateBatch = assertThrows(
                     SQLException.class,
                     () -> statement.execute(batchInsert(
-                            "00000000-0000-0000-0000-000000000002", "batch-1", "receipt-2"))
+                            "00000000-0000-0000-0000-000000000002",
+                            "batch-1",
+                            "10000000-0000-0000-0000-000000000002"))
             );
             assertEquals("23505", duplicateBatch.getSQLState());
 
@@ -126,22 +143,32 @@ class TimescaleMigrationIT {
     }
 
     @Test
-    void unsupportedTimescaleExtensionFailsBeforeSchemaWrites() throws SQLException {
+    void unsupportedTimescaleExtensionFailsBeforeSchemaWrites() throws Exception {
         requireCase("unsupported_extension");
-        TimescaleTestDatabase database = TimescaleTestDatabase.create(postgres);
+        TimescaleTestDatabase database = postgres == null
+                ? TimescaleTestDatabase.create(postgresAdminUrl)
+                : TimescaleTestDatabase.create(postgres);
 
-        assertThrows(FlywayException.class, () -> database.flyway().migrate());
+        assertThrows(
+                IllegalStateException.class,
+                () -> configuredFlyway(database)
+        );
 
         try (Connection connection = database.connect(); Statement statement = connection.createStatement()) {
+            assertEquals(0, scalarInt(statement, """
+                    SELECT count(*)
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                    """));
             assertFalse(scalarBoolean(statement,
-                    "SELECT to_regclass('public.hardware_upload_batch') IS NOT NULL"));
+                    "SELECT to_regclass('public.flyway_schema_history') IS NOT NULL"));
         }
     }
 
     @Test
     void legacyMysqlDatetimeIsInterpretedAsUtc() throws SQLException {
         requireCase("timezone_roundtrip");
-        TimescaleTestDatabase database = TimescaleTestDatabase.create(timescale);
+        TimescaleTestDatabase database = createTimescaleDatabase();
         database.flyway().migrate();
 
         try (Connection connection = database.connect(); Statement statement = connection.createStatement()) {
@@ -169,6 +196,20 @@ class TimescaleMigrationIT {
                 .map(String::trim)
                 .collect(Collectors.toSet());
         return cases.contains(name);
+    }
+
+    private static TimescaleTestDatabase createTimescaleDatabase() throws SQLException {
+        return timescale == null
+                ? TimescaleTestDatabase.create(timescaleAdminUrl)
+                : TimescaleTestDatabase.create(timescale);
+    }
+
+    private static Flyway configuredFlyway(TimescaleTestDatabase database) throws Exception {
+        TimescaleDatabaseProperties properties = new TimescaleDatabaseProperties();
+        properties.setUrl(database.url());
+        properties.setUsername(TimescaleTestDatabase.USER);
+        properties.setPassword(TimescaleTestDatabase.PASSWORD);
+        return new TimescaleMigrationConfiguration().hardwareDatabaseFlyway(properties);
     }
 
     private static void requireCase(String name) {

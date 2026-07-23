@@ -27,10 +27,12 @@ final class TimescaleTestDatabase {
     );
 
     private final GenericContainer<?> container;
+    private final String adminUrl;
     private final String database;
 
-    private TimescaleTestDatabase(GenericContainer<?> container, String database) {
+    private TimescaleTestDatabase(GenericContainer<?> container, String adminUrl, String database) {
         this.container = container;
+        this.adminUrl = adminUrl;
         this.database = database;
     }
 
@@ -46,13 +48,24 @@ final class TimescaleTestDatabase {
     }
 
     static TimescaleTestDatabase create(GenericContainer<?> container) throws SQLException {
+        return create(container, jdbcUrl(container, "postgres"));
+    }
+
+    static TimescaleTestDatabase create(String adminUrl) throws SQLException {
+        return create(null, adminUrl);
+    }
+
+    private static TimescaleTestDatabase create(
+            GenericContainer<?> container,
+            String adminUrl
+    ) throws SQLException {
         String database = "rehealth_" + UUID.randomUUID().toString().replace("-", "");
         try (Connection connection = DriverManager.getConnection(
-                jdbcUrl(container, "postgres"), USER, PASSWORD);
+                adminUrl, USER, PASSWORD);
              Statement statement = connection.createStatement()) {
             statement.execute("CREATE DATABASE " + database);
         }
-        return new TimescaleTestDatabase(container, database);
+        return new TimescaleTestDatabase(container, adminUrl, database);
     }
 
     Flyway flyway() {
@@ -81,7 +94,10 @@ final class TimescaleTestDatabase {
     }
 
     String url() {
-        return jdbcUrl(container, database);
+        if (container != null) {
+            return jdbcUrl(container, database);
+        }
+        return adminUrl.substring(0, adminUrl.lastIndexOf('/') + 1) + database;
     }
 
     private static String jdbcUrl(GenericContainer<?> container, String database) {

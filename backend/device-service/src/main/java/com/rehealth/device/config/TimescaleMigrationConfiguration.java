@@ -16,14 +16,17 @@ import java.util.Map;
 @EnableConfigurationProperties(TimescaleDatabaseProperties.class)
 public class TimescaleMigrationConfiguration {
     @Bean(initMethod = "migrate")
-    Flyway hardwareDatabaseFlyway(TimescaleDatabaseProperties properties) throws IOException {
+    public Flyway hardwareDatabaseFlyway(
+            TimescaleDatabaseProperties properties
+    ) throws IOException {
         TimescaleDatabaseProperties.Retention retention = properties.getRetention();
+        String url = required(properties.getUrl(), "REHEALTH_HARDWARE_DB_URL");
+        String username = required(
+                properties.getUsername(), "REHEALTH_HARDWARE_DB_USERNAME");
+        String password = databasePassword(properties);
+        TimescalePrerequisiteValidator.validate(url, username, password);
         return Flyway.configure()
-                .dataSource(
-                        required(properties.getUrl(), "REHEALTH_HARDWARE_DB_URL"),
-                        required(properties.getUsername(), "REHEALTH_HARDWARE_DB_USERNAME"),
-                        databasePassword(properties)
-                )
+                .dataSource(url, username, password)
                 .locations("classpath:db/migration/timescale")
                 .placeholders(Map.of(
                         "measurementRetentionDays", positive(retention.getMeasurementDays()),

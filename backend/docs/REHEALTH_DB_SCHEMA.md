@@ -1,4 +1,4 @@
-# ReHealth DB Schema E1
+# ReHealth DB Schema
 
 Status: software_db and hardware_db MVP schema scripts are implemented; production provisioning remains deployment-owned.
 
@@ -46,41 +46,51 @@ Transaction strategy:
 
 ## hardware_db Boundary
 
-Owner: ReHealth hardware ingestion/query boundary, with a future dedicated ingest service remaining an optional scaling step.
+Owner: `backend/device-service`, with a future dedicated ingest service remaining an optional scaling step.
 
-E1 Java boundary:
+The PostgreSQL 17 / TimescaleDB schema is versioned by Flyway under
+`backend/device-service/src/main/resources/db/migration/timescale`. Todo 8 owns
+the telemetry-port adapter; enabling migrations does not by itself make the
+currently unavailable adapter ready.
 
-```text
-org.jeecg.modules.rehealth.ingest.HardwareIngestionPort
-org.jeecg.modules.rehealth.ingest.writer.JdbcHardwareTelemetryWriter
-org.jeecg.modules.rehealth.ingest.query.JdbcHardwareTelemetryQuery
-```
+| Table | Purpose |
+| --- | --- |
+| `hardware_upload_batch` | Idempotent upload receipt and batch state. |
+| `hardware_measurement` | Normalized scalar measurements; one-day `observed_at` chunks. |
+| `hardware_sleep_session` | Normalized sleep sessions; seven-day `started_at` chunks. |
+| `hardware_activity` | Normalized activity sessions; seven-day `started_at` chunks. |
+| `hardware_signal_chunk_metadata` | Signal metadata only; no raw waveform payload. |
+| `hardware_data_quality_event` | Quality events; seven-day `event_at` chunks. |
+| `hardware_reconciliation` | Reconciliation state and retry metadata. |
+| `hardware_outbox` | Durable publication state. |
+| `hardware_migration_checkpoint` | Legacy migration checkpoints. |
 
-Planned tables:
+All domain times are `TIMESTAMPTZ`. Source uniqueness includes tenant, user,
+device, event time, record type, and source record ID. Telemetry/session/quality
+hypertables compress chunks after seven days.
 
-| Table | Purpose | E1 status |
+| Data class | Default retention | Configuration |
 | --- | --- | --- |
-| `rehealth_hw_measurement_batch` | Idempotent raw upload batch/receipt. | Deferred to E2. |
-| `rehealth_hw_measurement` | HR, SpO2, BP, temperature, and related measurement rows. | Deferred to E2. |
-| `rehealth_hw_sleep_session` | Sleep session details. | Deferred to E2. |
-| `rehealth_hw_activity_session` | Steps/activity sessions. | Deferred to E2. |
-| `rehealth_hw_hrv` | HRV values. | Deferred to E2. |
-| `rehealth_hw_rri_metadata` | RRI metadata if allowed. | Deferred to E2. |
-| `rehealth_hw_ppg_chunk` | PPG metadata/chunks if allowed. | Deferred to E2 and consent review. |
-| `rehealth_hw_quality_flag` | Data quality flags. | Deferred to E2. |
-| `rehealth_hw_ingestion_event` | Ingestion state, rejection, retry, dead-letter metadata. | Deferred to E2. |
+| Measurement, sleep, activity | 730 days | `REHEALTH_MEASUREMENT_RETENTION_DAYS` |
+| Signal metadata | 90 days | `REHEALTH_SIGNAL_METADATA_RETENTION_DAYS` |
+| Quality and operational history | 1,095 days | `REHEALTH_OPERATIONAL_RETENTION_DAYS` |
+| Published outbox rows | 30 days | `REHEALTH_PUBLISHED_OUTBOX_RETENTION_DAYS` |
 
-When `rehealth.hardware-db.enabled=true`, `/measurements/batch` writes a transactionally idempotent batch through `JdbcHardwareTelemetryWriter`, and `/measurements/recent` returns the authenticated user's normalized recent telemetry through `JdbcHardwareTelemetryQuery`. Raw signal payloads are neither written nor returned. When disabled, both paths return 503 rather than claiming durable or mock success.
+The ordinary-table lifecycle job removes only terminal data. Failed or
+unresolved outbox records are never automatically deleted, and upload batches
+with unresolved reconciliation or outbox work are retained.
 
 ## Provisioning
 
 Apply `db/software/mysql/V1__create_rehealth_software_tables.sql` to the Jeecg primary software datasource, then set `rehealth.software-db.enabled=true`. Every mobile business write/read derives ownership from the authenticated Jeecg user; client-supplied user IDs are not accepted for these records.
 
-## E2 Migration Requirements
+For `hardware_db`, set `REHEALTH_HARDWARE_DB_ENABLED=true`,
+`REHEALTH_HARDWARE_DB_URL`, `REHEALTH_HARDWARE_DB_USERNAME`, and either
+`REHEALTH_HARDWARE_DB_PASSWORD` or `REHEALTH_HARDWARE_DB_PASSWORD_FILE`.
+Startup validates and applies the Timescale Flyway migrations before any
+hardware write adapter is created. PostgreSQL without the Timescale extension
+fails in the prerequisite migration before application tables are written.
 
-E2 must add:
-
-- Production provisioning and measured validation of the real `hardware_db` datasource.
-- MQ or stream transport if required by concurrency target.
-- Retention policy for raw telemetry, especially PPG/RRI.
-- Migrations or explicit schema deployment scripts.
+Legacy MySQL `DATETIME(3)` values are interpreted as UTC by
+`rehealth_legacy_mysql_datetime_utc(timestamp)` before conversion to
+`TIMESTAMPTZ`; migration callers must not apply the server session timezone.
