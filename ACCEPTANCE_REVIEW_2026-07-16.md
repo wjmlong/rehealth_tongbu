@@ -101,9 +101,9 @@
 | E1.3 PIAS orchestration + admin RBAC | ❌ Not started | Deferred after D3 |
 | **E2 hardware ingest (dev queue)** | ✅ **Implemented** | E2_status.md, branch `work/E2_backend_hardware_ingest`, 9 tests PASS |
 | **E2.1 durable telemetry persistence** | ✅ **Implemented** | commit `13588aa`, hardware_db writer, 21 tests PASS (2026-07-13) |
-| Real MySQL 8 QA | ⚠️ **Pending** | H2 MySQL-mode validated, real MySQL migration/restart QA deferred |
+| Real MySQL 8 QA | ✅ **Completed (2026-07-23)** | MySQL 8.0.42 migration, authenticated API, dual-database persistence, idempotency and restart/read-back QA passed |
 
-**Blocker level**: E1.2 is **RELEASE BLOCKER** (Android auth contract freeze). E2/E2.1 accepted at automated-test level; MySQL QA deferred but documented.
+**Blocker level**: E1.2 is **RELEASE BLOCKER** (Android auth contract freeze). E2/E2.1 now have automated tests plus real MySQL 8 staging evidence; physical MR11 and Android runtime QA remain separate gates.
 
 **Priority**: E1.2 应立即完成，freeze Jeecg login/token contract。
 
@@ -135,9 +135,9 @@
 | G2 复审 (2026-07-10) | ✅ Completed | `ACCEPTANCE_REVIEW_2026-07-10.md` |
 | G3 release build privacy/log audit | ✅ Static gate resolved | `codex-runs/2026-07-20/G3_privacy_audit_report.md`; runtime/device conditions remain |
 | G4 no-MySQL harness | ❌ Not started | H2 MySQL-mode + real model-service |
-| Cross-service E2E QA | ⚠️ **Pending** | Android -> backend -> model-service 完整链路实测缺失 |
+| Cross-service E2E QA | ⚠️ **Partial** | Authenticated client -> JeecgBoot -> MySQL 8 hardware/software DB -> real CatBoost/PIAS passed; MuMu/physical Android execution remains pending |
 
-**Blocker level (updated 2026-07-23)**: **Cross-service E2E QA remains a RELEASE BLOCKER**. G3 static privacy audit is resolved; signed-runtime logcat and physical-device verification remain deployment conditions. G4 harness 非 blocker 但强烈建议。
+**Blocker level (updated 2026-07-23)**: backend staging E2E is resolved, but **Android runtime and physical-device E2E remain RELEASE BLOCKERS**. G3 static privacy audit is resolved; signed-runtime logcat and physical-device verification remain deployment conditions. G4 harness 非 blocker 但强烈建议。
 
 ---
 
@@ -175,11 +175,10 @@
    - 预计工作量: 2-3 天
    - 包含: 401 queue pause/resume, typed intervention feedback, 移除 legacy patient check-in
 
-3. **Cross-service E2E QA** ❌
-   - 状态: 未完成
-   - 影响: 端到端 Android -> backend -> model-service 链路未经真实环境验证
-   - 依赖: E1.2 + D3 完成
-   - 预计工作量: 1 天（假设各组件独立测试已通过）
+3. **Cross-service E2E QA** ⚠️
+   - 状态: 2026-07-23 已完成认证客户端 -> backend -> MySQL 8 -> CatBoost/PIAS；MuMu/物理 Android 运行仍未完成
+   - 影响: 后端与模型链路已验证，但尚不能替代 Android 运行时和 BLE 真机证据
+   - 依赖: MuMu 环境 + 物理 MR11
 
 4. **Physical MRD QA** ❌
    - 状态: 未完成
@@ -194,10 +193,10 @@
 
 ### P1 - Deferred but Documented (可在后续 patch 解决)
 
-6. **Real MySQL 8 QA** ⚠️ Deferred
-   - 状态: H2 MySQL-mode validated, 真实 MySQL 迁移/重启/幂等性 QA 待完成
-   - 影响: 生产环境数据库行为未验证
-   - 风险: 中等（H2 MySQL-mode 已覆盖 SQL 语法兼容性）
+6. ~~**Real MySQL 8 QA**~~ ✅ Completed (2026-07-23)
+   - 状态: MySQL 8.0.42 的加法迁移、认证用户隔离、双库写入、重复批次幂等、服务重启回读均通过
+   - 证据: 2 measurements + 1 sleep + 1 activity 与 API 回执一致，伪造 `userId` 落库数为 0；QA 行已清理
+   - 剩余: 并发压力、故障切换和生产备份恢复仍属于部署验证，不回退本项功能验收
 
 7. **P0b remote push** ⚠️ Network issue
    - 状态: 本地验收通过，GitHub push 连接重置
@@ -242,14 +241,14 @@ Android (D2)
 
 - ✅ E2 **不触发 risk scoring**，不调用 model-service
 - ✅ E2.1 已实现 hardware_db writer，21 tests PASS
-- ⚠️ Durable MQ/hardware_db 仍为 dev pending，但已文档化
+- ✅ hardware_db MySQL 8 direct writer、批次幂等与 recent query 已完成 staging 重启验证；MQ 仍是后续扩展
 
 ### 3.3 Business Persistence (已实现)
 
 - ✅ E1.1 实现 authenticated, user-scoped JDBC persistence
-- ✅ Six add-only software tables: `rehealth_feature_snapshot`, `rehealth_risk_evaluation`, `rehealth_intervention_generated`, `rehealth_patient_feedback`, `rehealth_attribution_result`, `rehealth_risk_trend`
+- ✅ software_db 覆盖 profile、interview、device binding、CVD feature/risk、intervention、feedback、attribution 与 model request audit
 - ✅ Ownership-checked idempotent feedback
-- ⚠️ Real MySQL 8 QA deferred
+- ✅ Real MySQL 8.0.42 migration/restart/idempotency QA passed (2026-07-23)
 
 ### 3.4 Authentication & Feedback (未闭环)
 
@@ -340,7 +339,7 @@ Android (D2)
      - Android login -> feature evaluate -> risk display
      - Android telemetry batch -> backend E2 -> hardware_db writer
      - Typed feedback submission -> backend E1.1 persistence
-   - Output: End-to-end test evidence file
+   - Output: backend staging portion passed on 2026-07-23; Android runtime portion remains
 
 ### Parallel (可与 D3 并行)
 
@@ -357,7 +356,7 @@ Android (D2)
 
 ### Deferred (Post-Alpha)
 
-8. Real MySQL 8 migration/restart QA
+8. ~~Real MySQL 8 migration/restart QA~~ ✅ Completed 2026-07-23
 9. E1.3 PIAS orchestration + admin RBAC
 10. G4 no-MySQL harness (recommended but not blocking)
 
@@ -385,7 +384,7 @@ docs(orchestrator): acceptance review 2026-07-16
 
 Orchestrator session checkpoint covering E2/P0b/P0c completion.
 Updates release blocker list: E1.2 + D3 + cross-service E2E + physical MRD
-QA + G3 privacy audit remain critical path. Real MySQL QA deferred.
+QA + G3 privacy audit remain critical path. Real MySQL QA completed 2026-07-23.
 
 Ref: ACCEPTANCE_REVIEW_2026-07-10.md, PRODUCT_ARCHITECTURE_ACCEPTANCE_2026-07-13.md
 ```
@@ -420,14 +419,13 @@ Ref: ACCEPTANCE_REVIEW_2026-07-10.md, PRODUCT_ARCHITECTURE_ACCEPTANCE_2026-07-13
 - 明确 **release authority** 必须决定: 是否允许"软件验收通过 + 硬件 QA pending"的 alpha release
 - 如允许，必须在 release notes 明确标注 "Physical MRD QA pending, use at your own risk"
 
-### 7.4 Real MySQL QA Deferral
+### 7.4 Real MySQL QA Status
 
-**Risk**: H2 MySQL-mode 虽覆盖 SQL 语法兼容性，但真实 MySQL 8 的并发/事务/锁行为可能不同。
+**Resolved evidence (2026-07-23)**: MySQL 8.0.42 staging 已完成 schema upgrade、software_db/hardware_db 分流、认证归属、批次幂等和后端重启回读。测试使用明确标记的 MR11 规范化抓包重放值，不冒充当前用户生理数据，结束后删除 QA 数据。
 
-**Mitigation**:
-- E1.1/E2.1 acceptance 明确标注 "automated-test level, MySQL QA deferred"
-- 在 staging/production 部署前，**必须**补充 MySQL 8 migration/restart/idempotency QA
-- 建议: G4 no-MySQL harness 作为临时替代，使用 H2 跑完整链路
+**Residual deployment risk**:
+- 尚未做并发压力、主从切换、备份恢复和生产规模容量测试。
+- G4 H2 harness 仍可作为快速回归补充，但不再替代真实 MySQL QA。
 
 ---
 
@@ -442,7 +440,7 @@ Ref: ACCEPTANCE_REVIEW_2026-07-10.md, PRODUCT_ARCHITECTURE_ACCEPTANCE_2026-07-13
 - [x] 检查了 backend 和 Android-apk 的 `work/*` 分支状态
 - [x] 汇总了自动化测试通过记录
 - [x] 定义了 **5 个 P0 release blockers** (E1.2 + D3 + cross-service E2E + physical MRD + G3 privacy)
-- [x] 定义了 **2 个 P1 deferred gates** (Real MySQL QA + P0b push)
+- [x] Real MySQL QA 已关闭；P0b push 仍为历史 P1 归档项
 - [x] 定义了 **3 个 P2 post-MVP items** (E1.3 + G4 + F3b)
 - [x] 明确了下一步执行序列 (E1.2 -> D3 -> E2E QA, parallel: physical MRD QA + G3 audit)
 - [x] 文档化了所有已知风险和缓解策略
@@ -609,13 +607,13 @@ Ref: ACCEPTANCE_REVIEW_2026-07-10.md, PRODUCT_ARCHITECTURE_ACCEPTANCE_2026-07-13
 
 1. ~~E1.2 mobile auth contract freeze~~ ✅ **COMPLETED**
 2. **D3 Android auth + typed feedback integration** ❌ **NOW UNBLOCKED** (can start immediately)
-3. **Cross-service E2E QA** ❌ (requires D3)
+3. **Cross-service E2E QA** ⚠️ backend staging passed; MuMu/physical Android remains
 4. **Physical MRD QA** ❌ (can run in parallel with D3)
 5. **G3 Release build privacy/log audit** ❌ (can run in parallel with D3)
 
-**P1 Deferred Gates**: 2
+**P1 Deferred Gates**: 1
 
-6. Real MySQL 8 QA (deferred to staging)
+6. ~~Real MySQL 8 QA~~ ✅ Completed in staging 2026-07-23
 7. ~~P0b remote push~~ ⚠️ **Local accepted**, retry task created
 
 **Immediate Next Actions** (as of 2026-07-16 evening):

@@ -228,7 +228,7 @@ APK 构建成功：
 - hardware_db 未启用时返回可重试 `503`，不会回退为 Mock；查询测试验证了跨用户隔离和按时间倒序限量。
 - 聚焦 Maven 测试 6 项通过，覆盖审计落库、近期数据查询和控制器接口契约；ReHealth 后端完整测试共 25 项通过，0 失败、0 错误。
 - Android 回归门禁 `testDebugUnitTest lintDebug assembleDebug assembleRelease` 通过；本轮没有 Android 源码或 UI 修改。
-- 仍待完成：真实 MySQL 8 部署验证、网易 MuMu UI 回归、物理 MR11 长时间采集，以及 Jeecg 低代码管理页。低代码生成还需要确定可连接的 Jeecg 数据库/API 与前端工程目标，不能靠猜测生成到错误环境。
+- 仍待完成：网易 MuMu UI 回归、物理 MR11 长时间采集，以及 Jeecg 低代码管理页。低代码生成还需要确定可连接的 Jeecg 数据库/API 与前端工程目标，不能靠猜测生成到错误环境。
 
 ## 11. 2026-07-23 G3 发布隐私与日志门禁
 
@@ -239,3 +239,16 @@ APK 构建成功：
 - Android `testDebugUnitTest lintDebug assembleDebug assembleRelease` 与 JeecgBoot 11 模块 Reactor package 均成功。
 - 详细证据：`codex-runs/2026-07-20/G3_privacy_audit_report.md`。
 - 仍待：配置真实 HTTPS 域名、签名 Release APK、MuMu 运行时 logcat、物理 MR11 验证；静态门禁通过不等同于生产部署完成。
+
+## 12. 2026-07-23 MySQL 8 双库与模型链路实测
+
+- staging 使用 MySQL `8.0.42`，加法升级脚本 `V20260723_2__upgrade_legacy_software_schema.sql` 在旧 software_db schema 上重复执行验证通过，并在真实 staging 应用；未做破坏性重建。
+- 修复 Dynamic Routing DataSource 与独立 hardware JdbcTemplate 的 Bean 冲突；software repository 明确使用主路由 JdbcTemplate，hardware writer/query 使用名为 `hardware` 的子数据源。
+- 修复 Java `HttpClient` 默认 h2c 升级导致 Uvicorn POST 返回 422：模型客户端固定使用 HTTP/1.1。回归测试确认旧实现发送 `Upgrade: h2c`，修复后不再发送。
+- 修复旧干预记录的 snake_case JSON 回读，`plan_id`、`model_version`、`is_mock` 等字段可恢复为当前 DTO，同时保持当前移动 API 的 camelCase 输出不变。
+- 使用真实 `POST /sys/mLogin` 会话和 `X-Access-Token` 完成：profile、interview、device bind、MR11 规范化抓包重放批次、recent telemetry、真实 CatBoost 风险、干预、反馈与真实 PIAS 归因。
+- hardware_db 核验：同一 batch 重试返回相同 receipt；落库为 1 batch、2 measurements、1 sleep、1 activity；重启后再次提交仍不重复。请求中伪造的 `userId` 落库数为 0，所有权来自认证主体。
+- software_db 核验：profile/interview/device/feature/risk/feedback/attribution/model audit 均真实落库；真实 CatBoost 返回 `isMock=false`；后端重启后 latest risk、today intervention、profile、interview 均可回读。
+- PIAS 以明确标记的 30 天验证历史返回 `ready` 和可用 ATT；这是软件链路验证数据，不是当前用户的因果医学结论。
+- 完整 ReHealth Maven 测试：30 项通过，0 失败、0 错误；测试后已删除 QA 双库数据、临时数据库备份和本机会话凭证，不写入 Git。
+- 本轮没有修改 Android Compose UI。网易 MuMu 页面回归和物理 MR11 BLE/GATT/锁屏长时间采集仍未验证。
