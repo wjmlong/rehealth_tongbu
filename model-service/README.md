@@ -125,6 +125,13 @@ The current reviewed local candidate is `cvd-core16-catboost-20260710T173543Z` w
 
 `app.risk_scorer.load_risk_scorer()` falls back to `MockRiskScorer` when a real model is unavailable. A real scorer can be enabled only when a local model artifact and a local feature-order artifact exist under the local `models/` directory and validate.
 
+Protected runtime modes also require
+`REHEALTH_MODEL_SERVICE_BASE_URL` to be an HTTPS URL without embedded
+credentials and `REHEALTH_PROVIDER_CREDENTIAL_FILE` to name the externally
+mounted provider credential. `REHEALTH_PROVIDER_SECRET` is rejected in
+production and staging; provider values must not be embedded in environment
+configuration.
+
 Model artifact search order:
 
 ```text

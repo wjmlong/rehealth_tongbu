@@ -27,6 +27,11 @@ The topology gate is static. Runtime readiness requires the application JARs,
 the hardened PIAS entrypoint, Device Service and real secret/artifact bundles.
 Do not interpret a static pass as a deployed-service health result.
 
+The `topology-failures` gate is an executable bounded dependency-transition
+test: it starts temporary TCP dependencies, proves each is reachable, stops the
+selected dependency, and probes the resulting ingest/publisher/model state.
+Its `runtime_verified` field applies only to that temporary failure harness.
+
 Device Service readiness requires TimescaleDB and Jeecg identity resolution.
 Kafka is intentionally not a readiness dependency: an outage degrades the
 publisher and leaves committed Outbox rows pending while ingestion stays ready.
