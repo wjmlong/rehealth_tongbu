@@ -1,0 +1,224 @@
+[
+    {
+        "file":  "backend/device-service/pom.xml",
+        "workspace_sha256":  "89FF66B9ACA8A070DBBE3B8E50654A62686CCBD885A010C261FB4B7A769F9285",
+        "mirror_sha256":  "89FF66B9ACA8A070DBBE3B8E50654A62686CCBD885A010C261FB4B7A769F9285",
+        "match":  true
+    },
+    {
+        "file":  "backend/contracts/telemetry/src/test/resources/legacy-valid/android-d2-v1.json",
+        "workspace_sha256":  "732FBAE6EDE07EC3531BAAB669F99B020618F302A5FC043D04229B16B7789382",
+        "mirror_sha256":  "732FBAE6EDE07EC3531BAAB669F99B020618F302A5FC043D04229B16B7789382",
+        "match":  true
+    },
+    {
+        "file":  "backend/device-service/src/main/resources/application.yml",
+        "workspace_sha256":  "8159CB36B19DD41B843A3BA7699EFFD113D47532602BFB65DD733ED5735AB357",
+        "mirror_sha256":  "8159CB36B19DD41B843A3BA7699EFFD113D47532602BFB65DD733ED5735AB357",
+        "match":  true
+    },
+    {
+        "file":  "backend/device-service/src/test/java/com/rehealth/device/DeviceApiBoundaryIT.java",
+        "workspace_sha256":  "CC722492DCFE6559AE6E85A05711A026524FC2B98F0D1B643B4D19B1173EF119",
+        "mirror_sha256":  "CC722492DCFE6559AE6E85A05711A026524FC2B98F0D1B643B4D19B1173EF119",
+        "match":  true
+    },
+    {
+        "file":  "backend/device-service/src/test/java/com/rehealth/device/DeviceServiceArchitectureTest.java",
+        "workspace_sha256":  "D3F4C7E4C420F9A97B077E0A84A3BF50BBF9442AAEEF2487E3740B0CA26CB471",
+        "mirror_sha256":  "D3F4C7E4C420F9A97B077E0A84A3BF50BBF9442AAEEF2487E3740B0CA26CB471",
+        "match":  true
+    },
+    {
+        "file":  "backend/device-service/src/main/java/com/rehealth/device/port/TelemetryWritePort.java",
+        "workspace_sha256":  "37BED4A705F6786A9CC991A93DFE9B2CA539CC657CED4CEC5DD51C8E60B43A35",
+        "mirror_sha256":  "37BED4A705F6786A9CC991A93DFE9B2CA539CC657CED4CEC5DD51C8E60B43A35",
+        "match":  true
+    },
+    {
+        "file":  "backend/device-service/src/main/java/com/rehealth/device/port/TelemetryReadPort.java",
+        "workspace_sha256":  "8F0FF1D488A0AEE8FBBAF438DBB087EDC3E27D13D60FAE90EEBEF5DFCABC8B63",
+        "mirror_sha256":  "8F0FF1D488A0AEE8FBBAF438DBB087EDC3E27D13D60FAE90EEBEF5DFCABC8B63",
+        "match":  true
+    },
+    {
+        "file":  "backend/device-service/src/main/java/com/rehealth/device/port/IdentityAuthorizationPort.java",
+        "workspace_sha256":  "20BA7F4B0AB102C774E3252DB174CD47BBC25CADD14414A547F272DC11533191",
+        "mirror_sha256":  "20BA7F4B0AB102C774E3252DB174CD47BBC25CADD14414A547F272DC11533191",
+        "match":  true
+    },
+    {
+        "file":  "backend/device-service/src/main/java/com/rehealth/device/domain/DeviceClaims.java",
+        "workspace_sha256":  "233E3EF2D3E2AFA1A171BFC50EF3263ADB21E5BCB73F26E7CD38AD102A39E99B",
+        "mirror_sha256":  "233E3EF2D3E2AFA1A171BFC50EF3263ADB21E5BCB73F26E7CD38AD102A39E99B",
+        "match":  true
+    },
+    {
+        "file":  "backend/device-service/src/main/java/com/rehealth/device/DeviceServiceApplication.java",
+        "workspace_sha256":  "34C3A7396686B1149B18B35980F19CC1AB59E1DE5EA3FDD87DC090CB47CEEADE",
+        "mirror_sha256":  "34C3A7396686B1149B18B35980F19CC1AB59E1DE5EA3FDD87DC090CB47CEEADE",
+        "match":  true
+    },
+    {
+        "file":  "backend/device-service/src/main/java/com/rehealth/device/config/ServiceCredentialProvider.java",
+        "workspace_sha256":  "181D3EC300A98DD99C8703F50C90FB9B818ACB021E10665592AA5F910F0B26EA",
+        "mirror_sha256":  "181D3EC300A98DD99C8703F50C90FB9B818ACB021E10665592AA5F910F0B26EA",
+        "match":  true
+    },
+    {
+        "file":  "backend/device-service/src/main/java/com/rehealth/device/config/IdentityAdapterConfiguration.java",
+        "workspace_sha256":  "865BE8391ABCE047FDE937099B04800B9CF368CF1DAA18E8DA0B917B3E78015A",
+        "mirror_sha256":  "865BE8391ABCE047FDE937099B04800B9CF368CF1DAA18E8DA0B917B3E78015A",
+        "match":  true
+    },
+    {
+        "file":  "backend/device-service/src/main/java/com/rehealth/device/config/DeviceServiceConfiguration.java",
+        "workspace_sha256":  "8E3FC3CF37409D2299B0CDF3129DC405E6A3CB52CD4A6DBFAAA04AFBA0FDD3F3",
+        "mirror_sha256":  "8E3FC3CF37409D2299B0CDF3129DC405E6A3CB52CD4A6DBFAAA04AFBA0FDD3F3",
+        "match":  true
+    },
+    {
+        "file":  "backend/contracts/telemetry/src/test/java/com/rehealth/contracts/telemetry/v1/TelemetryLegacyCompatibilityTest.java",
+        "workspace_sha256":  "5DB1AF1BF14F746B86A464E97FD1DE9AD6CAA34780D2C0CBA2D5CE709B652DE2",
+        "mirror_sha256":  "5DB1AF1BF14F746B86A464E97FD1DE9AD6CAA34780D2C0CBA2D5CE709B652DE2",
+        "match":  true
+    },
+    {
+        "file":  "backend/contracts/telemetry/src/test/java/com/rehealth/contracts/telemetry/v1/TelemetryContractRejectionTest.java",
+        "workspace_sha256":  "67250B966FCA49E4A5BE199EE809D36763D940C1AB96281477F09CCE8626CFA4",
+        "mirror_sha256":  "67250B966FCA49E4A5BE199EE809D36763D940C1AB96281477F09CCE8626CFA4",
+        "match":  true
+    },
+    {
+        "file":  "backend/contracts/telemetry/src/main/java/com/rehealth/contracts/telemetry/v1/SleepSessionRecord.java",
+        "workspace_sha256":  "D86364FD678ADC5181F4B93BAE42ABF18A8F1DFDD5B9E96800E14C7285C1C6EC",
+        "mirror_sha256":  "D86364FD678ADC5181F4B93BAE42ABF18A8F1DFDD5B9E96800E14C7285C1C6EC",
+        "match":  true
+    },
+    {
+        "file":  "backend/contracts/telemetry/src/main/java/com/rehealth/contracts/telemetry/v1/RecentTelemetryResponse.java",
+        "workspace_sha256":  "A8D8E293FFB4D5EFA6AE7F9D3D6B9BA67C882B0A4206417BD9709C4D803009C8",
+        "mirror_sha256":  "A8D8E293FFB4D5EFA6AE7F9D3D6B9BA67C882B0A4206417BD9709C4D803009C8",
+        "match":  true
+    },
+    {
+        "file":  "backend/contracts/telemetry/src/main/java/com/rehealth/contracts/telemetry/v1/MeasurementRecord.java",
+        "workspace_sha256":  "50C3F4F34C72569DDD7B64E7AE790BDE98554BCA075E2B3E34AD1DA7970A1B8F",
+        "mirror_sha256":  "50C3F4F34C72569DDD7B64E7AE790BDE98554BCA075E2B3E34AD1DA7970A1B8F",
+        "match":  true
+    },
+    {
+        "file":  "backend/contracts/telemetry/src/main/java/com/rehealth/contracts/telemetry/v1/ActivitySessionRecord.java",
+        "workspace_sha256":  "87B250CA98D6F71FAF4EE2467FF200D35AA2755569B60DE675AF22540F21B646",
+        "mirror_sha256":  "87B250CA98D6F71FAF4EE2467FF200D35AA2755569B60DE675AF22540F21B646",
+        "match":  true
+    },
+    {
+        "file":  "backend/contracts/telemetry/src/main/java/com/rehealth/contracts/telemetry/v1/TelemetryBatchResponse.java",
+        "workspace_sha256":  "8F76ACBE763E50D8D47ACCFF894138C7BA02E1BC2918EDB5F047AF5093CAC2C0",
+        "mirror_sha256":  "8F76ACBE763E50D8D47ACCFF894138C7BA02E1BC2918EDB5F047AF5093CAC2C0",
+        "match":  true
+    },
+    {
+        "file":  "backend/contracts/telemetry/src/main/java/com/rehealth/contracts/telemetry/v1/TelemetryBatchRequest.java",
+        "workspace_sha256":  "A6DA380EA63CD7A28D9E48C34541E5254143460CEACC35BCD1646D3000DA3006",
+        "mirror_sha256":  "A6DA380EA63CD7A28D9E48C34541E5254143460CEACC35BCD1646D3000DA3006",
+        "match":  true
+    },
+    {
+        "file":  "backend/contracts/telemetry/src/main/java/com/rehealth/contracts/telemetry/v1/TelemetryContractValidator.java",
+        "workspace_sha256":  "2DF898E881F7A109338DCBE824545FF3D5DA2A31ABB84E325DBDF9DC9F2270A9",
+        "mirror_sha256":  "2DF898E881F7A109338DCBE824545FF3D5DA2A31ABB84E325DBDF9DC9F2270A9",
+        "match":  true
+    },
+    {
+        "file":  "backend/contracts/telemetry/src/main/java/com/rehealth/contracts/telemetry/v1/TelemetryContractVersions.java",
+        "workspace_sha256":  "06A184D21C5FACE3027ACBFAB21CA67EAF42079F8B2B0A6F2FF321E77ECBDE41",
+        "mirror_sha256":  "06A184D21C5FACE3027ACBFAB21CA67EAF42079F8B2B0A6F2FF321E77ECBDE41",
+        "match":  true
+    },
+    {
+        "file":  "backend/contracts/telemetry/src/main/java/com/rehealth/contracts/telemetry/v1/TelemetryValidationResult.java",
+        "workspace_sha256":  "EF754EDA78776BBF20587914C54B34A0E2658DF678A829807D824E2773AAF500",
+        "mirror_sha256":  "EF754EDA78776BBF20587914C54B34A0E2658DF678A829807D824E2773AAF500",
+        "match":  true
+    },
+    {
+        "file":  "backend/contracts/telemetry/src/main/java/com/rehealth/contracts/telemetry/v1/TelemetryValidationPolicy.java",
+        "workspace_sha256":  "9DC753685634C6800D4211505845EE8CAE2C845E577C94B31F07EA6B5186A955",
+        "mirror_sha256":  "9DC753685634C6800D4211505845EE8CAE2C845E577C94B31F07EA6B5186A955",
+        "match":  true
+    },
+    {
+        "file":  "backend/contracts/telemetry/src/main/java/com/rehealth/contracts/telemetry/v1/TelemetryValidationError.java",
+        "workspace_sha256":  "B21337502782C9B6AE3DA205E2B199DDF63A5749E69F3468ABE99CBA0A05ADA9",
+        "mirror_sha256":  "B21337502782C9B6AE3DA205E2B199DDF63A5749E69F3468ABE99CBA0A05ADA9",
+        "match":  true
+    },
+    {
+        "file":  "backend/contracts/telemetry/src/main/java/com/rehealth/contracts/telemetry/v1/TelemetryRecord.java",
+        "workspace_sha256":  "BA68DFCA0A5CDFB55AE3352B216A90CF9FA6134FE0ECBCD62A611CB5CD939C8C",
+        "mirror_sha256":  "BA68DFCA0A5CDFB55AE3352B216A90CF9FA6134FE0ECBCD62A611CB5CD939C8C",
+        "match":  true
+    },
+    {
+        "file":  "backend/device-service/src/main/java/com/rehealth/device/application/DeviceRequestException.java",
+        "workspace_sha256":  "864FFD2D2BF8179C2B2E3341813C160376971C738DCC36A238C17EED381587C0",
+        "mirror_sha256":  "864FFD2D2BF8179C2B2E3341813C160376971C738DCC36A238C17EED381587C0",
+        "match":  true
+    },
+    {
+        "file":  "backend/device-service/src/main/java/com/rehealth/device/application/InternalOperationsService.java",
+        "workspace_sha256":  "DE39C90FEDAFC2D6CD3E0847578502F10F526C7261C419274BFE6207C8BE3390",
+        "mirror_sha256":  "DE39C90FEDAFC2D6CD3E0847578502F10F526C7261C419274BFE6207C8BE3390",
+        "match":  true
+    },
+    {
+        "file":  "backend/device-service/src/main/java/com/rehealth/device/application/DeviceTelemetryService.java",
+        "workspace_sha256":  "4D7D4F53ADD142FD401495807BB05D27A2F39D05ECC8E9CA00397FF1818FF8B6",
+        "mirror_sha256":  "4D7D4F53ADD142FD401495807BB05D27A2F39D05ECC8E9CA00397FF1818FF8B6",
+        "match":  true
+    },
+    {
+        "file":  "backend/device-service/src/main/java/com/rehealth/device/api/InternalOperationsController.java",
+        "workspace_sha256":  "8D0A9956C6016ACBB7D87BF6124A09B7DB22B93A2FE6440E6C133D609661B71E",
+        "mirror_sha256":  "8D0A9956C6016ACBB7D87BF6124A09B7DB22B93A2FE6440E6C133D609661B71E",
+        "match":  true
+    },
+    {
+        "file":  "backend/device-service/src/main/java/com/rehealth/device/api/DeviceTelemetryController.java",
+        "workspace_sha256":  "BA3AD06B3CD1032EA9D86918716BF9F0377B4F7C8508CACFE179F6DFF5BA99AF",
+        "mirror_sha256":  "BA3AD06B3CD1032EA9D86918716BF9F0377B4F7C8508CACFE179F6DFF5BA99AF",
+        "match":  true
+    },
+    {
+        "file":  "backend/device-service/src/main/java/com/rehealth/device/api/ApiExceptionHandler.java",
+        "workspace_sha256":  "9E38D17A9F1E46A1632AD8740FFDBAE51854006D8857907E351786C93C69333B",
+        "mirror_sha256":  "9E38D17A9F1E46A1632AD8740FFDBAE51854006D8857907E351786C93C69333B",
+        "match":  true
+    },
+    {
+        "file":  "backend/device-service/src/main/java/com/rehealth/device/api/ApiEnvelope.java",
+        "workspace_sha256":  "E637F5A7BCAA578DFE37B38FA50FC665C8FFC03C9C073684E88B39D4F5308FC9",
+        "mirror_sha256":  "E637F5A7BCAA578DFE37B38FA50FC665C8FFC03C9C073684E88B39D4F5308FC9",
+        "match":  true
+    },
+    {
+        "file":  "backend/device-service/src/main/java/com/rehealth/device/adapter/UnavailableIdentityAuthorizationAdapter.java",
+        "workspace_sha256":  "D18E7D5A91ECED1E0F828791949276FE24A0B2CA12F51BA716C52A40FFE4342C",
+        "mirror_sha256":  "D18E7D5A91ECED1E0F828791949276FE24A0B2CA12F51BA716C52A40FFE4342C",
+        "match":  true
+    },
+    {
+        "file":  "backend/device-service/src/main/java/com/rehealth/device/adapter/UnavailableTelemetryStore.java",
+        "workspace_sha256":  "3277B5156B15B77AC943E634DFCCB402D78175C858BFD269F33CE6013FA6D92B",
+        "mirror_sha256":  "3277B5156B15B77AC943E634DFCCB402D78175C858BFD269F33CE6013FA6D92B",
+        "match":  true
+    },
+    {
+        "file":  "backend/device-service/src/main/java/com/rehealth/device/adapter/HttpIdentityAuthorizationAdapter.java",
+        "workspace_sha256":  "06A1E88CA1E127ED6727AEA48E191F3F4FD5983F36800D9AA339C6732BB9D1BD",
+        "mirror_sha256":  "06A1E88CA1E127ED6727AEA48E191F3F4FD5983F36800D9AA339C6732BB9D1BD",
+        "match":  true
+    }
+]

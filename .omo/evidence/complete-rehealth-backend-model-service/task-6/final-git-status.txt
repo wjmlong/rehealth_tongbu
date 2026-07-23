@@ -1,0 +1,24 @@
+ M .omo/plans/complete-rehealth-backend-model-service.md
+ M .omo/start-work/ledger.jsonl
+ M backend/deploy/rehealth/docker-compose.yml
+?? .omo/evidence/complete-rehealth-backend-model-service/task-6/
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/DONE_CLAIM.md
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/final-gate-pytest.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/final-git-diff-stat.txt
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/final-git-status.txt
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/final-model-pytest.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/green-t2-failures-windows.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/green-t2-windows-final.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/green-t2-windows.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/green-t2-wsl.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/green-t3-rejection.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/green-t3.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/green-t4-happy.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/green-t4-negative.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/green-t5.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/green-wsl-final.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/hook-verification.json
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/task-2-complete-rehealth-backend-model-service/
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/task-5-complete-rehealth-backend-model-service/
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-reverify-426d411/
+?? backend/device-service/

@@ -1,0 +1,10 @@
+workspace_exact=ENV_BLOCKED_WSL_MNT_D_COMPILER_STALL
+mirror_files=37
+mirror_mismatches=0
+full_exit=0
+adversarial_exit=0
+package_exit=0
+readiness={"status":"UP"}
+openapi_batch=True
+openapi_recent=True
+server_running_after_cleanup=False

@@ -1,0 +1,20 @@
+ M backend/deploy/rehealth/README.md
+ M backend/deploy/rehealth/docker-compose.yml
+ M model-service/README.md
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/DONE_CLAIM.md
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/final-gate-pytest.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/final-model-pytest.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/green-t2-failures-windows.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/green-t2-windows-final.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/green-t2-windows.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/green-t2-wsl.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/green-t3-rejection.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/green-t3.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/green-t4-happy.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/green-t4-negative.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/green-t5.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/green-wsl-final.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/task-2-complete-rehealth-backend-model-service/topology-wsl-final.json
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/task-2-complete-rehealth-backend-model-service/topology-wsl.json
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/task-2-complete-rehealth-backend-model-service/topology.json
+?? .omo/evidence/complete-rehealth-backend-model-service/wave-2-5-fix-b788ed8/task-5-complete-rehealth-backend-model-service/model-runtime-pytest.exit

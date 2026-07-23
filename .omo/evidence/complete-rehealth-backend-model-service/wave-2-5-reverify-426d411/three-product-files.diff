@@ -1,0 +1,58 @@
+﻿diff --git a/backend/deploy/rehealth/README.md b/backend/deploy/rehealth/README.md
+index 35a3ce7..1486f99 100644
+--- a/backend/deploy/rehealth/README.md
++++ b/backend/deploy/rehealth/README.md
+@@ -27,6 +27,11 @@ The topology gate is static. Runtime readiness requires the application JARs,
+ the hardened PIAS entrypoint, Device Service and real secret/artifact bundles.
+ Do not interpret a static pass as a deployed-service health result.
+ 
++The `topology-failures` gate is an executable bounded dependency-transition
++test: it starts temporary TCP dependencies, proves each is reachable, stops the
++selected dependency, and probes the resulting ingest/publisher/model state.
++Its `runtime_verified` field applies only to that temporary failure harness.
++
+ Device Service readiness requires TimescaleDB and Jeecg identity resolution.
+ Kafka is intentionally not a readiness dependency: an outage degrades the
+ publisher and leaves committed Outbox rows pending while ingestion stays ready.
+diff --git a/backend/deploy/rehealth/docker-compose.yml b/backend/deploy/rehealth/docker-compose.yml
+index 43d615e..18d27bd 100644
+--- a/backend/deploy/rehealth/docker-compose.yml
++++ b/backend/deploy/rehealth/docker-compose.yml
+@@ -324,6 +324,10 @@ services:
+       REHEALTH_RUNTIME_MODE: ${REHEALTH_RUNTIME_MODE:-development}
+       REHEALTH_MODEL_DIR: /artifacts
+       REHEALTH_MODEL_VERIFICATION_FILE: /verified/manifest.sha256
++      REHEALTH_MODEL_SERVICE_BASE_URL: ${REHEALTH_MODEL_SERVICE_BASE_URL:-https://model.internal.rehealth.invalid}
++      REHEALTH_PROVIDER_CREDENTIAL_FILE: /run/secrets/provider_credential
++    secrets:
++      - provider_credential
+     volumes:
+       - ${REHEALTH_MODEL_ARTIFACT_DIR:-./artifacts}:/artifacts:ro
+       - model-artifact-verification:/verified:ro
+@@ -430,6 +434,8 @@ secrets:
+     file: ./secrets/grafana_admin_password
+   model_artifact_public_key:
+     file: ./secrets/model_artifact_public_key.pem
++  provider_credential:
++    file: ./secrets/provider_credential
+ 
+ volumes:
+   software-db-data:
+diff --git a/model-service/README.md b/model-service/README.md
+index 984d04a..94d4b52 100644
+--- a/model-service/README.md
++++ b/model-service/README.md
+@@ -125,6 +125,13 @@ The current reviewed local candidate is `cvd-core16-catboost-20260710T173543Z` w
+ 
+ `app.risk_scorer.load_risk_scorer()` falls back to `MockRiskScorer` when a real model is unavailable. A real scorer can be enabled only when a local model artifact and a local feature-order artifact exist under the local `models/` directory and validate.
+ 
++Protected runtime modes also require
++`REHEALTH_MODEL_SERVICE_BASE_URL` to be an HTTPS URL without embedded
++credentials and `REHEALTH_PROVIDER_CREDENTIAL_FILE` to name the externally
++mounted provider credential. `REHEALTH_PROVIDER_SECRET` is rejected in
++production and staging; provider values must not be embedded in environment
++configuration.
++
+ Model artifact search order:
+ 
+ ```text

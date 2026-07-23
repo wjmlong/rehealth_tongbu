@@ -23,6 +23,17 @@ springdoc:
     path: /v3/api-docs
 
 rehealth:
+  hardware-db:
+    enabled: ${REHEALTH_HARDWARE_DB_ENABLED:false}
+    url: ${REHEALTH_HARDWARE_DB_URL:}
+    username: ${REHEALTH_HARDWARE_DB_USERNAME:}
+    password: ${REHEALTH_HARDWARE_DB_PASSWORD:}
+    password-file: ${REHEALTH_HARDWARE_DB_PASSWORD_FILE:}
+    retention:
+      measurement-days: ${REHEALTH_MEASUREMENT_RETENTION_DAYS:730}
+      signal-metadata-days: ${REHEALTH_SIGNAL_METADATA_RETENTION_DAYS:90}
+      operational-days: ${REHEALTH_OPERATIONAL_RETENTION_DAYS:1095}
+      published-outbox-days: ${REHEALTH_PUBLISHED_OUTBOX_RETENTION_DAYS:30}
   identity:
     enabled: ${REHEALTH_IDENTITY_ENABLED:false}
     base-url: ${REHEALTH_IDENTITY_BASE_URL:}

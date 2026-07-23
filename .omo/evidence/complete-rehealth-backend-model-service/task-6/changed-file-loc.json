@@ -1,0 +1,94 @@
+[
+    {
+        "File":  "backend/device-service\\src\\test\\java\\com\\rehealth\\device\\DeviceServiceArchitectureTest.java",
+        "PureLOC":  16
+    },
+    {
+        "File":  "backend/device-service\\src\\test\\java\\com\\rehealth\\device\\DeviceApiBoundaryIT.java",
+        "PureLOC":  215
+    },
+    {
+        "File":  "backend/device-service\\src\\main\\resources\\application.yml",
+        "PureLOC":  22
+    },
+    {
+        "File":  "backend/device-service\\src\\main\\java\\com\\rehealth\\device\\port\\TelemetryWritePort.java",
+        "PureLOC":  12
+    },
+    {
+        "File":  "backend/device-service\\src\\main\\java\\com\\rehealth\\device\\port\\TelemetryReadPort.java",
+        "PureLOC":  6
+    },
+    {
+        "File":  "backend/device-service\\src\\main\\java\\com\\rehealth\\device\\port\\IdentityAuthorizationPort.java",
+        "PureLOC":  5
+    },
+    {
+        "File":  "backend/device-service\\src\\main\\java\\com\\rehealth\\device\\domain\\DeviceClaims.java",
+        "PureLOC":  3
+    },
+    {
+        "File":  "backend/device-service\\src\\main\\java\\com\\rehealth\\device\\DeviceServiceApplication.java",
+        "PureLOC":  9
+    },
+    {
+        "File":  "backend/device-service\\src\\main\\java\\com\\rehealth\\device\\config\\ServiceCredentialProvider.java",
+        "PureLOC":  32
+    },
+    {
+        "File":  "backend/device-service\\src\\main\\java\\com\\rehealth\\device\\config\\IdentityAdapterConfiguration.java",
+        "PureLOC":  27
+    },
+    {
+        "File":  "backend/device-service\\src\\main\\java\\com\\rehealth\\device\\config\\DeviceServiceConfiguration.java",
+        "PureLOC":  12
+    },
+    {
+        "File":  "backend/device-service\\src\\main\\java\\com\\rehealth\\device\\application\\InternalOperationsService.java",
+        "PureLOC":  24
+    },
+    {
+        "File":  "backend/device-service\\src\\main\\java\\com\\rehealth\\device\\application\\DeviceTelemetryService.java",
+        "PureLOC":  63
+    },
+    {
+        "File":  "backend/device-service\\src\\main\\java\\com\\rehealth\\device\\application\\DeviceRequestException.java",
+        "PureLOC":  17
+    },
+    {
+        "File":  "backend/device-service\\src\\main\\java\\com\\rehealth\\device\\api\\InternalOperationsController.java",
+        "PureLOC":  24
+    },
+    {
+        "File":  "backend/device-service\\src\\main\\java\\com\\rehealth\\device\\api\\DeviceTelemetryController.java",
+        "PureLOC":  43
+    },
+    {
+        "File":  "backend/device-service\\src\\main\\java\\com\\rehealth\\device\\api\\ApiExceptionHandler.java",
+        "PureLOC":  18
+    },
+    {
+        "File":  "backend/device-service\\src\\main\\java\\com\\rehealth\\device\\api\\ApiEnvelope.java",
+        "PureLOC":  15
+    },
+    {
+        "File":  "backend/device-service\\src\\main\\java\\com\\rehealth\\device\\adapter\\UnavailableTelemetryStore.java",
+        "PureLOC":  29
+    },
+    {
+        "File":  "backend/device-service\\src\\main\\java\\com\\rehealth\\device\\adapter\\UnavailableIdentityAuthorizationAdapter.java",
+        "PureLOC":  11
+    },
+    {
+        "File":  "backend/device-service\\src\\main\\java\\com\\rehealth\\device\\adapter\\HttpIdentityAuthorizationAdapter.java",
+        "PureLOC":  58
+    },
+    {
+        "File":  "backend/device-service\\README.md",
+        "PureLOC":  16
+    },
+    {
+        "File":  "backend/device-service\\pom.xml",
+        "PureLOC":  110
+    }
+]

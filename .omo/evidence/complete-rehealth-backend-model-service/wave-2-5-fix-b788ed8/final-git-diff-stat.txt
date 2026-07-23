@@ -1,0 +1,4 @@
+ backend/deploy/rehealth/README.md          | 5 +++++
+ backend/deploy/rehealth/docker-compose.yml | 6 ++++++
+ model-service/README.md                    | 7 +++++++
+ 3 files changed, 18 insertions(+)
