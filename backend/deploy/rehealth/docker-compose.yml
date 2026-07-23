@@ -125,7 +125,9 @@ services:
       REHEALTH_HARDWARE_DB_URL: jdbc:postgresql://hardware-db:5432/rehealth_hardware
       REHEALTH_HARDWARE_DB_USERNAME: rehealth_hardware
       REHEALTH_HARDWARE_DB_PASSWORD_FILE: /run/secrets/hardware_db_password
-      REHEALTH_IDENTITY_BASE_URL: http://jeecg-boot:7001/internal/rehealth/identity
+      REHEALTH_IDENTITY_BASE_URL: http://jeecg-boot:7001/rehealth/internal/v1/identity
+      REHEALTH_IDENTITY_ENABLED: "true"
+      REHEALTH_IDENTITY_READINESS_URL: http://jeecg-boot:7001/actuator/health/readiness
       REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE: /run/secrets/internal_service_credential
       REHEALTH_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     secrets:
