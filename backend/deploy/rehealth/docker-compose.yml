@@ -95,10 +95,18 @@ services:
       SPRING_KAFKA_CONSUMER_VALUE_DESERIALIZER: org.apache.kafka.common.serialization.StringDeserializer
       SPRING_KAFKA_PRODUCER_KEY_SERIALIZER: org.apache.kafka.common.serialization.StringSerializer
       SPRING_KAFKA_PRODUCER_VALUE_SERIALIZER: org.apache.kafka.common.serialization.StringSerializer
+      SPRING_KAFKA_PROPERTIES_SECURITY_PROTOCOL: ${REHEALTH_KAFKA_SECURITY_PROTOCOL:-PLAINTEXT}
+      SPRING_KAFKA_PROPERTIES_SASL_MECHANISM: ${REHEALTH_KAFKA_SASL_MECHANISM:-PLAIN}
+      SPRING_KAFKA_PROPERTIES_SSL_TRUSTSTORE_LOCATION: /run/secrets/kafka_truststore
+      REHEALTH_KAFKA_SECURITY_SASL_JAAS_CONFIG_FILE: /run/secrets/kafka_sasl_jaas_config
+      REHEALTH_KAFKA_SECURITY_SSL_TRUSTSTORE_PASSWORD_FILE: /run/secrets/kafka_truststore_password
     secrets:
       - software_db_password
       - redis_password
       - internal_service_credential
+      - kafka_sasl_jaas_config
+      - kafka_truststore
+      - kafka_truststore_password
     depends_on:
       software-db:
         condition: service_healthy
@@ -139,9 +147,17 @@ services:
       REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE: /run/secrets/internal_service_credential
       REHEALTH_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       REHEALTH_KAFKA_PUBLISHER_ENABLED: "true"
+      REHEALTH_KAFKA_SECURITY_PROTOCOL: ${REHEALTH_KAFKA_SECURITY_PROTOCOL:-PLAINTEXT}
+      REHEALTH_KAFKA_SASL_MECHANISM: ${REHEALTH_KAFKA_SASL_MECHANISM:-PLAIN}
+      REHEALTH_KAFKA_SSL_TRUSTSTORE_LOCATION: /run/secrets/kafka_truststore
+      REHEALTH_KAFKA_SASL_JAAS_CONFIG_FILE: /run/secrets/kafka_sasl_jaas_config
+      REHEALTH_KAFKA_SSL_TRUSTSTORE_PASSWORD_FILE: /run/secrets/kafka_truststore_password
     secrets:
       - hardware_db_password
       - internal_service_credential
+      - kafka_sasl_jaas_config
+      - kafka_truststore
+      - kafka_truststore_password
     depends_on:
       hardware-db:
         condition: service_healthy
@@ -464,6 +480,12 @@ secrets:
     file: ./secrets/model_artifact_public_key.pem
   provider_credential:
     file: ./secrets/provider_credential
+  kafka_sasl_jaas_config:
+    file: ./secrets/kafka_sasl_jaas_config
+  kafka_truststore:
+    file: ./secrets/kafka_truststore.p12
+  kafka_truststore_password:
+    file: ./secrets/kafka_truststore_password
 
 volumes:
   software-db-data:

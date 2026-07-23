@@ -10,11 +10,14 @@ projection principal receives read access to those topics and write access to
 the DLQ. Neither principal receives cluster administration or unrelated-topic
 access.
 
-Production must set `REHEALTH_KAFKA_SECURITY_PROTOCOL=SASL_SSL`, inject the
-SASL JAAS material and truststore password through the platform secret manager,
-and mount the truststore read-only. Do not put credentials in Compose, Git,
-application YAML, command history, or evidence. The checked-in Compose
-PLAINTEXT listener is development-only on an internal Docker network.
+Production must set `REHEALTH_KAFKA_SECURITY_PROTOCOL=SASL_SSL`. The platform
+secret manager must materialize `kafka_sasl_jaas_config`,
+`kafka_truststore.p12`, and `kafka_truststore_password` as read-only files.
+Device Service and Jeecg load the two textual secrets with typed configuration;
+neither accepts JAAS material or the truststore password as a direct environment
+value. Do not put credentials in Compose, Git, application YAML, command
+history, or evidence. The checked-in Compose PLAINTEXT listener is
+development-only on an internal Docker network.
 
 Lifecycle messages contain only schema/event/batch IDs, opaque tenant/user/device
 references, time windows, counts, quality summary, and persistence status.

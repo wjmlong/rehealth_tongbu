@@ -13,9 +13,7 @@ spring:
         max.in.flight.requests.per.connection: 5
         security.protocol: ${REHEALTH_KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
         sasl.mechanism: ${REHEALTH_KAFKA_SASL_MECHANISM:PLAIN}
-        sasl.jaas.config: ${REHEALTH_KAFKA_SASL_JAAS_CONFIG:}
         ssl.truststore.location: ${REHEALTH_KAFKA_SSL_TRUSTSTORE_LOCATION:}
-        ssl.truststore.password: ${REHEALTH_KAFKA_SSL_TRUSTSTORE_PASSWORD:}
 
 management:
   endpoint:
@@ -53,6 +51,9 @@ rehealth:
     service-credential: ${REHEALTH_INTERNAL_SERVICE_CREDENTIAL:}
     service-credential-file: ${REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE:}
   kafka:
+    security:
+      sasl-jaas-config-file: ${REHEALTH_KAFKA_SASL_JAAS_CONFIG_FILE:}
+      ssl-truststore-password-file: ${REHEALTH_KAFKA_SSL_TRUSTSTORE_PASSWORD_FILE:}
     publisher:
       enabled: ${REHEALTH_KAFKA_PUBLISHER_ENABLED:false}
       batch-size: ${REHEALTH_KAFKA_PUBLISH_BATCH_SIZE:100}

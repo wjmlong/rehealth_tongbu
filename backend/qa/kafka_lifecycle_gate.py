@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import uuid
@@ -12,6 +13,7 @@ from typing import Final
 EXPECTED_CASES: Final = frozenset(
     {"broker_down", "publisher_poison", "consumer_poison", "duplicate_event"}
 )
+MAVEN_IMAGE: Final = "maven:3.9.11-eclipse-temurin-17"
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,21 +28,22 @@ def _run(
     arguments: list[str],
     *,
     cwd: Path,
-    input_text: str | None = None,
+    input_bytes: bytes | None = None,
     check: bool = True,
-) -> subprocess.CompletedProcess[str]:
+) -> subprocess.CompletedProcess[bytes]:
     completed = subprocess.run(
         arguments,
         cwd=cwd,
-        input=input_text,
-        text=True,
+        input=input_bytes,
         capture_output=True,
         check=False,
     )
     if check and completed.returncode != 0:
+        stderr = completed.stderr.decode("utf-8", errors="replace").strip()
+        stdout = completed.stdout.decode("utf-8", errors="replace").strip()
         raise KafkaGateError(
             f"command failed ({completed.returncode}): {' '.join(arguments)}\n"
-            f"{completed.stderr.strip()}"
+            f"{stderr or stdout}"
         )
     return completed
 
@@ -61,29 +64,30 @@ def _exec(project: str, compose: Path, service: str, *arguments: str) -> list[st
     return _compose(project, compose, "exec", "-T", service, *arguments)
 
 
-def _produce(
-    repository: Path,
-    project: str,
-    compose: Path,
-    topic: str,
-    key: str,
-    payload: str,
-) -> None:
-    command = _exec(
-        project,
-        compose,
-        "kafka",
-        "/opt/kafka/bin/kafka-console-producer.sh",
-        "--bootstrap-server",
-        "kafka:9092",
-        "--topic",
-        topic,
-        "--property",
-        "parse.key=true",
-        "--property",
-        "key.separator=|",
-    )
-    _run(command, cwd=repository, input_text=f"{key}|{payload}\n")
+def _container_path(repository: Path, path: Path) -> str:
+    absolute = path.resolve()
+    try:
+        relative = absolute.relative_to(repository)
+    except ValueError as exception:
+        raise KafkaGateError(
+            f"gate artifact must be inside the repository: {absolute}"
+        ) from exception
+    return "/workspace/" + relative.as_posix()
+
+
+def _assert_cleanup(repository: Path, project: str) -> None:
+    remaining = _run(
+        [
+            "docker",
+            "ps",
+            "-aq",
+            "--filter",
+            f"label=com.docker.compose.project={project}",
+        ],
+        cwd=repository,
+    ).stdout.decode("utf-8", errors="replace").strip()
+    if remaining:
+        raise KafkaGateError(f"Kafka gate resources were not removed: {remaining}")
 
 
 def run_kafka_gate(
@@ -96,254 +100,90 @@ def run_kafka_gate(
         raise KafkaGateError(f"unknown Kafka failure cases: {unknown}")
     if shutil.which("docker") is None:
         raise KafkaGateError("docker executable is not available")
+
     repository = Path(__file__).resolve().parents[2]
+    fixture = fixture.resolve()
+    report = report.resolve()
     if not fixture.is_file():
         raise KafkaGateError(f"fixture does not exist: {fixture}")
     json.loads(fixture.read_text(encoding="utf-8"))
+
     compose = repository / "backend" / "qa" / "kafka" / "docker-compose.yml"
+    docker_repository = os.environ.get(
+        "REHEALTH_GATE_DOCKER_REPOSITORY", str(repository)
+    )
     project = f"rehealth-t9-{uuid.uuid4().hex[:10]}"
-    event_id = f"event_{uuid.uuid4().hex}"
-    device_ref = "opaque_device_t9_12345678"
-    persisted = {
-        "event_type": "rehealth.telemetry.persisted.v1",
-        "event_id": event_id,
-        "batch_id": "batch_t9_12345678",
-        "schema_id": "rehealth.telemetry.persisted.v1",
-        "tenant_ref": "opaque_tenant_t9_12345678",
-        "user_ref": "opaque_user_t9_12345678",
-        "device_ref": device_ref,
-        "window_started_at": "2026-07-23T00:00:00Z",
-        "window_ended_at": "2026-07-23T00:01:00Z",
-        "record_count": 1,
-        "quality_status": "accepted",
-        "persistence_status": "persisted",
-    }
-    results: dict[str, bool | int | str] = {}
+    integration_succeeded = False
     try:
         _run(_compose(project, compose, "up", "-d", "--wait"), cwd=repository)
-        provision = repository / "backend" / "deploy" / "rehealth" / "kafka" / "provision-topics.sh"
+        provision = (
+            repository
+            / "backend"
+            / "deploy"
+            / "rehealth"
+            / "kafka"
+            / "provision-topics.sh"
+        )
+        portable_script = provision.read_bytes().replace(b"\r\n", b"\n")
         _run(
             _exec(project, compose, "kafka", "/bin/sh", "-s"),
             cwd=repository,
-            input_text=provision.read_text(encoding="utf-8"),
+            input_bytes=portable_script,
         )
-        _run(
-            _exec(
-                project,
-                compose,
-                "timescale",
-                "psql",
-                "-U",
-                "rehealth",
-                "-d",
-                "rehealth_hardware",
-                "-v",
-                "ON_ERROR_STOP=1",
-            ),
-            cwd=repository,
-            input_text=(
-                "CREATE TABLE hardware_outbox("
-                "event_id text primary key,status text not null,event_metadata jsonb not null);"
-                f"INSERT INTO hardware_outbox VALUES('{event_id}','PENDING',"
-                f"'{json.dumps(persisted, separators=(',', ':'))}'::jsonb);"
-            ),
-        )
-        _run(_compose(project, compose, "stop", "kafka"), cwd=repository)
-        pending = _run(
-            _exec(
-                project,
-                compose,
-                "timescale",
-                "psql",
-                "-U",
-                "rehealth",
-                "-d",
-                "rehealth_hardware",
-                "-Atc",
-                "SELECT count(*) FROM hardware_outbox WHERE status='PENDING'",
-            ),
-            cwd=repository,
-        ).stdout.strip()
-        if pending != "1":
-            raise KafkaGateError("broker outage did not leave exactly one pending Outbox row")
-        _run(_compose(project, compose, "start", "kafka"), cwd=repository)
-        _run(_compose(project, compose, "up", "-d", "--wait", "kafka"), cwd=repository)
-        payload = json.dumps(persisted, separators=(",", ":"))
-        _produce(
-            repository,
-            project,
-            compose,
-            "rehealth.telemetry.persisted.v1",
-            device_ref,
-            payload,
-        )
-        consumed = _run(
-            _exec(
-                project,
-                compose,
-                "kafka",
-                "/opt/kafka/bin/kafka-console-consumer.sh",
-                "--bootstrap-server",
-                "kafka:9092",
-                "--topic",
-                "rehealth.telemetry.persisted.v1",
-                "--from-beginning",
-                "--max-messages",
-                "1",
-                "--timeout-ms",
-                "15000",
-                "--property",
-                "print.key=true",
-            ),
-            cwd=repository,
-        ).stdout
-        if event_id not in consumed or device_ref not in consumed:
-            raise KafkaGateError("recovered broker did not expose the keyed lifecycle event")
-        _run(
-            _exec(
-                project,
-                compose,
-                "timescale",
-                "psql",
-                "-U",
-                "rehealth",
-                "-d",
-                "rehealth_hardware",
-                "-c",
-                f"UPDATE hardware_outbox SET status='PUBLISHED' WHERE event_id='{event_id}'",
-            ),
-            cwd=repository,
-        )
-        _run(
-            _exec(
-                project,
-                compose,
-                "software-db",
-                "mysql",
-                "-urehealth",
-                "-psynthetic_gate_only",
-                "rehealth_software",
-            ),
-            cwd=repository,
-            input_text=(
-                "CREATE TABLE rehealth_telemetry_event_projection("
-                "event_id varchar(128) primary key,batch_id varchar(128));"
-                f"INSERT IGNORE INTO rehealth_telemetry_event_projection VALUES"
-                f"('{event_id}','batch_t9_12345678'),('{event_id}','batch_t9_12345678');"
-            ),
-        )
-        projection_count = _run(
-            _exec(
-                project,
-                compose,
-                "software-db",
-                "mysql",
-                "-N",
-                "-urehealth",
-                "-psynthetic_gate_only",
-                "rehealth_software",
-                "-e",
-                "SELECT count(*) FROM rehealth_telemetry_event_projection",
-            ),
-            cwd=repository,
-        ).stdout.strip()
-        if projection_count != "1":
-            raise KafkaGateError("duplicate event created more than one software projection")
-        poison = {**persisted, "event_id": f"poison_{uuid.uuid4().hex}", "token": "forbidden"}
-        dlq = {
-            "event_type": "rehealth.telemetry.dlq.v1",
-            "event_id": f"dlq_{uuid.uuid4().hex}",
-            "batch_id": persisted["batch_id"],
-            "schema_id": "rehealth.telemetry.dlq.v1",
-            "tenant_ref": persisted["tenant_ref"],
-            "user_ref": persisted["user_ref"],
-            "device_ref": device_ref,
-            "record_count": 1,
-            "source_event_type": persisted["event_type"],
-            "failure_code": "retry_exhausted",
-            "attempt_count": 3,
-            "persistence_status": "persisted",
-        }
-        _produce(
-            repository,
-            project,
-            compose,
-            "rehealth.telemetry.persisted.v1",
-            device_ref,
-            json.dumps(poison, separators=(",", ":")),
-        )
-        _produce(
-            repository,
-            project,
-            compose,
-            "rehealth.telemetry.dlq.v1",
-            device_ref,
-            json.dumps(dlq, separators=(",", ":")),
-        )
-        later = {**persisted, "event_id": f"later_{uuid.uuid4().hex}"}
-        _produce(
-            repository,
-            project,
-            compose,
-            "rehealth.telemetry.persisted.v1",
-            device_ref,
-            json.dumps(later, separators=(",", ":")),
-        )
-        ordered = _run(
-            _exec(
-                project,
-                compose,
-                "kafka",
-                "/opt/kafka/bin/kafka-console-consumer.sh",
-                "--bootstrap-server",
-                "kafka:9092",
-                "--topic",
-                "rehealth.telemetry.persisted.v1",
-                "--from-beginning",
-                "--max-messages",
-                "3",
-                "--timeout-ms",
-                "15000",
-                "--property",
-                "print.key=true",
-            ),
-            cwd=repository,
-        ).stdout
-        poison_position = ordered.find(str(poison["event_id"]))
-        later_position = ordered.find(str(later["event_id"]))
-        if poison_position < 0 or later_position <= poison_position:
-            raise KafkaGateError("later event did not progress in per-device order after poison")
-        dlq_text = json.dumps(dlq, sort_keys=True)
-        if any(word in dlq_text.lower() for word in ("token", "phone", "heart_rate", "raw_ppg", "rri")):
-            raise KafkaGateError("DLQ metadata contains a forbidden field")
-        results = {
-            "broker_outage_pending_rows": 1,
-            "recovery_logical_events": 1,
-            "idempotent_projection_rows": 1,
-            "publisher_poison_quarantined": True,
-            "consumer_poison_dlq": True,
-            "later_event_progress": True,
-            "redacted": True,
-            "per_device_key": device_ref,
-        }
+
+        maven = [
+            "docker",
+            "run",
+            "--rm",
+            "--network",
+            f"{project}_default",
+            "-v",
+            "rehealth-m2:/root/.m2",
+            "-v",
+            f"{docker_repository}:/workspace",
+            "-w",
+            "/workspace",
+            MAVEN_IMAGE,
+            "mvn",
+            "-f",
+            "backend/device-service/pom.xml",
+            "-Dtest=KafkaLifecycleIT",
+            f"-Dkafka.bootstrap=kafka:9092",
+            "-Dtimescale.url=jdbc:postgresql://timescale:5432/rehealth_hardware",
+            "-Dtimescale.username=rehealth",
+            "-Dtimescale.password=synthetic_gate_only",
+            "-Dmysql.url=jdbc:mysql://software-db:3306/rehealth_software"
+            "?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC",
+            "-Dmysql.username=rehealth",
+            "-Dmysql.password=synthetic_gate_only",
+            f"-Dgate.fixture={_container_path(repository, fixture)}",
+            f"-Dgate.report={_container_path(repository, report)}",
+            f"-Dgate.cases={','.join(selected_cases)}",
+            "test",
+        ]
+        completed = _run(maven, cwd=repository)
+        if completed.stdout:
+            print(completed.stdout.decode("utf-8", errors="replace"), end="")
+        integration_succeeded = True
     finally:
         _run(
             _compose(project, compose, "down", "-v", "--remove-orphans"),
             cwd=repository,
             check=False,
         )
-    payload_report = {
-        "passed": True,
-        "runtime_verified": True,
-        "fixture": str(fixture),
-        "selected_cases": selected_cases,
-        "results": results,
-        "cleanup": "containers_and_volumes_removed",
-    }
+        _assert_cleanup(repository, project)
+
+    if not integration_succeeded or not report.is_file():
+        raise KafkaGateError("production lifecycle integration did not create its report")
+    payload = json.loads(report.read_text(encoding="utf-8"))
+    if payload.get("passed") is not True or payload.get("runtime_verified") is not True:
+        raise KafkaGateError("production lifecycle integration report did not pass")
+    payload["cleanup"] = "containers_and_volumes_removed"
     report.parent.mkdir(parents=True, exist_ok=True)
     report.write_text(
-        json.dumps(payload_report, indent=2, sort_keys=True) + "\n",
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
+        newline="\n",
     )
-    print(json.dumps(payload_report, sort_keys=True))
+    print(json.dumps(payload, sort_keys=True))
     return 0
