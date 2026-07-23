@@ -1,0 +1,18 @@
+TASK: Act as an independent high-accuracy work-plan reviewer. Review only the bound plan and do not edit or implement.
+
+FIRST ACTION: In Python, open the literal workspace root as a directory descriptor, then descriptor-relative open .omo, plans, and complete-rehealth-backend-model-service.md with O_NOFOLLOW; fstat ancestors as directories and final descriptor as a regular file; hash bytes read from that same final descriptor. If unsupported or any check differs, return INCONCLUSIVE before review. Do not search for or use another plan.
+
+BINDING:
+workspace_root=/tmp/omo-ulw-review-r20260723100000-b7c4e219/workspace
+runtime_home=/tmp/omo-ulw-review-r20260723100000-b7c4e219/codex-home
+target=.omo/plans/complete-rehealth-backend-model-service.md
+artifact_identity=8b78bbc9c415fc94653f60c9eafdfff0e412ac04edd600fd034097cb3fd1f9b1
+round_identity=r20260723100000-b7c4e219
+launch_identity=independent-r20260723100000-b7c4e219-l1
+receipt_identity=the Codex session/process identity emitted by this invocation
+
+REQUIRED ECHO: workspace_root, runtime_home, target, artifact_identity, round_identity, launch_identity, and session/process receipt.
+
+REVIEW: Validate decision completeness, current repository references, dependency ordering, executable acceptance and happy/failure QA, scope fidelity, Kafka/Timescale consistency, auth/device binding/tenant security, MySQL migration/cutover rollback, PIAS production hardening and explicit Demo Mock, health-agent boundary, complete doctor/institution/insurance/follow-up/task domains, Jeecg cloud/RBAC/menu/admin SPA, observability, load, backup/restore and release authority. Reject worker-self-report or grep-only proof and any task requiring an unstated product decision.
+
+FINAL FORMAT: verdict exactly OKAY, ITERATE, REJECT, or INCONCLUSIVE; then binding echo, receipt, and concise cited findings. OKAY only if the plan is executable with zero further interview.
