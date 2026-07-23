@@ -3,6 +3,7 @@ package org.jeecg.modules.rehealth.repository.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.h2.jdbcx.JdbcDataSource;
 import org.jeecg.modules.rehealth.mobile.dto.DeviceBindRequestDto;
+import org.jeecg.modules.rehealth.mobile.dto.FeedbackRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.InterventionGenerateResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.HealthInterviewSubmitRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.HealthInterviewAnswerDto;
@@ -49,6 +50,16 @@ class JdbcSoftwareDbReHealthBusinessRepositoryTest {
                 String.class,
                 "ring-001"
         ));
+        assertEquals("MR11", jdbcTemplate.queryForObject(
+                "SELECT device_model FROM rehealth_device_binding WHERE device_id = ?",
+                String.class,
+                "ring-001"
+        ));
+        assertEquals("MR11", jdbcTemplate.queryForObject(
+                "SELECT model FROM rehealth_device_binding WHERE device_id = ?",
+                String.class,
+                "ring-001"
+        ));
     }
 
     @Test
@@ -57,12 +68,63 @@ class JdbcSoftwareDbReHealthBusinessRepositoryTest {
         saveRisk("user-b", "request-b", 0.73);
         InterventionGenerateResponseDto plan = new InterventionGenerateResponseDto();
         plan.planId = "plan-a";
+        plan.modelVersion = "test-v1";
+        plan.generatedAt = "2026-07-23T00:00:00Z";
         repository.saveInterventionPlan("user-a", plan);
 
         assertEquals(0.21, repository.findLatestRiskResult("user-a").orElseThrow().riskScore);
         assertEquals(0.73, repository.findLatestRiskResult("user-b").orElseThrow().riskScore);
         assertEquals("plan-a", repository.findLatestInterventionPlan("user-a").orElseThrow().planId);
         assertTrue(repository.findLatestInterventionPlan("user-b").isEmpty());
+    }
+
+    @Test
+    void feedbackRetryIsIdempotentAndRequiresAnOwnedPlan() {
+        InterventionGenerateResponseDto plan = new InterventionGenerateResponseDto();
+        plan.planId = "plan-a";
+        plan.modelVersion = "test-v1";
+        plan.generatedAt = "2026-07-23T00:00:00Z";
+        repository.saveInterventionPlan("user-a", plan);
+        FeedbackRequestDto feedback = new FeedbackRequestDto();
+        feedback.status = "COMPLETED";
+        feedback.adherence = 1.0;
+        feedback.checkedAt = 1_753_228_800_000L;
+
+        repository.saveFeedback("user-a", "plan-a", feedback);
+        repository.saveFeedback("user-a", "plan-a", feedback);
+
+        assertEquals(1, count("rehealth_intervention_feedback"));
+        assertEquals("plan-a", jdbcTemplate.queryForObject(
+                "SELECT plan_id FROM rehealth_intervention_feedback",
+                String.class
+        ));
+    }
+
+    @Test
+    void readsLegacySnakeCaseInterventionPayload() {
+        InterventionGenerateResponseDto plan = new InterventionGenerateResponseDto();
+        plan.planId = "plan-legacy";
+        plan.modelVersion = "model-legacy";
+        plan.generatedAt = "2026-07-14T09:59:38.206Z";
+        repository.saveInterventionPlan("user-a", plan);
+        jdbcTemplate.update("""
+                UPDATE rehealth_intervention_plan
+                SET response_json = ?
+                WHERE user_id = ? AND plan_id = ?
+                """, """
+                {"plan_id":"plan-legacy","generated_at":"2026-07-14T09:59:38.206Z",
+                 "priority_intervention":"walking","expected_impact":"lower risk",
+                 "model_version":"model-legacy","is_mock":false,
+                 "medical_disclaimer":"not a diagnosis"}
+                """, "user-a", "plan-legacy");
+
+        InterventionGenerateResponseDto restored =
+                repository.findLatestInterventionPlan("user-a").orElseThrow();
+
+        assertEquals("plan-legacy", restored.planId);
+        assertEquals("model-legacy", restored.modelVersion);
+        assertEquals("lower risk", restored.expectedImpact);
+        assertEquals(false, restored.isMock);
     }
 
     @Test

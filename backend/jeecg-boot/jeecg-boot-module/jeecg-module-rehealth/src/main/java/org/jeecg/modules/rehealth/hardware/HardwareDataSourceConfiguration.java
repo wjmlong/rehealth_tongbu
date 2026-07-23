@@ -16,28 +16,29 @@ import javax.sql.DataSource;
 public class HardwareDataSourceConfiguration {
     public static final String HARDWARE_DATA_SOURCE_NAME = "hardware";
 
-    @Bean("rehealthHardwareDataSource")
-    public DataSource rehealthHardwareDataSource(DataSource routingDataSource) {
-        if (!(routingDataSource instanceof DynamicRoutingDataSource dynamicDataSource)) {
-            throw new IllegalStateException("ReHealth hardware_db requires the Jeecg dynamic routing datasource");
-        }
-        if (!dynamicDataSource.getDataSources().containsKey(HARDWARE_DATA_SOURCE_NAME)) {
-            throw new IllegalStateException("Named datasource 'hardware' is required when rehealth.hardware-db.enabled=true");
-        }
-        return dynamicDataSource.getDataSources().get(HARDWARE_DATA_SOURCE_NAME);
-    }
-
     @Bean("rehealthHardwareJdbcTemplate")
     public JdbcTemplate rehealthHardwareJdbcTemplate(
-            @Qualifier("rehealthHardwareDataSource") DataSource hardwareDataSource
+            @Qualifier("dataSource") DataSource routingDataSource
     ) {
-        return new JdbcTemplate(hardwareDataSource);
+        return new JdbcTemplate(requireHardwareDataSource(routingDataSource));
     }
 
     @Bean("rehealthHardwareTransactionTemplate")
     public TransactionTemplate rehealthHardwareTransactionTemplate(
-            @Qualifier("rehealthHardwareDataSource") DataSource hardwareDataSource
+            @Qualifier("dataSource") DataSource routingDataSource
     ) {
+        DataSource hardwareDataSource = requireHardwareDataSource(routingDataSource);
         return new TransactionTemplate(new DataSourceTransactionManager(hardwareDataSource));
+    }
+
+    private DataSource requireHardwareDataSource(DataSource routingDataSource) {
+        if (!(routingDataSource instanceof DynamicRoutingDataSource dynamicDataSource)) {
+            throw new IllegalStateException("ReHealth hardware_db requires the Jeecg dynamic routing datasource");
+        }
+        DataSource hardwareDataSource = dynamicDataSource.getDataSources().get(HARDWARE_DATA_SOURCE_NAME);
+        if (hardwareDataSource == null) {
+            throw new IllegalStateException("Named datasource 'hardware' is required when rehealth.hardware-db.enabled=true");
+        }
+        return hardwareDataSource;
     }
 }

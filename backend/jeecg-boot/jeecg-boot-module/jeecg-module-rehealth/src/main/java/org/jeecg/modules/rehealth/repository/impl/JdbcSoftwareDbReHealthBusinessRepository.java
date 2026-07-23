@@ -13,13 +13,20 @@ import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
 import org.jeecg.modules.rehealth.repository.ReHealthBusinessRepository;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,10 +34,15 @@ import java.util.UUID;
 @Service
 @ConditionalOnProperty(name = "rehealth.software-db.enabled", havingValue = "true")
 public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusinessRepository {
+    private static final String DEFAULT_FEATURE_SCHEMA = "cvd-16-v1";
+
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
 
-    public JdbcSoftwareDbReHealthBusinessRepository(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
+    public JdbcSoftwareDbReHealthBusinessRepository(
+            @Qualifier("rehealthSoftwareJdbcTemplate") JdbcTemplate jdbcTemplate,
+            ObjectMapper objectMapper
+    ) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
     }
@@ -134,19 +146,19 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
         Timestamp now = Timestamp.from(Instant.now());
         int updated = jdbcTemplate.update("""
                 UPDATE rehealth_device_binding
-                SET device_name = ?, manufacturer = ?, model = ?, firmware_version = ?,
+                SET device_name = ?, manufacturer = ?, device_model = ?, model = ?, firmware_version = ?,
                     hardware_address_hash = ?, status = 'BOUND', updated_at = ?
                 WHERE user_id = ? AND device_id = ?
-                """, request.deviceName, request.manufacturer, request.model, request.firmwareVersion,
+                """, request.deviceName, request.manufacturer, request.model, request.model, request.firmwareVersion,
                 request.hardwareAddressHash, now, userId, request.deviceId);
         if (updated == 0) {
             jdbcTemplate.update("""
                     INSERT INTO rehealth_device_binding (
-                        id, user_id, device_id, device_name, manufacturer, model,
+                        id, user_id, device_id, device_name, manufacturer, device_model, model,
                         firmware_version, hardware_address_hash, status, bound_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'BOUND', ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'BOUND', ?, ?)
                     """, UUID.randomUUID().toString(), userId, request.deviceId, request.deviceName,
-                    request.manufacturer, request.model, request.firmwareVersion,
+                    request.manufacturer, request.model, request.model, request.firmwareVersion,
                     request.hardwareAddressHash, now, now);
         }
         DeviceBindResponseDto response = new DeviceBindResponseDto();
@@ -166,30 +178,70 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
             RiskEvaluateResponseDto response
     ) {
         requireUser(userId);
+        if (request == null || response == null) {
+            throw new IllegalArgumentException("risk request and response are required");
+        }
         Timestamp now = Timestamp.from(Instant.now());
         String effectiveRequestId = requestId == null || requestId.isBlank()
                 ? UUID.randomUUID().toString()
                 : requestId;
+        Integer existing = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM rehealth_cvd_risk_result WHERE user_id = ? AND request_id = ?",
+                Integer.class,
+                userId,
+                effectiveRequestId
+        );
+        if (existing != null && existing > 0) {
+            return;
+        }
+        String featureSchemaVersion = firstText(
+                response.modelTrace == null ? null : response.modelTrace.featureSchemaVersion,
+                DEFAULT_FEATURE_SCHEMA
+        );
+        String modelVersion = requireText(firstText(
+                response.modelVersion,
+                response.modelTrace == null ? null : response.modelTrace.modelVersion
+        ), "model version is required");
+        if (response.riskScore == null || response.riskLevel == null || response.riskLevel.isBlank()) {
+            throw new IllegalArgumentException("risk score and level are required");
+        }
+        String featureId = UUID.randomUUID().toString();
+        String featureJson = json(request.featureVector);
+        String qualityJson = request.featureVector == null ? null : json(request.featureVector.featureQuality);
         jdbcTemplate.update("""
-                INSERT INTO rehealth_cvd_feature_vector (id, user_id, request_id, payload_json, created_at)
-                VALUES (?, ?, ?, ?, ?)
-                """, UUID.randomUUID().toString(), userId, effectiveRequestId, json(request), now);
+                INSERT INTO rehealth_cvd_feature_vector (
+                    id, user_id, request_id, feature_schema_version,
+                    feature_json, quality_json, payload_json, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, featureId, userId, effectiveRequestId, featureSchemaVersion,
+                featureJson, qualityJson, json(request), now);
         jdbcTemplate.update("""
                 INSERT INTO rehealth_cvd_risk_result (
-                    id, user_id, request_id, risk_score, risk_level, model_version, response_json, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, UUID.randomUUID().toString(), userId, effectiveRequestId,
-                response == null ? null : response.riskScore,
-                response == null ? null : response.riskLevel,
-                response == null ? null : response.modelVersion,
-                json(response), now);
+                    id, feature_vector_id, user_id, request_id, feature_schema_version,
+                    model_version, scorer_mode, is_mock, artifact_name, contribution_method,
+                    risk_score, risk_level, contribution_json, missing_fields_json,
+                    quality_warnings_json, summary, response_json, evaluated_at, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, UUID.randomUUID().toString(), featureId, userId, effectiveRequestId,
+                featureSchemaVersion, modelVersion,
+                response.modelTrace == null ? null : response.modelTrace.scorerMode,
+                response.isMock,
+                response.modelTrace == null ? null : response.modelTrace.artifactName,
+                null,
+                response.riskScore,
+                response.riskLevel,
+                json(response.featureContributions),
+                json(response.missingFields),
+                json(response.qualityWarnings),
+                response.summary,
+                json(response), now, now);
     }
 
     @Override
     public Optional<RiskEvaluateResponseDto> findLatestRiskResult(String userId) {
         requireUser(userId);
         return latestJson(
-                "SELECT response_json FROM rehealth_cvd_risk_result WHERE user_id = ? ORDER BY created_at DESC, id DESC",
+                "SELECT response_json FROM rehealth_cvd_risk_result WHERE user_id = ? ORDER BY evaluated_at DESC, id DESC",
                 userId,
                 RiskEvaluateResponseDto.class
         );
@@ -198,21 +250,37 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
     @Override
     public void saveInterventionPlan(String userId, InterventionGenerateResponseDto response) {
         requireUser(userId);
+        if (response == null) {
+            throw new IllegalArgumentException("intervention response is required");
+        }
+        String planId = requireText(response.planId, "plan id is required");
+        String modelVersion = requireText(response.modelVersion, "model version is required");
+        Integer existing = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM rehealth_intervention_plan WHERE user_id = ? AND plan_id = ?",
+                Integer.class,
+                userId,
+                planId
+        );
+        if (existing != null && existing > 0) {
+            return;
+        }
+        Timestamp now = Timestamp.from(Instant.now());
         jdbcTemplate.update("""
                 INSERT INTO rehealth_intervention_plan (
-                    id, user_id, plan_id, model_version, response_json, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?)
-                """, UUID.randomUUID().toString(), userId,
-                response == null ? null : response.planId,
-                response == null ? null : response.modelVersion,
-                json(response), Timestamp.from(Instant.now()));
+                    id, user_id, plan_id, source_request_id, feature_schema_version,
+                    model_version, scorer_mode, is_mock, artifact_name,
+                    generated_at, response_json, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, UUID.randomUUID().toString(), userId, planId, null, null,
+                modelVersion, null, response.isMock, null,
+                parseTimestamp(response.generatedAt, now), json(response), now);
     }
 
     @Override
     public Optional<InterventionGenerateResponseDto> findLatestInterventionPlan(String userId) {
         requireUser(userId);
         return latestJson(
-                "SELECT response_json FROM rehealth_intervention_plan WHERE user_id = ? ORDER BY created_at DESC, id DESC",
+                "SELECT response_json FROM rehealth_intervention_plan WHERE user_id = ? ORDER BY generated_at DESC, id DESC",
                 userId,
                 InterventionGenerateResponseDto.class
         );
@@ -221,16 +289,42 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
     @Override
     public void saveFeedback(String userId, String interventionId, FeedbackRequestDto request) {
         requireUser(userId);
-        jdbcTemplate.update("""
-                INSERT INTO rehealth_intervention_feedback (
-                    id, user_id, intervention_id, status, adherence, note, checked_at, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, UUID.randomUUID().toString(), userId, interventionId,
-                request == null ? null : request.status,
-                request == null ? null : request.adherence,
-                request == null ? null : request.note,
-                request == null || request.checkedAt == null ? null : new Timestamp(request.checkedAt),
-                Timestamp.from(Instant.now()));
+        String planId = requireText(interventionId, "intervention id is required");
+        if (request == null) {
+            throw new IllegalArgumentException("feedback request is required");
+        }
+        String status = requireText(request.status, "feedback status is required");
+        List<String> planRecords = jdbcTemplate.query(
+                "SELECT id FROM rehealth_intervention_plan WHERE user_id = ? AND plan_id = ?",
+                (resultSet, rowNum) -> resultSet.getString(1),
+                userId,
+                planId
+        );
+        if (planRecords.isEmpty()) {
+            throw new IllegalArgumentException("intervention plan is not owned by the authenticated user");
+        }
+        Timestamp now = Timestamp.from(Instant.now());
+        String idempotencyKey = feedbackKey(userId, planId, request);
+        try {
+            jdbcTemplate.update("""
+                    INSERT INTO rehealth_intervention_feedback (
+                        id, user_id, plan_record_id, plan_id, intervention_id,
+                        idempotency_key, status, adherence, note, checked_at, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, UUID.randomUUID().toString(), userId, planRecords.get(0), planId, planId,
+                    idempotencyKey, status, request.adherence, request.note,
+                    request.checkedAt == null ? null : new Timestamp(request.checkedAt), now);
+        } catch (DuplicateKeyException race) {
+            Integer duplicateCount = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM rehealth_intervention_feedback WHERE user_id = ? AND idempotency_key = ?",
+                    Integer.class,
+                    userId,
+                    idempotencyKey
+            );
+            if (duplicateCount == null || duplicateCount == 0) {
+                throw race;
+            }
+        }
     }
 
     @Override
@@ -267,6 +361,54 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
             return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException("software_db payload must be JSON serializable", e);
+        }
+    }
+
+    private String firstText(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private String requireText(String value, String message) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(message);
+        }
+        return value;
+    }
+
+    private Timestamp parseTimestamp(String value, Timestamp fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        try {
+            return Timestamp.from(Instant.parse(value));
+        } catch (RuntimeException ignored) {
+            try {
+                return Timestamp.from(OffsetDateTime.parse(value).toInstant());
+            } catch (RuntimeException invalidTimestamp) {
+                throw new IllegalArgumentException("generatedAt must be an ISO-8601 timestamp", invalidTimestamp);
+            }
+        }
+    }
+
+    private String feedbackKey(String userId, String planId, FeedbackRequestDto request) {
+        String material = String.join("|",
+                userId,
+                planId,
+                String.valueOf(request.checkedAt),
+                String.valueOf(request.status),
+                String.valueOf(request.adherence),
+                String.valueOf(request.note)
+        );
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(material.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is unavailable", e);
         }
     }
 

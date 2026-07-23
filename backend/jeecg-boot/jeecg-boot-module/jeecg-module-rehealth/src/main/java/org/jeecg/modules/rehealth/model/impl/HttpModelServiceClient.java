@@ -35,6 +35,7 @@ public class HttpModelServiceClient implements ModelServiceClient {
         this.attributionBaseUrl = trimTrailingSlash(attributionBaseUrl);
         this.timeoutSeconds = timeoutSeconds;
         this.httpClient = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(Duration.ofSeconds(timeoutSeconds))
                 .build();
     }

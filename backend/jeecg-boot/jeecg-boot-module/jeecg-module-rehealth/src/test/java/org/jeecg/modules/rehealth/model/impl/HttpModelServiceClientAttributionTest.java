@@ -5,6 +5,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.sun.net.httpserver.HttpServer;
 import org.jeecg.modules.rehealth.mobile.dto.AttributionEventsRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.AttributionResponseDto;
+import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateRequestDto;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -79,6 +80,26 @@ class HttpModelServiceClientAttributionTest {
         assertEquals(14, response.minHistoryDays);
         assertNull(response.interventionEffect.individualAtt);
         assertEquals(0, response.forecast.raw.noAction.size());
+    }
+
+    @Test
+    void usesHttp11ForUvicornCompatiblePosts() throws IOException {
+        AtomicReference<String> upgrade = new AtomicReference<>();
+        server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/v1/cvd/risk/evaluate", exchange -> {
+            upgrade.set(exchange.getRequestHeaders().getFirst("Upgrade"));
+            exchange.getRequestBody().readAllBytes();
+            byte[] response = "{}".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+        server.start();
+        HttpModelServiceClient client = new HttpModelServiceClient(baseUrl(), baseUrl(), 2);
+
+        client.evaluateRisk(new RiskEvaluateRequestDto());
+
+        assertNull(upgrade.get());
     }
 
     private AttributionEventsRequestDto requestWithHistory() {
