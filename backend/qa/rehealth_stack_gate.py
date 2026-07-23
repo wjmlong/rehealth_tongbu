@@ -30,6 +30,8 @@ from pathlib import Path
 from typing import Final
 from urllib.parse import urlparse
 
+from kafka_lifecycle_gate import KafkaGateError, run_kafka_gate
+
 
 EXIT_USAGE: Final = 64
 REQUIRED_SERVICES: Final = frozenset(
@@ -512,6 +514,22 @@ def main() -> int:
             return run_topology_failures(sys.argv[2:])
         case "config-matrix":
             return run_config_matrix(sys.argv[2:])
+        case "kafka":
+            fixture_value = option(sys.argv[2:], "--fixture")
+            report_value = option(sys.argv[2:], "--report")
+            cases_value = option(sys.argv[2:], "--cases", required=False)
+            assert fixture_value is not None and report_value is not None
+            cases = [] if cases_value is None else [
+                case.strip() for case in cases_value.split(",") if case.strip()
+            ]
+            try:
+                return run_kafka_gate(
+                    Path(fixture_value).resolve(),
+                    Path(report_value).resolve(),
+                    cases,
+                )
+            except KafkaGateError as error:
+                raise GateError(str(error)) from error
         case _:
             raise GateError(f"unsupported subcommand: {command}", EXIT_USAGE)
 

@@ -1,0 +1,48 @@
+name: rehealth-kafka-gate
+
+services:
+  kafka:
+    image: apache/kafka:4.3.1@sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: CONTROLLER://:9093,INTERNAL://:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+
+  timescale:
+    image: timescale/timescaledb:2.21.1-pg17@sha256:c17f60ac41a9b5c529af918e8827156bb02faeddb3fab1c961b4eebe52b25d83
+    environment:
+      POSTGRES_DB: rehealth_hardware
+      POSTGRES_USER: rehealth
+      POSTGRES_PASSWORD: synthetic_gate_only
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rehealth -d rehealth_hardware"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+
+  software-db:
+    image: mysql:8.4.6@sha256:869218921e61d6c3c89820955d63cca42971f0e3e6c1e2792247bbd944ebc6e9
+    environment:
+      MYSQL_DATABASE: rehealth_software
+      MYSQL_USER: rehealth
+      MYSQL_PASSWORD: synthetic_gate_only
+      MYSQL_ROOT_PASSWORD: synthetic_root_only
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=synthetic_gate_only mysqladmin ping -h 127.0.0.1 -u rehealth --silent"]
+      interval: 3s
+      timeout: 5s
+      retries: 30

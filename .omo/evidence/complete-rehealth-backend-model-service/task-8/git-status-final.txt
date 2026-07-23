@@ -1,0 +1,17 @@
+ M .omo/plans/complete-rehealth-backend-model-service.md
+ M .omo/start-work/ledger.jsonl
+ M backend/device-service/README.md
+ M backend/device-service/pom.xml
+ M backend/device-service/src/main/java/com/rehealth/device/DeviceServiceApplication.java
+ M backend/device-service/src/main/java/com/rehealth/device/application/DeviceRequestException.java
+ M backend/device-service/src/main/java/com/rehealth/device/config/TimescaleMigrationConfiguration.java
+?? .omo/evidence/complete-rehealth-backend-model-service/task-7-independent-verifier/
+?? .omo/evidence/complete-rehealth-backend-model-service/task-7/docker-pull-timescale.err
+?? .omo/evidence/complete-rehealth-backend-model-service/task-7/docker-pull-timescale.out
+?? .omo/evidence/complete-rehealth-backend-model-service/task-7/preflight-fix/
+?? .omo/evidence/complete-rehealth-backend-model-service/task-7/t7-failure-final.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/task-7/t7-happy-final.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/task-7/t7-happy.exit
+?? .omo/evidence/complete-rehealth-backend-model-service/task-8/
+?? backend/device-service/src/main/java/com/rehealth/device/adapter/TimescaleTelemetryStore.java
+?? backend/device-service/src/test/java/com/rehealth/device/TelemetryIngestionIT.java

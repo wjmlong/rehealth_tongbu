@@ -1,0 +1,9 @@
+ backend/device-service/README.md                   |  8 ++++--
+ backend/device-service/pom.xml                     |  4 +++
+ .../rehealth/device/DeviceServiceApplication.java  |  3 +-
+ .../device/application/DeviceRequestException.java |  6 ++++
+ .../config/TimescaleMigrationConfiguration.java    | 32 ++++++++++++++++++----
+ 5 files changed, 44 insertions(+), 9 deletions(-)
+untracked additions:
+ backend/device-service/src/main/java/com/rehealth/device/adapter/TimescaleTelemetryStore.java
+ backend/device-service/src/test/java/com/rehealth/device/TelemetryIngestionIT.java

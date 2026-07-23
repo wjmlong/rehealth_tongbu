@@ -1,0 +1,356 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="com.rehealth.device.TelemetryIngestionIT" time="3.242" tests="6" errors="0" skipped="3" failures="0">
+  <properties>
+    <property name="java.specification.version" value="21"/>
+    <property name="sun.cpu.isalist" value="amd64"/>
+    <property name="sun.jnu.encoding" value="GBK"/>
+    <property name="java.class.path" value="D:\rehealthAI\backend\device-service\target\test-classes;D:\rehealthAI\backend\device-service\target\classes;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-starter-web\3.5.5\spring-boot-starter-web-3.5.5.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-starter\3.5.5\spring-boot-starter-3.5.5.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot\3.5.5\spring-boot-3.5.5.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-autoconfigure\3.5.5\spring-boot-autoconfigure-3.5.5.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-starter-logging\3.5.5\spring-boot-starter-logging-3.5.5.jar;C:\Users\wjmlong\.m2\repository\ch\qos\logback\logback-classic\1.5.18\logback-classic-1.5.18.jar;C:\Users\wjmlong\.m2\repository\ch\qos\logback\logback-core\1.5.18\logback-core-1.5.18.jar;C:\Users\wjmlong\.m2\repository\org\apache\logging\log4j\log4j-to-slf4j\2.24.3\log4j-to-slf4j-2.24.3.jar;C:\Users\wjmlong\.m2\repository\org\apache\logging\log4j\log4j-api\2.24.3\log4j-api-2.24.3.jar;C:\Users\wjmlong\.m2\repository\org\slf4j\jul-to-slf4j\2.0.17\jul-to-slf4j-2.0.17.jar;C:\Users\wjmlong\.m2\repository\jakarta\annotation\jakarta.annotation-api\2.1.1\jakarta.annotation-api-2.1.1.jar;C:\Users\wjmlong\.m2\repository\org\yaml\snakeyaml\2.4\snakeyaml-2.4.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-starter-json\3.5.5\spring-boot-starter-json-3.5.5.jar;C:\Users\wjmlong\.m2\repository\com\fasterxml\jackson\core\jackson-databind\2.19.2\jackson-databind-2.19.2.jar;C:\Users\wjmlong\.m2\repository\com\fasterxml\jackson\datatype\jackson-datatype-jdk8\2.19.2\jackson-datatype-jdk8-2.19.2.jar;C:\Users\wjmlong\.m2\repository\com\fasterxml\jackson\module\jackson-module-parameter-names\2.19.2\jackson-module-parameter-names-2.19.2.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-starter-tomcat\3.5.5\spring-boot-starter-tomcat-3.5.5.jar;C:\Users\wjmlong\.m2\repository\org\apache\tomcat\embed\tomcat-embed-core\10.1.44\tomcat-embed-core-10.1.44.jar;C:\Users\wjmlong\.m2\repository\org\apache\tomcat\embed\tomcat-embed-el\10.1.44\tomcat-embed-el-10.1.44.jar;C:\Users\wjmlong\.m2\repository\org\apache\tomcat\embed\tomcat-embed-websocket\10.1.44\tomcat-embed-websocket-10.1.44.jar;C:\Users\wjmlong\.m2\repository\org\springframework\spring-web\6.2.10\spring-web-6.2.10.jar;C:\Users\wjmlong\.m2\repository\org\springframework\spring-beans\6.2.10\spring-beans-6.2.10.jar;C:\Users\wjmlong\.m2\repository\org\springframework\spring-webmvc\6.2.10\spring-webmvc-6.2.10.jar;C:\Users\wjmlong\.m2\repository\org\springframework\spring-aop\6.2.10\spring-aop-6.2.10.jar;C:\Users\wjmlong\.m2\repository\org\springframework\spring-context\6.2.10\spring-context-6.2.10.jar;C:\Users\wjmlong\.m2\repository\org\springframework\spring-expression\6.2.10\spring-expression-6.2.10.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-starter-actuator\3.5.5\spring-boot-starter-actuator-3.5.5.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-actuator-autoconfigure\3.5.5\spring-boot-actuator-autoconfigure-3.5.5.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-actuator\3.5.5\spring-boot-actuator-3.5.5.jar;C:\Users\wjmlong\.m2\repository\io\micrometer\micrometer-observation\1.15.3\micrometer-observation-1.15.3.jar;C:\Users\wjmlong\.m2\repository\io\micrometer\micrometer-commons\1.15.3\micrometer-commons-1.15.3.jar;C:\Users\wjmlong\.m2\repository\io\micrometer\micrometer-jakarta9\1.15.3\micrometer-jakarta9-1.15.3.jar;C:\Users\wjmlong\.m2\repository\io\micrometer\micrometer-core\1.15.3\micrometer-core-1.15.3.jar;C:\Users\wjmlong\.m2\repository\org\hdrhistogram\HdrHistogram\2.2.2\HdrHistogram-2.2.2.jar;C:\Users\wjmlong\.m2\repository\org\latencyutils\LatencyUtils\2.0.3\LatencyUtils-2.0.3.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-starter-jdbc\3.5.5\spring-boot-starter-jdbc-3.5.5.jar;C:\Users\wjmlong\.m2\repository\com\zaxxer\HikariCP\6.3.2\HikariCP-6.3.2.jar;C:\Users\wjmlong\.m2\repository\org\springframework\spring-jdbc\6.2.10\spring-jdbc-6.2.10.jar;C:\Users\wjmlong\.m2\repository\org\springframework\spring-tx\6.2.10\spring-tx-6.2.10.jar;C:\Users\wjmlong\.m2\repository\org\springdoc\springdoc-openapi-starter-webmvc-ui\2.8.13\springdoc-openapi-starter-webmvc-ui-2.8.13.jar;C:\Users\wjmlong\.m2\repository\org\springdoc\springdoc-openapi-starter-webmvc-api\2.8.13\springdoc-openapi-starter-webmvc-api-2.8.13.jar;C:\Users\wjmlong\.m2\repository\org\springdoc\springdoc-openapi-starter-common\2.8.13\springdoc-openapi-starter-common-2.8.13.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-starter-validation\3.5.5\spring-boot-starter-validation-3.5.5.jar;C:\Users\wjmlong\.m2\repository\org\hibernate\validator\hibernate-validator\8.0.3.Final\hibernate-validator-8.0.3.Final.jar;C:\Users\wjmlong\.m2\repository\org\jboss\logging\jboss-logging\3.6.1.Final\jboss-logging-3.6.1.Final.jar;C:\Users\wjmlong\.m2\repository\com\fasterxml\classmate\1.7.0\classmate-1.7.0.jar;C:\Users\wjmlong\.m2\repository\io\swagger\core\v3\swagger-core-jakarta\2.2.36\swagger-core-jakarta-2.2.36.jar;C:\Users\wjmlong\.m2\repository\org\apache\commons\commons-lang3\3.17.0\commons-lang3-3.17.0.jar;C:\Users\wjmlong\.m2\repository\io\swagger\core\v3\swagger-annotations-jakarta\2.2.36\swagger-annotations-jakarta-2.2.36.jar;C:\Users\wjmlong\.m2\repository\io\swagger\core\v3\swagger-models-jakarta\2.2.36\swagger-models-jakarta-2.2.36.jar;C:\Users\wjmlong\.m2\repository\jakarta\validation\jakarta.validation-api\3.0.2\jakarta.validation-api-3.0.2.jar;C:\Users\wjmlong\.m2\repository\com\fasterxml\jackson\dataformat\jackson-dataformat-yaml\2.19.2\jackson-dataformat-yaml-2.19.2.jar;C:\Users\wjmlong\.m2\repository\org\webjars\swagger-ui\5.28.1\swagger-ui-5.28.1.jar;C:\Users\wjmlong\.m2\repository\org\webjars\webjars-locator-lite\1.1.0\webjars-locator-lite-1.1.0.jar;C:\Users\wjmlong\.m2\repository\org\jspecify\jspecify\1.0.0\jspecify-1.0.0.jar;C:\Users\wjmlong\.m2\repository\org\flywaydb\flyway-core\11.7.2\flyway-core-11.7.2.jar;C:\Users\wjmlong\.m2\repository\com\fasterxml\jackson\dataformat\jackson-dataformat-toml\2.19.2\jackson-dataformat-toml-2.19.2.jar;C:\Users\wjmlong\.m2\repository\com\fasterxml\jackson\core\jackson-core\2.19.2\jackson-core-2.19.2.jar;C:\Users\wjmlong\.m2\repository\com\fasterxml\jackson\datatype\jackson-datatype-jsr310\2.19.2\jackson-datatype-jsr310-2.19.2.jar;C:\Users\wjmlong\.m2\repository\com\fasterxml\jackson\core\jackson-annotations\2.19.2\jackson-annotations-2.19.2.jar;C:\Users\wjmlong\.m2\repository\org\flywaydb\flyway-database-postgresql\11.7.2\flyway-database-postgresql-11.7.2.jar;C:\Users\wjmlong\.m2\repository\org\postgresql\postgresql\42.7.7\postgresql-42.7.7.jar;C:\Users\wjmlong\.m2\repository\org\checkerframework\checker-qual\3.49.3\checker-qual-3.49.3.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-starter-test\3.5.5\spring-boot-starter-test-3.5.5.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-test\3.5.5\spring-boot-test-3.5.5.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-test-autoconfigure\3.5.5\spring-boot-test-autoconfigure-3.5.5.jar;C:\Users\wjmlong\.m2\repository\com\jayway\jsonpath\json-path\2.9.0\json-path-2.9.0.jar;C:\Users\wjmlong\.m2\repository\jakarta\xml\bind\jakarta.xml.bind-api\4.0.2\jakarta.xml.bind-api-4.0.2.jar;C:\Users\wjmlong\.m2\repository\jakarta\activation\jakarta.activation-api\2.1.3\jakarta.activation-api-2.1.3.jar;C:\Users\wjmlong\.m2\repository\net\minidev\json-smart\2.5.2\json-smart-2.5.2.jar;C:\Users\wjmlong\.m2\repository\net\minidev\accessors-smart\2.5.2\accessors-smart-2.5.2.jar;C:\Users\wjmlong\.m2\repository\org\ow2\asm\asm\9.7.1\asm-9.7.1.jar;C:\Users\wjmlong\.m2\repository\org\assertj\assertj-core\3.27.4\assertj-core-3.27.4.jar;C:\Users\wjmlong\.m2\repository\net\bytebuddy\byte-buddy\1.17.7\byte-buddy-1.17.7.jar;C:\Users\wjmlong\.m2\repository\org\awaitility\awaitility\4.2.2\awaitility-4.2.2.jar;C:\Users\wjmlong\.m2\repository\org\hamcrest\hamcrest\3.0\hamcrest-3.0.jar;C:\Users\wjmlong\.m2\repository\org\junit\jupiter\junit-jupiter\5.12.2\junit-jupiter-5.12.2.jar;C:\Users\wjmlong\.m2\repository\org\junit\jupiter\junit-jupiter-api\5.12.2\junit-jupiter-api-5.12.2.jar;C:\Users\wjmlong\.m2\repository\org\opentest4j\opentest4j\1.3.0\opentest4j-1.3.0.jar;C:\Users\wjmlong\.m2\repository\org\junit\platform\junit-platform-commons\1.12.2\junit-platform-commons-1.12.2.jar;C:\Users\wjmlong\.m2\repository\org\apiguardian\apiguardian-api\1.1.2\apiguardian-api-1.1.2.jar;C:\Users\wjmlong\.m2\repository\org\junit\jupiter\junit-jupiter-params\5.12.2\junit-jupiter-params-5.12.2.jar;C:\Users\wjmlong\.m2\repository\org\junit\jupiter\junit-jupiter-engine\5.12.2\junit-jupiter-engine-5.12.2.jar;C:\Users\wjmlong\.m2\repository\org\junit\platform\junit-platform-engine\1.12.2\junit-platform-engine-1.12.2.jar;C:\Users\wjmlong\.m2\repository\org\mockito\mockito-core\5.17.0\mockito-core-5.17.0.jar;C:\Users\wjmlong\.m2\repository\net\bytebuddy\byte-buddy-agent\1.17.7\byte-buddy-agent-1.17.7.jar;C:\Users\wjmlong\.m2\repository\org\objenesis\objenesis\3.3\objenesis-3.3.jar;C:\Users\wjmlong\.m2\repository\org\mockito\mockito-junit-jupiter\5.17.0\mockito-junit-jupiter-5.17.0.jar;C:\Users\wjmlong\.m2\repository\org\skyscreamer\jsonassert\1.5.3\jsonassert-1.5.3.jar;C:\Users\wjmlong\.m2\repository\com\vaadin\external\google\android-json\0.0.20131108.vaadin1\android-json-0.0.20131108.vaadin1.jar;C:\Users\wjmlong\.m2\repository\org\springframework\spring-core\6.2.10\spring-core-6.2.10.jar;C:\Users\wjmlong\.m2\repository\org\springframework\spring-jcl\6.2.10\spring-jcl-6.2.10.jar;C:\Users\wjmlong\.m2\repository\org\springframework\spring-test\6.2.10\spring-test-6.2.10.jar;C:\Users\wjmlong\.m2\repository\org\xmlunit\xmlunit-core\2.10.3\xmlunit-core-2.10.3.jar;C:\Users\wjmlong\.m2\repository\com\tngtech\archunit\archunit-junit5\1.4.1\archunit-junit5-1.4.1.jar;C:\Users\wjmlong\.m2\repository\com\tngtech\archunit\archunit-junit5-api\1.4.1\archunit-junit5-api-1.4.1.jar;C:\Users\wjmlong\.m2\repository\com\tngtech\archunit\archunit\1.4.1\archunit-1.4.1.jar;C:\Users\wjmlong\.m2\repository\com\tngtech\archunit\archunit-junit5-engine\1.4.1\archunit-junit5-engine-1.4.1.jar;C:\Users\wjmlong\.m2\repository\com\tngtech\archunit\archunit-junit5-engine-api\1.4.1\archunit-junit5-engine-api-1.4.1.jar;C:\Users\wjmlong\.m2\repository\org\testcontainers\testcontainers\1.21.3\testcontainers-1.21.3.jar;C:\Users\wjmlong\.m2\repository\junit\junit\4.13.2\junit-4.13.2.jar;C:\Users\wjmlong\.m2\repository\org\hamcrest\hamcrest-core\3.0\hamcrest-core-3.0.jar;C:\Users\wjmlong\.m2\repository\org\slf4j\slf4j-api\2.0.17\slf4j-api-2.0.17.jar;C:\Users\wjmlong\.m2\repository\org\apache\commons\commons-compress\1.24.0\commons-compress-1.24.0.jar;C:\Users\wjmlong\.m2\repository\org\rnorth\duct-tape\duct-tape\1.0.8\duct-tape-1.0.8.jar;C:\Users\wjmlong\.m2\repository\org\jetbrains\annotations\17.0.0\annotations-17.0.0.jar;C:\Users\wjmlong\.m2\repository\com\github\docker-java\docker-java-api\3.4.2\docker-java-api-3.4.2.jar;C:\Users\wjmlong\.m2\repository\com\github\docker-java\docker-java-transport-zerodep\3.4.2\docker-java-transport-zerodep-3.4.2.jar;C:\Users\wjmlong\.m2\repository\com\github\docker-java\docker-java-transport\3.4.2\docker-java-transport-3.4.2.jar;C:\Users\wjmlong\.m2\repository\net\java\dev\jna\jna\5.13.0\jna-5.13.0.jar;"/>
+    <property name="java.vm.vendor" value="JetBrains s.r.o."/>
+    <property name="sun.arch.data.model" value="64"/>
+    <property name="user.variant" value=""/>
+    <property name="java.vendor.url" value="https://openjdk.org/"/>
+    <property name="user.timezone" value="Asia/Shanghai"/>
+    <property name="os.name" value="Windows 11"/>
+    <property name="java.vm.specification.version" value="21"/>
+    <property name="sun.java.launcher" value="SUN_STANDARD"/>
+    <property name="user.country" value="CN"/>
+    <property name="sun.boot.library.path" value="D:\Android_Studio\jbr\bin"/>
+    <property name="sun.java.command" value="C:\Users\wjmlong\AppData\Local\Temp\surefire1741068671541711437\surefirebooter-20260723191955320_3.jar C:\Users\wjmlong\AppData\Local\Temp\surefire1741068671541711437 2026-07-23T19-19-55_224-jvmRun1 surefire-20260723191955320_1tmp surefire_0-20260723191955320_2tmp"/>
+    <property name="jdk.debug" value="release"/>
+    <property name="test" value="TelemetryIngestionIT"/>
+    <property name="surefire.test.class.path" value="D:\rehealthAI\backend\device-service\target\test-classes;D:\rehealthAI\backend\device-service\target\classes;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-starter-web\3.5.5\spring-boot-starter-web-3.5.5.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-starter\3.5.5\spring-boot-starter-3.5.5.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot\3.5.5\spring-boot-3.5.5.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-autoconfigure\3.5.5\spring-boot-autoconfigure-3.5.5.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-starter-logging\3.5.5\spring-boot-starter-logging-3.5.5.jar;C:\Users\wjmlong\.m2\repository\ch\qos\logback\logback-classic\1.5.18\logback-classic-1.5.18.jar;C:\Users\wjmlong\.m2\repository\ch\qos\logback\logback-core\1.5.18\logback-core-1.5.18.jar;C:\Users\wjmlong\.m2\repository\org\apache\logging\log4j\log4j-to-slf4j\2.24.3\log4j-to-slf4j-2.24.3.jar;C:\Users\wjmlong\.m2\repository\org\apache\logging\log4j\log4j-api\2.24.3\log4j-api-2.24.3.jar;C:\Users\wjmlong\.m2\repository\org\slf4j\jul-to-slf4j\2.0.17\jul-to-slf4j-2.0.17.jar;C:\Users\wjmlong\.m2\repository\jakarta\annotation\jakarta.annotation-api\2.1.1\jakarta.annotation-api-2.1.1.jar;C:\Users\wjmlong\.m2\repository\org\yaml\snakeyaml\2.4\snakeyaml-2.4.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-starter-json\3.5.5\spring-boot-starter-json-3.5.5.jar;C:\Users\wjmlong\.m2\repository\com\fasterxml\jackson\core\jackson-databind\2.19.2\jackson-databind-2.19.2.jar;C:\Users\wjmlong\.m2\repository\com\fasterxml\jackson\datatype\jackson-datatype-jdk8\2.19.2\jackson-datatype-jdk8-2.19.2.jar;C:\Users\wjmlong\.m2\repository\com\fasterxml\jackson\module\jackson-module-parameter-names\2.19.2\jackson-module-parameter-names-2.19.2.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-starter-tomcat\3.5.5\spring-boot-starter-tomcat-3.5.5.jar;C:\Users\wjmlong\.m2\repository\org\apache\tomcat\embed\tomcat-embed-core\10.1.44\tomcat-embed-core-10.1.44.jar;C:\Users\wjmlong\.m2\repository\org\apache\tomcat\embed\tomcat-embed-el\10.1.44\tomcat-embed-el-10.1.44.jar;C:\Users\wjmlong\.m2\repository\org\apache\tomcat\embed\tomcat-embed-websocket\10.1.44\tomcat-embed-websocket-10.1.44.jar;C:\Users\wjmlong\.m2\repository\org\springframework\spring-web\6.2.10\spring-web-6.2.10.jar;C:\Users\wjmlong\.m2\repository\org\springframework\spring-beans\6.2.10\spring-beans-6.2.10.jar;C:\Users\wjmlong\.m2\repository\org\springframework\spring-webmvc\6.2.10\spring-webmvc-6.2.10.jar;C:\Users\wjmlong\.m2\repository\org\springframework\spring-aop\6.2.10\spring-aop-6.2.10.jar;C:\Users\wjmlong\.m2\repository\org\springframework\spring-context\6.2.10\spring-context-6.2.10.jar;C:\Users\wjmlong\.m2\repository\org\springframework\spring-expression\6.2.10\spring-expression-6.2.10.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-starter-actuator\3.5.5\spring-boot-starter-actuator-3.5.5.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-actuator-autoconfigure\3.5.5\spring-boot-actuator-autoconfigure-3.5.5.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-actuator\3.5.5\spring-boot-actuator-3.5.5.jar;C:\Users\wjmlong\.m2\repository\io\micrometer\micrometer-observation\1.15.3\micrometer-observation-1.15.3.jar;C:\Users\wjmlong\.m2\repository\io\micrometer\micrometer-commons\1.15.3\micrometer-commons-1.15.3.jar;C:\Users\wjmlong\.m2\repository\io\micrometer\micrometer-jakarta9\1.15.3\micrometer-jakarta9-1.15.3.jar;C:\Users\wjmlong\.m2\repository\io\micrometer\micrometer-core\1.15.3\micrometer-core-1.15.3.jar;C:\Users\wjmlong\.m2\repository\org\hdrhistogram\HdrHistogram\2.2.2\HdrHistogram-2.2.2.jar;C:\Users\wjmlong\.m2\repository\org\latencyutils\LatencyUtils\2.0.3\LatencyUtils-2.0.3.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-starter-jdbc\3.5.5\spring-boot-starter-jdbc-3.5.5.jar;C:\Users\wjmlong\.m2\repository\com\zaxxer\HikariCP\6.3.2\HikariCP-6.3.2.jar;C:\Users\wjmlong\.m2\repository\org\springframework\spring-jdbc\6.2.10\spring-jdbc-6.2.10.jar;C:\Users\wjmlong\.m2\repository\org\springframework\spring-tx\6.2.10\spring-tx-6.2.10.jar;C:\Users\wjmlong\.m2\repository\org\springdoc\springdoc-openapi-starter-webmvc-ui\2.8.13\springdoc-openapi-starter-webmvc-ui-2.8.13.jar;C:\Users\wjmlong\.m2\repository\org\springdoc\springdoc-openapi-starter-webmvc-api\2.8.13\springdoc-openapi-starter-webmvc-api-2.8.13.jar;C:\Users\wjmlong\.m2\repository\org\springdoc\springdoc-openapi-starter-common\2.8.13\springdoc-openapi-starter-common-2.8.13.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-starter-validation\3.5.5\spring-boot-starter-validation-3.5.5.jar;C:\Users\wjmlong\.m2\repository\org\hibernate\validator\hibernate-validator\8.0.3.Final\hibernate-validator-8.0.3.Final.jar;C:\Users\wjmlong\.m2\repository\org\jboss\logging\jboss-logging\3.6.1.Final\jboss-logging-3.6.1.Final.jar;C:\Users\wjmlong\.m2\repository\com\fasterxml\classmate\1.7.0\classmate-1.7.0.jar;C:\Users\wjmlong\.m2\repository\io\swagger\core\v3\swagger-core-jakarta\2.2.36\swagger-core-jakarta-2.2.36.jar;C:\Users\wjmlong\.m2\repository\org\apache\commons\commons-lang3\3.17.0\commons-lang3-3.17.0.jar;C:\Users\wjmlong\.m2\repository\io\swagger\core\v3\swagger-annotations-jakarta\2.2.36\swagger-annotations-jakarta-2.2.36.jar;C:\Users\wjmlong\.m2\repository\io\swagger\core\v3\swagger-models-jakarta\2.2.36\swagger-models-jakarta-2.2.36.jar;C:\Users\wjmlong\.m2\repository\jakarta\validation\jakarta.validation-api\3.0.2\jakarta.validation-api-3.0.2.jar;C:\Users\wjmlong\.m2\repository\com\fasterxml\jackson\dataformat\jackson-dataformat-yaml\2.19.2\jackson-dataformat-yaml-2.19.2.jar;C:\Users\wjmlong\.m2\repository\org\webjars\swagger-ui\5.28.1\swagger-ui-5.28.1.jar;C:\Users\wjmlong\.m2\repository\org\webjars\webjars-locator-lite\1.1.0\webjars-locator-lite-1.1.0.jar;C:\Users\wjmlong\.m2\repository\org\jspecify\jspecify\1.0.0\jspecify-1.0.0.jar;C:\Users\wjmlong\.m2\repository\org\flywaydb\flyway-core\11.7.2\flyway-core-11.7.2.jar;C:\Users\wjmlong\.m2\repository\com\fasterxml\jackson\dataformat\jackson-dataformat-toml\2.19.2\jackson-dataformat-toml-2.19.2.jar;C:\Users\wjmlong\.m2\repository\com\fasterxml\jackson\core\jackson-core\2.19.2\jackson-core-2.19.2.jar;C:\Users\wjmlong\.m2\repository\com\fasterxml\jackson\datatype\jackson-datatype-jsr310\2.19.2\jackson-datatype-jsr310-2.19.2.jar;C:\Users\wjmlong\.m2\repository\com\fasterxml\jackson\core\jackson-annotations\2.19.2\jackson-annotations-2.19.2.jar;C:\Users\wjmlong\.m2\repository\org\flywaydb\flyway-database-postgresql\11.7.2\flyway-database-postgresql-11.7.2.jar;C:\Users\wjmlong\.m2\repository\org\postgresql\postgresql\42.7.7\postgresql-42.7.7.jar;C:\Users\wjmlong\.m2\repository\org\checkerframework\checker-qual\3.49.3\checker-qual-3.49.3.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-starter-test\3.5.5\spring-boot-starter-test-3.5.5.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-test\3.5.5\spring-boot-test-3.5.5.jar;C:\Users\wjmlong\.m2\repository\org\springframework\boot\spring-boot-test-autoconfigure\3.5.5\spring-boot-test-autoconfigure-3.5.5.jar;C:\Users\wjmlong\.m2\repository\com\jayway\jsonpath\json-path\2.9.0\json-path-2.9.0.jar;C:\Users\wjmlong\.m2\repository\jakarta\xml\bind\jakarta.xml.bind-api\4.0.2\jakarta.xml.bind-api-4.0.2.jar;C:\Users\wjmlong\.m2\repository\jakarta\activation\jakarta.activation-api\2.1.3\jakarta.activation-api-2.1.3.jar;C:\Users\wjmlong\.m2\repository\net\minidev\json-smart\2.5.2\json-smart-2.5.2.jar;C:\Users\wjmlong\.m2\repository\net\minidev\accessors-smart\2.5.2\accessors-smart-2.5.2.jar;C:\Users\wjmlong\.m2\repository\org\ow2\asm\asm\9.7.1\asm-9.7.1.jar;C:\Users\wjmlong\.m2\repository\org\assertj\assertj-core\3.27.4\assertj-core-3.27.4.jar;C:\Users\wjmlong\.m2\repository\net\bytebuddy\byte-buddy\1.17.7\byte-buddy-1.17.7.jar;C:\Users\wjmlong\.m2\repository\org\awaitility\awaitility\4.2.2\awaitility-4.2.2.jar;C:\Users\wjmlong\.m2\repository\org\hamcrest\hamcrest\3.0\hamcrest-3.0.jar;C:\Users\wjmlong\.m2\repository\org\junit\jupiter\junit-jupiter\5.12.2\junit-jupiter-5.12.2.jar;C:\Users\wjmlong\.m2\repository\org\junit\jupiter\junit-jupiter-api\5.12.2\junit-jupiter-api-5.12.2.jar;C:\Users\wjmlong\.m2\repository\org\opentest4j\opentest4j\1.3.0\opentest4j-1.3.0.jar;C:\Users\wjmlong\.m2\repository\org\junit\platform\junit-platform-commons\1.12.2\junit-platform-commons-1.12.2.jar;C:\Users\wjmlong\.m2\repository\org\apiguardian\apiguardian-api\1.1.2\apiguardian-api-1.1.2.jar;C:\Users\wjmlong\.m2\repository\org\junit\jupiter\junit-jupiter-params\5.12.2\junit-jupiter-params-5.12.2.jar;C:\Users\wjmlong\.m2\repository\org\junit\jupiter\junit-jupiter-engine\5.12.2\junit-jupiter-engine-5.12.2.jar;C:\Users\wjmlong\.m2\repository\org\junit\platform\junit-platform-engine\1.12.2\junit-platform-engine-1.12.2.jar;C:\Users\wjmlong\.m2\repository\org\mockito\mockito-core\5.17.0\mockito-core-5.17.0.jar;C:\Users\wjmlong\.m2\repository\net\bytebuddy\byte-buddy-agent\1.17.7\byte-buddy-agent-1.17.7.jar;C:\Users\wjmlong\.m2\repository\org\objenesis\objenesis\3.3\objenesis-3.3.jar;C:\Users\wjmlong\.m2\repository\org\mockito\mockito-junit-jupiter\5.17.0\mockito-junit-jupiter-5.17.0.jar;C:\Users\wjmlong\.m2\repository\org\skyscreamer\jsonassert\1.5.3\jsonassert-1.5.3.jar;C:\Users\wjmlong\.m2\repository\com\vaadin\external\google\android-json\0.0.20131108.vaadin1\android-json-0.0.20131108.vaadin1.jar;C:\Users\wjmlong\.m2\repository\org\springframework\spring-core\6.2.10\spring-core-6.2.10.jar;C:\Users\wjmlong\.m2\repository\org\springframework\spring-jcl\6.2.10\spring-jcl-6.2.10.jar;C:\Users\wjmlong\.m2\repository\org\springframework\spring-test\6.2.10\spring-test-6.2.10.jar;C:\Users\wjmlong\.m2\repository\org\xmlunit\xmlunit-core\2.10.3\xmlunit-core-2.10.3.jar;C:\Users\wjmlong\.m2\repository\com\tngtech\archunit\archunit-junit5\1.4.1\archunit-junit5-1.4.1.jar;C:\Users\wjmlong\.m2\repository\com\tngtech\archunit\archunit-junit5-api\1.4.1\archunit-junit5-api-1.4.1.jar;C:\Users\wjmlong\.m2\repository\com\tngtech\archunit\archunit\1.4.1\archunit-1.4.1.jar;C:\Users\wjmlong\.m2\repository\com\tngtech\archunit\archunit-junit5-engine\1.4.1\archunit-junit5-engine-1.4.1.jar;C:\Users\wjmlong\.m2\repository\com\tngtech\archunit\archunit-junit5-engine-api\1.4.1\archunit-junit5-engine-api-1.4.1.jar;C:\Users\wjmlong\.m2\repository\org\testcontainers\testcontainers\1.21.3\testcontainers-1.21.3.jar;C:\Users\wjmlong\.m2\repository\junit\junit\4.13.2\junit-4.13.2.jar;C:\Users\wjmlong\.m2\repository\org\hamcrest\hamcrest-core\3.0\hamcrest-core-3.0.jar;C:\Users\wjmlong\.m2\repository\org\slf4j\slf4j-api\2.0.17\slf4j-api-2.0.17.jar;C:\Users\wjmlong\.m2\repository\org\apache\commons\commons-compress\1.24.0\commons-compress-1.24.0.jar;C:\Users\wjmlong\.m2\repository\org\rnorth\duct-tape\duct-tape\1.0.8\duct-tape-1.0.8.jar;C:\Users\wjmlong\.m2\repository\org\jetbrains\annotations\17.0.0\annotations-17.0.0.jar;C:\Users\wjmlong\.m2\repository\com\github\docker-java\docker-java-api\3.4.2\docker-java-api-3.4.2.jar;C:\Users\wjmlong\.m2\repository\com\github\docker-java\docker-java-transport-zerodep\3.4.2\docker-java-transport-zerodep-3.4.2.jar;C:\Users\wjmlong\.m2\repository\com\github\docker-java\docker-java-transport\3.4.2\docker-java-transport-3.4.2.jar;C:\Users\wjmlong\.m2\repository\net\java\dev\jna\jna\5.13.0\jna-5.13.0.jar;"/>
+    <property name="sun.cpu.endian" value="little"/>
+    <property name="user.home" value="C:\Users\wjmlong"/>
+    <property name="user.language" value="zh"/>
+    <property name="java.specification.vendor" value="Oracle Corporation"/>
+    <property name="java.version.date" value="2026-01-20"/>
+    <property name="java.home" value="D:\Android_Studio\jbr"/>
+    <property name="file.separator" value="\"/>
+    <property name="basedir" value="D:\rehealthAI\backend\device-service"/>
+    <property name="java.vm.compressedOopsMode" value="Zero based"/>
+    <property name="line.separator" value="&#10;"/>
+    <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
+    <property name="java.specification.name" value="Java Platform API Specification"/>
+    <property name="intellij.os.virtualization" value="none"/>
+    <property name="jbr.virtualization.information" value="Hyper-V role"/>
+    <property name="surefire.real.class.path" value="C:\Users\wjmlong\AppData\Local\Temp\surefire1741068671541711437\surefirebooter-20260723191955320_3.jar"/>
+    <property name="user.script" value=""/>
+    <property name="polyglot.engine.WarnInterpreterOnly" value="false"/>
+    <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
+    <property name="java.runtime.version" value="21.0.10+-14961533-b1163.108"/>
+    <property name="user.name" value="wjmlong"/>
+    <property name="stdout.encoding" value="GBK"/>
+    <property name="path.separator" value=";"/>
+    <property name="os.version" value="10.0"/>
+    <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
+    <property name="file.encoding" value="UTF-8"/>
+    <property name="java.vm.name" value="OpenJDK 64-Bit Server VM"/>
+    <property name="localRepository" value="C:\Users\wjmlong\.m2\repository"/>
+    <property name="java.vendor.url.bug" value="https://bugreport.java.com/bugreport/"/>
+    <property name="java.io.tmpdir" value="C:\Users\wjmlong\AppData\Local\Temp\"/>
+    <property name="cases" value="concurrent_duplicate,mid_batch_failure,db_down"/>
+    <property name="java.version" value="21.0.10"/>
+    <property name="user.dir" value="D:\rehealthAI\backend\device-service"/>
+    <property name="os.arch" value="amd64"/>
+    <property name="java.vm.specification.name" value="Java Virtual Machine Specification"/>
+    <property name="sun.os.patch.level" value=""/>
+    <property name="native.encoding" value="GBK"/>
+    <property name="java.library.path" value="D:\Android_Studio\jbr\bin;C:\WINDOWS\Sun\Java\bin;C:\WINDOWS\system32;C:\WINDOWS;C:\Users\wjmlong\.codex\tmp\arg0\codex-arg01y2Iq6;C:\Users\wjmlong\.cache\codex-runtimes\codex-primary-runtime\dependencies\bin\override;C:\Program Files (x86)\Common Files\Intel\Shared Libraries\redist\intel64\compiler;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\WINDOWS\System32\OpenSSH\;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\NVIDIA Corporation\NVIDIA NvDLISR;C:\Program Files\nodejs\;C:\Program Files\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\;C:\Program Files (x86)\Microsoft SQL Server\150\Tools\Binn\;C:\Program Files\Microsoft SQL Server\150\Tools\Binn\;C:\Program Files\Microsoft SQL Server\150\DTS\Binn\;C:\Program Files (x86)\NetSarang\Xftp 8\;D:\微信web开发者工具\dll;;C:\Pr;gram Files\Docker\Docker\resources\bin;C:\Program Files\Tailscale\;C:\Program Files\Git\cmd;C:\Users\wjmlong\AppData\Local\Microsoft\WindowsApps;C:\Program Files\Docker\Docker\resources\bin;C:\Program Files\Docker\Docker\resources\cli-plugins;D:\OpenCode\cli;C:\Users\wjmlong\AppData\Local\Microsoft\WinGet\Packages\ast-grep.ast-grep_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Users\wjmlong\.cache\codex-runtimes\codex-primary-runtime\dependencies\bin\fallback;C:\Users\wjmlong\AppData\Local\OpenAI\Codex\bin\ada252862d154cdd;C:\Program Files\WindowsApps\OpenAI.Codex_26.715.9868.0_x64__2p2nqsd0c76g0\app\resources;."/>
+    <property name="java.vm.info" value="mixed mode"/>
+    <property name="stderr.encoding" value="GBK"/>
+    <property name="java.vendor" value="JetBrains s.r.o."/>
+    <property name="java.vm.version" value="21.0.10+-14961533-b1163.108"/>
+    <property name="sun.io.unicode.encoding" value="UnicodeLittle"/>
+    <property name="java.class.version" value="65.0"/>
+  </properties>
+  <testcase name="firstAndReplayReturnOriginalReceiptAndOneLogicalEventSet" classname="com.rehealth.device.TelemetryIngestionIT" time="0.0">
+    <skipped type="org.opentest4j.TestAbortedException"><![CDATA[org.opentest4j.TestAbortedException: happy case excluded by -Dcases
+	at com.rehealth.device.TelemetryIngestionIT.requireHappy(TelemetryIngestionIT.java:371)
+	at com.rehealth.device.TelemetryIngestionIT.firstAndReplayReturnOriginalReceiptAndOneLogicalEventSet(TelemetryIngestionIT.java:75)
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source)
+	at java.base/java.util.ArrayList.forEach(Unknown Source)
+	at java.base/java.util.ArrayList.forEach(Unknown Source)
+]]></skipped>
+  </testcase>
+  <testcase name="operatorReplayIsIdempotentAndRecordsActorAndReason" classname="com.rehealth.device.TelemetryIngestionIT" time="0.0">
+    <skipped type="org.opentest4j.TestAbortedException"><![CDATA[org.opentest4j.TestAbortedException: happy case excluded by -Dcases
+	at com.rehealth.device.TelemetryIngestionIT.requireHappy(TelemetryIngestionIT.java:371)
+	at com.rehealth.device.TelemetryIngestionIT.operatorReplayIsIdempotentAndRecordsActorAndReason(TelemetryIngestionIT.java:137)
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source)
+	at java.base/java.util.ArrayList.forEach(Unknown Source)
+	at java.base/java.util.ArrayList.forEach(Unknown Source)
+]]></skipped>
+  </testcase>
+  <testcase name="concurrentDuplicateReturnsOneReceiptAndOneEventSet" classname="com.rehealth.device.TelemetryIngestionIT" time="1.615">
+    <system-out><![CDATA[19:19:57.038 [main] INFO org.flywaydb.core.FlywayExecutor -- Database: jdbc:postgresql://127.0.0.1:32768/rehealth_bce0ed9ed9aa48c786de17eac64cfbea (PostgreSQL 17.5)
+19:19:57.103 [main] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Schema history table "public"."flyway_schema_history" does not exist yet
+19:19:57.109 [main] INFO org.flywaydb.core.internal.command.DbValidate -- Successfully validated 3 migrations (execution time 00:00.031s)
+19:19:57.135 [main] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Creating Schema History table "public"."flyway_schema_history" ...
+19:19:57.222 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Current version of schema "public": << Empty Schema >>
+19:19:57.238 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "1 - verify timescale prerequisites"
+19:19:57.249 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: extension "timescaledb" already exists, skipping (SQL State: 42710 - Error Code: 0)
+19:19:57.297 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "2 - create hardware schema"
+19:19:57.391 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "3 - create hypertables and lifecycle policies"
+19:19:57.400 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "tenant_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.400 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "user_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.400 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "device_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.400 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "source_record_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.400 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "metric_type" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.400 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "unit" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.400 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "quality_code" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.400 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "source" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.401 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +-------------------+
+| create_hypertable |
++-------------------+
+| (1,t)             |
++-------------------+
+
+19:19:57.404 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "tenant_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.404 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "user_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.404 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "device_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.404 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "source_record_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.404 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "source" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.404 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +-------------------+
+| create_hypertable |
++-------------------+
+| (2,t)             |
++-------------------+
+
+19:19:57.407 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "tenant_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.407 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "user_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.407 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "device_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.407 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "source_record_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.407 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "activity_type" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.407 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "source" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.407 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +-------------------+
+| create_hypertable |
++-------------------+
+| (3,t)             |
++-------------------+
+
+19:19:57.410 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "tenant_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.410 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "user_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.410 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "device_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.410 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "source_record_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.410 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "event_type" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.410 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "severity" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.410 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "detail_code" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:57.410 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +-------------------+
+| create_hypertable |
++-------------------+
+| (4,t)             |
++-------------------+
+
+19:19:57.412 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column "id" should be used for segmenting or ordering (SQL State: 01000 - Error Code: 0)
+19:19:57.412 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column "metric_type" should be used for segmenting or ordering (SQL State: 01000 - Error Code: 0)
+19:19:57.412 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column "source_record_id" should be used for segmenting or ordering (SQL State: 01000 - Error Code: 0)
+19:19:57.415 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column "id" should be used for segmenting or ordering (SQL State: 01000 - Error Code: 0)
+19:19:57.415 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column "source_record_id" should be used for segmenting or ordering (SQL State: 01000 - Error Code: 0)
+19:19:57.417 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column "id" should be used for segmenting or ordering (SQL State: 01000 - Error Code: 0)
+19:19:57.418 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column "activity_type" should be used for segmenting or ordering (SQL State: 01000 - Error Code: 0)
+19:19:57.418 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column "source_record_id" should be used for segmenting or ordering (SQL State: 01000 - Error Code: 0)
+19:19:57.420 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column "id" should be used for segmenting or ordering (SQL State: 01000 - Error Code: 0)
+19:19:57.420 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column "event_type" should be used for segmenting or ordering (SQL State: 01000 - Error Code: 0)
+19:19:57.420 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column "source_record_id" should be used for segmenting or ordering (SQL State: 01000 - Error Code: 0)
+19:19:57.421 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +------------------------+
+| add_compression_policy |
++------------------------+
+| 1000                   |
++------------------------+
+
+19:19:57.423 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +------------------------+
+| add_compression_policy |
++------------------------+
+| 1001                   |
++------------------------+
+
+19:19:57.424 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +------------------------+
+| add_compression_policy |
++------------------------+
+| 1002                   |
++------------------------+
+
+19:19:57.425 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +------------------------+
+| add_compression_policy |
++------------------------+
+| 1003                   |
++------------------------+
+
+19:19:57.426 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +----------------------+
+| add_retention_policy |
++----------------------+
+| 1004                 |
++----------------------+
+
+19:19:57.427 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +----------------------+
+| add_retention_policy |
++----------------------+
+| 1005                 |
++----------------------+
+
+19:19:57.428 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +----------------------+
+| add_retention_policy |
++----------------------+
+| 1006                 |
++----------------------+
+
+19:19:57.429 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +----------------------+
+| add_retention_policy |
++----------------------+
+| 1007                 |
++----------------------+
+
+19:19:57.431 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +---------+
+| add_job |
++---------+
+| 1008    |
++---------+
+
+19:19:57.452 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Successfully applied 3 migrations to schema "public", now at version v3 (execution time 00:00.140s)
+]]></system-out>
+  </testcase>
+  <testcase name="ownerScopeAllowsSameBatchIdWithoutCrossOwnerReplay" classname="com.rehealth.device.TelemetryIngestionIT" time="0.0">
+    <skipped type="org.opentest4j.TestAbortedException"><![CDATA[org.opentest4j.TestAbortedException: happy case excluded by -Dcases
+	at com.rehealth.device.TelemetryIngestionIT.requireHappy(TelemetryIngestionIT.java:371)
+	at com.rehealth.device.TelemetryIngestionIT.ownerScopeAllowsSameBatchIdWithoutCrossOwnerReplay(TelemetryIngestionIT.java:113)
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source)
+	at java.base/java.util.ArrayList.forEach(Unknown Source)
+	at java.base/java.util.ArrayList.forEach(Unknown Source)
+]]></skipped>
+  </testcase>
+  <testcase name="databaseFailureReturnsStableRetryable503WithoutFalseSuccess" classname="com.rehealth.device.TelemetryIngestionIT" time="0.84">
+    <system-out><![CDATA[19:19:58.244 [main] INFO org.hibernate.validator.internal.util.Version -- HV000001: Hibernate Validator 8.0.3.Final
+19:19:58.710 [main] INFO org.springframework.mock.web.MockServletContext -- Initializing Spring TestDispatcherServlet ''
+19:19:58.710 [main] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Initializing Servlet ''
+19:19:58.713 [main] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Completed initialization in 3 ms
+]]></system-out>
+  </testcase>
+  <testcase name="midBatchConstraintFailureRollsBackEveryRow" classname="com.rehealth.device.TelemetryIngestionIT" time="0.733">
+    <system-out><![CDATA[19:19:59.080 [main] INFO org.flywaydb.core.FlywayExecutor -- Database: jdbc:postgresql://127.0.0.1:32768/rehealth_b84af35920544a488341065492660373 (PostgreSQL 17.5)
+19:19:59.114 [main] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Schema history table "public"."flyway_schema_history" does not exist yet
+19:19:59.116 [main] INFO org.flywaydb.core.internal.command.DbValidate -- Successfully validated 3 migrations (execution time 00:00.012s)
+19:19:59.138 [main] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Creating Schema History table "public"."flyway_schema_history" ...
+19:19:59.215 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Current version of schema "public": << Empty Schema >>
+19:19:59.222 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "1 - verify timescale prerequisites"
+19:19:59.225 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: extension "timescaledb" already exists, skipping (SQL State: 42710 - Error Code: 0)
+19:19:59.258 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "2 - create hardware schema"
+19:19:59.352 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "3 - create hypertables and lifecycle policies"
+19:19:59.358 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "tenant_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.359 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "user_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.359 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "device_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.359 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "source_record_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.359 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "metric_type" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.359 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "unit" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.359 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "quality_code" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.359 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "source" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.359 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +-------------------+
+| create_hypertable |
++-------------------+
+| (1,t)             |
++-------------------+
+
+19:19:59.363 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "tenant_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.363 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "user_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.363 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "device_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.363 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "source_record_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.363 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "source" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.363 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +-------------------+
+| create_hypertable |
++-------------------+
+| (2,t)             |
++-------------------+
+
+19:19:59.367 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "tenant_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.367 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "user_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.367 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "device_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.367 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "source_record_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.367 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "activity_type" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.367 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "source" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.367 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +-------------------+
+| create_hypertable |
++-------------------+
+| (3,t)             |
++-------------------+
+
+19:19:59.371 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "tenant_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.371 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "user_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.371 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "device_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.371 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "source_record_id" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.371 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "event_type" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.371 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "severity" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.371 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column type "character varying" used for "detail_code" does not follow best practices (SQL State: 01000 - Error Code: 0)
+19:19:59.371 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +-------------------+
+| create_hypertable |
++-------------------+
+| (4,t)             |
++-------------------+
+
+19:19:59.374 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column "id" should be used for segmenting or ordering (SQL State: 01000 - Error Code: 0)
+19:19:59.374 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column "metric_type" should be used for segmenting or ordering (SQL State: 01000 - Error Code: 0)
+19:19:59.374 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column "source_record_id" should be used for segmenting or ordering (SQL State: 01000 - Error Code: 0)
+19:19:59.376 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column "id" should be used for segmenting or ordering (SQL State: 01000 - Error Code: 0)
+19:19:59.377 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column "source_record_id" should be used for segmenting or ordering (SQL State: 01000 - Error Code: 0)
+19:19:59.379 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column "id" should be used for segmenting or ordering (SQL State: 01000 - Error Code: 0)
+19:19:59.380 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column "activity_type" should be used for segmenting or ordering (SQL State: 01000 - Error Code: 0)
+19:19:59.380 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column "source_record_id" should be used for segmenting or ordering (SQL State: 01000 - Error Code: 0)
+19:19:59.381 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column "id" should be used for segmenting or ordering (SQL State: 01000 - Error Code: 0)
+19:19:59.382 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column "event_type" should be used for segmenting or ordering (SQL State: 01000 - Error Code: 0)
+19:19:59.382 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: column "source_record_id" should be used for segmenting or ordering (SQL State: 01000 - Error Code: 0)
+19:19:59.383 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +------------------------+
+| add_compression_policy |
++------------------------+
+| 1000                   |
++------------------------+
+
+19:19:59.384 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +------------------------+
+| add_compression_policy |
++------------------------+
+| 1001                   |
++------------------------+
+
+19:19:59.386 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +------------------------+
+| add_compression_policy |
++------------------------+
+| 1002                   |
++------------------------+
+
+19:19:59.388 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +------------------------+
+| add_compression_policy |
++------------------------+
+| 1003                   |
++------------------------+
+
+19:19:59.391 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +----------------------+
+| add_retention_policy |
++----------------------+
+| 1004                 |
++----------------------+
+
+19:19:59.392 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +----------------------+
+| add_retention_policy |
++----------------------+
+| 1005                 |
++----------------------+
+
+19:19:59.393 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +----------------------+
+| add_retention_policy |
++----------------------+
+| 1006                 |
++----------------------+
+
+19:19:59.396 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +----------------------+
+| add_retention_policy |
++----------------------+
+| 1007                 |
++----------------------+
+
+19:19:59.400 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +---------+
+| add_job |
++---------+
+| 1008    |
++---------+
+
+19:19:59.414 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Successfully applied 3 migrations to schema "public", now at version v3 (execution time 00:00.142s)
+]]></system-out>
+  </testcase>
+</testsuite>

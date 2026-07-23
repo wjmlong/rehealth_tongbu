@@ -1,0 +1,4 @@
+container_image=timescale/timescaledb:2.21.1-pg17
+container_image_id=sha256:c17f60ac41a9b5c529af918e8827156bb02faeddb3fab1c961b4eebe52b25d83
+timescaledb_version=2.21.1
+postgres_version=17.5

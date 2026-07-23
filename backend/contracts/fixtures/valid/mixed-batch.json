@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "telemetry-batch-v1",
+  "batchId": "t9_mixed_batch_20260723",
+  "deviceId": "synthetic-device-t9",
+  "source": "T9_SYNTHETIC",
+  "collectedFrom": 1784764800000,
+  "collectedTo": 1784764860000,
+  "measurements": [
+    {
+      "id": "synthetic-measurement-1",
+      "metricType": "HEART_RATE",
+      "measuredAt": 1784764800000,
+      "primaryValue": 72,
+      "unit": "bpm",
+      "source": "T9_SYNTHETIC"
+    }
+  ],
+  "sleepSessions": [],
+  "activitySessions": [],
+  "signalChunks": [],
+  "quality": {
+    "rejectedCount": 0
+  }
+}

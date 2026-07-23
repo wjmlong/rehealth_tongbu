@@ -4,6 +4,18 @@ server:
 spring:
   application:
     name: rehealth-device-service
+  kafka:
+    bootstrap-servers: ${REHEALTH_KAFKA_BOOTSTRAP_SERVERS:}
+    producer:
+      acks: all
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        security.protocol: ${REHEALTH_KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+        sasl.mechanism: ${REHEALTH_KAFKA_SASL_MECHANISM:PLAIN}
+        sasl.jaas.config: ${REHEALTH_KAFKA_SASL_JAAS_CONFIG:}
+        ssl.truststore.location: ${REHEALTH_KAFKA_SSL_TRUSTSTORE_LOCATION:}
+        ssl.truststore.password: ${REHEALTH_KAFKA_SSL_TRUSTSTORE_PASSWORD:}
 
 management:
   endpoint:
@@ -40,3 +52,13 @@ rehealth:
     readiness-url: ${REHEALTH_IDENTITY_READINESS_URL:}
     service-credential: ${REHEALTH_INTERNAL_SERVICE_CREDENTIAL:}
     service-credential-file: ${REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE:}
+  kafka:
+    publisher:
+      enabled: ${REHEALTH_KAFKA_PUBLISHER_ENABLED:false}
+      batch-size: ${REHEALTH_KAFKA_PUBLISH_BATCH_SIZE:100}
+      poll-interval: ${REHEALTH_KAFKA_POLL_INTERVAL:500ms}
+      ack-timeout: ${REHEALTH_KAFKA_ACK_TIMEOUT:10s}
+      initial-backoff: ${REHEALTH_KAFKA_INITIAL_BACKOFF:1s}
+      maximum-backoff: ${REHEALTH_KAFKA_MAXIMUM_BACKOFF:5m}
+      persisted-topic: rehealth.telemetry.persisted.v1
+      quality-topic: rehealth.telemetry.quality.v1

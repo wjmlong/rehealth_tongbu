@@ -87,6 +87,14 @@ services:
       REHEALTH_MODEL_SERVICE_BASE_URL: http://model-service:8000
       REHEALTH_PIAS_BASE_URL: http://pias:8010
       REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE: /run/secrets/internal_service_credential
+      REHEALTH_KAFKA_CONSUMER_ENABLED: "true"
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_KAFKA_CONSUMER_ENABLE_AUTO_COMMIT: "false"
+      SPRING_KAFKA_CONSUMER_AUTO_OFFSET_RESET: earliest
+      SPRING_KAFKA_CONSUMER_KEY_DESERIALIZER: org.apache.kafka.common.serialization.StringDeserializer
+      SPRING_KAFKA_CONSUMER_VALUE_DESERIALIZER: org.apache.kafka.common.serialization.StringDeserializer
+      SPRING_KAFKA_PRODUCER_KEY_SERIALIZER: org.apache.kafka.common.serialization.StringSerializer
+      SPRING_KAFKA_PRODUCER_VALUE_SERIALIZER: org.apache.kafka.common.serialization.StringSerializer
     secrets:
       - software_db_password
       - redis_password
@@ -130,6 +138,7 @@ services:
       REHEALTH_IDENTITY_READINESS_URL: http://jeecg-boot:7001/actuator/health/readiness
       REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE: /run/secrets/internal_service_credential
       REHEALTH_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REHEALTH_KAFKA_PUBLISHER_ENABLED: "true"
     secrets:
       - hardware_db_password
       - internal_service_credential
@@ -242,6 +251,23 @@ services:
       start_period: 30s
     security_opt:
       - no-new-privileges:true
+
+  kafka-init:
+    <<: *service-defaults
+    profiles: *rehealth-profiles
+    image: apache/kafka:4.3.1@sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837
+    restart: "no"
+    environment:
+      REHEALTH_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REHEALTH_KAFKA_MAIN_PARTITIONS: ${REHEALTH_KAFKA_MAIN_PARTITIONS:-12}
+      REHEALTH_KAFKA_DLQ_PARTITIONS: ${REHEALTH_KAFKA_DLQ_PARTITIONS:-3}
+      REHEALTH_KAFKA_REPLICATION_FACTOR: ${REHEALTH_KAFKA_REPLICATION_FACTOR:-1}
+    command: ["/bin/sh", "/etc/rehealth/kafka/provision-topics.sh"]
+    volumes:
+      - ./kafka/provision-topics.sh:/etc/rehealth/kafka/provision-topics.sh:ro
+    depends_on:
+      kafka:
+        condition: service_healthy
 
   redis:
     profiles: *rehealth-profiles

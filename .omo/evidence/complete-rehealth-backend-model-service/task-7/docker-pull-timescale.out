@@ -1,0 +1,56 @@
+2.21.1-pg17: Pulling from timescale/timescaledb
+6f0d155e2dc9: Pulling fs layer
+416b11d5b2c1: Pulling fs layer
+5b30f3bf00d3: Pulling fs layer
+8511c9712c53: Pulling fs layer
+0cdfc325f2b4: Pulling fs layer
+2ab213609ea7: Pulling fs layer
+9ac04ba7198d: Pulling fs layer
+2648c8fdc540: Pulling fs layer
+4339b35c8b70: Pulling fs layer
+1b677f31311c: Pulling fs layer
+5c37c47e81b6: Pulling fs layer
+d43fac4d75e4: Pulling fs layer
+4cda0912b309: Pulling fs layer
+b26adc456b26: Pulling fs layer
+85b3b8ad1423: Pulling fs layer
+0368fd46e3c6: Pulling fs layer
+464ad957193a: Pulling fs layer
+416b11d5b2c1: Download complete
+8511c9712c53: Download complete
+0cdfc325f2b4: Download complete
+1b677f31311c: Download complete
+85b3b8ad1423: Download complete
+4cda0912b309: Download complete
+2ab213609ea7: Download complete
+464ad957193a: Download complete
+0368fd46e3c6: Download complete
+5c37c47e81b6: Download complete
+416b11d5b2c1: Pull complete
+85b3b8ad1423: Pull complete
+464ad957193a: Pull complete
+0368fd46e3c6: Pull complete
+5b30f3bf00d3: Download complete
+592a59ca2ce5: Download complete
+6f0d155e2dc9: Download complete
+d43fac4d75e4: Download complete
+2648c8fdc540: Download complete
+b26adc456b26: Download complete
+9ac04ba7198d: Download complete
+4339b35c8b70: Download complete
+8511c9712c53: Pull complete
+9ac04ba7198d: Pull complete
+0cdfc325f2b4: Pull complete
+1b677f31311c: Pull complete
+4cda0912b309: Pull complete
+2ab213609ea7: Pull complete
+2648c8fdc540: Pull complete
+5c37c47e81b6: Pull complete
+5b30f3bf00d3: Pull complete
+d43fac4d75e4: Pull complete
+4339b35c8b70: Pull complete
+b26adc456b26: Pull complete
+6f0d155e2dc9: Pull complete
+Digest: sha256:c17f60ac41a9b5c529af918e8827156bb02faeddb3fab1c961b4eebe52b25d83
+Status: Downloaded newer image for timescale/timescaledb:2.21.1-pg17
+docker.io/timescale/timescaledb:2.21.1-pg17

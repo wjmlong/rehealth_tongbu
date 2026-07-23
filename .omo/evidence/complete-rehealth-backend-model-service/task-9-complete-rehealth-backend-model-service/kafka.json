@@ -1,0 +1,17 @@
+{
+  "cleanup": "containers_and_volumes_removed",
+  "fixture": "/workspace/backend/contracts/fixtures/valid/mixed-batch.json",
+  "passed": true,
+  "results": {
+    "broker_outage_pending_rows": 1,
+    "consumer_poison_dlq": true,
+    "idempotent_projection_rows": 1,
+    "later_event_progress": true,
+    "per_device_key": "opaque_device_t9_12345678",
+    "publisher_poison_quarantined": true,
+    "recovery_logical_events": 1,
+    "redacted": true
+  },
+  "runtime_verified": true,
+  "selected_cases": []
+}
