@@ -12,6 +12,12 @@ public final class DeviceRequestException extends RuntimeException {
         this.errorCode = errorCode;
     }
 
+    public DeviceRequestException(HttpStatus status, String errorCode, Throwable cause) {
+        super(errorCode, cause);
+        this.status = status;
+        this.errorCode = errorCode;
+    }
+
     public HttpStatus status() {
         return status;
     }

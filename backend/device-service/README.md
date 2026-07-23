@@ -12,8 +12,12 @@ and exposes:
 
 The scaffold fails closed for identity and persistence until concrete adapters
 are configured. Todo 7 provides the PostgreSQL 17 / TimescaleDB schema and
-Flyway lifecycle; Todo 8 still owns the telemetry-port adapter. This module
-does not copy Jeecg repositories or model responsibilities.
+Flyway lifecycle. Todo 8 adds the telemetry-port adapter: each accepted batch,
+normalized telemetry, quality/rejection records, reconciliation state, and
+versioned Outbox events commit in one Timescale transaction. Duplicate replays
+return the original receipt without adding rows. Kafka publication remains a
+separate concern. This module does not copy Jeecg repositories or model
+responsibilities.
 
 Readiness is `OUT_OF_SERVICE` until both identity authorization and telemetry
 storage report ready. The HTTP identity adapter requires

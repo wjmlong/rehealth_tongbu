@@ -1,11 +1,14 @@
 package com.rehealth.device.config;
 
 import org.flywaydb.core.Flyway;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import javax.sql.DataSource;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -15,18 +18,29 @@ import java.util.Map;
 @ConditionalOnProperty(name = "rehealth.hardware-db.enabled", havingValue = "true")
 @EnableConfigurationProperties(TimescaleDatabaseProperties.class)
 public class TimescaleMigrationConfiguration {
-    @Bean(initMethod = "migrate")
-    public Flyway hardwareDatabaseFlyway(
-            TimescaleDatabaseProperties properties
-    ) throws IOException {
-        TimescaleDatabaseProperties.Retention retention = properties.getRetention();
+    @Bean(name = "hardwareDataSource")
+    public DataSource hardwareDataSource(TimescaleDatabaseProperties properties) throws IOException {
         String url = required(properties.getUrl(), "REHEALTH_HARDWARE_DB_URL");
         String username = required(
                 properties.getUsername(), "REHEALTH_HARDWARE_DB_USERNAME");
         String password = databasePassword(properties);
         TimescalePrerequisiteValidator.validate(url, username, password);
+        return DataSourceBuilder.create()
+                .url(url)
+                .username(username)
+                .password(password)
+                .driverClassName("org.postgresql.Driver")
+                .build();
+    }
+
+    @Bean(initMethod = "migrate")
+    public Flyway hardwareDatabaseFlyway(
+            @Qualifier("hardwareDataSource") DataSource dataSource,
+            TimescaleDatabaseProperties properties
+    ) {
+        TimescaleDatabaseProperties.Retention retention = properties.getRetention();
         return Flyway.configure()
-                .dataSource(url, username, password)
+                .dataSource(dataSource)
                 .locations("classpath:db/migration/timescale")
                 .placeholders(Map.of(
                         "measurementRetentionDays", positive(retention.getMeasurementDays()),
@@ -37,6 +51,12 @@ public class TimescaleMigrationConfiguration {
                 .failOnMissingLocations(true)
                 .validateMigrationNaming(true)
                 .load();
+    }
+
+    public Flyway hardwareDatabaseFlyway(
+            TimescaleDatabaseProperties properties
+    ) throws IOException {
+        return hardwareDatabaseFlyway(hardwareDataSource(properties), properties);
     }
 
     private String databasePassword(TimescaleDatabaseProperties properties) throws IOException {
