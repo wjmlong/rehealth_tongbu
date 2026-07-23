@@ -170,6 +170,20 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
     }
 
     @Override
+    public boolean hasActiveDeviceBinding(String userId, String deviceId) {
+        requireUser(userId);
+        if (deviceId == null || deviceId.isBlank()) {
+            return false;
+        }
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM rehealth_device_binding
+                WHERE user_id = ? AND device_id = ? AND status = 'BOUND'
+                """, Integer.class, userId, deviceId);
+        return count != null && count > 0;
+    }
+
+    @Override
     @Transactional
     public void saveRiskResult(
             String userId,

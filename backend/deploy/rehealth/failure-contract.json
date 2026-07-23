@@ -1,0 +1,26 @@
+{
+  "timescale_down": {
+    "ingest_ready": false,
+    "publisher_status": "unavailable",
+    "model_ready": true,
+    "reason": "hardware persistence is a required ingest dependency"
+  },
+  "auth_down": {
+    "ingest_ready": false,
+    "publisher_status": "unavailable",
+    "model_ready": true,
+    "reason": "identity and active device binding must resolve before ingest"
+  },
+  "kafka_down": {
+    "ingest_ready": true,
+    "publisher_status": "degraded",
+    "model_ready": true,
+    "reason": "Timescale commit and Outbox remain authoritative while publish is delayed"
+  },
+  "bad_model_hash": {
+    "ingest_ready": true,
+    "publisher_status": "ready",
+    "model_ready": false,
+    "reason": "model capability fails closed when artifact verification fails"
+  }
+}

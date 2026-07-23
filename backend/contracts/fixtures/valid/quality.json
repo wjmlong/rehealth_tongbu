@@ -1,0 +1,16 @@
+{
+  "event_type": "rehealth.telemetry.quality.v1",
+  "event_id": "evt_01JABCDF",
+  "batch_id": "batch_01JABCDF",
+  "schema_id": "rehealth.telemetry.quality.v1",
+  "tenant_ref": "opaque_tenant_A1B2C3D4",
+  "user_ref": "opaque_user_A1B2C3D4",
+  "device_ref": "opaque_device_A1B2C3D4",
+  "window_started_at": "2026-07-23T00:00:00Z",
+  "window_ended_at": "2026-07-23T00:05:00Z",
+  "record_count": 12,
+  "accepted_count": 11,
+  "rejected_count": 1,
+  "quality_status": "accepted_with_warnings",
+  "persistence_status": "persisted"
+}

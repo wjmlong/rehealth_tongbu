@@ -4,8 +4,8 @@ status: awaiting-approval
 intent: unclear
 review_required: true
 plan_path: .omo/plans/complete-rehealth-backend-model-service.md
-plan_sha256: 8b78bbc9c415fc94653f60c9eafdfff0e412ac04edd600fd034097cb3fd1f9b1
-review_round_id: r20260723100000-b7c4e219
+plan_sha256: 88d8ff0e20f3eda5dfd481ae1f006a71a06a4a59dcfbd5a5a154ffc7e3aa6c4a
+review_round_id: r20260723101500-c9d31a7f
 round_status: active
 pending-action: review .omo/plans/complete-rehealth-backend-model-service.md
 review:
@@ -14,20 +14,20 @@ review:
     workspace_root: D:/rehealthAI
     runtime_home: null
     target: .omo/plans/complete-rehealth-backend-model-service.md
-    round_id: r20260723100000-b7c4e219
-    plan_sha256: 8b78bbc9c415fc94653f60c9eafdfff0e412ac04edd600fd034097cb3fd1f9b1
-    launch_id: momus-r20260723100000-b7c4e219-l1
-    session: /root/review_backend_model_plan_r3
+    round_id: r20260723101500-c9d31a7f
+    plan_sha256: 88d8ff0e20f3eda5dfd481ae1f006a71a06a4a59dcfbd5a5a154ffc7e3aa6c4a
+    launch_id: momus-r20260723101500-c9d31a7f-l1
+    session: /root/review_backend_model_plan_r4
     result: null
   independent:
     status: in_flight
-    workspace_root: /tmp/omo-ulw-review-r20260723100000-b7c4e219/workspace
-    runtime_home: /tmp/omo-ulw-review-r20260723100000-b7c4e219/codex-home
+    workspace_root: C:/Users/wjmlong/AppData/Local/Temp/omo-ulw-review-r20260723101500-c9d31a7f/workspace
+    runtime_home: C:/Users/wjmlong/AppData/Local/Temp/omo-ulw-review-r20260723101500-c9d31a7f/codex-home
     target: .omo/plans/complete-rehealth-backend-model-service.md
-    round_id: r20260723100000-b7c4e219
-    plan_sha256: 8b78bbc9c415fc94653f60c9eafdfff0e412ac04edd600fd034097cb3fd1f9b1
-    launch_id: independent-r20260723100000-b7c4e219-l1
-    session: exec_session_23667
+    round_id: r20260723101500-c9d31a7f
+    plan_sha256: 88d8ff0e20f3eda5dfd481ae1f006a71a06a4a59dcfbd5a5a154ffc7e3aa6c4a
+    launch_id: independent-r20260723101500-c9d31a7f-l1
+    session: exec_session_41673_thread_019f8cc4-b617-7b32-81c4-825d67ee8f99
     result: null
 approach: Evolve the already-working authenticated pipeline into API Gateway + JeecgBoot + independent Device Service + Kafka + MySQL software_db + PostgreSQL/TimescaleDB hardware_db + model-service/PIAS, preserve mock attribution only as an explicit non-production demo switch, and complete the lower-priority doctor/institution/insurance/follow-up/health-task domains with Jeecg RBAC, menus and maintainable low-code administration surfaces.
 ---
@@ -91,6 +91,7 @@ approach: Evolve the already-working authenticated pipeline into API Gateway + J
 8. Keep Device Service ingest-ready during Kafka outages; Timescale data + Outbox are the durability boundary and Jeecg owns the idempotent Kafka projection.
 9. Dark-deploy/backfill/shadow-compare before Gateway cutover; after cutover, Timescale remains authoritative even if application binaries roll back.
 10. Treat the final gate as backend/model platform approval; physical MR11 evidence or an explicit release-authority waiver is still required for overall MVP release.
+11. Execute and push on the existing GitHub branch `codex/real-device`; do not create or switch branches, and protect unrelated working-tree changes with explicit staging allowlists.
 
 ## Scope IN
 

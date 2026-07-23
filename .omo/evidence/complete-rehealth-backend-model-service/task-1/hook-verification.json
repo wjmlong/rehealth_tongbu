@@ -1,0 +1,29 @@
+{
+  "artifact_sizes": {
+    "hook-reverify-contracts.json": 5974,
+    "hook-reverify-contracts.stdout.json": 5977,
+    "hook-reverify-exits.json": 141,
+    "hook-reverify-forbidden.json": 2700,
+    "hook-reverify-forbidden.stdout.json": 2703
+  },
+  "exit_codes": {
+    "diff_check_exit": 0,
+    "forbidden_exit": 0,
+    "happy_exit": 0,
+    "timestamp_utc": "2026-07-23T02:36:01.4034981Z"
+  },
+  "forbidden": {
+    "accepted": 0,
+    "rejected": 3,
+    "required_reasons_present": [
+      "client_owner",
+      "raw_signal",
+      "token"
+    ]
+  },
+  "happy": {
+    "accepted": 48,
+    "rejected": 0
+  },
+  "status": "passed"
+}

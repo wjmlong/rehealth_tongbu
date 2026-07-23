@@ -1,0 +1,450 @@
+name: rehealth
+
+x-rehealth-profiles: &rehealth-profiles
+  - development
+  - staging
+  - production
+
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  init: true
+  networks:
+    - backend
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  edge:
+    <<: *service-defaults
+    profiles: *rehealth-profiles
+    image: rehealth/edge:${REHEALTH_RELEASE_TAG:-local}
+    pull_policy: never
+    build:
+      context: ../..
+      dockerfile: deploy/rehealth/images/edge.Dockerfile
+    ports:
+      - "${REHEALTH_EDGE_BIND:-127.0.0.1}:${REHEALTH_EDGE_PORT:-8080}:8080"
+    depends_on:
+      gateway:
+        condition: service_healthy
+      admin-web:
+        condition: service_healthy
+    networks:
+      - edge
+      - backend
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+
+  gateway:
+    <<: *service-defaults
+    profiles: *rehealth-profiles
+    image: rehealth/jeecg-gateway:${REHEALTH_RELEASE_TAG:-local}
+    pull_policy: never
+    build:
+      context: ../..
+      dockerfile: deploy/rehealth/images/java-service.Dockerfile
+      args:
+        JAR_FILE: jeecg-boot/jeecg-server-cloud/jeecg-cloud-gateway/target/jeecg-cloud-gateway-3.9.2.jar
+    environment:
+      SPRING_PROFILES_ACTIVE: ${REHEALTH_RUNTIME_MODE:-development}
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
+      REHEALTH_GATEWAY_ROUTE_SEED: /etc/rehealth/gateway/rehealth-routes.json
+    volumes:
+      - ./gateway/rehealth-routes.json:/etc/rehealth/gateway/rehealth-routes.json:ro
+    depends_on:
+      nacos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9999/actuator/health/readiness"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  jeecg-boot:
+    <<: *service-defaults
+    profiles: *rehealth-profiles
+    image: rehealth/jeecg-system:${REHEALTH_RELEASE_TAG:-local}
+    pull_policy: never
+    build:
+      context: ../..
+      dockerfile: deploy/rehealth/images/java-service.Dockerfile
+      args:
+        JAR_FILE: jeecg-boot/jeecg-server-cloud/jeecg-system-cloud-start/target/jeecg-system-cloud-start-3.9.2.jar
+    environment:
+      SPRING_PROFILES_ACTIVE: ${REHEALTH_RUNTIME_MODE:-development}
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
+      REHEALTH_SOFTWARE_DB_URL: jdbc:mysql://software-db:3306/rehealth_software?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC
+      REHEALTH_SOFTWARE_DB_USERNAME: rehealth_software
+      REHEALTH_SOFTWARE_DB_PASSWORD_FILE: /run/secrets/software_db_password
+      REHEALTH_REDIS_HOST: redis
+      REHEALTH_REDIS_PASSWORD_FILE: /run/secrets/redis_password
+      REHEALTH_MODEL_SERVICE_BASE_URL: http://model-service:8000
+      REHEALTH_PIAS_BASE_URL: http://pias:8010
+      REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE: /run/secrets/internal_service_credential
+    secrets:
+      - software_db_password
+      - redis_password
+      - internal_service_credential
+    depends_on:
+      software-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      model-service:
+        condition: service_healthy
+      pias:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:7001/actuator/health/readiness"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
+
+  device-service:
+    <<: *service-defaults
+    profiles: *rehealth-profiles
+    image: rehealth/device-service:${REHEALTH_RELEASE_TAG:-local}
+    pull_policy: never
+    build:
+      context: ../..
+      dockerfile: deploy/rehealth/images/java-service.Dockerfile
+      args:
+        JAR_FILE: device-service/target/device-service.jar
+    environment:
+      SPRING_PROFILES_ACTIVE: ${REHEALTH_RUNTIME_MODE:-development}
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      REHEALTH_HARDWARE_DB_URL: jdbc:postgresql://hardware-db:5432/rehealth_hardware
+      REHEALTH_HARDWARE_DB_USERNAME: rehealth_hardware
+      REHEALTH_HARDWARE_DB_PASSWORD_FILE: /run/secrets/hardware_db_password
+      REHEALTH_IDENTITY_BASE_URL: http://jeecg-boot:7001/internal/rehealth/identity
+      REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE: /run/secrets/internal_service_credential
+      REHEALTH_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    secrets:
+      - hardware_db_password
+      - internal_service_credential
+    depends_on:
+      hardware-db:
+        condition: service_healthy
+      jeecg-boot:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      nacos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8091/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 45s
+    x-rehealth-readiness:
+      required:
+        - hardware-db
+        - jeecg-boot
+      degraded:
+        - kafka
+
+  software-db:
+    profiles: *rehealth-profiles
+    image: mysql:8.4.6@sha256:869218921e61d6c3c89820955d63cca42971f0e3e6c1e2792247bbd944ebc6e9
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: rehealth_software
+      MYSQL_USER: rehealth_software
+      MYSQL_PASSWORD_FILE: /run/secrets/software_db_password
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/software_db_root_password
+      TZ: UTC
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+00:00
+    secrets:
+      - software_db_password
+      - software_db_root_password
+    volumes:
+      - software-db-data:/var/lib/mysql
+    networks:
+      - data
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$(cat /run/secrets/software_db_password) mysqladmin ping -h 127.0.0.1 -u rehealth_software --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 45s
+    security_opt:
+      - no-new-privileges:true
+
+  hardware-db:
+    profiles: *rehealth-profiles
+    image: timescale/timescaledb:2.21.1-pg17@sha256:c17f60ac41a9b5c529af918e8827156bb02faeddb3fab1c961b4eebe52b25d83
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: rehealth_hardware
+      POSTGRES_USER: rehealth_hardware
+      POSTGRES_PASSWORD_FILE: /run/secrets/hardware_db_password
+      TZ: UTC
+    secrets:
+      - hardware_db_password
+    volumes:
+      - hardware-db-data:/var/lib/postgresql/data
+      - ./timescale/init.sql:/docker-entrypoint-initdb.d/001-init-timescale.sql:ro
+    networks:
+      - data
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rehealth_hardware -d rehealth_hardware"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+
+  kafka:
+    profiles: *rehealth-profiles
+    image: apache/kafka:4.3.1@sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: CONTROLLER://:9093,INTERNAL://:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_LOG_RETENTION_HOURS: 168
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    profiles: *rehealth-profiles
+    image: redis:7.4.5-alpine@sha256:bb186d083732f669da90be8b0f975a37812b15e913465bb14d845db72a4e3e08
+    restart: unless-stopped
+    command: ["sh", "-ec", "exec redis-server --appendonly yes --requirepass \"$$(cat /run/secrets/redis_password)\""]
+    secrets:
+      - redis_password
+    volumes:
+      - redis-data:/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$(cat /run/secrets/redis_password) redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    security_opt:
+      - no-new-privileges:true
+
+  nacos:
+    profiles: *rehealth-profiles
+    image: nacos/nacos-server:v2.5.1@sha256:8987908cb94ed5f9d30522a64493d35732a6c05f216d667a7addb022f3d92e80
+    restart: unless-stopped
+    environment:
+      MODE: standalone
+      NACOS_AUTH_ENABLE: "true"
+      NACOS_AUTH_TOKEN_FILE: /run/secrets/nacos_auth_token
+      NACOS_AUTH_IDENTITY_KEY_FILE: /run/secrets/nacos_identity_key
+      NACOS_AUTH_IDENTITY_VALUE_FILE: /run/secrets/nacos_identity_value
+    secrets:
+      - nacos_auth_token
+      - nacos_identity_key
+      - nacos_identity_value
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8848/nacos/v1/console/health/readiness | grep -q UP"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 45s
+    security_opt:
+      - no-new-privileges:true
+
+  model-artifact-verify:
+    profiles: *rehealth-profiles
+    image: rehealth/model-artifact-verifier:${REHEALTH_RELEASE_TAG:-local}
+    pull_policy: never
+    build:
+      context: ../..
+      dockerfile: deploy/rehealth/images/model-artifact-verifier.Dockerfile
+    command:
+      - /opt/rehealth/verify-model-artifact.sh
+      - /artifacts/model_manifest.json
+      - /artifacts/model_manifest.sig
+      - /run/secrets/model_artifact_public_key
+      - /verified/manifest.sha256
+    secrets:
+      - model_artifact_public_key
+    volumes:
+      - ${REHEALTH_MODEL_ARTIFACT_DIR:-./artifacts}:/artifacts:ro
+      - model-artifact-verification:/verified
+    networks:
+      - backend
+    restart: "no"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+  model-service:
+    <<: *service-defaults
+    profiles: *rehealth-profiles
+    image: rehealth/model-service:${REHEALTH_RELEASE_TAG:-local}
+    pull_policy: never
+    build:
+      context: ../../..
+      dockerfile: backend/deploy/rehealth/images/model-service.Dockerfile
+    environment:
+      REHEALTH_RUNTIME_MODE: ${REHEALTH_RUNTIME_MODE:-development}
+      REHEALTH_MODEL_DIR: /artifacts
+      REHEALTH_MODEL_VERIFICATION_FILE: /verified/manifest.sha256
+    volumes:
+      - ${REHEALTH_MODEL_ARTIFACT_DIR:-./artifacts}:/artifacts:ro
+      - model-artifact-verification:/verified:ro
+    depends_on:
+      model-artifact-verify:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  pias:
+    <<: *service-defaults
+    profiles: *rehealth-profiles
+    image: rehealth/pias:${REHEALTH_RELEASE_TAG:-local}
+    pull_policy: never
+    build:
+      context: ../../..
+      dockerfile: backend/deploy/rehealth/images/pias.Dockerfile
+    environment:
+      REHEALTH_RUNTIME_MODE: ${REHEALTH_RUNTIME_MODE:-development}
+      REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE: /run/secrets/internal_service_credential
+    secrets:
+      - internal_service_credential
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8010/health/readiness', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  admin-web:
+    <<: *service-defaults
+    profiles: *rehealth-profiles
+    image: rehealth/jeecg-vue:${REHEALTH_RELEASE_TAG:-local}
+    pull_policy: never
+    build:
+      context: ../..
+      dockerfile: deploy/rehealth/images/admin-web.Dockerfile
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  prometheus:
+    profiles: *rehealth-profiles
+    image: prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - observability
+      - backend
+    security_opt:
+      - no-new-privileges:true
+
+  grafana:
+    profiles: *rehealth-profiles
+    image: grafana/grafana:12.1.0@sha256:6ac590e7cabc2fbe8d7b8fc1ce9c9f0582177b334e0df9c927ebd9670469440f
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    secrets:
+      - grafana_admin_password
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./observability/grafana-datasources.yml:/etc/grafana/provisioning/datasources/rehealth.yml:ro
+    networks:
+      - observability
+    security_opt:
+      - no-new-privileges:true
+
+secrets:
+  software_db_password:
+    file: ./secrets/software_db_password
+  software_db_root_password:
+    file: ./secrets/software_db_root_password
+  hardware_db_password:
+    file: ./secrets/hardware_db_password
+  redis_password:
+    file: ./secrets/redis_password
+  internal_service_credential:
+    file: ./secrets/internal_service_credential
+  nacos_auth_token:
+    file: ./secrets/nacos_auth_token
+  nacos_identity_key:
+    file: ./secrets/nacos_identity_key
+  nacos_identity_value:
+    file: ./secrets/nacos_identity_value
+  grafana_admin_password:
+    file: ./secrets/grafana_admin_password
+  model_artifact_public_key:
+    file: ./secrets/model_artifact_public_key.pem
+
+volumes:
+  software-db-data:
+  hardware-db-data:
+  kafka-data:
+  redis-data:
+  model-artifact-verification:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  edge:
+  backend:
+    internal: true
+  data:
+    internal: true
+  observability:
+    internal: true

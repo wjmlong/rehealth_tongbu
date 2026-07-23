@@ -1,0 +1,7 @@
+﻿ M .omo/boulder.json
+ M .omo/drafts/complete-rehealth-backend-model-service.md
+ M .omo/plans/complete-rehealth-backend-model-service.md
+?? .omo/drafts/independent-review-r20260723101500-c9d31a7f.prompt
+?? .omo/drafts/tcp_forward_proxy.ps1
+?? .omo/evidence/complete-rehealth-backend-model-service/
+?? backend/contracts/

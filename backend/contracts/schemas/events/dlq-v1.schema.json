@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:rehealth:telemetry:dlq:v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_type", "event_id", "batch_id", "schema_id", "tenant_ref", "user_ref", "device_ref", "record_count", "source_event_type", "failure_code", "attempt_count", "persistence_status"],
+  "properties": {
+    "event_type": {"type": "string", "enum": ["rehealth.telemetry.dlq.v1"]},
+    "event_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{8,128}$"},
+    "batch_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{8,128}$"},
+    "schema_id": {"type": "string", "enum": ["rehealth.telemetry.dlq.v1"]},
+    "tenant_ref": {"type": "string", "pattern": "^opaque_[A-Za-z0-9_-]{8,128}$"},
+    "user_ref": {"type": "string", "pattern": "^opaque_[A-Za-z0-9_-]{8,128}$"},
+    "device_ref": {"type": "string", "pattern": "^opaque_[A-Za-z0-9_-]{8,128}$"},
+    "record_count": {"type": "integer"},
+    "source_event_type": {"type": "string", "enum": ["rehealth.telemetry.persisted.v1", "rehealth.telemetry.quality.v1"]},
+    "failure_code": {"type": "string", "enum": ["unsupported_schema", "consumer_poison", "retry_exhausted"]},
+    "attempt_count": {"type": "integer"},
+    "persistence_status": {"type": "string", "enum": ["persisted", "rejected"]}
+  }
+}

@@ -1,0 +1,7 @@
+﻿COMMAND: python backend/contracts/scripts/validate_contracts.py --all --fixtures backend/contracts/fixtures/valid --report D:\rehealthAI\.omo\evidence\complete-rehealth-backend-model-service\task-1/hook3-contracts.json
+EXIT: 0
+COMMAND: python backend/contracts/scripts/validate_contracts.py --fixtures backend/contracts/fixtures/forbidden --expect-rejected token,raw_signal,client_owner
+EXIT: 0
+COMMAND: git diff --check -- backend/contracts backend/docs
+EXIT: 0
+OBSERVED: happy_exit=0 forbidden_exit=0 diff_exit=0

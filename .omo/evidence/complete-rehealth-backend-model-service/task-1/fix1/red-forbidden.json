@@ -1,0 +1,193 @@
+{
+  "accepted": 2,
+  "checks": [
+    {
+      "accepted": false,
+      "artifact": "backend\\contracts\\fixtures\\forbidden\\client_owner.json",
+      "reasons": [
+        "client_owner",
+        "schema:additional:client_owner",
+        "schema:missing:batch_id",
+        "schema:missing:device_ref",
+        "schema:missing:event_id",
+        "schema:missing:persistence_status",
+        "schema:missing:quality_status",
+        "schema:missing:record_count",
+        "schema:missing:schema_id",
+        "schema:missing:tenant_ref",
+        "schema:missing:user_ref",
+        "schema:missing:window_ended_at",
+        "schema:missing:window_started_at"
+      ]
+    },
+    {
+      "accepted": true,
+      "artifact": "backend\\contracts\\fixtures\\forbidden\\event_type_escape.json",
+      "reasons": []
+    },
+    {
+      "accepted": false,
+      "artifact": "backend\\contracts\\fixtures\\forbidden\\heart_rate.json",
+      "reasons": [
+        "schema:additional:heart_rate",
+        "schema:missing:batch_id",
+        "schema:missing:device_ref",
+        "schema:missing:event_id",
+        "schema:missing:persistence_status",
+        "schema:missing:quality_status",
+        "schema:missing:record_count",
+        "schema:missing:schema_id",
+        "schema:missing:tenant_ref",
+        "schema:missing:user_ref",
+        "schema:missing:window_ended_at",
+        "schema:missing:window_started_at"
+      ]
+    },
+    {
+      "accepted": false,
+      "artifact": "backend\\contracts\\fixtures\\forbidden\\metrics.json",
+      "reasons": [
+        "schema:additional:metrics",
+        "schema:missing:batch_id",
+        "schema:missing:device_ref",
+        "schema:missing:event_id",
+        "schema:missing:persistence_status",
+        "schema:missing:quality_status",
+        "schema:missing:record_count",
+        "schema:missing:schema_id",
+        "schema:missing:tenant_ref",
+        "schema:missing:user_ref",
+        "schema:missing:window_ended_at",
+        "schema:missing:window_started_at"
+      ]
+    },
+    {
+      "accepted": false,
+      "artifact": "backend\\contracts\\fixtures\\forbidden\\raw_ppg.json",
+      "reasons": [
+        "schema:additional:raw_ppg",
+        "schema:missing:batch_id",
+        "schema:missing:device_ref",
+        "schema:missing:event_id",
+        "schema:missing:persistence_status",
+        "schema:missing:quality_status",
+        "schema:missing:record_count",
+        "schema:missing:schema_id",
+        "schema:missing:tenant_ref",
+        "schema:missing:user_ref",
+        "schema:missing:window_ended_at",
+        "schema:missing:window_started_at"
+      ]
+    },
+    {
+      "accepted": false,
+      "artifact": "backend\\contracts\\fixtures\\forbidden\\raw_signal.json",
+      "reasons": [
+        "raw_signal",
+        "schema:additional:raw_signal",
+        "schema:missing:batch_id",
+        "schema:missing:device_ref",
+        "schema:missing:event_id",
+        "schema:missing:persistence_status",
+        "schema:missing:quality_status",
+        "schema:missing:record_count",
+        "schema:missing:schema_id",
+        "schema:missing:tenant_ref",
+        "schema:missing:user_ref",
+        "schema:missing:window_ended_at",
+        "schema:missing:window_started_at"
+      ]
+    },
+    {
+      "accepted": false,
+      "artifact": "backend\\contracts\\fixtures\\forbidden\\schema_ref_escape.json",
+      "reasons": [
+        "schema:additional:$ref",
+        "schema:missing:batch_id",
+        "schema:missing:device_ref",
+        "schema:missing:event_id",
+        "schema:missing:persistence_status",
+        "schema:missing:quality_status",
+        "schema:missing:record_count",
+        "schema:missing:schema_id",
+        "schema:missing:tenant_ref",
+        "schema:missing:user_ref",
+        "schema:missing:window_ended_at",
+        "schema:missing:window_started_at"
+      ]
+    },
+    {
+      "accepted": false,
+      "artifact": "backend\\contracts\\fixtures\\forbidden\\spo2.json",
+      "reasons": [
+        "schema:additional:spo2",
+        "schema:missing:batch_id",
+        "schema:missing:device_ref",
+        "schema:missing:event_id",
+        "schema:missing:persistence_status",
+        "schema:missing:quality_status",
+        "schema:missing:record_count",
+        "schema:missing:schema_id",
+        "schema:missing:tenant_ref",
+        "schema:missing:user_ref",
+        "schema:missing:window_ended_at",
+        "schema:missing:window_started_at"
+      ]
+    },
+    {
+      "accepted": false,
+      "artifact": "backend\\contracts\\fixtures\\forbidden\\token.json",
+      "reasons": [
+        "schema:additional:token",
+        "schema:missing:batch_id",
+        "schema:missing:device_ref",
+        "schema:missing:event_id",
+        "schema:missing:persistence_status",
+        "schema:missing:quality_status",
+        "schema:missing:record_count",
+        "schema:missing:schema_id",
+        "schema:missing:tenant_ref",
+        "schema:missing:user_ref",
+        "schema:missing:window_ended_at",
+        "schema:missing:window_started_at",
+        "token"
+      ]
+    },
+    {
+      "accepted": true,
+      "artifact": "backend\\contracts\\fixtures\\forbidden\\unknown_event_type.json",
+      "reasons": []
+    }
+  ],
+  "expected_rejected_reasons": [
+    "client_owner",
+    "raw_signal",
+    "token"
+  ],
+  "rejected": 8,
+  "rejected_reasons": [
+    "client_owner",
+    "raw_signal",
+    "schema:additional:$ref",
+    "schema:additional:client_owner",
+    "schema:additional:heart_rate",
+    "schema:additional:metrics",
+    "schema:additional:raw_ppg",
+    "schema:additional:raw_signal",
+    "schema:additional:spo2",
+    "schema:additional:token",
+    "schema:missing:batch_id",
+    "schema:missing:device_ref",
+    "schema:missing:event_id",
+    "schema:missing:persistence_status",
+    "schema:missing:quality_status",
+    "schema:missing:record_count",
+    "schema:missing:schema_id",
+    "schema:missing:tenant_ref",
+    "schema:missing:user_ref",
+    "schema:missing:window_ended_at",
+    "schema:missing:window_started_at",
+    "token"
+  ],
+  "status": "failed"
+}

@@ -32,6 +32,8 @@ public interface ReHealthBusinessRepository {
 
     DeviceBindResponseDto recordDeviceBinding(String userId, DeviceBindRequestDto request);
 
+    boolean hasActiveDeviceBinding(String userId, String deviceId);
+
     void saveRiskResult(String userId, String requestId, RiskEvaluateRequestDto request, RiskEvaluateResponseDto response);
 
     Optional<RiskEvaluateResponseDto> findLatestRiskResult(String userId);

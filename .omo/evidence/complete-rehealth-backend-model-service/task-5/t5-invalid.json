@@ -1,0 +1,1 @@
+[{"accepted": false, "case": "production_demo", "rejection_code": "ATTRIBUTION_MODE_UNSAFE"}, {"accepted": false, "case": "disabled_software_db", "rejection_code": "SOFTWARE_DB_REQUIRED"}, {"accepted": false, "case": "http_external", "rejection_code": "SECURE_URL_REQUIRED"}, {"accepted": false, "case": "embedded_secret", "rejection_code": "EMBEDDED_SECRET_FORBIDDEN"}]

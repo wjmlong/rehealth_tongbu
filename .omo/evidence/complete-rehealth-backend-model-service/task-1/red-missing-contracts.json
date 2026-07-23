@@ -1,0 +1,18 @@
+{
+  "accepted": 0,
+  "checks": [
+    {
+      "accepted": false,
+      "artifact": "openapi",
+      "reasons": [
+        "missing:openapi"
+      ]
+    }
+  ],
+  "expected_rejected_reasons": [],
+  "rejected": 1,
+  "rejected_reasons": [
+    "missing:openapi"
+  ],
+  "status": "failed"
+}

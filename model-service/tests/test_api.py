@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
-from app.main import app
+from app.main import app, create_app
+from app.runtime_config import AttributionMode, RuntimeConfig, RuntimeMode
 
 
 client = TestClient(app)
@@ -206,7 +207,14 @@ def test_risk_endpoint_rejects_missing_quality_entries():
 
 
 def test_individual_attribution_endpoint_shape():
-    response = client.post(
+    demo_client = TestClient(create_app(RuntimeConfig(
+        runtime_mode=RuntimeMode.DEMO,
+        attribution_mode=AttributionMode.DEMO_MOCK,
+        demo_enabled=True,
+        mock_attribution_enabled=True,
+        provenance="demo_mock",
+    )))
+    response = demo_client.post(
         "/v1/cvd/attribution/individual",
         json={
             "baselineRiskScore": 0.40,
@@ -222,3 +230,12 @@ def test_individual_attribution_endpoint_shape():
     assert body["model_version"]
     assert body["trend_delta"] == -0.06
     assert body["adherence_average"] == 0.65
+
+
+def test_mock_attribution_endpoint_is_absent_by_default():
+    response = client.post(
+        "/v1/cvd/attribution/individual",
+        json={"baselineRiskScore": 0.4, "events": []},
+    )
+
+    assert response.status_code == 404

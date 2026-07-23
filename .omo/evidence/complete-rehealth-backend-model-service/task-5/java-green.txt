@@ -1,0 +1,99 @@
+[[1;34mINFO[m] Scanning for projects...
+[[1;34mINFO[m] [1m------------------------------------------------------------------------[m
+[[1;34mINFO[m] [1mReactor Build Order:[m
+[[1;34mINFO[m] 
+[[1;34mINFO[m] JEECG BOOT 3.9.2                                                   [pom]
+[[1;34mINFO[m] jeecg-boot-base-core                                               [jar]
+[[1;34mINFO[m] jeecg-boot-module                                                  [pom]
+[[1;34mINFO[m] jeecg-module-rehealth                                              [jar]
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m-------------< [0;36morg.jeecgframework.boot3:jeecg-boot-parent[0;1m >-------------[m
+[[1;34mINFO[m] [1mBuilding JEECG BOOT 3.9.2 3.9.2                                    [1/4][m
+[[1;34mINFO[m] [1m--------------------------------[ pom ]---------------------------------[m
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m-----------< [0;36morg.jeecgframework.boot3:jeecg-boot-base-core[0;1m >------------[m
+[[1;34mINFO[m] [1mBuilding jeecg-boot-base-core 3.9.2                                [2/4][m
+[[1;34mINFO[m] [1m--------------------------------[ jar ]---------------------------------[m
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m--- [0;32mmaven-resources-plugin:3.3.1:resources[m [1m(default-resources)[m @ [36mjeecg-boot-base-core[0;1m ---[m
+[[1;34mINFO[m] Copying 9 resources from src/main/resources to target/classes
+[[1;34mINFO[m] Copying 1 resource from src/main/java to target/classes
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m--- [0;32mmaven-compiler-plugin:3.14.0:compile[m [1m(default-compile)[m @ [36mjeecg-boot-base-core[0;1m ---[m
+[[1;34mINFO[m] Recompiling the module because of [1mchanged source code[m.
+[[1;34mINFO[m] Compiling 214 source files with javac [debug parameters release 17] to target/classes
+[[1;33mWARNING[m] /mnt/d/rehealthAI/backend/jeecg-boot/jeecg-boot-base-core/src/main/java/org/jeecg/common/api/dto/message/BusMessageDTO.java:[13,1] Generating equals/hashCode implementation but without a call to superclass, even though this class does not extend java.lang.Object. If this is intentional, add '@EqualsAndHashCode(callSuper=false)' to your type.
+[[1;33mWARNING[m] /mnt/d/rehealthAI/backend/jeecg-boot/jeecg-boot-base-core/src/main/java/org/jeecg/config/AiChatConfig.java:[72,5] Generating equals/hashCode implementation but without a call to superclass, even though this class does not extend java.lang.Object. If this is intentional, add '@EqualsAndHashCode(callSuper=false)' to your type.
+[[1;33mWARNING[m] /mnt/d/rehealthAI/backend/jeecg-boot/jeecg-boot-base-core/src/main/java/org/jeecg/config/AiChatConfig.java:[84,5] Generating equals/hashCode implementation but without a call to superclass, even though this class does not extend java.lang.Object. If this is intentional, add '@EqualsAndHashCode(callSuper=false)' to your type.
+[[1;33mWARNING[m] /mnt/d/rehealthAI/backend/jeecg-boot/jeecg-boot-base-core/src/main/java/org/jeecg/common/api/dto/message/BusTemplateMessageDTO.java:[12,1] Generating equals/hashCode implementation but without a call to superclass, even though this class does not extend java.lang.Object. If this is intentional, add '@EqualsAndHashCode(callSuper=false)' to your type.
+[[1;33mWARNING[m] /mnt/d/rehealthAI/backend/jeecg-boot/jeecg-boot-base-core/src/main/java/org/jeecg/common/api/dto/message/TemplateMessageDTO.java:[11,1] Generating equals/hashCode implementation but without a call to superclass, even though this class does not extend java.lang.Object. If this is intentional, add '@EqualsAndHashCode(callSuper=false)' to your type.
+[[1;33mWARNING[m] /mnt/d/rehealthAI/backend/jeecg-boot/jeecg-boot-base-core/src/main/java/org/jeecg/common/util/oConvertUtils.java:[232,45] Integer(java.lang.String) in java.lang.Integer has been deprecated and marked for removal
+[[1;33mWARNING[m] /mnt/d/rehealthAI/backend/jeecg-boot/jeecg-boot-base-core/src/main/java/org/jeecg/common/util/oConvertUtils.java:[297,29] Long(long) in java.lang.Long has been deprecated and marked for removal
+[[1;33mWARNING[m] /mnt/d/rehealthAI/backend/jeecg-boot/jeecg-boot-base-core/src/main/java/org/jeecg/common/util/oConvertUtils.java:[792,102] non-varargs call of varargs method with inexact argument type for last parameter;
+  cast to java.lang.Object for a varargs call
+  cast to java.lang.Object[] for a non-varargs call and to suppress this warning
+[[1;34mINFO[m] /mnt/d/rehealthAI/backend/jeecg-boot/jeecg-boot-base-core/src/main/java/org/jeecg/common/aspect/DictAspect.java: Some input files use or override a deprecated API.
+[[1;34mINFO[m] /mnt/d/rehealthAI/backend/jeecg-boot/jeecg-boot-base-core/src/main/java/org/jeecg/common/aspect/DictAspect.java: Recompile with -Xlint:deprecation for details.
+[[1;34mINFO[m] /mnt/d/rehealthAI/backend/jeecg-boot/jeecg-boot-base-core/src/main/java/org/jeecg/common/api/vo/Result.java: Some input files use unchecked or unsafe operations.
+[[1;34mINFO[m] /mnt/d/rehealthAI/backend/jeecg-boot/jeecg-boot-base-core/src/main/java/org/jeecg/common/api/vo/Result.java: Recompile with -Xlint:unchecked for details.
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m--- [0;32mmaven-resources-plugin:3.3.1:testResources[m [1m(default-testResources)[m @ [36mjeecg-boot-base-core[0;1m ---[m
+[[1;34mINFO[m] skip non existing resourceDirectory /mnt/d/rehealthAI/backend/jeecg-boot/jeecg-boot-base-core/src/test/resources
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m--- [0;32mmaven-compiler-plugin:3.14.0:testCompile[m [1m(default-testCompile)[m @ [36mjeecg-boot-base-core[0;1m ---[m
+[[1;34mINFO[m] Recompiling the module because of [1mchanged dependency[m.
+[[1;34mINFO[m] Compiling 1 source file with javac [debug parameters release 17] to target/test-classes
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m--- [0;32mmaven-surefire-plugin:3.5.3:test[m [1m(default-test)[m @ [36mjeecg-boot-base-core[0;1m ---[m
+[[1;34mINFO[m] Tests are skipped.
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m-------------< [0;36morg.jeecgframework.boot3:jeecg-boot-module[0;1m >-------------[m
+[[1;34mINFO[m] [1mBuilding jeecg-boot-module 3.9.2                                   [3/4][m
+[[1;34mINFO[m] [1m--------------------------------[ pom ]---------------------------------[m
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m-----------< [0;36morg.jeecgframework.boot3:jeecg-module-rehealth[0;1m >-----------[m
+[[1;34mINFO[m] [1mBuilding jeecg-module-rehealth 3.9.2                               [4/4][m
+[[1;34mINFO[m] [1m--------------------------------[ jar ]---------------------------------[m
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m--- [0;32mmaven-resources-plugin:3.3.1:resources[m [1m(default-resources)[m @ [36mjeecg-module-rehealth[0;1m ---[m
+[[1;34mINFO[m] Copying 3 resources from src/main/resources to target/classes
+[[1;34mINFO[m] Copying 0 resource from src/main/java to target/classes
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m--- [0;32mmaven-compiler-plugin:3.14.0:compile[m [1m(default-compile)[m @ [36mjeecg-module-rehealth[0;1m ---[m
+[[1;34mINFO[m] Recompiling the module because of [1mchanged dependency[m.
+[[1;34mINFO[m] Compiling 58 source files with javac [debug parameters release 17] to target/classes
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m--- [0;32mmaven-resources-plugin:3.3.1:testResources[m [1m(default-testResources)[m @ [36mjeecg-module-rehealth[0;1m ---[m
+[[1;34mINFO[m] Copying 0 resource from src/test/resources to target/test-classes
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m--- [0;32mmaven-compiler-plugin:3.14.0:testCompile[m [1m(default-testCompile)[m @ [36mjeecg-module-rehealth[0;1m ---[m
+[[1;34mINFO[m] Recompiling the module because of [1mchanged dependency[m.
+[[1;34mINFO[m] Compiling 13 source files with javac [debug parameters release 17] to target/test-classes
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m--- [0;32mmaven-surefire-plugin:3.5.3:test[m [1m(default-test)[m @ [36mjeecg-module-rehealth[0;1m ---[m
+[[1;34mINFO[m] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[[1;34mINFO[m] 
+[[1;34mINFO[m] -------------------------------------------------------
+[[1;34mINFO[m]  T E S T S
+[[1;34mINFO[m] -------------------------------------------------------
+[[1;34mINFO[m] Running org.jeecg.modules.rehealth.config.[1mReHealthRuntimeSafetyValidatorTest[m
+Standard Commons Logging discovery in action with spring-jcl: please remove commons-logging.jar from classpath in order to avoid potential conflicts
+[[1;34mINFO[m] [1;32mTests run: [0;1;32m6[m, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 40.11 s -- in org.jeecg.modules.rehealth.config.[1mReHealthRuntimeSafetyValidatorTest[m
+[[1;34mINFO[m] 
+[[1;34mINFO[m] Results:
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1;32mTests run: 6, Failures: 0, Errors: 0, Skipped: 0[m
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m------------------------------------------------------------------------[m
+[[1;34mINFO[m] [1mReactor Summary for JEECG BOOT 3.9.2 3.9.2:[m
+[[1;34mINFO[m] 
+[[1;34mINFO[m] JEECG BOOT 3.9.2 ................................... [1;32mSUCCESS[m [  0.002 s]
+[[1;34mINFO[m] jeecg-boot-base-core ............................... [1;32mSUCCESS[m [05:21 min]
+[[1;34mINFO[m] jeecg-boot-module .................................. [1;32mSUCCESS[m [  0.000 s]
+[[1;34mINFO[m] jeecg-module-rehealth .............................. [1;32mSUCCESS[m [29:45 min]
+[[1;34mINFO[m] [1m------------------------------------------------------------------------[m
+[[1;34mINFO[m] [1;32mBUILD SUCCESS[m
+[[1;34mINFO[m] [1m------------------------------------------------------------------------[m
+[[1;34mINFO[m] Total time:  37:21 min
+[[1;34mINFO[m] Finished at: 2026-07-23T11:56:33+08:00
+[[1;34mINFO[m] [1m------------------------------------------------------------------------[m

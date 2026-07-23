@@ -1,0 +1,7 @@
+{
+    "happy":  0,
+    "forbidden":  0,
+    "adversarial":  0,
+    "malformed":  1,
+    "untracked_diff_check":  1
+}

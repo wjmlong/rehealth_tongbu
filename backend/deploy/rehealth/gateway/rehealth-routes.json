@@ -1,0 +1,46 @@
+[
+  {
+    "id": "rehealth-device-telemetry",
+    "order": -100,
+    "predicates": [
+      {
+        "name": "Path",
+        "args": {
+          "_genkey_0": "/jeecg-boot/rehealth/mobile/measurements/batch",
+          "_genkey_1": "/jeecg-boot/rehealth/mobile/measurements/recent",
+          "_genkey_2": "/jeecg-boot/rehealth/device-ops/**"
+        }
+      }
+    ],
+    "filters": [
+      {
+        "name": "StripPrefix",
+        "args": {
+          "parts": "1"
+        }
+      }
+    ],
+    "uri": "lb://rehealth-device-service"
+  },
+  {
+    "id": "rehealth-business",
+    "order": -90,
+    "predicates": [
+      {
+        "name": "Path",
+        "args": {
+          "_genkey_0": "/jeecg-boot/rehealth/**"
+        }
+      }
+    ],
+    "filters": [
+      {
+        "name": "StripPrefix",
+        "args": {
+          "parts": "1"
+        }
+      }
+    ],
+    "uri": "lb://jeecg-system"
+  }
+]

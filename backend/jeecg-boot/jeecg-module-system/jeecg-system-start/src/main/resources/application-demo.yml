@@ -1,0 +1,22 @@
+rehealth:
+  runtime:
+    mode: demo
+  demo:
+    enabled: true
+  software-db:
+    enabled: ${REHEALTH_SOFTWARE_DB_ENABLED:false}
+  device-service:
+    enabled: ${REHEALTH_DEVICE_SERVICE_ENABLED:false}
+    base-url: ${REHEALTH_DEVICE_SERVICE_BASE_URL:}
+  timescale:
+    enabled: ${REHEALTH_TIMESCALE_ENABLED:false}
+  model-service:
+    base-url: ${REHEALTH_MODEL_SERVICE_BASE_URL:http://127.0.0.1:8000}
+    require-real-model: false
+  attribution-service:
+    base-url: ${REHEALTH_ATTRIBUTION_SERVICE_BASE_URL:http://127.0.0.1:8000}
+  attribution:
+    mode: ${REHEALTH_ATTRIBUTION_MODE:demo_mock}
+    provenance: demo_mock
+  provider-credentials:
+    embedded-secret: ""

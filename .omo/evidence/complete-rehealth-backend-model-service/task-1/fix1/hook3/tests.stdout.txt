@@ -1,0 +1,3 @@
+﻿.......                                                                  [100%]
+- generated xml file: D:\rehealthAI\.omo\evidence\complete-rehealth-backend-model-service\task-1\fix1\hook3\tests.xml -
+7 passed in 2.56s

@@ -1,0 +1,84 @@
+{
+  "artifacts": {
+    "contracts.json": {
+      "bytes": 5974,
+      "sha256": "abe19e62453d2f555bd2f70f8cf64028bf5eaa643e1081077a0653a638e169b8"
+    },
+    "contracts.stdout.json": {
+      "bytes": 5977,
+      "sha256": "185a68b852031035fe7f360cae7c31dad4e65473c5245c04c1a75adb00647faf"
+    },
+    "escape.json": {
+      "bytes": 1909,
+      "sha256": "19a04c428a74e2b638a733cc514cad14d43acfc12844d30c16e9a6473e497c5a"
+    },
+    "escape.stdout.json": {
+      "bytes": 1912,
+      "sha256": "b3595247ac518b37f29f40716575dcdde063d9279259964d6d8349fb2441e808"
+    },
+    "exits.json": {
+      "bytes": 240,
+      "sha256": "20e0560331fa3f58b67466d0eafb100cb6f12999328e8f50044e85aeae1c5d08"
+    },
+    "forbidden.json": {
+      "bytes": 6557,
+      "sha256": "cd4461f945b6739095807db0d4f519462574efc5a1f1bf887d94224cf327bd14"
+    },
+    "forbidden.stdout.json": {
+      "bytes": 6560,
+      "sha256": "42e4b4d3d3dc7d06e1f7357166ec26e4df86d18811ff21f74c2ad863388297f7"
+    },
+    "malformed.json": {
+      "bytes": 386,
+      "sha256": "fcd65777152a3299fc4ebe8b3407871f481b7a77a9e254ff1e9bee3be44455f0"
+    },
+    "malformed.stdout.json": {
+      "bytes": 389,
+      "sha256": "9ace8e8db474c74181a272d78ce515ac14890f956c1d8e420f0e807a7c5c9f02"
+    },
+    "metrics.json": {
+      "bytes": 3592,
+      "sha256": "8acfe2faee747853d7f2009798c192cdfe1010336108501cafd569cdde9a1d69"
+    },
+    "metrics.stdout.json": {
+      "bytes": 3595,
+      "sha256": "d6d7c1bb6924a9dc03ce76004bb4110238d192a29bd3f03b94fdc2b1938d2360"
+    },
+    "tests.stdout.txt": {
+      "bytes": 224,
+      "sha256": "bcaa505d5124d95072fe7e43b4de916774b51b6bb8e36ed53b0259303b17e506"
+    },
+    "tests.xml": {
+      "bytes": 1280,
+      "sha256": "02ad90ce6ddcf1916065fbc6bd963b0349ca37800891158b2f6c82a9d6be83ba"
+    }
+  },
+  "checks": {
+    "escape": true,
+    "exits": true,
+    "forbidden": true,
+    "happy": true,
+    "malformed": true,
+    "metrics": true,
+    "tests": true
+  },
+  "counts": {
+    "escape_rejected": 3,
+    "forbidden_rejected": 10,
+    "happy_accepted": 48,
+    "malformed_rejected": 1,
+    "metrics_rejected": 4,
+    "tests": 7
+  },
+  "exit_codes": {
+    "diff_check_exit": 0,
+    "escape_exit": 0,
+    "forbidden_exit": 0,
+    "happy_exit": 0,
+    "malformed_exit": 1,
+    "metrics_exit": 0,
+    "tests_exit": 0,
+    "timestamp_utc": "2026-07-23T02:51:46.7049262Z"
+  },
+  "status": "passed"
+}

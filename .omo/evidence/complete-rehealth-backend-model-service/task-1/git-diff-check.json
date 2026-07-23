@@ -1,0 +1,8 @@
+﻿{
+    "status":  "passed",
+    "exit_code":  0,
+    "scope":  [
+                  "backend/contracts",
+                  "backend/docs"
+              ]
+}

@@ -1,0 +1,19 @@
+TASK: Act as an independent high-accuracy work-plan reviewer. Review only the bound plan and do not edit or implement.
+
+FIRST ACTION: Run `wsl.exe -d Ubuntu-24.04 -- python3 /mnt/d/rehealthAI/.omo/drafts/descriptor_validate_review_plan.py /mnt/c/Users/wjmlong/AppData/Local/Temp/omo-ulw-review-r20260723101500-c9d31a7f/workspace 88d8ff0e20f3eda5dfd481ae1f006a71a06a4a59dcfbd5a5a154ffc7e3aa6c4a`. This opens the disposable Windows workspace through its exact WSL mount as a directory descriptor, traverses `.omo/plans/complete-rehealth-backend-model-service.md` descriptor-relative with O_NOFOLLOW, fstats every segment, and hashes bytes from the final descriptor. Also verify `wslpath -w` maps that descriptor root exactly to the literal Windows `workspace_root` below. If unsupported or any check differs, return INCONCLUSIVE before review. Do not search for or use another plan.
+
+BINDING:
+workspace_root=C:/Users/wjmlong/AppData/Local/Temp/omo-ulw-review-r20260723101500-c9d31a7f/workspace
+descriptor_workspace_root=/mnt/c/Users/wjmlong/AppData/Local/Temp/omo-ulw-review-r20260723101500-c9d31a7f/workspace
+runtime_home=C:/Users/wjmlong/AppData/Local/Temp/omo-ulw-review-r20260723101500-c9d31a7f/codex-home
+target=.omo/plans/complete-rehealth-backend-model-service.md
+artifact_identity=88d8ff0e20f3eda5dfd481ae1f006a71a06a4a59dcfbd5a5a154ffc7e3aa6c4a
+round_identity=r20260723101500-c9d31a7f
+launch_identity=independent-r20260723101500-c9d31a7f-l1
+receipt_identity=the Codex session/process identity emitted by this invocation
+
+REQUIRED ECHO: workspace_root, descriptor_workspace_root, runtime_home, target, artifact_identity, round_identity, launch_identity, and session/process receipt.
+
+REVIEW: Validate decision completeness, current repository references, dependency ordering, every task's exact executable happy/failure QA gate, scope fidelity, Kafka/Timescale consistency, auth/device binding/tenant security, signed MySQL migration/cutover gate and rollback, PIAS production hardening and explicit Demo Mock, health-agent boundary, complete doctor/institution/insurance/follow-up/task domains, Jeecg cloud/RBAC/menu/admin SPA, observability, load, backup/restore, `codex/real-device` branch handling and release authority. Reject worker-self-report or grep-only proof and any task requiring an unstated product decision.
+
+FINAL FORMAT: verdict exactly OKAY, ITERATE, REJECT, or INCONCLUSIVE; then binding echo, receipt, and concise cited findings. OKAY only if the plan is executable with zero further interview.

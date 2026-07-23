@@ -1,0 +1,9 @@
+﻿{
+    "tests":  0,
+    "happy":  0,
+    "forbidden":  0,
+    "escape":  0,
+    "metrics":  0,
+    "malformed":  1,
+    "diff":  0
+}

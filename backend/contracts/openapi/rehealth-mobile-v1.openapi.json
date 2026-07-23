@@ -1,0 +1,76 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ReHealth Android-compatible Mobile API",
+    "version": "1.0.0",
+    "description": "Frozen public contract. Gateway target changes must preserve these paths and serialized DTO fields."
+  },
+  "servers": [{"url": "/jeecg-boot"}],
+  "security": [{"XAccessToken": []}],
+  "paths": {
+    "/rehealth/mobile/health": {"get": {"security": [], "x-response-dto": "HealthResponseDto", "responses": {"200": {"description": "HealthResponseDto in Jeecg Result envelope"}}}},
+    "/rehealth/mobile/config": {"get": {"x-response-dto": "MobileConfigResponseDto", "responses": {"200": {"description": "MobileConfigResponseDto in Jeecg Result envelope"}}}},
+    "/rehealth/mobile/profile": {
+      "get": {"x-response-dto": "PatientProfileDto", "responses": {"200": {"description": "PatientProfileDto in Jeecg Result envelope"}}},
+      "put": {"x-request-dto": "PatientProfileDto", "x-response-dto": "PatientProfileDto", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/PatientProfileDto"}}}}, "responses": {"200": {"description": "PatientProfileDto in Jeecg Result envelope"}}}
+    },
+    "/rehealth/mobile/interviews": {"post": {"x-request-dto": "HealthInterviewSubmitRequestDto", "x-response-dto": "HealthInterviewSubmitRequestDto", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HealthInterviewSubmitRequestDto"}}}}, "responses": {"200": {"description": "Persisted interview in Jeecg Result envelope"}}}},
+    "/rehealth/mobile/interviews/latest": {"get": {"x-response-dto": "HealthInterviewSubmitRequestDto", "responses": {"200": {"description": "Latest interview in Jeecg Result envelope"}}}},
+    "/rehealth/mobile/devices/bind": {"post": {"x-request-dto": "DeviceBindRequestDto", "x-response-dto": "DeviceBindResponseDto", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/DeviceBindRequestDto"}}}}, "responses": {"200": {"description": "DeviceBindResponseDto in Jeecg Result envelope"}}}},
+    "/rehealth/mobile/measurements/batch": {"post": {"x-request-dto": "TelemetryBatchRequestDto", "x-response-dto": "TelemetryBatchResponseDto", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TelemetryBatchRequestDto"}}}}, "responses": {"200": {"description": "Durable ingest receipt in Jeecg Result envelope"}, "503": {"description": "Persistence unavailable; retry the same batchId"}}}},
+    "/rehealth/mobile/measurements/recent": {"get": {"x-response-dto": "RecentTelemetryResponseDto", "parameters": [{"name": "limit", "in": "query", "schema": {"type": "integer", "default": 50}}], "responses": {"200": {"description": "RecentTelemetryResponseDto in Jeecg Result envelope"}, "503": {"description": "Telemetry query unavailable"}}}},
+    "/rehealth/mobile/features/evaluate": {"post": {"x-request-dto": "RiskEvaluateRequestDto", "x-response-dto": "RiskEvaluateResponseDto", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/RiskEvaluateRequestDto"}}}}, "responses": {"200": {"description": "RiskEvaluateResponseDto in Jeecg Result envelope"}}}},
+    "/rehealth/mobile/risk/latest": {"get": {"x-response-dto": "RiskEvaluateResponseDto", "responses": {"200": {"description": "Latest RiskEvaluateResponseDto in Jeecg Result envelope"}}}},
+    "/rehealth/mobile/interventions/generate": {"post": {"x-request-dto": "InterventionGenerateRequestDto", "x-response-dto": "InterventionGenerateResponseDto", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/InterventionGenerateRequestDto"}}}}, "responses": {"200": {"description": "InterventionGenerateResponseDto in Jeecg Result envelope"}}}},
+    "/rehealth/mobile/interventions/today": {"get": {"x-response-dto": "InterventionGenerateResponseDto", "responses": {"200": {"description": "Latest InterventionGenerateResponseDto in Jeecg Result envelope"}}}},
+    "/rehealth/mobile/interventions/{id}/feedback": {"post": {"x-request-dto": "FeedbackRequestDto", "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/FeedbackRequestDto"}}}}, "responses": {"200": {"description": "Feedback receipt map in Jeecg Result envelope"}, "403": {"description": "Intervention is not owned by authenticated user"}}}},
+    "/rehealth/mobile/attribution/events": {"post": {"x-request-dto": "AttributionEventsRequestDto", "x-response-dto": "AttributionResponseDto", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/AttributionEventsRequestDto"}}}}, "responses": {"200": {"description": "AttributionResponseDto with explicit provenance/status"}}}}
+  },
+  "components": {
+    "securitySchemes": {"XAccessToken": {"type": "apiKey", "in": "header", "name": "X-Access-Token"}},
+    "schemas": {
+      "PatientProfileDto": {"type": "object", "properties": {"patientId": {}, "name": {}, "gender": {}, "age": {}, "heightCm": {}, "weightKg": {}, "bmi": {}, "diagnoses": {}, "medications": {}, "allergies": {}, "familyHistory": {}, "smoking": {}, "drinking": {}, "diabetesHistory": {}, "hypertensionHistory": {}, "updatedAt": {}}},
+      "HealthInterviewSubmitRequestDto": {"type": "object", "properties": {"answers": {}, "baselineItems": {}, "focusAreas": {}, "generatedAt": {}}},
+      "DeviceBindRequestDto": {"type": "object", "properties": {"deviceId": {}, "deviceName": {}, "manufacturer": {}, "model": {}, "firmwareVersion": {}, "hardwareAddressHash": {}}},
+      "TelemetryBatchRequestDto": {"type": "object", "description": "Legacy Android request shape; authenticated server identity overrides userId and raw signal upload remains disabled by configuration.", "properties": {"batchId": {}, "userId": {}, "deviceId": {}, "collectedFrom": {}, "collectedTo": {}, "source": {}, "measurements": {}, "sleepSessions": {}, "activitySessions": {}, "signalChunks": {}, "quality": {}}},
+      "RiskEvaluateRequestDto": {"type": "object", "properties": {"featureVector": {}, "requestId": {}}},
+      "InterventionGenerateRequestDto": {"type": "object", "properties": {"riskResult": {}, "featureVector": {}, "patientContext": {}}},
+      "FeedbackRequestDto": {"type": "object", "properties": {"status": {}, "adherence": {}, "note": {}, "checkedAt": {}}},
+      "AttributionEventsRequestDto": {"type": "object", "description": "Authenticated service scopes stored history; client history is compatibility input and never establishes ownership.", "properties": {"risk_history": {}, "forecast_days": {}, "language": {}}},
+      "HealthResponseDto": {"type": "object", "properties": {"status": {}, "service": {}, "module": {}, "modelServiceConfigured": {}, "dependencies": {}}},
+      "MobileConfigResponseDto": {"type": "object", "properties": {"apiVersion": {}, "modelContract": {}, "softwareDbPersistenceEnabled": {}, "hardwareIngestEnabled": {}, "ingestMode": {}, "ingestQueueType": {}, "hardwareDbEnabled": {}, "rawSignalUploadEnabled": {}, "endpoints": {}, "limitations": {}}},
+      "DeviceBindResponseDto": {"type": "object", "properties": {"deviceId": {}, "status": {}, "persisted": {}, "persistenceStage": {}}},
+      "TelemetryBatchResponseDto": {"type": "object", "properties": {"batchId": {}, "receiptId": {}, "status": {}, "accepted": {}, "persisted": {}, "queued": {}, "durableQueue": {}, "hardwareDbEnabled": {}, "rawSignalUploadEnabled": {}, "ingestStage": {}, "ingestMode": {}, "queueType": {}, "recordCount": {}, "measurementCount": {}, "sleepSessionCount": {}, "activitySessionCount": {}, "signalChunkCount": {}, "rejectedCount": {}, "warnings": {}}},
+      "RecentTelemetryResponseDto": {"type": "object", "properties": {"userId": {}, "limit": {}, "measurements": {}, "sleepSessions": {}, "activities": {}}},
+      "RiskEvaluateResponseDto": {"type": "object", "properties": {"risk_score": {}, "risk_level": {}, "feature_contributions": {}, "model_version": {}, "is_mock": {}, "missing_fields": {}, "quality_warnings": {}, "summary": {}, "model_trace": {}}},
+      "InterventionGenerateResponseDto": {"type": "object", "properties": {"plan_id": {}, "generated_at": {}, "priority_intervention": {}, "rationale": {}, "expected_impact": {}, "contraindications": {}, "confidence": {}, "model_version": {}, "is_mock": {}, "medical_disclaimer": {}}},
+      "AttributionResponseDto": {"type": "object", "properties": {"status": {}, "history_days": {}, "min_history_days": {}, "intervention_days": {}, "intervention_data_sufficient": {}, "current_state": {}, "forecast": {}, "intervention_effect": {}, "reports": {}, "model_version": {}, "trend_delta": {}, "adherence_average": {}, "interpretation": {}}}
+    }
+  },
+  "x-rehealth-characterization": {
+    "source": "ReHealthMobileController.java and serialized DTO annotations",
+    "dtoFields": {
+      "AttributionEventsRequestDto": ["Y", "Z", "date", "forecast_days", "language", "risk_history"],
+      "AttributionResponseDto": ["30d_no_action", "30d_with_plan", "adherence_average", "advice", "att_available", "att_ci_lower", "att_ci_upper", "att_p_value", "att_significant", "att_unavailable_reason", "body", "ci_lower", "ci_upper", "current_state", "dates", "forecast", "headline", "history_days", "individual_att", "interpretation", "intervention_data_sufficient", "intervention_days", "intervention_effect", "min_history_days", "model_version", "no_action", "raw", "reports", "risk_level", "risk_reduction", "risk_score", "status", "summary", "trend", "trend_delta", "user", "with_plan"],
+      "CvdFeatureVectorDto": ["age", "bmi", "dbp", "diabetes_history", "drinking", "exercise_days", "family_history", "fasting_glucose", "featureQuality", "gender", "hdl", "hypertension_history", "ldl", "sbp", "smoking", "total_cholesterol", "triglycerides"],
+      "DeviceBindRequestDto": ["deviceId", "deviceName", "firmwareVersion", "hardwareAddressHash", "manufacturer", "model"],
+      "DeviceBindResponseDto": ["deviceId", "persisted", "persistenceStage", "status"],
+      "FeatureQualityDto": ["observedAt", "reason", "source", "status"],
+      "FeedbackRequestDto": ["adherence", "checkedAt", "note", "status"],
+      "HealthInterviewAnswerDto": ["content", "questionId", "topic"],
+      "HealthInterviewBaselineItemDto": ["label", "value"],
+      "HealthInterviewSubmitRequestDto": ["answers", "baselineItems", "focusAreas", "generatedAt"],
+      "HealthResponseDto": ["dependencies", "modelServiceConfigured", "module", "service", "status"],
+      "InterventionGenerateRequestDto": ["featureVector", "patientContext", "riskResult"],
+      "InterventionGenerateResponseDto": ["confidence", "contraindications", "expected_impact", "generated_at", "is_mock", "medical_disclaimer", "model_version", "plan_id", "priority_intervention", "rationale"],
+      "MobileConfigResponseDto": ["apiVersion", "endpoints", "hardwareDbEnabled", "hardwareIngestEnabled", "ingestMode", "ingestQueueType", "limitations", "modelContract", "rawSignalUploadEnabled", "softwareDbPersistenceEnabled"],
+      "ModelTraceDto": ["artifact_name", "fallback_reason", "feature_schema_version", "model_version", "request_id", "scorer_mode"],
+      "PatientProfileDto": ["age", "allergies", "bmi", "diabetesHistory", "diagnoses", "drinking", "familyHistory", "gender", "heightCm", "hypertensionHistory", "medications", "name", "patientId", "smoking", "updatedAt", "weightKg"],
+      "RecentTelemetryResponseDto": ["activities", "activityType", "averageHeartRate", "awakeMinutes", "caloriesKcal", "deepMinutes", "deviceId", "distanceMeters", "durationMinutes", "endedAt", "interruptionMinutes", "lightMinutes", "limit", "measuredAt", "measurements", "metricType", "primaryValue", "qualityCode", "remMinutes", "secondaryValue", "sleepSessions", "source", "startedAt", "steps", "unit", "userId"],
+      "RiskEvaluateRequestDto": ["featureVector", "requestId"],
+      "RiskEvaluateResponseDto": ["feature_contributions", "is_mock", "missing_fields", "model_trace", "model_version", "quality_warnings", "risk_level", "risk_score", "summary"],
+      "TelemetryBatchRequestDto": ["activitySessions", "batchId", "collectedFrom", "collectedTo", "deviceId", "measurements", "quality", "signalChunks", "sleepSessions", "source", "userId"],
+      "TelemetryBatchResponseDto": ["accepted", "activitySessionCount", "batchId", "durableQueue", "hardwareDbEnabled", "ingestMode", "ingestStage", "measurementCount", "persisted", "queueType", "queued", "rawSignalUploadEnabled", "receiptId", "recordCount", "rejectedCount", "signalChunkCount", "sleepSessionCount", "status", "warnings"]
+    }
+  }
+}

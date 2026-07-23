@@ -1,0 +1,5 @@
+FROM nginx:1.29.0-alpine@sha256:d67ea0d64d518b1bb04acde3b00f722ac3e9764b3209a9b0a98924ba35e4b779
+
+COPY jeecgboot-vue3/dist/ /usr/share/nginx/html/
+COPY deploy/rehealth/admin-web/nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 8080

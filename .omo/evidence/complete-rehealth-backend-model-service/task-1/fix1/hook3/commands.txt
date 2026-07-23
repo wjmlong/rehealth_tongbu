@@ -1,0 +1,13 @@
+﻿COMMAND pytest focused validator tests
+EXIT 0
+COMMAND T1 happy
+EXIT 0
+COMMAND T1 forbidden
+EXIT 0
+COMMAND escape fixtures
+EXIT 0
+COMMAND metric fixtures
+EXIT 0
+COMMAND malformed fixture
+EXIT 1
+COMMAND git diff --check; EXIT 0

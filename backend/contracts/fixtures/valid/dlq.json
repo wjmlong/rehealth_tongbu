@@ -1,0 +1,14 @@
+{
+  "event_type": "rehealth.telemetry.dlq.v1",
+  "event_id": "evt_01JABCDG",
+  "batch_id": "batch_01JABCDG",
+  "schema_id": "rehealth.telemetry.dlq.v1",
+  "tenant_ref": "opaque_tenant_A1B2C3D4",
+  "user_ref": "opaque_user_A1B2C3D4",
+  "device_ref": "opaque_device_A1B2C3D4",
+  "record_count": 12,
+  "source_event_type": "rehealth.telemetry.persisted.v1",
+  "failure_code": "consumer_poison",
+  "attempt_count": 3,
+  "persistence_status": "persisted"
+}

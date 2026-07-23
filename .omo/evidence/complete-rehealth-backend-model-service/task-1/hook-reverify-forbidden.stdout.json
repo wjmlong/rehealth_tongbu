@@ -1,0 +1,88 @@
+﻿{
+  "accepted": 0,
+  "checks": [
+    {
+      "accepted": false,
+      "artifact": "backend\\contracts\\fixtures\\forbidden\\client_owner.json",
+      "reasons": [
+        "client_owner",
+        "schema:additional:client_owner",
+        "schema:missing:batch_id",
+        "schema:missing:device_ref",
+        "schema:missing:event_id",
+        "schema:missing:persistence_status",
+        "schema:missing:quality_status",
+        "schema:missing:record_count",
+        "schema:missing:schema_id",
+        "schema:missing:tenant_ref",
+        "schema:missing:user_ref",
+        "schema:missing:window_ended_at",
+        "schema:missing:window_started_at"
+      ]
+    },
+    {
+      "accepted": false,
+      "artifact": "backend\\contracts\\fixtures\\forbidden\\raw_signal.json",
+      "reasons": [
+        "raw_signal",
+        "schema:additional:raw_signal",
+        "schema:missing:batch_id",
+        "schema:missing:device_ref",
+        "schema:missing:event_id",
+        "schema:missing:persistence_status",
+        "schema:missing:quality_status",
+        "schema:missing:record_count",
+        "schema:missing:schema_id",
+        "schema:missing:tenant_ref",
+        "schema:missing:user_ref",
+        "schema:missing:window_ended_at",
+        "schema:missing:window_started_at"
+      ]
+    },
+    {
+      "accepted": false,
+      "artifact": "backend\\contracts\\fixtures\\forbidden\\token.json",
+      "reasons": [
+        "schema:additional:token",
+        "schema:missing:batch_id",
+        "schema:missing:device_ref",
+        "schema:missing:event_id",
+        "schema:missing:persistence_status",
+        "schema:missing:quality_status",
+        "schema:missing:record_count",
+        "schema:missing:schema_id",
+        "schema:missing:tenant_ref",
+        "schema:missing:user_ref",
+        "schema:missing:window_ended_at",
+        "schema:missing:window_started_at",
+        "token"
+      ]
+    }
+  ],
+  "expected_rejected_reasons": [
+    "client_owner",
+    "raw_signal",
+    "token"
+  ],
+  "rejected": 3,
+  "rejected_reasons": [
+    "client_owner",
+    "raw_signal",
+    "schema:additional:client_owner",
+    "schema:additional:raw_signal",
+    "schema:additional:token",
+    "schema:missing:batch_id",
+    "schema:missing:device_ref",
+    "schema:missing:event_id",
+    "schema:missing:persistence_status",
+    "schema:missing:quality_status",
+    "schema:missing:record_count",
+    "schema:missing:schema_id",
+    "schema:missing:tenant_ref",
+    "schema:missing:user_ref",
+    "schema:missing:window_ended_at",
+    "schema:missing:window_started_at",
+    "token"
+  ],
+  "status": "passed"
+}

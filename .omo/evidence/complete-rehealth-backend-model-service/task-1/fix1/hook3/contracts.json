@@ -1,0 +1,249 @@
+{
+  "accepted": 48,
+  "checks": [
+    {
+      "accepted": true,
+      "artifact": "openapi:version",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "controller:routes",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "controller:dto:AttributionEventsRequestDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "controller:dto:AttributionResponseDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "controller:dto:CvdFeatureVectorDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "controller:dto:DeviceBindRequestDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "controller:dto:DeviceBindResponseDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "controller:dto:FeatureQualityDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "controller:dto:FeedbackRequestDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "controller:dto:HealthInterviewAnswerDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "controller:dto:HealthInterviewBaselineItemDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "controller:dto:HealthInterviewSubmitRequestDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "controller:dto:HealthResponseDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "controller:dto:InterventionGenerateRequestDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "controller:dto:InterventionGenerateResponseDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "controller:dto:MobileConfigResponseDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "controller:dto:ModelTraceDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "controller:dto:PatientProfileDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "controller:dto:RecentTelemetryResponseDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "controller:dto:RiskEvaluateRequestDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "controller:dto:RiskEvaluateResponseDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "controller:dto:TelemetryBatchRequestDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "controller:dto:TelemetryBatchResponseDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "openapi:component:AttributionEventsRequestDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "openapi:component:AttributionResponseDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "openapi:component:DeviceBindRequestDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "openapi:component:DeviceBindResponseDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "openapi:component:FeedbackRequestDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "openapi:component:HealthInterviewSubmitRequestDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "openapi:component:HealthResponseDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "openapi:component:InterventionGenerateRequestDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "openapi:component:InterventionGenerateResponseDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "openapi:component:MobileConfigResponseDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "openapi:component:PatientProfileDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "openapi:component:RecentTelemetryResponseDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "openapi:component:RiskEvaluateRequestDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "openapi:component:RiskEvaluateResponseDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "openapi:component:TelemetryBatchRequestDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "openapi:component:TelemetryBatchResponseDto",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "schema:dlq-v1.schema.json",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "schema:persisted-v1.schema.json",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "schema:quality-v1.schema.json",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "adr:durable write before success",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "adr:at-least-once",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "adr:idempotent consumer",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "backend\\contracts\\fixtures\\valid\\dlq.json",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "backend\\contracts\\fixtures\\valid\\persisted.json",
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "artifact": "backend\\contracts\\fixtures\\valid\\quality.json",
+      "reasons": []
+    }
+  ],
+  "expected_rejected_reasons": [],
+  "rejected": 0,
+  "rejected_reasons": [],
+  "status": "passed"
+}

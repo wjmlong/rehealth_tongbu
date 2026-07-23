@@ -1,0 +1,49 @@
+{
+  "assertions": {
+    "all_exit_codes_zero": true,
+    "forbidden_exact_counts": true,
+    "forbidden_machine_status": true,
+    "happy_exact_counts": true,
+    "happy_machine_status": true,
+    "required_reasons_present": true,
+    "three_commands_recorded": true
+  },
+  "exit_codes": [
+    0,
+    0,
+    0
+  ],
+  "forbidden_counts": {
+    "accepted": 0,
+    "rejected": 3
+  },
+  "happy_counts": {
+    "accepted": 48,
+    "rejected": 0
+  },
+  "judgment": "Todo 1 exact T1 and owned diff gate are currently green",
+  "required_reasons": [
+    "client_owner",
+    "raw_signal",
+    "token"
+  ],
+  "source_artifacts": {
+    "hook3-command-transcript.txt": {
+      "bytes": 525,
+      "sha256": "a6093d02389bde6695e9c5662b81a6cc27625776c2437189da8560cef8e2147f"
+    },
+    "hook3-contracts.json": {
+      "bytes": 5974,
+      "sha256": "abe19e62453d2f555bd2f70f8cf64028bf5eaa643e1081077a0653a638e169b8"
+    },
+    "hook3-contracts.stdout.json": {
+      "bytes": 5977,
+      "sha256": "185a68b852031035fe7f360cae7c31dad4e65473c5245c04c1a75adb00647faf"
+    },
+    "hook3-forbidden.stdout.json": {
+      "bytes": 2703,
+      "sha256": "5dfb29b82084953f478187e90e391d4f9227052e8460fd349ed1ef8617666b01"
+    }
+  },
+  "status": "passed"
+}

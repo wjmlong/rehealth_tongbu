@@ -1,0 +1,60 @@
+{
+  "accepted": 0,
+  "checks": [
+    {
+      "accepted": false,
+      "artifact": "D:\\rehealthAI\\.omo\\evidence\\complete-rehealth-backend-model-service\\task-1\\fix1\\escape-fixtures\\event_type_escape.json",
+      "reasons": [
+        "schema:unknown_event_type"
+      ]
+    },
+    {
+      "accepted": false,
+      "artifact": "D:\\rehealthAI\\.omo\\evidence\\complete-rehealth-backend-model-service\\task-1\\fix1\\escape-fixtures\\schema_ref_escape.json",
+      "reasons": [
+        "schema:additional:$ref",
+        "schema:missing:batch_id",
+        "schema:missing:device_ref",
+        "schema:missing:event_id",
+        "schema:missing:persistence_status",
+        "schema:missing:quality_status",
+        "schema:missing:record_count",
+        "schema:missing:schema_id",
+        "schema:missing:tenant_ref",
+        "schema:missing:user_ref",
+        "schema:missing:window_ended_at",
+        "schema:missing:window_started_at",
+        "schema_ref"
+      ]
+    },
+    {
+      "accepted": false,
+      "artifact": "D:\\rehealthAI\\.omo\\evidence\\complete-rehealth-backend-model-service\\task-1\\fix1\\escape-fixtures\\unknown_event_type.json",
+      "reasons": [
+        "schema:unknown_event_type"
+      ]
+    }
+  ],
+  "expected_rejected_reasons": [
+    "schema:unknown_event_type",
+    "schema_ref"
+  ],
+  "rejected": 3,
+  "rejected_reasons": [
+    "schema:additional:$ref",
+    "schema:missing:batch_id",
+    "schema:missing:device_ref",
+    "schema:missing:event_id",
+    "schema:missing:persistence_status",
+    "schema:missing:quality_status",
+    "schema:missing:record_count",
+    "schema:missing:schema_id",
+    "schema:missing:tenant_ref",
+    "schema:missing:user_ref",
+    "schema:missing:window_ended_at",
+    "schema:missing:window_started_at",
+    "schema:unknown_event_type",
+    "schema_ref"
+  ],
+  "status": "passed"
+}

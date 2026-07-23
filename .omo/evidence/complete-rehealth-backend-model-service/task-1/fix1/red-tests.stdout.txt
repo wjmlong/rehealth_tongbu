@@ -1,0 +1,156 @@
+﻿FFFFFFF                                                                  [100%]
+================================== FAILURES ===================================
+_____________________ test_unknown_event_type_is_rejected _____________________
+
+tmp_path = WindowsPath('C:/Users/wjmlong/AppData/Local/Temp/pytest-of-wjmlong/pytest-0/test_unknown_event_type_is_rej0')
+
+    def test_unknown_event_type_is_rejected(tmp_path: Path) -> None:
+        result = run_fixture(tmp_path, {"event_type": "rehealth.telemetry.persistedd.v1"})
+        report = json.loads(result.stdout)
+>       assert result.returncode == 1
+E       assert 0 == 1
+E        +  where 0 = CompletedProcess(args=['D:\\rehealthAI\\model-service\\.venv\\Scripts\\python.exe', 'D:\\rehealthAI\\backend\\contract...  "expected_rejected_reasons": [],\n  "rejected": 0,\n  "rejected_reasons": [],\n  "status": "passed"\n}\n', stderr='').returncode
+
+backend\contracts\tests\test_validate_contracts.py:29: AssertionError
+____________________ test_path_like_event_type_is_rejected ____________________
+
+tmp_path = WindowsPath('C:/Users/wjmlong/AppData/Local/Temp/pytest-of-wjmlong/pytest-0/test_path_like_event_type_is_r0')
+
+    def test_path_like_event_type_is_rejected(tmp_path: Path) -> None:
+        result = run_fixture(tmp_path, {"event_type": "../../outside"})
+        report = json.loads(result.stdout)
+>       assert result.returncode == 1
+E       assert 0 == 1
+E        +  where 0 = CompletedProcess(args=['D:\\rehealthAI\\model-service\\.venv\\Scripts\\python.exe', 'D:\\rehealthAI\\backend\\contract...  "expected_rejected_reasons": [],\n  "rejected": 0,\n  "rejected_reasons": [],\n  "status": "passed"\n}\n', stderr='').returncode
+
+backend\contracts\tests\test_validate_contracts.py:36: AssertionError
+_____________________ test_schema_ref_escape_is_rejected ______________________
+
+tmp_path = WindowsPath('C:/Users/wjmlong/AppData/Local/Temp/pytest-of-wjmlong/pytest-0/test_schema_ref_escape_is_reje0')
+
+    def test_schema_ref_escape_is_rejected(tmp_path: Path) -> None:
+        result = run_fixture(tmp_path, {"event_type": "rehealth.telemetry.persisted.v1", "$ref": "../../outside"})
+        report = json.loads(result.stdout)
+        assert result.returncode == 1
+>       assert "schema_ref" in report["rejected_reasons"]
+E       AssertionError: assert 'schema_ref' in ['schema:additional:$ref', 'schema:missing:batch_id', 'schema:missing:device_ref', 'schema:missing:event_id', 'schema:missing:persistence_status', 'schema:missing:quality_status', ...]
+
+backend\contracts\tests\test_validate_contracts.py:44: AssertionError
+___ test_sensitive_metric_fields_are_rejected[metrics-value0-metric_value] ____
+
+tmp_path = WindowsPath('C:/Users/wjmlong/AppData/Local/Temp/pytest-of-wjmlong/pytest-0/test_sensitive_metric_fields_a0')
+field = 'metrics', value = {'sample': 72}, reason = 'metric_value'
+
+    @pytest.mark.parametrize(
+        ("field", "value", "reason"),
+        [
+            ("metrics", {"sample": 72}, "metric_value"),
+            ("heart_rate", 72, "metric_value"),
+            ("spo2", 98, "metric_value"),
+            ("raw_ppg", "AAECAw==", "raw_signal"),
+        ],
+    )
+    def test_sensitive_metric_fields_are_rejected(
+        tmp_path: Path,
+        field: str,
+        value: str | int | Mapping[str, int],
+        reason: str,
+    ) -> None:
+        result = run_fixture(tmp_path, {"event_type": "rehealth.telemetry.persisted.v1", field: value})
+        report = json.loads(result.stdout)
+        assert result.returncode == 1
+>       assert reason in report["rejected_reasons"]
+E       AssertionError: assert 'metric_value' in ['schema:additional:metrics', 'schema:missing:batch_id', 'schema:missing:device_ref', 'schema:missing:event_id', 'schema:missing:persistence_status', 'schema:missing:quality_status', ...]
+
+backend\contracts\tests\test_validate_contracts.py:65: AssertionError
+____ test_sensitive_metric_fields_are_rejected[heart_rate-72-metric_value] ____
+
+tmp_path = WindowsPath('C:/Users/wjmlong/AppData/Local/Temp/pytest-of-wjmlong/pytest-0/test_sensitive_metric_fields_a1')
+field = 'heart_rate', value = 72, reason = 'metric_value'
+
+    @pytest.mark.parametrize(
+        ("field", "value", "reason"),
+        [
+            ("metrics", {"sample": 72}, "metric_value"),
+            ("heart_rate", 72, "metric_value"),
+            ("spo2", 98, "metric_value"),
+            ("raw_ppg", "AAECAw==", "raw_signal"),
+        ],
+    )
+    def test_sensitive_metric_fields_are_rejected(
+        tmp_path: Path,
+        field: str,
+        value: str | int | Mapping[str, int],
+        reason: str,
+    ) -> None:
+        result = run_fixture(tmp_path, {"event_type": "rehealth.telemetry.persisted.v1", field: value})
+        report = json.loads(result.stdout)
+        assert result.returncode == 1
+>       assert reason in report["rejected_reasons"]
+E       AssertionError: assert 'metric_value' in ['schema:additional:heart_rate', 'schema:missing:batch_id', 'schema:missing:device_ref', 'schema:missing:event_id', 'schema:missing:persistence_status', 'schema:missing:quality_status', ...]
+
+backend\contracts\tests\test_validate_contracts.py:65: AssertionError
+_______ test_sensitive_metric_fields_are_rejected[spo2-98-metric_value] _______
+
+tmp_path = WindowsPath('C:/Users/wjmlong/AppData/Local/Temp/pytest-of-wjmlong/pytest-0/test_sensitive_metric_fields_a2')
+field = 'spo2', value = 98, reason = 'metric_value'
+
+    @pytest.mark.parametrize(
+        ("field", "value", "reason"),
+        [
+            ("metrics", {"sample": 72}, "metric_value"),
+            ("heart_rate", 72, "metric_value"),
+            ("spo2", 98, "metric_value"),
+            ("raw_ppg", "AAECAw==", "raw_signal"),
+        ],
+    )
+    def test_sensitive_metric_fields_are_rejected(
+        tmp_path: Path,
+        field: str,
+        value: str | int | Mapping[str, int],
+        reason: str,
+    ) -> None:
+        result = run_fixture(tmp_path, {"event_type": "rehealth.telemetry.persisted.v1", field: value})
+        report = json.loads(result.stdout)
+        assert result.returncode == 1
+>       assert reason in report["rejected_reasons"]
+E       AssertionError: assert 'metric_value' in ['schema:additional:spo2', 'schema:missing:batch_id', 'schema:missing:device_ref', 'schema:missing:event_id', 'schema:missing:persistence_status', 'schema:missing:quality_status', ...]
+
+backend\contracts\tests\test_validate_contracts.py:65: AssertionError
+___ test_sensitive_metric_fields_are_rejected[raw_ppg-AAECAw==-raw_signal] ____
+
+tmp_path = WindowsPath('C:/Users/wjmlong/AppData/Local/Temp/pytest-of-wjmlong/pytest-0/test_sensitive_metric_fields_a3')
+field = 'raw_ppg', value = 'AAECAw==', reason = 'raw_signal'
+
+    @pytest.mark.parametrize(
+        ("field", "value", "reason"),
+        [
+            ("metrics", {"sample": 72}, "metric_value"),
+            ("heart_rate", 72, "metric_value"),
+            ("spo2", 98, "metric_value"),
+            ("raw_ppg", "AAECAw==", "raw_signal"),
+        ],
+    )
+    def test_sensitive_metric_fields_are_rejected(
+        tmp_path: Path,
+        field: str,
+        value: str | int | Mapping[str, int],
+        reason: str,
+    ) -> None:
+        result = run_fixture(tmp_path, {"event_type": "rehealth.telemetry.persisted.v1", field: value})
+        report = json.loads(result.stdout)
+        assert result.returncode == 1
+>       assert reason in report["rejected_reasons"]
+E       AssertionError: assert 'raw_signal' in ['schema:additional:raw_ppg', 'schema:missing:batch_id', 'schema:missing:device_ref', 'schema:missing:event_id', 'schema:missing:persistence_status', 'schema:missing:quality_status', ...]
+
+backend\contracts\tests\test_validate_contracts.py:65: AssertionError
+- generated xml file: D:\rehealthAI\.omo\evidence\complete-rehealth-backend-model-service\task-1\fix1\red-tests.xml -
+=========================== short test summary info ===========================
+FAILED backend/contracts/tests/test_validate_contracts.py::test_unknown_event_type_is_rejected
+FAILED backend/contracts/tests/test_validate_contracts.py::test_path_like_event_type_is_rejected
+FAILED backend/contracts/tests/test_validate_contracts.py::test_schema_ref_escape_is_rejected
+FAILED backend/contracts/tests/test_validate_contracts.py::test_sensitive_metric_fields_are_rejected[metrics-value0-metric_value]
+FAILED backend/contracts/tests/test_validate_contracts.py::test_sensitive_metric_fields_are_rejected[heart_rate-72-metric_value]
+FAILED backend/contracts/tests/test_validate_contracts.py::test_sensitive_metric_fields_are_rejected[spo2-98-metric_value]
+FAILED backend/contracts/tests/test_validate_contracts.py::test_sensitive_metric_fields_are_rejected[raw_ppg-AAECAw==-raw_signal]
+7 failed in 1.77s

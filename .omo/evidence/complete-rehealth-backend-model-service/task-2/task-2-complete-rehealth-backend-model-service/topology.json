@@ -1,0 +1,12 @@
+{
+  "note": "Static Compose/configuration gate only; runtime health requires deployable artifacts and secrets.",
+  "passed": true,
+  "profiles": [
+    "staging",
+    "production"
+  ],
+  "published_services": [
+    "edge"
+  ],
+  "runtime_verified": false
+}

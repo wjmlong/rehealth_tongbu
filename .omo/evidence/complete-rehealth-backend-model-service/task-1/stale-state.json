@@ -1,0 +1,12 @@
+{
+  "status": "passed",
+  "failed_checks": [
+    {
+      "artifact": "controller:routes",
+      "accepted": false,
+      "reasons": [
+        "stale_state:routes"
+      ]
+    }
+  ]
+}

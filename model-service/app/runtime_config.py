@@ -1,0 +1,152 @@
+from __future__ import annotations
+
+import os
+from collections.abc import Mapping
+from dataclasses import dataclass
+from enum import StrEnum
+from typing import assert_never
+
+from pydantic import BaseModel, ConfigDict
+
+
+class RuntimeMode(StrEnum):
+    PRODUCTION = "production"
+    STAGING = "staging"
+    DEVELOPMENT = "development"
+    DEMO = "demo"
+
+
+class AttributionMode(StrEnum):
+    PIAS = "pias"
+    DEMO_MOCK = "demo_mock"
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeConfigurationError(RuntimeError):
+    code: str
+    detail: str
+
+    def __str__(self) -> str:
+        return f"{self.code}: {self.detail}"
+
+
+class RuntimeConfig(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    runtime_mode: RuntimeMode = RuntimeMode.DEVELOPMENT
+    attribution_mode: AttributionMode = AttributionMode.PIAS
+    demo_enabled: bool = False
+    mock_attribution_enabled: bool = False
+    provenance: str = "pias"
+
+
+class RuntimeStatus(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    runtime_mode: RuntimeMode
+    attribution_mode: AttributionMode
+    demo_enabled: bool
+    mock_attribution_enabled: bool
+    provenance: str
+
+
+def load_runtime_config(environ: Mapping[str, str] | None = None) -> RuntimeConfig:
+    source = os.environ if environ is None else environ
+    runtime_mode = _parse_runtime_mode(source.get("REHEALTH_RUNTIME_MODE", "development"))
+    attribution_mode = _parse_attribution_mode(source.get("REHEALTH_ATTRIBUTION_MODE", "pias"))
+    demo_enabled = _parse_bool(source.get("REHEALTH_DEMO_ENABLED", "false"), "REHEALTH_DEMO_ENABLED")
+    provenance = source.get("REHEALTH_ATTRIBUTION_PROVENANCE", "pias").strip()
+    config = RuntimeConfig(
+        runtime_mode=runtime_mode,
+        attribution_mode=attribution_mode,
+        demo_enabled=demo_enabled,
+        mock_attribution_enabled=attribution_mode is AttributionMode.DEMO_MOCK,
+        provenance=provenance,
+    )
+    validate_runtime_config(config)
+    return config
+
+
+def validate_runtime_config(config: RuntimeConfig) -> None:
+    _validate_attribution_mode(config)
+
+
+def validate_model_runtime(config: RuntimeConfig, scorer_mode: str) -> None:
+    match config.runtime_mode:
+        case RuntimeMode.PRODUCTION | RuntimeMode.STAGING:
+            if scorer_mode != "real_available":
+                raise RuntimeConfigurationError(
+                    code="REAL_MODEL_REQUIRED",
+                    detail=f"{config.runtime_mode.value} requires an available real model",
+                )
+        case RuntimeMode.DEVELOPMENT | RuntimeMode.DEMO:
+            return
+        case unreachable:
+            assert_never(unreachable)
+
+
+def runtime_status(config: RuntimeConfig) -> RuntimeStatus:
+    return RuntimeStatus(
+        runtime_mode=config.runtime_mode,
+        attribution_mode=config.attribution_mode,
+        demo_enabled=config.demo_enabled,
+        mock_attribution_enabled=config.mock_attribution_enabled,
+        provenance=config.provenance,
+    )
+
+
+def _validate_attribution_mode(config: RuntimeConfig) -> None:
+    match config.attribution_mode:
+        case AttributionMode.PIAS:
+            return
+        case AttributionMode.DEMO_MOCK:
+            if config.runtime_mode in {RuntimeMode.PRODUCTION, RuntimeMode.STAGING}:
+                raise RuntimeConfigurationError(
+                    code="ATTRIBUTION_MODE_UNSAFE",
+                    detail="demo_mock attribution is forbidden in production and staging",
+                )
+            if not config.demo_enabled:
+                raise RuntimeConfigurationError(
+                    code="DEMO_FLAG_REQUIRED",
+                    detail="demo_mock attribution requires REHEALTH_DEMO_ENABLED=true",
+                )
+            if config.provenance != "demo_mock":
+                raise RuntimeConfigurationError(
+                    code="DEMO_PROVENANCE_REQUIRED",
+                    detail="demo_mock attribution must report demo_mock provenance",
+                )
+        case unreachable:
+            assert_never(unreachable)
+
+
+def _parse_runtime_mode(value: str) -> RuntimeMode:
+    try:
+        return RuntimeMode(value.strip().lower())
+    except ValueError as error:
+        raise RuntimeConfigurationError(
+            code="INVALID_RUNTIME_MODE",
+            detail="runtime mode must be production, staging, development, or demo",
+        ) from error
+
+
+def _parse_attribution_mode(value: str) -> AttributionMode:
+    try:
+        return AttributionMode(value.strip().lower())
+    except ValueError as error:
+        raise RuntimeConfigurationError(
+            code="INVALID_ATTRIBUTION_MODE",
+            detail="attribution mode must be pias or demo_mock",
+        ) from error
+
+
+def _parse_bool(value: str, name: str) -> bool:
+    match value.strip().lower():
+        case "true" | "1" | "yes" | "on":
+            return True
+        case "false" | "0" | "no" | "off" | "":
+            return False
+        case invalid:
+            raise RuntimeConfigurationError(
+                code="INVALID_BOOLEAN",
+                detail=f"{name} has unsupported boolean value {invalid!r}",
+            )

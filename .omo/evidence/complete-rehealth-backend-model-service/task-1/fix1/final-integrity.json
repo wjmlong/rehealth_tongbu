@@ -1,0 +1,12 @@
+{
+  "bytecode_cleaned": true,
+  "empty_evidence_files": [],
+  "evidence_file_count": 33,
+  "owned_diff_status": "passed",
+  "pure_loc": {
+    "tests": 52,
+    "validator": 234
+  },
+  "status": "passed",
+  "verification_status": "passed"
+}

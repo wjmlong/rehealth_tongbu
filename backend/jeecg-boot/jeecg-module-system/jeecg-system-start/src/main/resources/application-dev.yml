@@ -418,11 +418,26 @@ justauth:
 # ReHealth E1 mobile API configuration. The model-service remains the
 # authority for risk evaluation, intervention generation, and attribution.
 rehealth:
+  runtime:
+    mode: ${REHEALTH_RUNTIME_MODE:development}
+  demo:
+    enabled: ${REHEALTH_DEMO_ENABLED:false}
+  software-db:
+    enabled: ${REHEALTH_SOFTWARE_DB_ENABLED:false}
+  device-service:
+    enabled: ${REHEALTH_DEVICE_SERVICE_ENABLED:false}
+    base-url: ${REHEALTH_DEVICE_SERVICE_BASE_URL:}
+  timescale:
+    enabled: ${REHEALTH_TIMESCALE_ENABLED:false}
   model-service:
     base-url: http://127.0.0.1:8000
     timeout-seconds: 10
+    require-real-model: ${REHEALTH_REQUIRE_REAL_MODEL:false}
   attribution-service:
     base-url: http://127.0.0.1:8000
+  attribution:
+    mode: ${REHEALTH_ATTRIBUTION_MODE:pias}
+    provenance: ${REHEALTH_ATTRIBUTION_PROVENANCE:pias}
   ingest:
     mode: durable-direct
     queue:

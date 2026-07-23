@@ -1,0 +1,96 @@
+{
+  "artifacts": {
+    "contracts.json": {
+      "bytes": 5974,
+      "sha256": "abe19e62453d2f555bd2f70f8cf64028bf5eaa643e1081077a0653a638e169b8"
+    },
+    "escape.json": {
+      "bytes": 1909,
+      "sha256": "19a04c428a74e2b638a733cc514cad14d43acfc12844d30c16e9a6473e497c5a"
+    },
+    "exits.json": {
+      "bytes": 295,
+      "sha256": "0a638816ec94b04ddbb137e155347c87bac8f8ce77250430c48af76b5fb8b00c"
+    },
+    "final-tests.stdout.txt": {
+      "bytes": 224,
+      "sha256": "cc07293a14b85d0a59ad1b4219e0957325c1d522bd300fef1cb1bbe5c1142dfb"
+    },
+    "final-tests.xml": {
+      "bytes": 1280,
+      "sha256": "a1f6bbaed725b0fbbc715b2d0e8eff8854664b90aa6900e001e92c3fe9066bb8"
+    },
+    "forbidden.json": {
+      "bytes": 6557,
+      "sha256": "cd4461f945b6739095807db0d4f519462574efc5a1f1bf887d94224cf327bd14"
+    },
+    "malformed.json": {
+      "bytes": 386,
+      "sha256": "fcd65777152a3299fc4ebe8b3407871f481b7a77a9e254ff1e9bee3be44455f0"
+    },
+    "metrics.json": {
+      "bytes": 3592,
+      "sha256": "8acfe2faee747853d7f2009798c192cdfe1010336108501cafd569cdde9a1d69"
+    },
+    "no-excuse.stdout.txt": {
+      "bytes": 31,
+      "sha256": "0ee497b3e7ebe0609d201db884fdc7fc05a9679be9a38b9f0039309027185a98"
+    },
+    "red-forbidden.json": {
+      "bytes": 6269,
+      "sha256": "fcc72c11cf2273b0f511a2c9925aa587cf76b249eb461cc7dcf0bddf406a2e22"
+    },
+    "red-tests.stdout.txt": {
+      "bytes": 8874,
+      "sha256": "399a75e8fd137517af442fee01ff709d788c5041b3fca704a3ad8fdf42ca274c"
+    },
+    "red-tests.xml": {
+      "bytes": 10484,
+      "sha256": "765c0c30081c8a8f4ca5b8e5ee078268bc7f6edac7fbacdb3d074f90553c6f9d"
+    },
+    "tests.xml": {
+      "bytes": 1280,
+      "sha256": "5bcbf520593317d8b8036861796a29b5c4df0862c5fb3f6a5c64a752046373e2"
+    }
+  },
+  "assertions": {
+    "bytecode_cleaned": true,
+    "escape_rejected": true,
+    "exit_codes": true,
+    "forbidden_counts": true,
+    "forbidden_reasons": true,
+    "happy_counts": true,
+    "malformed_rejected": true,
+    "metrics_rejected": true,
+    "tests_passed": true
+  },
+  "counts": {
+    "escape_rejected": 3,
+    "forbidden_rejected": 10,
+    "happy_accepted": 48,
+    "malformed_rejected": 1,
+    "metric_rejected": 4,
+    "tests": 7
+  },
+  "exit_codes": {
+    "diff_check_exit": 0,
+    "escape_exit": 0,
+    "forbidden_exit": 0,
+    "happy_exit": 0,
+    "malformed_exit": 1,
+    "metrics_exit": 0,
+    "no_excuse_exit": 0,
+    "py_compile_exit": 0,
+    "tests_exit": 0,
+    "timestamp_utc": "2026-07-23T02:46:27.8533959Z"
+  },
+  "required_reasons": [
+    "client_owner",
+    "metric_value",
+    "raw_signal",
+    "schema:unknown_event_type",
+    "schema_ref",
+    "token"
+  ],
+  "status": "passed"
+}

@@ -1,12 +1,20 @@
 {
   "schema_version": 2,
-  "active_work_id": "restore-demo-attribution-live-data-20260722",
+  "active_work_id": "complete-rehealth-backend-model-service-20260723",
   "works": {
     "restore-demo-attribution-live-data-20260722": {
       "work_id": "restore-demo-attribution-live-data-20260722",
       "active_plan": ".omo/plans/restore-demo-attribution-live-data.md",
       "plan_name": "restore-demo-attribution-live-data",
       "session_ids": ["codex:restore-demo-attribution-live-data-20260722"],
+      "status": "paused",
+      "worktree_path": "D:\\rehealthAI"
+    },
+    "complete-rehealth-backend-model-service-20260723": {
+      "work_id": "complete-rehealth-backend-model-service-20260723",
+      "active_plan": ".omo/plans/complete-rehealth-backend-model-service.md",
+      "plan_name": "complete-rehealth-backend-model-service",
+      "session_ids": ["codex:complete-rehealth-backend-model-service-20260723"],
       "status": "active",
       "worktree_path": "D:\\rehealthAI"
     }

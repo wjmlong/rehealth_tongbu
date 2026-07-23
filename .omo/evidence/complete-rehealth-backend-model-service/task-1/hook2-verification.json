@@ -1,0 +1,48 @@
+{
+  "artifact_sizes": {
+    "hook2-contracts.json": 5974,
+    "hook2-contracts.stdout.json": 5977,
+    "hook2-exits.json": 196,
+    "hook2-forbidden.json": 2700,
+    "hook2-forbidden.stdout.json": 2703,
+    "hook2-no-excuse.stdout.txt": 31
+  },
+  "assertions": {
+    "all_artifacts_nonempty": true,
+    "all_exit_codes_zero": true,
+    "bytecode_cleaned": true,
+    "forbidden_counts": true,
+    "forbidden_status": true,
+    "happy_counts": true,
+    "happy_status": true,
+    "required_reasons": true
+  },
+  "counts": {
+    "forbidden_accepted": 0,
+    "forbidden_rejected": 3,
+    "happy_accepted": 48,
+    "happy_rejected": 0
+  },
+  "exit_codes": {
+    "diff_check_exit": 0,
+    "forbidden_exit": 0,
+    "happy_exit": 0,
+    "no_excuse_exit": 0,
+    "py_compile_exit": 0,
+    "timestamp_utc": "2026-07-23T02:37:08.0620899Z"
+  },
+  "required_rejected_reasons": [
+    "client_owner",
+    "raw_signal",
+    "token"
+  ],
+  "sha256": {
+    "hook2-contracts.json": "abe19e62453d2f555bd2f70f8cf64028bf5eaa643e1081077a0653a638e169b8",
+    "hook2-contracts.stdout.json": "185a68b852031035fe7f360cae7c31dad4e65473c5245c04c1a75adb00647faf",
+    "hook2-exits.json": "5e27ff81a82d02b9be224e6c9a162f8e6531d56b0971ef078475628d5b9bdfe2",
+    "hook2-forbidden.json": "54e70361e1ed7833e58fa13fde8bf82057ddb9335185fd9b69309a67de0c3ddf",
+    "hook2-forbidden.stdout.json": "5dfb29b82084953f478187e90e391d4f9227052e8460fd349ed1ef8617666b01",
+    "hook2-no-excuse.stdout.txt": "96e1f5a4c2a4b4b688aae3605c37e35f3bfe5ef1de0e39515470fe0341f30019"
+  },
+  "status": "passed"
+}

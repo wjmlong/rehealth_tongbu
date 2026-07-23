@@ -1,0 +1,22 @@
+rehealth:
+  runtime:
+    mode: staging
+  demo:
+    enabled: false
+  software-db:
+    enabled: ${REHEALTH_SOFTWARE_DB_ENABLED:false}
+  device-service:
+    enabled: ${REHEALTH_DEVICE_SERVICE_ENABLED:false}
+    base-url: ${REHEALTH_DEVICE_SERVICE_BASE_URL:}
+  timescale:
+    enabled: ${REHEALTH_TIMESCALE_ENABLED:false}
+  model-service:
+    base-url: ${REHEALTH_MODEL_SERVICE_BASE_URL:}
+    require-real-model: ${REHEALTH_REQUIRE_REAL_MODEL:false}
+  attribution-service:
+    base-url: ${REHEALTH_ATTRIBUTION_SERVICE_BASE_URL:}
+  attribution:
+    mode: pias
+    provenance: pias
+  provider-credentials:
+    embedded-secret: ""

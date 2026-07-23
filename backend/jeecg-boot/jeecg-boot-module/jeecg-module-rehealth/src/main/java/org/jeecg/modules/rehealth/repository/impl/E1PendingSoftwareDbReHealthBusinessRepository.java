@@ -60,6 +60,11 @@ public class E1PendingSoftwareDbReHealthBusinessRepository implements ReHealthBu
     }
 
     @Override
+    public boolean hasActiveDeviceBinding(String userId, String deviceId) {
+        return false;
+    }
+
+    @Override
     public void saveRiskResult(String userId, String requestId, RiskEvaluateRequestDto request, RiskEvaluateResponseDto response) {
         // E1 keeps the software_db boundary explicit; table/mappers are intentionally pending.
     }

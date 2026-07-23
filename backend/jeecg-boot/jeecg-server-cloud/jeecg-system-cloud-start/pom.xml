@@ -36,6 +36,11 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <dependency>
+            <groupId>org.jeecgframework.boot3</groupId>
+            <artifactId>jeecg-module-rehealth</artifactId>
+            <version>${jeecgboot.version}</version>
+        </dependency>
 
         <dependency>
             <groupId>org.jeecgframework.boot3</groupId>

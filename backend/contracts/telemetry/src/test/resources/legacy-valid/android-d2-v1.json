@@ -1,0 +1,50 @@
+{
+  "batchId": "batch-legacy-001",
+  "deviceId": "ring-mr11-001",
+  "collectedFrom": 1720000000000,
+  "collectedTo": 1720003600000,
+  "source": "android-mrd",
+  "measurements": [
+    {
+      "id": "measurement-001",
+      "metricType": "HEART_RATE",
+      "measuredAt": 1720000010000,
+      "primaryValue": 72.0,
+      "unit": "bpm",
+      "quality": "REAL_DEVICE",
+      "source": "mrd-sdk"
+    }
+  ],
+  "sleepSessions": [
+    {
+      "id": "sleep-001",
+      "startedAt": 1720000000000,
+      "endedAt": 1720028800000,
+      "deepMinutes": 90,
+      "lightMinutes": 260,
+      "awakeMinutes": 20,
+      "remMinutes": 80,
+      "interruptionMinutes": 10,
+      "source": "mrd-sdk"
+    }
+  ],
+  "activitySessions": [
+    {
+      "id": "activity-001",
+      "startedAt": 1720000000000,
+      "endedAt": 1720003600000,
+      "activityType": "daily",
+      "steps": 3800,
+      "distanceMeters": 2600.0,
+      "caloriesKcal": 210.0,
+      "durationMinutes": 60,
+      "averageHeartRate": 86.0,
+      "source": "mrd-sdk"
+    }
+  ],
+  "signalChunks": [],
+  "quality": {
+    "schemaVersion": "d2-v1",
+    "rawSignalExcluded": true
+  }
+}

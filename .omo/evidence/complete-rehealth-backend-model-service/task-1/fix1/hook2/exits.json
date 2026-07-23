@@ -1,0 +1,10 @@
+﻿{
+    "timestamp_utc":  "2026-07-23T02:53:01.5497075Z",
+    "tests_exit":  0,
+    "happy_exit":  0,
+    "forbidden_exit":  0,
+    "escape_exit":  0,
+    "metrics_exit":  0,
+    "malformed_exit":  1,
+    "diff_check_exit":  0
+}
