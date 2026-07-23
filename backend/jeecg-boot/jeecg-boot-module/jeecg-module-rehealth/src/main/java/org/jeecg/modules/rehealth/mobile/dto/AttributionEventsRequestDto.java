@@ -8,6 +8,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class AttributionEventsRequestDto {
+    @JSONField(name = "request_id")
+    @JsonProperty("request_id")
+    @JsonAlias("requestId")
+    public String requestId;
     @JSONField(name = "risk_history")
     @JsonProperty("risk_history")
     @JsonAlias("riskHistory")

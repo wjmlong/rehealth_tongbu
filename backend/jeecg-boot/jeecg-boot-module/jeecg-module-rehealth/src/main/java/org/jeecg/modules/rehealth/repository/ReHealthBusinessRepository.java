@@ -10,8 +10,10 @@ import org.jeecg.modules.rehealth.mobile.dto.HealthInterviewSubmitRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateRequestDto;
+import org.jeecg.modules.rehealth.model.ModelCallAudit;
 
 import java.util.Optional;
+import java.util.List;
 
 public interface ReHealthBusinessRepository {
     PatientProfileDto savePatientProfile(String userId, PatientProfileDto profile);
@@ -22,13 +24,7 @@ public interface ReHealthBusinessRepository {
 
     Optional<HealthInterviewSubmitRequestDto> findLatestHealthInterview(String userId);
 
-    void recordModelRequest(
-            String userId,
-            String requestId,
-            String operation,
-            String modelVersion,
-            String outcome
-    );
+    void recordModelRequest(String userId, ModelCallAudit audit);
 
     DeviceBindResponseDto recordDeviceBinding(String userId, DeviceBindRequestDto request);
 
@@ -37,6 +33,8 @@ public interface ReHealthBusinessRepository {
     void saveRiskResult(String userId, String requestId, RiskEvaluateRequestDto request, RiskEvaluateResponseDto response);
 
     Optional<RiskEvaluateResponseDto> findLatestRiskResult(String userId);
+
+    List<AttributionEventsRequestDto.AttributionHistoryPointDto> findAttributionHistory(String userId);
 
     void saveInterventionPlan(String userId, InterventionGenerateResponseDto response);
 

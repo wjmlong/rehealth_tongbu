@@ -20,17 +20,24 @@ import org.jeecg.modules.rehealth.mobile.dto.RecentTelemetryResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.TelemetryBatchRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.TelemetryBatchResponseDto;
 import org.jeecg.modules.rehealth.model.ModelServiceClient;
+import org.jeecg.modules.rehealth.model.ModelCallAudit;
+import org.jeecg.modules.rehealth.model.ModelServiceException;
 import org.jeecg.modules.rehealth.repository.ReHealthBusinessRepository;
 import org.jeecg.modules.rehealth.service.ReHealthMobileService;
+import org.jeecg.modules.rehealth.service.attribution.AttributionRequestAssembler;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Service
 public class ReHealthMobileServiceImpl implements ReHealthMobileService {
+    private static final Pattern CORRELATION_ID_PATTERN =
+            Pattern.compile("^[A-Za-z0-9._:-]{1,128}$");
     private final ModelServiceClient modelServiceClient;
     private final HardwareIngestionPort hardwareIngestionPort;
     private final HardwareTelemetryQuery hardwareTelemetryQuery;
@@ -153,19 +160,28 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
 
     @Override
     public RiskEvaluateResponseDto evaluateFeatures(String userId, RiskEvaluateRequestDto request) {
-        String requestId = request == null ? null : request.requestId;
+        String requestId = correlationId(request == null ? null : request.requestId);
+        if (request != null) {
+            request.requestId = requestId;
+        }
+        long startedNanos = System.nanoTime();
+        RiskEvaluateResponseDto response;
         try {
-            RiskEvaluateResponseDto response = modelServiceClient.evaluateRisk(request);
-            businessRepository.saveRiskResult(userId, requestId, request, response);
-            businessRepository.recordModelRequest(
-                    userId, requestId, "RISK_EVALUATE",
-                    response == null ? null : response.modelVersion, "SUCCESS"
-            );
-            return response;
+            response = modelServiceClient.evaluateRisk(request);
         } catch (RuntimeException failure) {
-            recordModelFailure(userId, requestId, "RISK_EVALUATE", failure);
+            recordModelFailure(userId, requestId, "RISK_EVALUATE", startedNanos, failure);
             throw failure;
         }
+        businessRepository.saveRiskResult(userId, requestId, request, response);
+        businessRepository.recordModelRequest(userId, new ModelCallAudit(
+                requestId,
+                "RISK_EVALUATE",
+                response == null ? null : response.modelVersion,
+                "SUCCESS",
+                null,
+                elapsedMillis(startedNanos)
+        ));
+        return response;
     }
 
     @Override
@@ -175,18 +191,28 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
 
     @Override
     public InterventionGenerateResponseDto generateIntervention(String userId, InterventionGenerateRequestDto request) {
+        String requestId = correlationId(request == null ? null : request.requestId);
+        if (request != null) {
+            request.requestId = requestId;
+        }
+        long startedNanos = System.nanoTime();
+        InterventionGenerateResponseDto response;
         try {
-            InterventionGenerateResponseDto response = modelServiceClient.generateIntervention(request);
-            businessRepository.saveInterventionPlan(userId, response);
-            businessRepository.recordModelRequest(
-                    userId, response == null ? null : response.planId, "INTERVENTION_GENERATE",
-                    response == null ? null : response.modelVersion, "SUCCESS"
-            );
-            return response;
+            response = modelServiceClient.generateIntervention(request);
         } catch (RuntimeException failure) {
-            recordModelFailure(userId, null, "INTERVENTION_GENERATE", failure);
+            recordModelFailure(userId, requestId, "INTERVENTION_GENERATE", startedNanos, failure);
             throw failure;
         }
+        businessRepository.saveInterventionPlan(userId, response);
+        businessRepository.recordModelRequest(userId, new ModelCallAudit(
+                requestId,
+                "INTERVENTION_GENERATE",
+                response == null ? null : response.modelVersion,
+                "SUCCESS",
+                null,
+                elapsedMillis(startedNanos)
+        ));
+        return response;
     }
 
     @Override
@@ -206,16 +232,26 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
 
     @Override
     public AttributionResponseDto recordAttributionEvents(String userId, AttributionEventsRequestDto request) {
+        long startedNanos = System.nanoTime();
         try {
-            AttributionResponseDto response = modelServiceClient.evaluateAttribution(request);
-            businessRepository.recordAttributionResult(userId, request, response);
-            businessRepository.recordModelRequest(
-                    userId, null, "ATTRIBUTION_EVALUATE",
-                    response == null ? null : response.modelVersion, "SUCCESS"
+            AttributionEventsRequestDto authorizedRequest = AttributionRequestAssembler.fromPersistedHistory(
+                    userId,
+                    request,
+                    businessRepository.findAttributionHistory(userId)
             );
+            AttributionResponseDto response = modelServiceClient.evaluateAttribution(authorizedRequest);
+            businessRepository.recordAttributionResult(userId, authorizedRequest, response);
+            businessRepository.recordModelRequest(userId, new ModelCallAudit(
+                    authorizedRequest.requestId,
+                    "ATTRIBUTION_EVALUATE_" + response.attributionMode.toUpperCase(),
+                    response.modelVersion,
+                    "error".equals(response.status) ? "ERROR" : "SUCCESS",
+                    response.errorCode,
+                    elapsedMillis(startedNanos)
+            ));
             return response;
         } catch (RuntimeException failure) {
-            recordModelFailure(userId, null, "ATTRIBUTION_EVALUATE", failure);
+            recordModelFailure(userId, null, "ATTRIBUTION_EVALUATE", startedNanos, failure);
             throw failure;
         }
     }
@@ -230,12 +266,39 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
             String userId,
             String requestId,
             String operation,
+            long startedNanos,
             RuntimeException originalFailure
     ) {
+        String correlationId = requestId;
+        String errorCode = "UNCLASSIFIED";
+        if (originalFailure instanceof ModelServiceException modelFailure) {
+            correlationId = modelFailure.correlationId() == null
+                    ? requestId
+                    : modelFailure.correlationId();
+            errorCode = modelFailure.code().name();
+        }
         try {
-            businessRepository.recordModelRequest(userId, requestId, operation, null, "FAILED");
+            businessRepository.recordModelRequest(userId, new ModelCallAudit(
+                    correlationId,
+                    operation,
+                    null,
+                    "FAILED",
+                    errorCode,
+                    elapsedMillis(startedNanos)
+            ));
         } catch (RuntimeException auditFailure) {
             originalFailure.addSuppressed(auditFailure);
         }
+    }
+
+    private String correlationId(String candidate) {
+        if (candidate != null && CORRELATION_ID_PATTERN.matcher(candidate).matches()) {
+            return candidate;
+        }
+        return UUID.randomUUID().toString();
+    }
+
+    private long elapsedMillis(long startedNanos) {
+        return Math.max(0, (System.nanoTime() - startedNanos) / 1_000_000);
     }
 }

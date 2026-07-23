@@ -74,6 +74,7 @@ class ReHealthRuntimeSafetyValidatorTest {
         properties.put("rehealth.model-service.base-url", "https://model.internal.example");
         properties.put("rehealth.device-service.base-url", "https://device.internal.example");
         properties.put("rehealth.attribution-service.base-url", "https://pias.internal.example");
+        properties.put("rehealth.attribution-service.internal-token", "synthetic-test-token");
         properties.put("rehealth.attribution.mode", "pias");
         return properties;
     }

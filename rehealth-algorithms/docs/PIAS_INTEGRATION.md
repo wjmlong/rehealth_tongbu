@@ -1,6 +1,6 @@
 # PIAS Engine Integration Guide
 
-> Production status (2026-07-13): this document describes the research PIAS implementation in `rehealth-algorithms`. It does not mean the complete PIAS chain is available to the Android app in production. The approved production path is `Android App -> backend -> model-service`; Python PIAS code and model artifacts must not be embedded in the APK. See `docs/LOWDIM_WEARABLE_MODEL.md` for the current low-dimensional model requirement and deployment boundary.
+> Production status (2026-07-24): research routes remain in `api.main` and are not production entrypoints. Production runs `api.production_main:app`, which exposes only `/health`, `/health/readiness`, and authenticated `/api/pias/v2/attribute/individual`. Android reaches it only through authenticated Jeecg, which supplies persisted user-scoped history. See `docs/LOWDIM_WEARABLE_MODEL.md` for the deployment boundary.
 
 ## Overview
 

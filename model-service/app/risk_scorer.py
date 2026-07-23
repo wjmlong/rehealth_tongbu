@@ -181,6 +181,8 @@ class MockRiskScorer(RiskScorer):
         return super().expected_feature_order_artifacts
 
     def evaluate(self, vector: CvdFeatureVector) -> RiskEvaluateResponse:
+        if self._scorer_mode == "real_unavailable":
+            raise ModelUnavailableError("reviewed model is unavailable")
         values = vector.model_dump()
         score = 0.08
         contributions = {field: 0.0 for field in FEATURE_FIELDS}

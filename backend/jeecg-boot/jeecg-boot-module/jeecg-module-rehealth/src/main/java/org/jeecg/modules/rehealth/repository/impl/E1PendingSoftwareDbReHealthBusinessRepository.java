@@ -11,10 +11,12 @@ import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateRequestDto;
 import org.jeecg.modules.rehealth.repository.ReHealthBusinessRepository;
+import org.jeecg.modules.rehealth.model.ModelCallAudit;
 import org.springframework.stereotype.Service;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.util.Optional;
+import java.util.List;
 
 @Service
 @ConditionalOnProperty(name = "rehealth.software-db.enabled", havingValue = "false", matchIfMissing = true)
@@ -40,13 +42,7 @@ public class E1PendingSoftwareDbReHealthBusinessRepository implements ReHealthBu
     }
 
     @Override
-    public void recordModelRequest(
-            String userId,
-            String requestId,
-            String operation,
-            String modelVersion,
-            String outcome
-    ) {
+    public void recordModelRequest(String userId, ModelCallAudit audit) {
     }
 
     @Override
@@ -72,6 +68,11 @@ public class E1PendingSoftwareDbReHealthBusinessRepository implements ReHealthBu
     @Override
     public Optional<RiskEvaluateResponseDto> findLatestRiskResult(String userId) {
         return Optional.empty();
+    }
+
+    @Override
+    public List<AttributionEventsRequestDto.AttributionHistoryPointDto> findAttributionHistory(String userId) {
+        return List.of();
     }
 
     @Override

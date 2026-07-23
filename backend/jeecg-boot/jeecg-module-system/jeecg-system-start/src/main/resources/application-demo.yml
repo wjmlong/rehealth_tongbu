@@ -15,6 +15,7 @@ rehealth:
     require-real-model: false
   attribution-service:
     base-url: ${REHEALTH_ATTRIBUTION_SERVICE_BASE_URL:http://127.0.0.1:8000}
+    internal-token-file: ${REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE:}
   attribution:
     mode: ${REHEALTH_ATTRIBUTION_MODE:demo_mock}
     provenance: demo_mock

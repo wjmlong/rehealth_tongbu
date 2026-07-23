@@ -217,10 +217,9 @@ def test_individual_attribution_endpoint_shape():
     response = demo_client.post(
         "/v1/cvd/attribution/individual",
         json={
-            "baselineRiskScore": 0.40,
-            "events": [
-                {"date": "2026-07-01", "risk_score": 0.40, "intervention_id": "walking", "adherence": 0.5},
-                {"date": "2026-07-08", "risk_score": 0.34, "intervention_id": "walking", "adherence": 0.8},
+            "risk_history": [
+                {"date": "2026-07-01", "Y": 0.40, "Z": 0},
+                {"date": "2026-07-08", "Y": 0.34, "Z": 1},
             ],
         },
     )
@@ -229,7 +228,13 @@ def test_individual_attribution_endpoint_shape():
     body = response.json()
     assert body["model_version"]
     assert body["trend_delta"] == -0.06
-    assert body["adherence_average"] == 0.65
+    assert body["adherence_average"] == 0.5
+    assert body["status"] == "ready"
+    assert body["attribution_mode"] == "demo_mock"
+    assert body["is_mock"] is True
+    assert body["provider"] == "model-service"
+    assert len(body["forecast"]["raw"]["dates"]) == 30
+    assert "individual_att" in body["intervention_effect"]
 
 
 def test_mock_attribution_endpoint_is_absent_by_default():

@@ -3,6 +3,8 @@ package org.jeecg.modules.rehealth.repository.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.h2.jdbcx.JdbcDataSource;
 import org.jeecg.modules.rehealth.mobile.dto.DeviceBindRequestDto;
+import org.jeecg.modules.rehealth.mobile.dto.AttributionEventsRequestDto;
+import org.jeecg.modules.rehealth.mobile.dto.AttributionResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.FeedbackRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.InterventionGenerateResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.HealthInterviewSubmitRequestDto;
@@ -10,6 +12,7 @@ import org.jeecg.modules.rehealth.mobile.dto.HealthInterviewAnswerDto;
 import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
+import org.jeecg.modules.rehealth.model.ModelCallAudit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
@@ -157,10 +160,14 @@ class JdbcSoftwareDbReHealthBusinessRepositoryTest {
     void recordsMinimalModelRequestMetadataWithoutHealthPayload() {
         repository.recordModelRequest(
                 "user-a",
-                "request-a",
-                "RISK_EVALUATE",
-                "model-v1",
-                "SUCCESS"
+                new ModelCallAudit(
+                        "request-a",
+                        "RISK_EVALUATE",
+                        "model-v1",
+                        "SUCCESS",
+                        null,
+                        27
+                )
         );
 
         assertEquals(1, count("rehealth_model_request_log"));
@@ -179,6 +186,54 @@ class JdbcSoftwareDbReHealthBusinessRepositoryTest {
                 String.class,
                 "request-a"
         ));
+        assertEquals(27L, jdbcTemplate.queryForObject(
+                "SELECT latency_ms FROM rehealth_model_request_log WHERE request_id = ?",
+                Long.class,
+                "request-a"
+        ));
+        assertEquals(0, jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_NAME = 'REHEALTH_MODEL_REQUEST_LOG'
+                  AND COLUMN_NAME IN ('REQUEST_JSON', 'FEATURE_JSON', 'TOKEN')
+                """, Integer.class));
+    }
+
+    @Test
+    void buildsUserScopedAttributionHistoryAndPersistsProvenanceAudit() {
+        saveRisk("user-a", "request-before-plan", 0.31);
+        InterventionGenerateResponseDto plan = new InterventionGenerateResponseDto();
+        plan.planId = "plan-a";
+        plan.modelVersion = "model-v1";
+        plan.generatedAt = "2026-07-23T00:00:00Z";
+        repository.saveInterventionPlan("user-a", plan);
+        saveRisk("user-a", "request-after-plan", 0.27);
+        saveRisk("user-b", "request-user-b", 0.81);
+
+        List<AttributionEventsRequestDto.AttributionHistoryPointDto> history =
+                repository.findAttributionHistory("user-a");
+        AttributionEventsRequestDto request = new AttributionEventsRequestDto();
+        request.requestId = "attr-a";
+        request.riskHistory = history;
+        AttributionResponseDto response = new AttributionResponseDto();
+        response.status = "ready";
+        response.attributionMode = "pias";
+        response.isMock = false;
+        response.provider = "pias";
+        response.modelVersion = "pias-individual-v2";
+        repository.recordAttributionResult("user-a", request, response);
+
+        assertEquals(1, history.size());
+        assertEquals(0.27, history.get(0).riskScore);
+        assertEquals(1, history.get(0).intervention);
+        String responseJson = jdbcTemplate.queryForObject(
+                "SELECT response_json FROM rehealth_attribution_result WHERE user_id = ?",
+                String.class,
+                "user-a"
+        );
+        assertTrue(responseJson.contains("\"attributionMode\":\"pias\""));
+        assertTrue(responseJson.contains("\"isMock\":false"));
+        assertTrue(responseJson.contains("\"provider\":\"pias\""));
+        assertTrue(repository.findAttributionHistory("missing-user").isEmpty());
     }
 
     private void saveRisk(String userId, String requestId, double score) {

@@ -419,6 +419,7 @@ rehealth:
     require-real-model: ${REHEALTH_REQUIRE_REAL_MODEL:false}
   attribution-service:
     base-url: ${REHEALTH_ATTRIBUTION_SERVICE_BASE_URL:}
+    internal-token-file: ${REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE:}
   attribution:
     mode: ${REHEALTH_ATTRIBUTION_MODE:pias}
     provenance: pias

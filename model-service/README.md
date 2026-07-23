@@ -16,8 +16,12 @@ The runtime loads a reviewed local CVD-16 CatBoost artifact when canonical files
 ## API
 
 - `GET /health`
+- `GET /ready`
+- `GET /metrics`
+- `GET /v1/models/active`
 - `POST /v1/cvd/risk/evaluate`
 - `POST /v1/cvd/intervention/generate`
+- `POST /v1/cvd/attribution/individual` only when explicit `demo_mock` mode is enabled outside production/staging
 
 `/v1/cvd/risk/evaluate` accepts either a flat Android feature vector body or `{ "featureVector": { ... } }`. The service accepts Android camelCase names and snake_case names for the CVD fields.
 
@@ -150,6 +154,29 @@ models/cvd_features.json
 `feature_cols.pkl`, `feature_cols_v2.pkl`, or `cvd_features.json` must exactly match the Android C1 CVD 16 feature order. `models/model_meta_v2.json` or `models/model_metadata.json` is optional but recommended for `model_version`. The service does not hardcode old AUC values such as `0.847`; AUC is omitted unless verified metadata provides it.
 
 `GET /health` reports `scorer_mode` as `real_unavailable`, `real_available`, or `mock`. The service must not return `is_mock=false` unless the real model artifact loads and scores successfully.
+
+`GET /ready` is the deployment readiness probe. It returns HTTP 503 with a
+stable code when the reviewed model is unavailable, its schema is invalid, or
+the externally verified production artifact marker is absent. `GET /health`
+remains a liveness probe and stays HTTP 200 while the process can serve
+diagnostics. Explicit Demo mock mode is never relabeled as a real model.
+
+`GET /v1/models/active` exposes only bounded model version, schema, mode,
+artifact basename, and readiness metadata. It does not expose configured
+filesystem paths or validation exception details. Every response carries
+`X-Request-ID`; risk responses mirror the same value in `request_id` and
+`model_trace.request_id`.
+
+`GET /metrics` exposes Prometheus counters and latency histograms labeled only
+by the fixed operation and outcome sets. Request IDs, tokens, feature values,
+and payload fields are never metric labels.
+
+Production and staging additionally require `REHEALTH_MODEL_VERIFICATION_FILE`
+to reference the 64-character SHA-256 marker written by the artifact verifier.
+Inference is bounded by `REHEALTH_MODEL_EVALUATION_TIMEOUT_SECONDS`; repeated
+runtime failures open a short circuit controlled by
+`REHEALTH_MODEL_CIRCUIT_FAILURE_THRESHOLD` and
+`REHEALTH_MODEL_CIRCUIT_RESET_SECONDS`.
 
 ## Model Governance
 

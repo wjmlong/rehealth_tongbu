@@ -11,7 +11,9 @@ This contract is the boundary between Android D1, backend E1, and the Python mod
 - The service accepts either a flat feature-vector body or a wrapped body: `{ "featureVector": { ... } }`.
 - The service accepts Android camelCase field names at the top feature-vector level and normalizes them to snake_case.
 - Backend E1 should treat response field names as stable and forward/store them without renaming unless its own DTO contract explicitly maps them.
-- Backend E1 may pass `requestId`; model-service returns it as `request_id` when provided.
+- Backend E1 may pass `requestId` or `X-Request-ID`; model-service returns the
+  selected correlation ID in the response header, `request_id`, and
+  `model_trace.request_id`.
 - M1 adds `model_trace` as a stable optional governance block. Backend and Android clients may ignore it initially, but should store it when audit history is required.
 - Medical guidance returned by this service is conservative support only. It must not be presented as diagnosis or a replacement for clinician review.
 
@@ -68,7 +70,8 @@ Every canonical field must have a `featureQuality` entry keyed by the snake_case
 
 ## GET /health
 
-Returns service availability and active model version.
+Returns process liveness and safe active model metadata. Model unavailability
+does not change this endpoint from HTTP 200.
 
 Response 200:
 
@@ -81,7 +84,7 @@ Response 200:
   "feature_schema_version": "cvd-16-v1",
   "scorer_mode": "real_unavailable",
   "model_available": false,
-  "model_unavailable_reason": "model artifact missing: models/rehealth_cvd_catboost.pkl; models/rehealth_v2_final.pkl",
+  "model_unavailable_reason": "reviewed model is unavailable",
   "expected_model_artifacts": [
     "models/rehealth_cvd_catboost.pkl",
     "models/rehealth_v2_final.pkl"
@@ -101,8 +104,40 @@ Response 200:
 `scorer_mode` values:
 
 - `mock`: explicit mock-only scorer mode.
-- `real_unavailable`: real artifacts are missing or invalid and mock fallback is active.
+- `real_unavailable`: real artifacts are missing or invalid; risk evaluation
+  returns HTTP 503 and never executes mock scoring.
 - `real_available`: real artifacts loaded successfully and model-service can return `is_mock=false` after prediction.
+
+## GET /ready
+
+Returns HTTP 200 only when the active mode is deployable. Production and
+staging require both a real available model and the external artifact verifier
+marker. Missing, invalid, or wrong-order artifacts return HTTP 503:
+
+```json
+{
+  "status": "unavailable",
+  "code": "model_unavailable",
+  "model_version": "cvd-mock-rules-v1",
+  "feature_schema_version": "cvd-16-v1",
+  "scorer_mode": "real_unavailable",
+  "is_mock": true
+}
+```
+
+Stable readiness codes are `ready`, `model_unavailable`,
+`artifact_not_verified`, `mock_forbidden`, and `demo_mock_active`.
+
+## GET /v1/models/active
+
+Returns safe registry/version/schema metadata, artifact basename, and readiness
+state. Configured paths and raw artifact validation errors are excluded.
+
+## GET /metrics
+
+Returns Prometheus text format. Labels are limited to fixed `operation` and
+`outcome` values; correlation IDs, authorization values, and feature fields are
+not labels.
 
 ## POST /v1/cvd/risk/evaluate
 

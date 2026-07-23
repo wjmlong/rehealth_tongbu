@@ -137,6 +137,8 @@ CREATE TABLE rehealth_model_request_log (
     operation VARCHAR(64) NOT NULL,
     model_version VARCHAR(128),
     outcome VARCHAR(64) NOT NULL,
+    error_code VARCHAR(64),
+    latency_ms BIGINT NOT NULL DEFAULT 0,
     created_at DATETIME(3) NOT NULL,
     KEY idx_model_request_user_created (user_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

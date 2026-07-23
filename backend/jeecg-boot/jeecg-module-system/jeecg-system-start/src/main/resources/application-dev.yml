@@ -435,6 +435,7 @@ rehealth:
     require-real-model: ${REHEALTH_REQUIRE_REAL_MODEL:false}
   attribution-service:
     base-url: http://127.0.0.1:8000
+    internal-token-file: ${REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE:}
   attribution:
     mode: ${REHEALTH_ATTRIBUTION_MODE:pias}
     provenance: ${REHEALTH_ATTRIBUTION_PROVENANCE:pias}

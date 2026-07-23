@@ -44,6 +44,13 @@ public final class ReHealthRuntimeSafetyValidator implements InitializingBean {
             )) {
                 requireSecureUrl(environment, propertyName);
             }
+            if (property(environment, "rehealth.attribution-service.internal-token", "").isBlank()
+                    && property(environment, "rehealth.attribution-service.internal-token-file", "").isBlank()) {
+                reject(
+                        "PIAS_INTERNAL_TOKEN_REQUIRED",
+                        "rehealth.attribution-service.internal-token is required in production and staging"
+                );
+            }
             if (!property(environment, "rehealth.provider-credentials.embedded-secret", "").isBlank()) {
                 reject("EMBEDDED_SECRET_FORBIDDEN", "provider credentials must come from an external secret store");
             }
@@ -114,19 +121,4 @@ public final class ReHealthRuntimeSafetyValidator implements InitializingBean {
         }
     }
 
-    private enum AttributionMode {
-        PIAS,
-        DEMO_MOCK;
-
-        private static AttributionMode parse(String value) {
-            try {
-                return valueOf(value.toUpperCase(Locale.ROOT));
-            } catch (IllegalArgumentException error) {
-                throw new IllegalStateException(
-                        "REHEALTH_CONFIG_INVALID_ATTRIBUTION_MODE: expected pias or demo_mock",
-                        error
-                );
-            }
-        }
-    }
 }

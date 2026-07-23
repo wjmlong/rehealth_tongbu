@@ -6,8 +6,10 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import assert_never
 from urllib.parse import urlparse
+from pathlib import Path
+import re
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class RuntimeMode(StrEnum):
@@ -42,6 +44,10 @@ class RuntimeConfig(BaseModel):
     service_base_url: str = ""
     provider_credential_file: str = ""
     embedded_provider_secret: str = ""
+    model_verification_file: str = ""
+    model_evaluation_timeout_seconds: float = Field(default=5.0, gt=0)
+    model_circuit_failure_threshold: int = Field(default=3, ge=1)
+    model_circuit_reset_seconds: float = Field(default=30.0, gt=0)
 
 
 class RuntimeStatus(BaseModel):
@@ -63,6 +69,7 @@ def load_runtime_config(environ: Mapping[str, str] | None = None) -> RuntimeConf
     service_base_url = source.get("REHEALTH_MODEL_SERVICE_BASE_URL", "").strip()
     provider_credential_file = source.get("REHEALTH_PROVIDER_CREDENTIAL_FILE", "").strip()
     embedded_provider_secret = source.get("REHEALTH_PROVIDER_SECRET", "").strip()
+    model_verification_file = source.get("REHEALTH_MODEL_VERIFICATION_FILE", "").strip()
     config = RuntimeConfig(
         runtime_mode=runtime_mode,
         attribution_mode=attribution_mode,
@@ -72,6 +79,16 @@ def load_runtime_config(environ: Mapping[str, str] | None = None) -> RuntimeConf
         service_base_url=service_base_url,
         provider_credential_file=provider_credential_file,
         embedded_provider_secret=embedded_provider_secret,
+        model_verification_file=model_verification_file,
+        model_evaluation_timeout_seconds=float(
+            source.get("REHEALTH_MODEL_EVALUATION_TIMEOUT_SECONDS", "5")
+        ),
+        model_circuit_failure_threshold=int(
+            source.get("REHEALTH_MODEL_CIRCUIT_FAILURE_THRESHOLD", "3")
+        ),
+        model_circuit_reset_seconds=float(
+            source.get("REHEALTH_MODEL_CIRCUIT_RESET_SECONDS", "30")
+        ),
     )
     validate_runtime_config(config)
     return config
@@ -104,6 +121,19 @@ def runtime_status(config: RuntimeConfig) -> RuntimeStatus:
         mock_attribution_enabled=config.mock_attribution_enabled,
         provenance=config.provenance,
     )
+
+
+def artifact_verification_available(config: RuntimeConfig) -> bool:
+    if config.runtime_mode not in {RuntimeMode.PRODUCTION, RuntimeMode.STAGING}:
+        return True
+    if not config.model_verification_file:
+        return False
+    verification_path = Path(config.model_verification_file)
+    try:
+        digest = verification_path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return False
+    return re.fullmatch(r"[a-f0-9]{64}", digest) is not None
 
 
 def _validate_attribution_mode(config: RuntimeConfig) -> None:

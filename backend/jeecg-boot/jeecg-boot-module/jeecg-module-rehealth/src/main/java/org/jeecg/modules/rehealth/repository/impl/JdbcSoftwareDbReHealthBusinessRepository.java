@@ -13,6 +13,7 @@ import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
 import org.jeecg.modules.rehealth.repository.ReHealthBusinessRepository;
+import org.jeecg.modules.rehealth.model.ModelCallAudit;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DuplicateKeyException;
@@ -26,8 +27,13 @@ import java.security.NoSuchAlgorithmException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -114,26 +120,25 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
     }
 
     @Override
-    public void recordModelRequest(
-            String userId,
-            String requestId,
-            String operation,
-            String modelVersion,
-            String outcome
-    ) {
+    public void recordModelRequest(String userId, ModelCallAudit audit) {
         requireUser(userId);
-        if (operation == null || operation.isBlank()) {
+        if (audit == null) {
+            throw new IllegalArgumentException("model audit is required");
+        }
+        if (audit.operation() == null || audit.operation().isBlank()) {
             throw new IllegalArgumentException("model operation is required");
         }
-        if (outcome == null || outcome.isBlank()) {
+        if (audit.outcome() == null || audit.outcome().isBlank()) {
             throw new IllegalArgumentException("model outcome is required");
         }
         jdbcTemplate.update("""
                 INSERT INTO rehealth_model_request_log (
-                    id, user_id, request_id, operation, model_version, outcome, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, UUID.randomUUID().toString(), userId, requestId, operation,
-                modelVersion, outcome, Timestamp.from(Instant.now()));
+                    id, user_id, request_id, operation, model_version, outcome,
+                    error_code, latency_ms, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, UUID.randomUUID().toString(), userId, audit.correlationId(), audit.operation(),
+                audit.modelVersion(), audit.outcome(), audit.errorCode(), audit.latencyMillis(),
+                Timestamp.from(Instant.now()));
     }
 
     @Override
@@ -259,6 +264,40 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
                 userId,
                 RiskEvaluateResponseDto.class
         );
+    }
+
+    @Override
+    public List<AttributionEventsRequestDto.AttributionHistoryPointDto> findAttributionHistory(String userId) {
+        requireUser(userId);
+        List<PersistedRiskPoint> risks = jdbcTemplate.query("""
+                SELECT evaluated_at, risk_score
+                FROM rehealth_cvd_risk_result
+                WHERE user_id = ?
+                ORDER BY evaluated_at DESC, id DESC
+                LIMIT 90
+                """, (resultSet, rowNum) -> new PersistedRiskPoint(
+                resultSet.getTimestamp("evaluated_at"),
+                resultSet.getDouble("risk_score")
+        ), userId);
+        Collections.reverse(risks);
+        Timestamp firstPlanAt = jdbcTemplate.query(
+                "SELECT MIN(generated_at) FROM rehealth_intervention_plan WHERE user_id = ?",
+                resultSet -> resultSet.next() ? resultSet.getTimestamp(1) : null,
+                userId
+        );
+        Map<String, AttributionEventsRequestDto.AttributionHistoryPointDto> byDate = new LinkedHashMap<>();
+        for (PersistedRiskPoint risk : risks) {
+            if (risk.evaluatedAt() == null) {
+                continue;
+            }
+            AttributionEventsRequestDto.AttributionHistoryPointDto point =
+                    new AttributionEventsRequestDto.AttributionHistoryPointDto();
+            point.date = risk.evaluatedAt().toInstant().atOffset(ZoneOffset.UTC).toLocalDate().toString();
+            point.riskScore = risk.riskScore();
+            point.intervention = firstPlanAt != null && !risk.evaluatedAt().before(firstPlanAt) ? 1 : 0;
+            byDate.put(point.date, point);
+        }
+        return new ArrayList<>(byDate.values());
     }
 
     @Override
@@ -430,5 +469,8 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
         if (userId == null || userId.isBlank()) {
             throw new IllegalArgumentException("authenticated userId is required");
         }
+    }
+
+    private record PersistedRiskPoint(Timestamp evaluatedAt, double riskScore) {
     }
 }

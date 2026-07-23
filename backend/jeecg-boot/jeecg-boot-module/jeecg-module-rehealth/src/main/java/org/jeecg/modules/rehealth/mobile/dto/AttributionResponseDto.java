@@ -16,6 +16,13 @@ public class AttributionResponseDto {
     @JSONField(name = "intervention_effect") @JsonProperty("intervention_effect") @JsonAlias("interventionEffect") public InterventionEffectDto interventionEffect;
     public ReportsDto reports;
     @JSONField(name = "model_version") @JsonProperty("model_version") @JsonAlias("modelVersion") public String modelVersion;
+    @JSONField(name = "attribution_mode") @JsonProperty("attribution_mode") @JsonAlias("attributionMode") public String attributionMode;
+    @JSONField(name = "is_mock") @JsonProperty("is_mock") @JsonAlias("isMock") public Boolean isMock;
+    public String provider;
+    @JSONField(name = "request_id") @JsonProperty("request_id") @JsonAlias("requestId") public String requestId;
+    @JSONField(name = "error_code") @JsonProperty("error_code") @JsonAlias("errorCode") public String errorCode;
+    @JSONField(name = "error_message") @JsonProperty("error_message") @JsonAlias("errorMessage") public String errorMessage;
+    public Boolean retryable;
     @JSONField(name = "trend_delta") @JsonProperty("trend_delta") @JsonAlias("trendDelta") public Double trendDelta;
     @JSONField(name = "adherence_average") @JsonProperty("adherence_average") @JsonAlias("adherenceAverage") public Double adherenceAverage;
     public String interpretation;
@@ -79,6 +86,20 @@ public class AttributionResponseDto {
     public void setReports(ReportsDto value) { reports = value; }
     public String getModelVersion() { return modelVersion; }
     public void setModelVersion(String value) { modelVersion = value; }
+    public String getAttributionMode() { return attributionMode; }
+    public void setAttributionMode(String value) { attributionMode = value; }
+    public Boolean getIsMock() { return isMock; }
+    public void setIsMock(Boolean value) { isMock = value; }
+    public String getProvider() { return provider; }
+    public void setProvider(String value) { provider = value; }
+    public String getRequestId() { return requestId; }
+    public void setRequestId(String value) { requestId = value; }
+    public String getErrorCode() { return errorCode; }
+    public void setErrorCode(String value) { errorCode = value; }
+    public String getErrorMessage() { return errorMessage; }
+    public void setErrorMessage(String value) { errorMessage = value; }
+    public Boolean getRetryable() { return retryable; }
+    public void setRetryable(Boolean value) { retryable = value; }
     public Double getTrendDelta() { return trendDelta; }
     public void setTrendDelta(Double value) { trendDelta = value; }
     public Double getAdherenceAverage() { return adherenceAverage; }
