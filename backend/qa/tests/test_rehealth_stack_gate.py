@@ -11,6 +11,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[3]
 GATE = REPO_ROOT / "backend" / "qa" / "rehealth_stack_gate.py"
 COMPOSE = REPO_ROOT / "backend" / "deploy" / "rehealth" / "docker-compose.yml"
+ATTRIBUTION_FIXTURE = REPO_ROOT / "backend" / "contracts" / "fixtures" / "attribution" / "ready.json"
 
 
 def run_gate(*arguments: str) -> subprocess.CompletedProcess[str]:
@@ -109,3 +110,38 @@ def test_unknown_subcommand_is_explicitly_unsupported() -> None:
 
     assert result.returncode == 64
     assert "unsupported" in result.stderr.lower()
+
+
+def test_attribution_gate_proves_explicit_ready_modes() -> None:
+    result = run_gate(
+        "attribution",
+        "--modes",
+        "pias,demo_mock",
+        "--fixture",
+        str(ATTRIBUTION_FIXTURE),
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["assertions"]["pias_ready_real"] is True
+    assert payload["assertions"]["demo_ready_explicit_mock"] is True
+    assert payload["assertions"]["no_fallback"] is True
+
+
+def test_attribution_gate_proves_failure_matrix() -> None:
+    result = run_gate(
+        "attribution",
+        "--fixture",
+        str(ATTRIBUTION_FIXTURE),
+        "--cases",
+        "accumulating,pias_down,production_demo,client_history_spoof",
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    cases = {item["case"]: item for item in payload["cases"]}
+    assert cases["accumulating"]["status"] == "accumulating"
+    assert cases["pias_down"]["status"] == "error"
+    assert cases["pias_down"]["is_mock"] is False
+    assert cases["production_demo"]["startup_rejected"] is True
+    assert cases["client_history_spoof"]["client_history_used"] is False
