@@ -3,6 +3,7 @@ package com.rehealth.device;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rehealth.contracts.telemetry.v1.ActivitySessionRecord;
 import com.rehealth.contracts.telemetry.v1.MeasurementRecord;
+import com.rehealth.contracts.telemetry.v1.RecentTelemetryResponse;
 import com.rehealth.contracts.telemetry.v1.SleepSessionRecord;
 import com.rehealth.contracts.telemetry.v1.TelemetryBatchRequest;
 import com.rehealth.contracts.telemetry.v1.TelemetryBatchResponse;
@@ -10,6 +11,7 @@ import com.rehealth.contracts.telemetry.v1.TelemetryContractValidator;
 import com.rehealth.contracts.telemetry.v1.TelemetryValidationPolicy;
 import com.rehealth.contracts.telemetry.v1.TelemetryValidationResult;
 import com.rehealth.device.adapter.TimescaleTelemetryStore;
+import com.rehealth.device.adapter.TimescaleTelemetryReader;
 import com.rehealth.device.api.ApiExceptionHandler;
 import com.rehealth.device.api.DeviceTelemetryController;
 import com.rehealth.device.application.DeviceRequestException;
@@ -106,6 +108,26 @@ class TelemetryIngestionIT {
                 WHERE event_metadata->>'tenant_ref' LIKE 'opaque_%'
                   AND NOT event_metadata ? 'heart_rate'
                 """));
+    }
+
+    @Test
+    void recentReadReturnsOnlyTheAuthorizedOwnerAndDevice() throws Exception {
+        requireHappy();
+        TestStore store = newStore();
+        TelemetryBatchRequest request = mixedBatch("batch-recent");
+        DeviceClaims owner = owner("tenant-a", "user-a", "ring-a");
+        store.write(owner, request, validate(request));
+
+        RecentTelemetryResponse response = store.reader().recent(owner, 10);
+
+        assertEquals("user-a", response.userId);
+        assertEquals(10, response.limit);
+        assertEquals(1, response.measurements.size());
+        assertEquals("measurement-1", response.measurements.get(0).id);
+        assertEquals(1, response.sleepSessions.size());
+        assertEquals("sleep-1", response.sleepSessions.get(0).id);
+        assertEquals(1, response.activities.size());
+        assertEquals("activity-1", response.activities.get(0).id);
     }
 
     @Test
@@ -259,7 +281,12 @@ class TelemetryIngestionIT {
         database.flyway().migrate();
         DriverManagerDataSource dataSource = new DriverManagerDataSource(
                 database.url(), TimescaleTestDatabase.USER, TimescaleTestDatabase.PASSWORD);
-        return new TestStore(createStore(dataSource), new JdbcTemplate(dataSource));
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        return new TestStore(
+                createStore(dataSource),
+                new TimescaleTelemetryReader(jdbc),
+                jdbc
+        );
     }
 
     private static TimescaleTelemetryStore createStore(DataSource dataSource) {
@@ -393,7 +420,11 @@ class TelemetryIngestionIT {
         return selected;
     }
 
-    private record TestStore(TimescaleTelemetryStore writer, JdbcTemplate jdbc) {
+    private record TestStore(
+            TimescaleTelemetryStore writer,
+            TimescaleTelemetryReader reader,
+            JdbcTemplate jdbc
+    ) {
         TelemetryBatchResponse write(
                 DeviceClaims claims,
                 TelemetryBatchRequest request,

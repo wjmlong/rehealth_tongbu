@@ -87,3 +87,50 @@ signed Timescale-to-MySQL reconciliation.
 
 Production publishes only the `edge` port. Gateway, Jeecg, Device Service,
 TimescaleDB and all other dependencies remain on internal Compose networks.
+
+## Local application development
+
+Run only stateful infrastructure in Docker and run the Java/Python application
+services directly on Windows:
+
+```powershell
+docker compose `
+  --env-file backend/deploy/rehealth/.env `
+  -f backend/deploy/rehealth/docker-compose.yml `
+  -f backend/deploy/rehealth/docker-compose.local-infra.yml `
+  --profile development up -d `
+  software-db hardware-db kafka kafka-init redis nacos prometheus grafana
+```
+
+The local override binds dependency ports to `127.0.0.1` only. Kafka keeps its
+internal `kafka:9092` listener for Compose jobs and adds
+`127.0.0.1:29092` for locally running services. Do not use this override for
+staging or production.
+
+Application services then use these local endpoints:
+
+| Service | Local endpoint |
+|---|---|
+| JeecgBoot | `http://127.0.0.1:8080/jeecg-boot` |
+| Device Service | `http://127.0.0.1:8091` |
+| model-service | `http://127.0.0.1:8000` |
+| PIAS | `http://127.0.0.1:8010` |
+| Kafka | `127.0.0.1:29092` |
+
+Keep passwords and internal service credentials in the ignored
+`backend/deploy/rehealth/secrets/` files. Load them into the local process
+environment at startup; never copy them into tracked YAML or source files.
+
+After the current JARs and Python virtual environment have been built, start
+or stop all application processes with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File backend/deploy/rehealth/start-local-apps.ps1
+powershell -ExecutionPolicy Bypass -File backend/deploy/rehealth/stop-local-apps.ps1
+```
+
+The scripts run applications as hidden Windows processes. PID files and
+separate stdout/stderr logs are written to the ignored
+`backend/deploy/rehealth/.local-runtime/` directory. The model service loads
+the reviewed local model, PIAS uses its production entrypoint, and the external
+health-agent provider remains disabled unless explicitly configured.

@@ -138,12 +138,16 @@ class AuthenticatedApiClient(
      * Maps a [RemotePhmError] for the pre-auth registration endpoints. Business/validation
      * errors (e.g. "短信接口未配置", "手机验证码失效") are surfaced as [ApiResult.InvalidRequest]
      * so the UI can show the backend message; transport errors become [ApiResult.NetworkError].
+     *
+     * Note: the backend wraps business failures in HTTP 200 with JeecgResult.code = 0/500/412,
+     * which [toRemotePhmError] represents as [RemotePhmError.HttpStatusError]. For pre-auth
+     * endpoints only 401/403 are true auth errors, so everything else is shown to the user.
      */
     private fun mapPreAuthFailure(error: RemotePhmError): ApiResult<Nothing> = when (error) {
         is RemotePhmError.HttpStatusError -> when (error.code) {
             401 -> ApiResult.Unauthorized(error.message)
             403 -> ApiResult.Forbidden(error.message)
-            else -> ApiResult.NetworkError(error.message)
+            else -> ApiResult.InvalidRequest(error.message)
         }
         is RemotePhmError.ModelServiceUnavailable -> ApiResult.ServiceUnavailable(error.message)
         is RemotePhmError.InvalidDto -> ApiResult.InvalidRequest(error.message)

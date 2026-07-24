@@ -13,7 +13,7 @@ import java.util.UUID;
 
 @Repository
 @ConditionalOnProperty(name = "rehealth.kafka.publisher.enabled", havingValue = "true")
-public final class JdbcOutboxStore implements OutboxStore {
+public class JdbcOutboxStore implements OutboxStore {
     private final JdbcTemplate jdbc;
     private final TransactionTemplate transactions;
 

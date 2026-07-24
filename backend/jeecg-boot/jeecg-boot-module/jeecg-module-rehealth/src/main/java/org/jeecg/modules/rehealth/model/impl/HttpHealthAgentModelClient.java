@@ -5,6 +5,7 @@ import org.jeecg.modules.rehealth.mobile.dto.HealthAgentResponseDto;
 import org.jeecg.modules.rehealth.model.HealthAgentModelClient;
 import org.jeecg.modules.rehealth.model.ModelServiceErrorCode;
 import org.jeecg.modules.rehealth.model.ModelServiceException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +21,7 @@ public class HttpHealthAgentModelClient implements HealthAgentModelClient {
     private final String baseUrl;
     private final String internalToken;
 
+    @Autowired
     public HttpHealthAgentModelClient(
             @Value("${rehealth.model-service.base-url:}") String baseUrl,
             @Value("${rehealth.model-service.timeout-seconds:10}") long timeoutSeconds,

@@ -4,15 +4,39 @@ import com.sun.net.httpserver.HttpServer;
 import org.jeecg.modules.rehealth.mobile.dto.HealthAgentModelRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.HealthAgentResponseDto;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.core.env.MapPropertySource;
 
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class HttpHealthAgentModelClientTest {
+    @Test
+    void springCreatesClientWhenMultipleConstructorsExist() {
+        try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext()) {
+            context.getEnvironment().getPropertySources().addFirst(new MapPropertySource(
+                    "healthAgentClientTest",
+                    Map.of(
+                            "rehealth.model-service.base-url", "http://127.0.0.1:8000",
+                            "rehealth.model-service.timeout-seconds", "2",
+                            "rehealth.health-agent.internal-token", "test-only-token",
+                            "rehealth.health-agent.internal-token-file", ""
+                    )
+            ));
+            context.register(HttpHealthAgentModelClient.class);
+
+            context.refresh();
+
+            assertNotNull(context.getBean(HttpHealthAgentModelClient.class));
+        }
+    }
+
     @Test
     void sendsInternalCredentialAndNoUserOrTenantIdentifier() throws Exception {
         AtomicReference<String> authorization = new AtomicReference<>();

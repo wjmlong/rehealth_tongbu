@@ -118,6 +118,9 @@ services:
       SPRING_KAFKA_PROPERTIES_SSL_TRUSTSTORE_LOCATION: /run/secrets/kafka_truststore
       REHEALTH_KAFKA_SECURITY_SASL_JAAS_CONFIG_FILE: /run/secrets/kafka_sasl_jaas_config
       REHEALTH_KAFKA_SECURITY_SSL_TRUSTSTORE_PASSWORD_FILE: /run/secrets/kafka_truststore_password
+      # 本地/测试环境无真实短信网关：开启开发模式，让 /sys/sms 生成固定验证码并存入 Redis，
+      # 否则注册链路永远因为"短信接口未配置"而失败。生产环境必须关闭此变量并配置 DySmsHelper。
+      JEECG_SMS_DEV_MODE: "true"
     secrets:
       - software_db_password
       - redis_password

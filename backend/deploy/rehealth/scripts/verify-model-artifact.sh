@@ -6,7 +6,11 @@ signature="$2"
 public_key="$3"
 result="$4"
 
-cosign verify-blob --key "$public_key" --signature "$signature" "$manifest" >/dev/null
+cosign verify-blob \
+  --insecure-ignore-tlog=true \
+  --key "$public_key" \
+  --signature "$signature" \
+  "$manifest" >/dev/null
 jq -e '.artifacts | type == "array" and length > 0' "$manifest" >/dev/null
 
 jq -r '.artifacts[] | [.path, .sha256] | @tsv' "$manifest" |

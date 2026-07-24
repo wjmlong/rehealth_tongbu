@@ -11,6 +11,7 @@ import org.jeecg.modules.rehealth.model.ModelHealthResponseDto;
 import org.jeecg.modules.rehealth.model.ModelServiceClient;
 import org.jeecg.modules.rehealth.model.ModelServiceErrorCode;
 import org.jeecg.modules.rehealth.model.ModelServiceException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -32,6 +33,7 @@ public class HttpModelServiceClient implements ModelServiceClient {
     private static final Pattern CORRELATION_ID_PATTERN =
             Pattern.compile("^[A-Za-z0-9._:-]{1,128}$");
 
+    @Autowired
     public HttpModelServiceClient(
             @Value("${rehealth.model-service.base-url:}") String baseUrl,
             @Value("${rehealth.attribution-service.base-url:${rehealth.model-service.base-url:}}") String attributionBaseUrl,

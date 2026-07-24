@@ -17,3 +17,11 @@ Thumbs.db
 /sync_to_github.log
 
 /sync_debug.log
+
+# ---- 本地工具/会话产物，不进入版本控制 ----
+.omo/
+.workbuddy/
+.idea/
+*.done
+*.exit
+/MuMu_启动与adb配置.md

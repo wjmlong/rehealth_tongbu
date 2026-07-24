@@ -5,7 +5,9 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates wget \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system rehealth \
-    && useradd --system --gid rehealth --home-dir /opt/rehealth rehealth
+    && useradd --system --gid rehealth --home-dir /opt/rehealth rehealth \
+    && mkdir -p /opt/rehealth/logs/nacos /opt/logs \
+    && chown -R rehealth:rehealth /opt/rehealth /opt/logs
 WORKDIR /opt/rehealth
 COPY ${JAR_FILE} app.jar
 USER rehealth
