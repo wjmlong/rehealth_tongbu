@@ -65,5 +65,26 @@
       }
     ],
     "uri": "lb://jeecg-system"
+  },
+  {
+    "id": "jeecg-system",
+    "order": 0,
+    "predicates": [
+      {
+        "name": "Path",
+        "args": {
+          "_genkey_0": "/jeecg-boot/**"
+        }
+      }
+    ],
+    "filters": [
+      {
+        "name": "StripPrefix",
+        "args": {
+          "parts": "1"
+        }
+      }
+    ],
+    "uri": "lb://jeecg-system"
   }
 ]

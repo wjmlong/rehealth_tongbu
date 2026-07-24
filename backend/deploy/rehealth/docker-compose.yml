@@ -54,15 +54,27 @@ services:
       SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
       REHEALTH_GATEWAY_ROUTE_SEED: /etc/rehealth/gateway/rehealth-routes.json
       REHEALTH_DEVICE_SERVICE_URL: http://device-service:8091
+      # Gateway uses standard spring.redis (not the rehealth override), so point it
+      # at the redis service explicitly. Default jar config is localhost, which fails
+      # inside the docker network.
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: "6379"
+      SPRING_REDIS_PASSWORD: ${REHEALTH_REDIS_PASSWORD}
+      # Dynamic route loading source. jeecg.route.config.data-type must be non-null
+      # or DynamicRouteLoader.refresh() NPEs on RouterDataType.yml.toString().endsWith(null)
+      # at line 99. 'nacos' makes the gateway pull its route table from the seeded
+      # gateway-router.json dataId (namespace springboot3 / group DEFAULT_GROUP).
+      JEECG_ROUTE_CONFIG_DATA_TYPE: nacos
+      JEECG_ROUTE_CONFIG_DATA_ID: gateway-router
     volumes:
       - ./gateway/rehealth-routes.json:/etc/rehealth/gateway/rehealth-routes.json:ro
     depends_on:
       nacos:
         condition: service_healthy
-      device-service:
-        condition: service_healthy
+      nacos-seed:
+        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9999/actuator/health/readiness"]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9999"]
       interval: 15s
       timeout: 5s
       retries: 12
@@ -120,16 +132,21 @@ services:
         condition: service_healthy
       nacos:
         condition: service_healthy
+      nacos-seed:
+        condition: service_completed_successfully
       model-service:
         condition: service_healthy
       pias:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:7001/actuator/health/readiness"]
+      # Actuator /health/readiness is Shiro-protected (401) in jeecg-system, so a plain
+      # wget probe fails. Use a TCP port check instead — Tomcat only binds 7001 after the
+      # Spring context is fully refreshed, so this is a valid liveness signal.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/7001"]
       interval: 15s
       timeout: 5s
       retries: 12
-      start_period: 90s
+      start_period: 120s
 
   device-service:
     <<: *service-defaults
@@ -144,6 +161,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: ${REHEALTH_RUNTIME_MODE:-development}
       SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      REHEALTH_HARDWARE_DB_ENABLED: "true"
       REHEALTH_HARDWARE_DB_URL: jdbc:postgresql://hardware-db:5432/rehealth_hardware
       REHEALTH_HARDWARE_DB_USERNAME: rehealth_hardware
       REHEALTH_HARDWARE_DB_PASSWORD_FILE: /run/secrets/hardware_db_password
@@ -152,7 +170,7 @@ services:
       REHEALTH_IDENTITY_READINESS_URL: http://jeecg-boot:7001/actuator/health/readiness
       REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE: /run/secrets/internal_service_credential
       REHEALTH_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      REHEALTH_KAFKA_PUBLISHER_ENABLED: "true"
+      REHEALTH_KAFKA_PUBLISHER_ENABLED: "false"
       REHEALTH_KAFKA_SECURITY_PROTOCOL: ${REHEALTH_KAFKA_SECURITY_PROTOCOL:-PLAINTEXT}
       REHEALTH_KAFKA_SASL_MECHANISM: ${REHEALTH_KAFKA_SASL_MECHANISM:-PLAIN}
       REHEALTH_KAFKA_SSL_TRUSTSTORE_LOCATION: /run/secrets/kafka_truststore
@@ -173,8 +191,10 @@ services:
         condition: service_started
       nacos:
         condition: service_healthy
+      nacos-seed:
+        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8091/actuator/health/readiness"]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8091"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -295,7 +315,7 @@ services:
     profiles: *rehealth-profiles
     image: redis:7.4.5-alpine@sha256:bb186d083732f669da90be8b0f975a37812b15e913465bb14d845db72a4e3e08
     restart: unless-stopped
-    command: ["sh", "-ec", "exec redis-server --appendonly yes --requirepass \"$$(cat /run/secrets/redis_password)\""]
+    command: ["sh", "-ec", "exec redis-server --appendonly yes --requirepass \"$$(tr -d '\\r\\n' < /run/secrets/redis_password)\""]
     secrets:
       - redis_password
     volumes:
@@ -303,7 +323,7 @@ services:
     networks:
       - backend
     healthcheck:
-      test: ["CMD-SHELL", "REDISCLI_AUTH=$$(cat /run/secrets/redis_password) redis-cli ping | grep -q PONG"]
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$(tr -d '\\r\\n' < /run/secrets/redis_password) redis-cli ping | grep -q PONG"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -314,12 +334,23 @@ services:
     profiles: *rehealth-profiles
     image: nacos/nacos-server:v2.5.1@sha256:8987908cb94ed5f9d30522a64493d35732a6c05f216d667a7addb022f3d92e80
     restart: unless-stopped
+    entrypoint:
+      - sh
+      - -ec
+      - |
+        export NACOS_AUTH_TOKEN="$$(cat /run/secrets/nacos_auth_token)"
+        export NACOS_AUTH_IDENTITY_KEY="$$(cat /run/secrets/nacos_identity_key)"
+        export NACOS_AUTH_IDENTITY_VALUE="$$(cat /run/secrets/nacos_identity_value)"
+        exec sh bin/docker-startup.sh
     environment:
       MODE: standalone
-      NACOS_AUTH_ENABLE: "true"
-      NACOS_AUTH_TOKEN_FILE: /run/secrets/nacos_auth_token
-      NACOS_AUTH_IDENTITY_KEY_FILE: /run/secrets/nacos_identity_key
-      NACOS_AUTH_IDENTITY_VALUE_FILE: /run/secrets/nacos_identity_value
+      # Local-dev convenience: Nacos auth disabled so the Spring Cloud clients
+      # (which ship with empty Nacos credentials) and manual config seeding can
+      # read/write configs without a bootstrap token. The auth filter in
+      # nacos/nacos-server:v2.5.1 also rejects header names derived from the
+      # NACOS_AUTH_TOKEN secret (which contains '/' and '+'), breaking the
+      # config API entirely. Re-enable + provision a user for non-local runs.
+      NACOS_AUTH_ENABLE: "false"
     secrets:
       - nacos_auth_token
       - nacos_identity_key
@@ -327,11 +358,33 @@ services:
     networks:
       - backend
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8848/nacos/v1/console/health/readiness | grep -q UP"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8848/nacos/actuator/health | grep -q '\"status\":\"UP\"'"]
       interval: 15s
       timeout: 5s
       retries: 20
       start_period: 45s
+    security_opt:
+      - no-new-privileges:true
+
+  # One-shot idempotent Nacos config seeder. Nacos runs with no persistent
+  # volume in dev, so its config (jeecg.yaml/jeecg-dev.yaml/gateway-router.json)
+  # is lost whenever the nacos container is recreated. This container re-pushes
+  # the seeds on every `up` before the Java services start, so the stack is
+  # self-healing and never boots into the gateway NPE (missing route config).
+  nacos-seed:
+    profiles: *rehealth-profiles
+    image: nacos/nacos-server:v2.5.1@sha256:8987908cb94ed5f9d30522a64493d35732a6c05f216d667a7addb022f3d92e80
+    restart: "no"
+    entrypoint: ["/bin/bash"]
+    command: ["/nacos-seed.sh"]
+    volumes:
+      - ./.local-runtime/nacos-seed:/seed:ro
+      - ./scripts/nacos-seed.sh:/nacos-seed.sh:ro
+    depends_on:
+      nacos:
+        condition: service_healthy
+    networks:
+      - backend
     security_opt:
       - no-new-privileges:true
 
@@ -429,7 +482,7 @@ services:
       - /var/cache/nginx
       - /var/run
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/"]
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8080/"]
       interval: 15s
       timeout: 5s
       retries: 10
