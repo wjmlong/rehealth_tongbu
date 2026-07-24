@@ -1,0 +1,5 @@
+{
+  "model_version": "cvd-catboost-v2",
+  "model_auc": null,
+  "feature_schema_version": "cvd-16-v1"
+}

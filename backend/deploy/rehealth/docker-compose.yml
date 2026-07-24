@@ -103,6 +103,9 @@ services:
       REHEALTH_ATTRIBUTION_SERVICE_BASE_URL: http://pias:8010
       REHEALTH_ATTRIBUTION_MODE: ${REHEALTH_ATTRIBUTION_MODE:-pias}
       REHEALTH_ATTRIBUTION_PROVENANCE: ${REHEALTH_ATTRIBUTION_PROVENANCE:-pias}
+      # PIAS 内部服务调用需要 internal token；注意属性名是 rehealth.attribution-service.internal-token-file，
+      # 与 agent/model-service 用的 REHEALTH_AGENT_INTERNAL_TOKEN_FILE / REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE 不同。
+      REHEALTH_ATTRIBUTION_SERVICE_INTERNAL_TOKEN_FILE: /run/secrets/internal_service_credential
       REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE: /run/secrets/internal_service_credential
       REHEALTH_AGENT_INTERNAL_TOKEN_FILE: /run/secrets/internal_service_credential
       REHEALTH_KAFKA_CONSUMER_ENABLED: "true"
@@ -428,7 +431,12 @@ services:
       dockerfile: backend/deploy/rehealth/images/model-service.Dockerfile
     environment:
       REHEALTH_RUNTIME_MODE: ${REHEALTH_RUNTIME_MODE:-development}
-      REHEALTH_MODEL_DIR: /artifacts
+      # model-service 通过 REHEALTH_CVD_* 读取模型工件；REHEALTH_MODEL_DIR 是死配置（代码未消费）。
+      # 工件挂载在 /artifacts，必须给出绝对路径以满足 scorer 的路径安全校验（路径须位于 artifact root 之下）。
+      REHEALTH_CVD_ARTIFACT_ROOT: /artifacts
+      REHEALTH_CVD_MODEL_PATH: /artifacts/rehealth_cvd_catboost.pkl
+      REHEALTH_CVD_FEATURE_ORDER_PATH: /artifacts/cvd_features.json
+      REHEALTH_CVD_MODEL_META_PATH: /artifacts/model_meta_v2.json
       REHEALTH_MODEL_VERIFICATION_FILE: /verified/manifest.sha256
       REHEALTH_MODEL_SERVICE_BASE_URL: ${REHEALTH_MODEL_SERVICE_BASE_URL:-https://model.internal.rehealth.invalid}
       REHEALTH_PROVIDER_CREDENTIAL_FILE: /run/secrets/provider_credential

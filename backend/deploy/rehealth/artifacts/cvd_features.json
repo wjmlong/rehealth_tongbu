@@ -1,0 +1,18 @@
+[
+  "age",
+  "gender",
+  "bmi",
+  "sbp",
+  "dbp",
+  "fasting_glucose",
+  "total_cholesterol",
+  "ldl",
+  "hdl",
+  "triglycerides",
+  "exercise_days",
+  "smoking",
+  "drinking",
+  "diabetes_history",
+  "hypertension_history",
+  "family_history"
+]
