@@ -230,8 +230,8 @@ class JdbcSoftwareDbReHealthBusinessRepositoryTest {
                 String.class,
                 "user-a"
         );
-        assertTrue(responseJson.contains("\"attributionMode\":\"pias\""));
-        assertTrue(responseJson.contains("\"isMock\":false"));
+        assertTrue(responseJson.contains("\"attribution_mode\":\"pias\""));
+        assertTrue(responseJson.contains("\"is_mock\":false"));
         assertTrue(responseJson.contains("\"provider\":\"pias\""));
         assertTrue(repository.findAttributionHistory("missing-user").isEmpty());
     }

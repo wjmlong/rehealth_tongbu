@@ -10,6 +10,14 @@ from app.attribution import IndividualAttributor
 from app.attribution_schemas import DemoAttributionRequest, DemoAttributionResponse
 from app.model_registry import ModelRegistry
 from app.model_execution import ModelCallFailure, ModelExecutionGuard
+from app.health_agent import (
+    HealthAgentProvider,
+    authorize_agent_request,
+    build_health_agent_response,
+    create_provider,
+    resolve_agent_internal_token,
+)
+from app.health_agent_schemas import HealthAgentRequest, HealthAgentResponse
 from app.observability import CONTENT_TYPE, ServiceMetrics, observe_request
 from app.prescription_generator import ConservativePrescriptionGenerator
 from app.risk_scorer import RiskScorer, load_risk_scorer
@@ -37,6 +45,7 @@ logger = logging.getLogger("rehealth.model_service")
 def create_app(
     runtime_config: RuntimeConfig | None = None,
     scorer: RiskScorer | None = None,
+    health_agent_provider: HealthAgentProvider | None = None,
 ) -> FastAPI:
     config = load_runtime_config() if runtime_config is None else runtime_config
     validate_runtime_config(config)
@@ -49,11 +58,19 @@ def create_app(
         config.model_circuit_reset_seconds,
     )
     metrics = ServiceMetrics()
+    agent_provider = (
+        create_provider(config)
+        if health_agent_provider is None and config.agent_provider_enabled
+        else health_agent_provider
+    )
+    agent_internal_token = resolve_agent_internal_token(config)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         yield
         execution.close()
+        if agent_provider is not None:
+            agent_provider.close()
 
     prescription_generator = ConservativePrescriptionGenerator()
     service = FastAPI(
@@ -161,6 +178,19 @@ def create_app(
     def generate_intervention(request: InterventionGenerateRequest) -> InterventionGenerateResponse:
         logger.info("intervention generation requested")
         return prescription_generator.generate(request)
+
+    @service.post("/v1/health-agent/respond", response_model=HealthAgentResponse)
+    def health_agent_respond(
+        request: HealthAgentRequest,
+        http_request: Request,
+    ) -> HealthAgentResponse:
+        if not authorize_agent_request(
+            http_request.headers.get("Authorization"),
+            agent_internal_token,
+        ):
+            raise HTTPException(status_code=401, detail={"code": "agent_unauthorized"})
+        http_request.state.correlation_id = request.request_id
+        return build_health_agent_response(request, agent_provider, config)
 
     if config.mock_attribution_enabled:
         attributor = IndividualAttributor()

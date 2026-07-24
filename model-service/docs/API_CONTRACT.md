@@ -317,6 +317,21 @@ Stable response fields:
 - `is_mock`: copied from the risk result.
 - `medical_disclaimer`: conservative safety disclaimer.
 
+## POST /v1/health-agent/respond
+
+Internal JeecgBoot-to-model-service endpoint. It requires
+`Authorization: Bearer <mounted-internal-credential>` and accepts no user or
+tenant identifier. JeecgBoot is authoritative for ownership and sends only an
+age band, latest risk summary, current recommended action, and normalized
+trend.
+
+The response has stable `request_id`, `status`, `answer`,
+`medical_disclaimer`, `provider`, `model_version`, `is_demo`, and `retryable`
+fields. Status is one of `ok`, `safety_refusal`, `provider_unavailable`, or
+`demo`. Diagnostic/medication demands and unsafe provider output are replaced
+by a conservative refusal. Provider failures never return provider exception
+text. Demo output is available only with an explicit non-production Demo flag.
+
 ## Error Behavior
 
 FastAPI/Pydantic returns HTTP 422 for schema validation errors, including:

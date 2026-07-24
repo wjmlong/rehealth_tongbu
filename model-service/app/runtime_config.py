@@ -48,6 +48,12 @@ class RuntimeConfig(BaseModel):
     model_evaluation_timeout_seconds: float = Field(default=5.0, gt=0)
     model_circuit_failure_threshold: int = Field(default=3, ge=1)
     model_circuit_reset_seconds: float = Field(default=30.0, gt=0)
+    agent_provider_enabled: bool = False
+    agent_provider_base_url: str = "https://api.deepseek.com"
+    agent_provider_model: str = "deepseek-chat"
+    agent_provider_timeout_seconds: float = Field(default=12.0, gt=0, le=60)
+    agent_internal_token_file: str = ""
+    agent_internal_token: str = ""
 
 
 class RuntimeStatus(BaseModel):
@@ -89,6 +95,26 @@ def load_runtime_config(environ: Mapping[str, str] | None = None) -> RuntimeConf
         model_circuit_reset_seconds=float(
             source.get("REHEALTH_MODEL_CIRCUIT_RESET_SECONDS", "30")
         ),
+        agent_provider_enabled=_parse_bool(
+            source.get("REHEALTH_AGENT_PROVIDER_ENABLED", "false"),
+            "REHEALTH_AGENT_PROVIDER_ENABLED",
+        ),
+        agent_provider_base_url=source.get(
+            "REHEALTH_AGENT_PROVIDER_BASE_URL",
+            "https://api.deepseek.com",
+        ).strip(),
+        agent_provider_model=source.get(
+            "REHEALTH_AGENT_PROVIDER_MODEL",
+            "deepseek-chat",
+        ).strip(),
+        agent_provider_timeout_seconds=float(
+            source.get("REHEALTH_AGENT_PROVIDER_TIMEOUT_SECONDS", "12")
+        ),
+        agent_internal_token_file=source.get(
+            "REHEALTH_AGENT_INTERNAL_TOKEN_FILE",
+            "",
+        ).strip(),
+        agent_internal_token=source.get("REHEALTH_AGENT_INTERNAL_TOKEN", "").strip(),
     )
     validate_runtime_config(config)
     return config
@@ -97,6 +123,7 @@ def load_runtime_config(environ: Mapping[str, str] | None = None) -> RuntimeConf
 def validate_runtime_config(config: RuntimeConfig) -> None:
     _validate_attribution_mode(config)
     _validate_protected_boundary(config)
+    _validate_agent_boundary(config)
 
 
 def validate_model_runtime(config: RuntimeConfig, scorer_mode: str) -> None:
@@ -184,6 +211,38 @@ def _validate_protected_boundary(config: RuntimeConfig) -> None:
             code="PROVIDER_CREDENTIAL_REQUIRED",
             detail="protected runtime requires REHEALTH_PROVIDER_CREDENTIAL_FILE",
         )
+
+
+def _validate_agent_boundary(config: RuntimeConfig) -> None:
+    if not config.agent_provider_enabled:
+        return
+    if not config.agent_provider_model:
+        raise RuntimeConfigurationError(
+            code="AGENT_MODEL_REQUIRED",
+            detail="health-agent provider requires a model name",
+        )
+    parsed = urlparse(config.agent_provider_base_url)
+    if parsed.hostname is None or parsed.username is not None or parsed.password is not None:
+        raise RuntimeConfigurationError(
+            code="AGENT_PROVIDER_URL_INVALID",
+            detail="health-agent provider URL is invalid",
+        )
+    if config.runtime_mode in {RuntimeMode.PRODUCTION, RuntimeMode.STAGING}:
+        if parsed.scheme != "https":
+            raise RuntimeConfigurationError(
+                code="AGENT_PROVIDER_HTTPS_REQUIRED",
+                detail="protected health-agent provider URL must use HTTPS",
+            )
+        if config.agent_internal_token:
+            raise RuntimeConfigurationError(
+                code="EMBEDDED_AGENT_TOKEN_FORBIDDEN",
+                detail="protected runtime requires a mounted internal-token file",
+            )
+        if not config.agent_internal_token_file:
+            raise RuntimeConfigurationError(
+                code="AGENT_INTERNAL_TOKEN_REQUIRED",
+                detail="protected runtime requires REHEALTH_AGENT_INTERNAL_TOKEN_FILE",
+            )
 
 
 def _parse_runtime_mode(value: str) -> RuntimeMode:

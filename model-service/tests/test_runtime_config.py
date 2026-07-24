@@ -127,3 +127,16 @@ def test_rejects_embedded_provider_secret_in_production() -> None:
                 "REHEALTH_PROVIDER_SECRET": "do-not-ship",
             }
         )
+
+
+def test_rejects_embedded_agent_token_in_production() -> None:
+    with pytest.raises(RuntimeConfigurationError, match="EMBEDDED_AGENT_TOKEN_FORBIDDEN"):
+        load_runtime_config(
+            {
+                "REHEALTH_RUNTIME_MODE": "production",
+                "REHEALTH_MODEL_SERVICE_BASE_URL": "https://model.internal.example",
+                "REHEALTH_PROVIDER_CREDENTIAL_FILE": "/run/secrets/provider_credential",
+                "REHEALTH_AGENT_PROVIDER_ENABLED": "true",
+                "REHEALTH_AGENT_INTERNAL_TOKEN": "do-not-ship",
+            }
+        )

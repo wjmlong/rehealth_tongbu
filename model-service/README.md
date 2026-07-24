@@ -198,3 +198,17 @@ When a real artifact is validated and predicts successfully, `model_trace.artifa
 - Request payloads are not logged.
 - Raw PII fields are not part of the model-service contract.
 - Intervention text is conservative wellness support and includes a medical disclaimer.
+
+## Health-agent boundary
+
+`POST /v1/health-agent/respond` is an internal, stateless model-service
+boundary. JeecgBoot authenticates the mobile user and selects only the current
+user's age band, latest risk summary, and current recommended action. The
+provider credential remains in model-service only.
+
+Deployment uses `REHEALTH_AGENT_PROVIDER_ENABLED`,
+`REHEALTH_AGENT_PROVIDER_BASE_URL`, `REHEALTH_AGENT_PROVIDER_MODEL`,
+`REHEALTH_PROVIDER_CREDENTIAL_FILE`, and
+`REHEALTH_AGENT_INTERNAL_TOKEN_FILE`. Provider-disabled demo output is
+available only with an explicit Demo flag outside production. Audit records
+contain request/model/outcome metadata, never prompts or health context.

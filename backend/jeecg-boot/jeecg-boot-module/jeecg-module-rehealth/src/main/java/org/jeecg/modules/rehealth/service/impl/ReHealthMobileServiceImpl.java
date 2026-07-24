@@ -103,7 +103,8 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
                 "POST /rehealth/mobile/interventions/generate",
                 "GET /rehealth/mobile/interventions/today",
                 "POST /rehealth/mobile/interventions/{id}/feedback",
-                "POST /rehealth/mobile/attribution/events"
+                "POST /rehealth/mobile/attribution/events",
+                "POST /rehealth/mobile/agent/messages"
         );
         response.limitations = List.of(
                 softwareDbEnabled

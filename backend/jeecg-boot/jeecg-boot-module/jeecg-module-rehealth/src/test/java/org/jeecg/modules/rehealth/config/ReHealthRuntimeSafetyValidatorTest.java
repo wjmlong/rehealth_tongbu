@@ -64,6 +64,14 @@ class ReHealthRuntimeSafetyValidatorTest {
         assertRejected(properties, "EMBEDDED_SECRET_FORBIDDEN");
     }
 
+    @Test
+    void rejectsMissingMountedHealthAgentCredentialInProduction() {
+        Map<String, Object> properties = safeConfiguration("production");
+        properties.remove("rehealth.health-agent.internal-token-file");
+
+        assertRejected(properties, "AGENT_INTERNAL_TOKEN_REQUIRED");
+    }
+
     private static Map<String, Object> safeConfiguration(String mode) {
         Map<String, Object> properties = new HashMap<>();
         properties.put("rehealth.runtime.mode", mode);
@@ -75,6 +83,7 @@ class ReHealthRuntimeSafetyValidatorTest {
         properties.put("rehealth.device-service.base-url", "https://device.internal.example");
         properties.put("rehealth.attribution-service.base-url", "https://pias.internal.example");
         properties.put("rehealth.attribution-service.internal-token", "synthetic-test-token");
+        properties.put("rehealth.health-agent.internal-token-file", "/run/secrets/agent-internal");
         properties.put("rehealth.attribution.mode", "pias");
         return properties;
     }
