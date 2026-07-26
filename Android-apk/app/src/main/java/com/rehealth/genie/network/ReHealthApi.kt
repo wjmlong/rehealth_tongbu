@@ -2,6 +2,8 @@ package com.rehealth.genie.network
 
 import com.rehealth.genie.network.dto.FeatureEvaluateRequest
 import com.rehealth.genie.network.dto.HealthCheckResponse
+import com.rehealth.genie.network.dto.HealthAgentMessageRequest
+import com.rehealth.genie.network.dto.HealthAgentResponse
 import com.rehealth.genie.network.dto.HealthInterviewSubmitRequestDto
 import com.rehealth.genie.network.dto.InterventionFeedbackRequest
 import com.rehealth.genie.network.dto.InterventionFeedbackResponse
@@ -11,6 +13,10 @@ import com.rehealth.genie.network.dto.IndividualAttributionResponseDto
 import com.rehealth.genie.network.dto.MobileConfigResponse
 import com.rehealth.genie.network.dto.MobileLoginRequest
 import com.rehealth.genie.network.dto.MobileLoginResponse
+import com.rehealth.genie.network.dto.DeviceBindRequestDto
+import com.rehealth.genie.network.dto.DeviceBindResponseDto
+import com.rehealth.genie.network.dto.InterventionGenerateRequestDto
+import com.rehealth.genie.network.dto.PatientProfileDto
 import com.rehealth.genie.network.dto.RegisterRequest
 import com.rehealth.genie.network.dto.RiskResultDto
 import com.rehealth.genie.network.dto.SendSmsRequest
@@ -21,6 +27,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
+import retrofit2.http.PUT
 
 /**
  * E1 mobile API Retrofit interface. Only the D1-safe endpoints are declared.
@@ -36,6 +43,19 @@ interface ReHealthApi {
     @GET("rehealth/mobile/config")
     suspend fun getConfig(): Response<JeecgResult<MobileConfigResponse>>
 
+    @GET("rehealth/mobile/profile")
+    suspend fun getProfile(): Response<JeecgResult<PatientProfileDto?>>
+
+    @PUT("rehealth/mobile/profile")
+    suspend fun updateProfile(
+        @Body request: PatientProfileDto,
+    ): Response<JeecgResult<PatientProfileDto>>
+
+    @POST("rehealth/mobile/devices/bind")
+    suspend fun bindDevice(
+        @Body request: DeviceBindRequestDto,
+    ): Response<JeecgResult<DeviceBindResponseDto>>
+
     @POST("rehealth/mobile/features/evaluate")
     suspend fun evaluateFeatures(@Body request: FeatureEvaluateRequest): Response<JeecgResult<RiskResultDto>>
 
@@ -44,6 +64,11 @@ interface ReHealthApi {
 
     @GET("rehealth/mobile/interventions/today")
     suspend fun getInterventionsToday(): Response<JeecgResult<InterventionPlanDto?>>
+
+    @POST("rehealth/mobile/interventions/generate")
+    suspend fun generateIntervention(
+        @Body request: InterventionGenerateRequestDto,
+    ): Response<JeecgResult<InterventionPlanDto>>
 
     @POST("rehealth/mobile/interventions/{id}/feedback")
     suspend fun submitInterventionFeedback(
@@ -68,6 +93,11 @@ interface ReHealthApi {
     suspend fun attributeIndividual(
         @Body request: IndividualAttributionRequestDto,
     ): Response<JeecgResult<IndividualAttributionResponseDto>>
+
+    @POST("rehealth/mobile/agent/messages")
+    suspend fun sendHealthAgentMessage(
+        @Body request: HealthAgentMessageRequest,
+    ): Response<JeecgResult<HealthAgentResponse>>
 
     /**
      * JeecgBoot system login. Lives under `/jeecg-boot` (not the `/rehealth/mobile`

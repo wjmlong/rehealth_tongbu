@@ -76,8 +76,11 @@ internal fun HomeScreen(onStartInterview: () -> Unit) {
     var aiReply by remember { mutableStateOf<String?>(null) }
     var isAsking by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val chatService = remember { com.rehealth.genie.network.HealthChatService() }
-    val session = (LocalContext.current.applicationContext as? ReHealthApplication)?.sessionStore
+    val application = LocalContext.current.applicationContext as ReHealthApplication
+    val chatService = remember(application) {
+        com.rehealth.genie.network.HealthChatService(application.authenticatedApiClient)
+    }
+    val session = application.sessionStore
     val greetingPrefix = remember {
         val h = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
         when {

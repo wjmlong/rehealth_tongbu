@@ -17,6 +17,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.util.Optional;
 import java.util.List;
+import java.time.Instant;
 
 @Service
 @ConditionalOnProperty(name = "rehealth.software-db.enabled", havingValue = "false", matchIfMissing = true)
@@ -82,6 +83,15 @@ public class E1PendingSoftwareDbReHealthBusinessRepository implements ReHealthBu
 
     @Override
     public Optional<InterventionGenerateResponseDto> findLatestInterventionPlan(String userId) {
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<InterventionGenerateResponseDto> findInterventionPlanInWindow(
+            String userId,
+            Instant startInclusive,
+            Instant endExclusive
+    ) {
         return Optional.empty();
     }
 

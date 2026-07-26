@@ -12,6 +12,7 @@ import org.jeecg.modules.rehealth.mobile.dto.AttributionResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.DeviceBindRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.DeviceBindResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.FeedbackRequestDto;
+import org.jeecg.modules.rehealth.mobile.dto.FeedbackResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.HealthResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.InterventionGenerateRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.InterventionGenerateResponseDto;
@@ -33,8 +34,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.Map;
 
 @Tag(name = "ReHealth Mobile API")
 @RestController
@@ -62,7 +61,11 @@ public class ReHealthMobileController {
     @GetMapping("/profile")
     @Operation(summary = "Get current authenticated user's health profile")
     public Result<PatientProfileDto> profile() {
-        return Result.OK(mobileService.profile(currentUserId()));
+        try {
+            return Result.OK(mobileService.profile(currentUserId()));
+        } catch (IllegalStateException e) {
+            return Result.error(503, "software_db persistence unavailable; retry profile read");
+        }
     }
 
     @PutMapping("/profile")
@@ -90,13 +93,21 @@ public class ReHealthMobileController {
     @GetMapping("/interviews/latest")
     @Operation(summary = "Get current authenticated user's latest health interview")
     public Result<HealthInterviewSubmitRequestDto> latestInterview() {
-        return Result.OK(mobileService.latestInterview(currentUserId()));
+        try {
+            return Result.OK(mobileService.latestInterview(currentUserId()));
+        } catch (IllegalStateException e) {
+            return Result.error(503, "software_db persistence unavailable; retry health interview read");
+        }
     }
 
     @PostMapping("/devices/bind")
     @Operation(summary = "Bind wearable device to current ReHealth user")
     public Result<DeviceBindResponseDto> bindDevice(@RequestBody DeviceBindRequestDto request) {
-        return Result.OK(mobileService.bindDevice(currentUserId(), request));
+        try {
+            return Result.OK(mobileService.bindDevice(currentUserId(), request));
+        } catch (IllegalStateException e) {
+            return Result.error(503, "software_db persistence unavailable; retry device binding");
+        }
     }
 
     @PostMapping("/measurements/batch")
@@ -138,14 +149,18 @@ public class ReHealthMobileController {
         try {
             return Result.OK(mobileService.evaluateFeatures(currentUserId(), request));
         } catch (IllegalStateException e) {
-            return Result.error("model-service risk evaluation unavailable: " + e.getMessage());
+            return Result.error(503, "risk evaluation or software_db persistence unavailable; retry later");
         }
     }
 
     @GetMapping("/risk/latest")
     @Operation(summary = "Get latest persisted CVD risk result when software_db persistence is enabled")
     public Result<RiskEvaluateResponseDto> latestRisk() {
-        return Result.OK(mobileService.latestRisk(currentUserId()));
+        try {
+            return Result.OK(mobileService.latestRisk(currentUserId()));
+        } catch (IllegalStateException e) {
+            return Result.error(503, "software_db persistence unavailable; retry latest risk");
+        }
     }
 
     @PostMapping("/interventions/generate")
@@ -154,23 +169,31 @@ public class ReHealthMobileController {
         try {
             return Result.OK(mobileService.generateIntervention(currentUserId(), request));
         } catch (IllegalStateException e) {
-            return Result.error("model-service intervention generation unavailable: " + e.getMessage());
+            return Result.error(503, "intervention generation or software_db persistence unavailable; retry later");
         }
     }
 
     @GetMapping("/interventions/today")
     @Operation(summary = "Get latest persisted intervention plan when software_db persistence is enabled")
     public Result<InterventionGenerateResponseDto> todayIntervention() {
-        return Result.OK(mobileService.latestIntervention(currentUserId()));
+        try {
+            return Result.OK(mobileService.latestIntervention(currentUserId()));
+        } catch (IllegalStateException e) {
+            return Result.error(503, "software_db persistence unavailable; retry today's intervention");
+        }
     }
 
     @PostMapping("/interventions/{id}/feedback")
     @Operation(summary = "Record intervention feedback through software_db business repository port")
-    public Result<Map<String, Object>> feedback(
+    public Result<FeedbackResponseDto> feedback(
             @PathVariable("id") String interventionId,
             @RequestBody FeedbackRequestDto request
     ) {
-        return Result.OK(mobileService.submitFeedback(currentUserId(), interventionId, request));
+        try {
+            return Result.OK(mobileService.submitFeedback(currentUserId(), interventionId, request));
+        } catch (IllegalStateException e) {
+            return Result.error(503, "software_db persistence unavailable; retry intervention feedback");
+        }
     }
 
     @PostMapping("/attribution/events")
@@ -179,7 +202,7 @@ public class ReHealthMobileController {
         try {
             return Result.OK(mobileService.recordAttributionEvents(currentUserId(), request));
         } catch (IllegalStateException e) {
-            return Result.error("model-service attribution evaluation unavailable: " + e.getMessage());
+            return Result.error(503, "attribution evaluation or software_db persistence unavailable; retry later");
         }
     }
 }

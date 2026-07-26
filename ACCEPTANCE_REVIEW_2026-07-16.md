@@ -10,6 +10,26 @@
 >
 > 目标：作为主架构师/Orchestrator，全面审查所有 workstream pipeline 状态，更新验收边界，明确剩余 release blockers。
 
+## 2026-07-26 执行更新
+
+已完成 Android 与 JeecgBoot 软件闭环修复：
+
+- Android 活跃代码移除 legacy `/ring/snapshots`、`/patient/mvp`、`/patient/*`
+  与旧 check-in 客户端，统一使用已认证 typed mobile API。
+- 戒指同步数据从 Room 进入 WorkManager 持久队列；设备云端绑定只上传稳定
+  ID 和 MAC 的 SHA-256 摘要，不上传原始地址。
+- 风险结果、今日干预、typed feedback、归因和患者概览读取均走
+  authenticated user-scoped software_db 路径。
+- 健康助手改为 `/rehealth/mobile/agent/messages` 后端代理，APK 不再注入
+  DeepSeek/provider key；离线兜底明确标记为非个性化通用建议。
+- Backend 在 software_db 禁用时不再对 profile/risk/intervention/feedback/
+  attribution 返回伪成功；feedback 返回 `persisted` 确认；“今日干预”按
+  `Asia/Shanghai` 可配置日界查询。
+
+自动化软件验证完成后，D3 代码缺口可视为已关闭。由于当前没有硬件，
+BLE、真实测量、后台长稳、功耗和物理端到端仍为
+**`HARDWARE_QA_PENDING` / RELEASE BLOCKER**，不得用 synthetic QA 替代。
+
 ---
 
 ## 0. Orchestrator 职责框架

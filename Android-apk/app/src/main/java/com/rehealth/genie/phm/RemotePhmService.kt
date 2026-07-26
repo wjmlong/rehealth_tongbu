@@ -38,9 +38,8 @@ data class FeatureEvaluationOutcome(
  * E1 `/rehealth/mobile/features/evaluate` endpoint and the risk/intervention retrieval
  * endpoints, while keeping [MockPhmService] available as a local/dev fallback.
  *
- * D1 scope decisions (intentionally deferred to E2 unless noted):
- *  - No durable telemetry upload via `/rehealth/mobile/measurements/batch`.
- *  - No hardware_db/MQ/high-concurrency wearable ingest.
+ * Runtime boundaries:
+ *  - Durable telemetry upload is owned by RingCloudRepository/SyncRepository, not this class.
  *  - No raw PPG/RRI or high-frequency signal upload.
  *  - A single lightweight timeout retry on feature evaluation only (not a queue).
  *
@@ -58,7 +57,7 @@ class RemotePhmService(
 ) {
 
     suspend fun evaluateFeatures(vector: CvdFeatureVector, requestId: String? = null): FeatureEvaluationOutcome {
-        if (api == null) {
+        if (api == null && authenticatedApi == null) {
             return FeatureEvaluationOutcome(
                 result = null,
                 featureVector = vector,
@@ -88,7 +87,11 @@ class RemotePhmService(
 
         var lastError: RemotePhmError? = null
         repeat(maxAttempts) { attempt ->
-            val outcome = api.evaluateFeatures(request)
+            val outcome = authenticatedApi?.evaluateFeatures(request)?.toRemoteOutcome()
+                ?: api?.evaluateFeatures(request)
+                ?: RemotePhmOutcome.Failure(
+                    RemotePhmError.BackendUnavailable("Remote PHM API is not configured."),
+                )
             when (outcome) {
                 is RemotePhmOutcome.Success -> {
                     return FeatureEvaluationOutcome(
@@ -129,21 +132,25 @@ class RemotePhmService(
     }
 
     suspend fun getRiskLatest(): RemotePhmOutcome<RiskResultDto?> =
-        api?.getRiskLatest() ?: RemotePhmOutcome.Failure(
-            RemotePhmError.BackendUnavailable("Remote PHM API is not configured."),
-        )
+        authenticatedApi?.getRiskLatest()?.toRemoteOutcome()
+            ?: api?.getRiskLatest()
+            ?: RemotePhmOutcome.Failure(
+                RemotePhmError.BackendUnavailable("Remote PHM API is not configured."),
+            )
 
     suspend fun getInterventionsToday(): RemotePhmOutcome<InterventionPlanDto?> =
-        api?.getInterventionsToday() ?: RemotePhmOutcome.Failure(
-            RemotePhmError.BackendUnavailable("Remote PHM API is not configured."),
-        )
+        authenticatedApi?.getInterventionsToday()?.toRemoteOutcome()
+            ?: api?.getInterventionsToday()
+            ?: RemotePhmOutcome.Failure(
+                RemotePhmError.BackendUnavailable("Remote PHM API is not configured."),
+            )
 
     suspend fun submitInterventionFeedback(
         interventionId: String,
         status: String,
         note: String? = null,
     ): RemotePhmOutcome<InterventionFeedbackResponse> {
-        if (api == null) {
+        if (api == null && authenticatedApi == null) {
             return RemotePhmOutcome.Failure(
                 RemotePhmError.BackendUnavailable("Remote PHM API is not configured."),
             )
@@ -153,7 +160,11 @@ class RemotePhmService(
             note = note,
             checkedAt = nowProvider(),
         )
-        return api.submitInterventionFeedback(interventionId, request)
+        return authenticatedApi?.submitInterventionFeedback(interventionId, request)?.toRemoteOutcome()
+            ?: api?.submitInterventionFeedback(interventionId, request)
+            ?: RemotePhmOutcome.Failure(
+                RemotePhmError.BackendUnavailable("Remote PHM API is not configured."),
+            )
     }
 
     suspend fun attributeIndividual(
@@ -214,4 +225,14 @@ class RemotePhmService(
 
     private fun describeFallback(error: RemotePhmError?): String =
         "Remote feature evaluation unavailable (${error?.eventName ?: "unknown"}); using local mock fallback."
+}
+
+private fun <T> ApiResult<T>.toRemoteOutcome(): RemotePhmOutcome<T> = when (this) {
+    is ApiResult.Success -> RemotePhmOutcome.Success(data)
+    is ApiResult.Unauthorized -> RemotePhmOutcome.Failure(RemotePhmError.HttpStatusError(401, message))
+    is ApiResult.Forbidden -> RemotePhmOutcome.Failure(RemotePhmError.HttpStatusError(403, message))
+    is ApiResult.InvalidRequest -> RemotePhmOutcome.Failure(RemotePhmError.InvalidDto(message))
+    is ApiResult.InvalidResponse -> RemotePhmOutcome.Failure(RemotePhmError.InvalidDto(message))
+    is ApiResult.ServiceUnavailable -> RemotePhmOutcome.Failure(RemotePhmError.ModelServiceUnavailable(message))
+    is ApiResult.NetworkError -> RemotePhmOutcome.Failure(RemotePhmError.BackendUnavailable(message))
 }

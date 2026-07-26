@@ -57,8 +57,8 @@ Only `GET /rehealth/mobile/health` is marked `@IgnoreAuth`. All production-style
 | `GET` | `/rehealth/mobile/measurements/recent?limit=50` | Reads only the authenticated user's newest normalized measurement, sleep, and activity rows; `limit` is clamped to 1–200 and raw signal payloads are never returned. |
 | `POST` | `/rehealth/mobile/features/evaluate` | Calls `model-service` `POST /v1/cvd/risk/evaluate`; returns controlled error if unavailable; 透传 model-service 的 model_trace 由 M1 引入的 governance trace 块到 Android 客户端，nullable 字段；详见 model-service/docs/MODEL_REGISTRY.md. |
 | `GET` | `/rehealth/mobile/risk/latest` | Reads the authenticated user's latest persisted risk. |
-| `GET` | `/rehealth/mobile/interventions/today` | Reads the authenticated user's latest persisted intervention. |
-| `POST` | `/rehealth/mobile/interventions/{id}/feedback` | Persists feedback under the authenticated user. |
+| `GET` | `/rehealth/mobile/interventions/today` | Reads only the authenticated user's plan generated during the current `rehealth.mobile.time-zone` calendar day. |
+| `POST` | `/rehealth/mobile/interventions/{id}/feedback` | Persists feedback under the authenticated user and returns a typed durable acknowledgement. |
 
 Additional implemented E1 support endpoints:
 
@@ -67,6 +67,7 @@ Additional implemented E1 support endpoints:
 | `GET` | `/rehealth/mobile/health` | Dev health check for the ReHealth module. |
 | `POST` | `/rehealth/mobile/interventions/generate` | Calls `model-service` `POST /v1/cvd/intervention/generate`; useful for backend/D1 integration testing. |
 | `POST` | `/rehealth/mobile/attribution/events` | Authenticated proxy to PIAS `POST /api/pias/v2/attribute/individual`; persists request/result under the current user when software_db is enabled. |
+| `POST` | `/rehealth/mobile/agent/messages` | Authenticated health-agent proxy; backend assembles persisted user context, rate limits, and calls model-service. Provider credentials never enter the APK. |
 
 ## Retired Legacy Risk Paths
 
@@ -130,6 +131,27 @@ rehealth:
 
 Profiles, interviews, device bindings, feature/risk results, interventions, feedback, and attribution results are scoped using the authenticated `LoginUser.id`. Android stores a completed interview locally first, enqueues the typed payload, and retries it through WorkManager; a disabled software_db never produces a false durable success.
 
+All software-db-backed reads and writes return a failed Jeecg envelope with
+`code=503` when persistence is disabled. Risk, intervention, and attribution
+model calls also require software-db persistence before returning success, so a
+model response can never be reported as durable when its database write was
+skipped.
+
+Today's intervention window is calculated in
+`rehealth.mobile.time-zone` (default `Asia/Shanghai`) using
+`generated_at >= startOfDay` and `< startOfNextDay`.
+
+Feedback success response:
+
+```json
+{
+  "interventionId": "plan-id",
+  "status": "completed",
+  "persisted": true,
+  "persistenceStage": "software_db"
+}
+```
+
 Risk, intervention, and attribution model calls also write minimal audit metadata to `rehealth_model_request_log`: request ID, operation, model version, outcome, and timestamp. Request bodies, telemetry values, tokens, phone numbers, and other health payloads are excluded.
 
 ## D1 Notes
@@ -173,3 +195,11 @@ Patient mobile APIs cover P, I, and later individual A only. Group attribution
 and settlement evidence require separate backend admin RBAC. Individual A must
 eventually be assembled by backend from persisted records, not client-supplied
 risk history.
+
+## Android Client Contract
+
+Active Android code uses only the typed, authenticated client. The retired
+`/ring/snapshots`, `/patient/mvp`, `/patient/*`, and legacy check-in client were
+removed. Device binding sends a stable hashed hardware identity; telemetry is
+queued from Room and excludes raw signal bytes. Health-agent requests are
+backend-proxied and Android build configuration contains no model-provider key.

@@ -5,12 +5,11 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.rehealth.genie.network.CloudUploadResult
+import com.rehealth.genie.data.sync.RingCloudRepository
 import com.rehealth.genie.network.PatientInterventionPayload
 import com.rehealth.genie.network.PatientMvpPayload
 import com.rehealth.genie.network.PatientProfilePayload
 import com.rehealth.genie.network.PatientRiskPayload
-import com.rehealth.genie.network.ReHealthBackendClient
 import com.rehealth.genie.features.BaselineHealthProfile
 import com.rehealth.genie.features.HealthMemorySnapshot
 import com.rehealth.genie.phm.CvdFeatureVector
@@ -29,7 +28,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -82,7 +80,7 @@ data class PeriodAggregate(
 class RingViewModel(
     private val repository: RingRepository,
     private val dao: RingDataDao,
-    private val backendClient: ReHealthBackendClient? = null,
+    private val cloudRepository: RingCloudRepository? = null,
 ) : ViewModel() {
     private val mutableUiState = MutableStateFlow(RingUiState())
     val uiState: StateFlow<RingUiState> = mutableUiState.asStateFlow()
@@ -186,9 +184,10 @@ class RingViewModel(
         totalRecords
             .onSuccess { records ->
                 val now = System.currentTimeMillis()
-                val upload = uploadLatestSnapshot(now, "auto_collection")
-                if (upload.result != null) {
-                    refreshPatientMvp(silent = true)
+                val upload = if (records > 0) {
+                    uploadLatestSnapshot(now, "auto_collection")
+                } else {
+                    CloudUploadUiStatus("暂无新增数据，不创建上传批次")
                 }
                 mutableUiState.update {
                     it.copy(
@@ -196,11 +195,7 @@ class RingViewModel(
                         measuringMetric = null,
                         syncProgress = 100,
                         lastSyncAt = now,
-                        cloudSnapshotId = upload.result?.snapshotId ?: it.cloudSnapshotId,
-                        cloudRiskLevel = upload.result?.riskLevel ?: it.cloudRiskLevel,
-                        cloudRiskScore = upload.result?.riskScore ?: it.cloudRiskScore,
-                        cloudRiskMode = upload.result?.riskMode ?: it.cloudRiskMode,
-                        cloudRiskSummary = upload.result?.riskSummary ?: it.cloudRiskSummary,
+                        cloudSnapshotId = upload.batchId ?: it.cloudSnapshotId,
                         message = if (records > 0) {
                             "自动采集完成，已保存 $records 条数据，${upload.message}"
                         } else {
@@ -249,7 +244,16 @@ class RingViewModel(
             mutableUiState.update { it.copy(message = "正在连接 ${device.name ?: "智能戒指"}") }
             runCatching { repository.connect(device) }
                 .onSuccess {
-                    mutableUiState.update { it.copy(message = "设备已连接") }
+                    val binding = cloudRepository?.bindDevice(device)
+                    mutableUiState.update {
+                        it.copy(
+                            message = if (binding == null || binding.isSuccess) {
+                                "设备已连接"
+                            } else {
+                                "设备已连接，云端绑定失败，可稍后重新连接重试"
+                            },
+                        )
+                    }
                 }
                 .onFailure { error ->
                     mutableUiState.update { it.copy(message = error.message ?: "连接失败") }
@@ -283,19 +287,12 @@ class RingViewModel(
                     } else {
                         null
                     }
-                    if (uploadMessage?.result != null) {
-                        refreshPatientMvp(silent = true)
-                    }
                     mutableUiState.update {
                         it.copy(
                             isSyncing = false,
                             syncProgress = 100,
                             lastSyncAt = result.completedAt,
-                            cloudSnapshotId = uploadMessage?.result?.snapshotId ?: it.cloudSnapshotId,
-                            cloudRiskLevel = uploadMessage?.result?.riskLevel ?: it.cloudRiskLevel,
-                            cloudRiskScore = uploadMessage?.result?.riskScore ?: it.cloudRiskScore,
-                            cloudRiskMode = uploadMessage?.result?.riskMode ?: it.cloudRiskMode,
-                            cloudRiskSummary = uploadMessage?.result?.riskSummary ?: it.cloudRiskSummary,
+                            cloudSnapshotId = uploadMessage?.batchId ?: it.cloudSnapshotId,
                             message = if (result.recordsWritten > 0) {
                                 "${result.recordsWritten} 条戒指数据已保存到本机，${uploadMessage?.message ?: "云端未上传"}"
                             } else {
@@ -416,30 +413,20 @@ class RingViewModel(
     )
 
     private suspend fun uploadLatestSnapshot(collectedAt: Long, trigger: String): CloudUploadUiStatus {
-        val client = backendClient ?: return CloudUploadUiStatus("云端未配置")
-        val measurements = dao.observeLatestMeasurements().first()
-        val sleep = dao.observeLatestSleepSession().first()
-        val activity = dao.observeLatestActivity().first()
-        val signals = dao.observeLatestSignalChunks().first()
-        return client.uploadRingSnapshot(
-            collectedAt = collectedAt,
-            trigger = trigger,
-            device = mutableUiState.value.connectedDevice,
-            measurements = measurements,
-            sleep = sleep,
-            activity = activity,
-            signals = signals,
-        ).fold(
-            onSuccess = { result -> CloudUploadUiStatus(result.statusMessage(), result) },
+        val client = cloudRepository ?: return CloudUploadUiStatus("云端未配置")
+        val device = mutableUiState.value.connectedDevice
+            ?: return CloudUploadUiStatus("未绑定设备，云端未上传")
+        return client.enqueueLatestTelemetry(device, collectedAt, trigger).fold(
+            onSuccess = { batchId -> CloudUploadUiStatus("已进入安全上传队列", batchId) },
             onFailure = { error ->
-                Log.w(TAG, "cloud upload failed", error)
+                Log.w(TAG, "cloud queue enqueue failed type=${error::class.java.simpleName}")
                 CloudUploadUiStatus("云端稍后重试")
             },
         )
     }
 
     private suspend fun refreshPatientMvp(silent: Boolean) {
-        val client = backendClient ?: return
+        val client = cloudRepository ?: return
         if (!silent) {
             mutableUiState.update { it.copy(isPatientMvpLoading = true, message = "正在刷新患者健康计划") }
         }
@@ -474,17 +461,17 @@ class RingViewModel(
     class Factory(
         private val repository: RingRepository,
         private val dao: RingDataDao,
-        private val backendClient: ReHealthBackendClient? = null,
+        private val cloudRepository: RingCloudRepository? = null,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            RingViewModel(repository, dao, backendClient) as T
+            RingViewModel(repository, dao, cloudRepository) as T
     }
 }
 
 private data class CloudUploadUiStatus(
     val message: String,
-    val result: CloudUploadResult? = null,
+    val batchId: String? = null,
 )
 
 private const val TAG = "RingViewModel"
@@ -618,19 +605,6 @@ private fun vectorFromMeasurements(measurements: List<RingMeasurementEntity>): C
 private fun pushProfileToRepository(repository: RingRepository, profile: PatientProfilePayload?) {
     val baseline: BaselineHealthProfile? = HealthMemorySnapshot.fromPatientProfile(profile).profile
     (repository as? MockRingRepository)?.profile = baseline
-}
-
-private fun CloudUploadResult.statusMessage(): String {
-    val level = riskLevel?.let { "风险${it.toRiskLevelLabel()}" }
-    val score = riskScore?.let { "分数${(it * 100).toInt()}" }
-    return listOfNotNull("已上传云端", level, score).joinToString("，")
-}
-
-private fun String.toRiskLevelLabel(): String = when (lowercase()) {
-    "low" -> "低"
-    "medium" -> "中"
-    "high" -> "高"
-    else -> this
 }
 
 private fun RingMetricType.displayName(): String = when (this) {

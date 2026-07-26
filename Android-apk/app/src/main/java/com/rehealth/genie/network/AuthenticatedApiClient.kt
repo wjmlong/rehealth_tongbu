@@ -52,6 +52,18 @@ class AuthenticatedApiClient(
         mobileApi.evaluateFeatures(request)
     }
 
+    suspend fun getProfile(): ApiResult<PatientProfileDto?> = executeWithAuth {
+        mobileApi.getProfile()
+    }
+
+    suspend fun updateProfile(request: PatientProfileDto): ApiResult<PatientProfileDto> = executeWithAuth {
+        mobileApi.updateProfile(request)
+    }
+
+    suspend fun bindDevice(request: DeviceBindRequestDto): ApiResult<DeviceBindResponseDto> = executeWithAuth {
+        mobileApi.bindDevice(request)
+    }
+
     suspend fun submitInterventionFeedback(
         interventionId: String,
         request: InterventionFeedbackRequest,
@@ -77,12 +89,24 @@ class AuthenticatedApiClient(
         mobileApi.attributeIndividual(request)
     }
 
+    suspend fun sendHealthAgentMessage(
+        request: HealthAgentMessageRequest,
+    ): ApiResult<HealthAgentResponse> = executeWithAuth {
+        mobileApi.sendHealthAgentMessage(request)
+    }
+
     suspend fun getRiskLatest(): ApiResult<RiskResultDto?> = executeWithAuth {
         mobileApi.getRiskLatest()
     }
 
     suspend fun getInterventionsToday(): ApiResult<InterventionPlanDto?> = executeWithAuth {
         mobileApi.getInterventionsToday()
+    }
+
+    suspend fun generateIntervention(
+        request: InterventionGenerateRequestDto,
+    ): ApiResult<InterventionPlanDto> = executeWithAuth {
+        mobileApi.generateIntervention(request)
     }
 
     suspend fun getHealth(): ApiResult<HealthCheckResponse> = executeWithAuth {
@@ -195,6 +219,8 @@ class AuthenticatedApiClient(
                             ApiResult.Unauthorized("Token expired or invalid, please re-login")
                         } else if (error.code == 403) {
                             ApiResult.Forbidden(error.message)
+                        } else if (error.code == 503) {
+                            ApiResult.ServiceUnavailable(error.message)
                         } else {
                             ApiResult.NetworkError(error.message)
                         }

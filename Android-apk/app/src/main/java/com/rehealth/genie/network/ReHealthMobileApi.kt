@@ -2,6 +2,8 @@ package com.rehealth.genie.network
 
 import com.rehealth.genie.network.dto.FeatureEvaluateRequest
 import com.rehealth.genie.network.dto.HealthCheckResponse
+import com.rehealth.genie.network.dto.HealthAgentMessageRequest
+import com.rehealth.genie.network.dto.HealthAgentResponse
 import com.rehealth.genie.network.dto.HealthInterviewSubmitRequestDto
 import com.rehealth.genie.network.dto.InterventionFeedbackRequest
 import com.rehealth.genie.network.dto.InterventionFeedbackResponse
@@ -11,6 +13,10 @@ import com.rehealth.genie.network.dto.IndividualAttributionResponseDto
 import com.rehealth.genie.network.dto.MobileConfigResponse
 import com.rehealth.genie.network.dto.MobileLoginRequest
 import com.rehealth.genie.network.dto.MobileLoginResponse
+import com.rehealth.genie.network.dto.DeviceBindRequestDto
+import com.rehealth.genie.network.dto.DeviceBindResponseDto
+import com.rehealth.genie.network.dto.InterventionGenerateRequestDto
+import com.rehealth.genie.network.dto.PatientProfileDto
 import com.rehealth.genie.network.dto.RegisterRequest
 import com.rehealth.genie.network.dto.RiskResultDto
 import com.rehealth.genie.network.dto.SendSmsRequest
@@ -70,6 +76,15 @@ class ReHealthMobileApi(
     suspend fun getConfig(): RemotePhmOutcome<MobileConfigResponse> =
         unwrap { api.getConfig() }
 
+    suspend fun getProfile(): RemotePhmOutcome<PatientProfileDto?> =
+        unwrapNullable { api.getProfile() }
+
+    suspend fun updateProfile(request: PatientProfileDto): RemotePhmOutcome<PatientProfileDto> =
+        unwrap { api.updateProfile(request) }
+
+    suspend fun bindDevice(request: DeviceBindRequestDto): RemotePhmOutcome<DeviceBindResponseDto> =
+        unwrap { api.bindDevice(request) }
+
     suspend fun evaluateFeatures(
         request: FeatureEvaluateRequest,
     ): RemotePhmOutcome<RiskResultDto> =
@@ -80,6 +95,11 @@ class ReHealthMobileApi(
 
     suspend fun getInterventionsToday(): RemotePhmOutcome<InterventionPlanDto?> =
         unwrapNullable { api.getInterventionsToday() }
+
+    suspend fun generateIntervention(
+        request: InterventionGenerateRequestDto,
+    ): RemotePhmOutcome<InterventionPlanDto> =
+        unwrap { api.generateIntervention(request) }
 
     suspend fun submitInterventionFeedback(
         interventionId: String,
@@ -104,6 +124,11 @@ class ReHealthMobileApi(
         request: IndividualAttributionRequestDto,
     ): RemotePhmOutcome<IndividualAttributionResponseDto> =
         unwrap { api.attributeIndividual(request) }
+
+    suspend fun sendHealthAgentMessage(
+        request: HealthAgentMessageRequest,
+    ): RemotePhmOutcome<HealthAgentResponse> =
+        unwrap { api.sendHealthAgentMessage(request) }
 
     /**
      * JeecgBoot system login. No auth token is attached (the auth interceptor only adds

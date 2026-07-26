@@ -340,6 +340,37 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
     }
 
     @Override
+    public Optional<InterventionGenerateResponseDto> findInterventionPlanInWindow(
+            String userId,
+            Instant startInclusive,
+            Instant endExclusive
+    ) {
+        requireUser(userId);
+        if (startInclusive == null || endExclusive == null || !startInclusive.isBefore(endExclusive)) {
+            throw new IllegalArgumentException("valid intervention time window is required");
+        }
+        List<String> rows = jdbcTemplate.query("""
+                        SELECT response_json
+                        FROM rehealth_intervention_plan
+                        WHERE user_id = ? AND generated_at >= ? AND generated_at < ?
+                        ORDER BY generated_at DESC, id DESC
+                        LIMIT 1
+                        """,
+                (resultSet, rowNum) -> resultSet.getString(1),
+                userId,
+                Timestamp.from(startInclusive),
+                Timestamp.from(endExclusive));
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.ofNullable(objectMapper.readValue(rows.get(0), InterventionGenerateResponseDto.class));
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("software_db contains an unreadable persisted intervention", e);
+        }
+    }
+
+    @Override
     public void saveFeedback(String userId, String interventionId, FeedbackRequestDto request) {
         requireUser(userId);
         String planId = requireText(interventionId, "intervention id is required");

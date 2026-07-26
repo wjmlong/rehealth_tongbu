@@ -57,9 +57,30 @@ data class DeviceBindRequestDto(
 )
 
 data class DeviceBindResponseDto(
-    @SerializedName("id") val id: String? = null,
-    @SerializedName("userId") val userId: String? = null,
     @SerializedName("deviceId") val deviceId: String? = null,
+    @SerializedName("status") val status: String? = null,
+    @SerializedName("persisted") val persisted: Boolean = false,
+    @SerializedName("persistenceStage") val persistenceStage: String? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class PatientProfileDto(
+    val patientId: String? = null,
+    val name: String? = null,
+    val gender: String? = null,
+    val age: Int? = null,
+    val heightCm: Double? = null,
+    val weightKg: Double? = null,
+    val bmi: Double? = null,
+    val diagnoses: List<String>? = null,
+    val medications: List<String>? = null,
+    val allergies: List<String>? = null,
+    val familyHistory: Boolean? = null,
+    val smoking: Boolean? = null,
+    val drinking: Boolean? = null,
+    val diabetesHistory: Boolean? = null,
+    val hypertensionHistory: Boolean? = null,
+    val updatedAt: Long? = null,
 )
 
 @JsonClass(generateAdapter = true)

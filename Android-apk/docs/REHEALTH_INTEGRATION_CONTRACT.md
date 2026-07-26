@@ -1,75 +1,106 @@
-# ReHealth MVP Integration Contract
+# ReHealth Android / Backend MVP Integration Contract
 
-## Android to Backend
+Status: canonical Android contract, updated 2026-07-26.
 
-Base URL for emulator debug builds:
+## Runtime Boundary
 
 ```text
-http://10.0.2.2:8080/jeecg-boot
+MRD ring -> Android BLE -> Room -> durable upload queue -> JeecgBoot
+JeecgBoot -> software_db / hardware_db -> model-service
 ```
 
-Current ring endpoint:
+BLE collection is independent from network availability. Android must persist a
+health record in Room before it creates an upload item. Backend or model-service
+failure must not stop BLE collection.
 
-```http
+Debug emulator base URL:
+
+```text
+http://10.0.2.2:8080/jeecg-boot/
+```
+
+Release builds require an HTTPS `REHEALTH_API_BASE_URL`. Authenticated endpoints
+use the Jeecg mobile-login token in `X-Access-Token`. A `401` pauses the durable
+queue until the user logs in again; the app does not invent a refresh-token flow.
+
+## Canonical Android Endpoints
+
+| Function | Method and path | Android behavior |
+| --- | --- | --- |
+| Mobile login | `POST /sys/mLogin` | Save the Jeecg token in encrypted session storage. |
+| Health/config | `GET /rehealth/mobile/health`, `GET /rehealth/mobile/config` | Environment and contract diagnostics. |
+| Profile | `GET/PUT /rehealth/mobile/profile` | Authenticated, user-scoped health profile. |
+| Interview | `POST /rehealth/mobile/interviews`, `GET /interviews/latest` | Store locally first, then retry through WorkManager. |
+| Device binding | `POST /rehealth/mobile/devices/bind` | Send a stable device ID and SHA-256 address hash; never send the raw BLE MAC. |
+| Telemetry | `POST /rehealth/mobile/measurements/batch` | Upload normalized Room records with a stable `batchId`; exclude raw PPG/RRI bytes. |
+| Risk | `POST /rehealth/mobile/features/evaluate`, `GET /risk/latest` | Use the authenticated client and persisted server result. |
+| Intervention | `POST /interventions/generate`, `GET /interventions/today` | Generate only when today's persisted plan is absent. |
+| Feedback | `POST /interventions/{id}/feedback` | Mark local feedback complete only when `persisted=true`. |
+| Attribution | `POST /rehealth/mobile/attribution/events` | Authenticated individual attribution only. |
+| Health assistant | `POST /rehealth/mobile/agent/messages` | Backend-proxied model access; no provider credential in the APK. |
+
+Every durable business endpoint returns a retryable `503` envelope when the
+required database is disabled or unavailable. Android must not interpret an
+HTTP/Jeecg success envelope without a durable acknowledgement as completed.
+
+Telemetry completion requires all of:
+
+```text
+accepted == true
+persisted == true
+status starts with "ACCEPTED_"
+```
+
+Feedback and device binding completion require `persisted == true`.
+
+## Data and Privacy Rules
+
+- Device identity is `mrd-<first 24 SHA-256 hex characters>` plus
+  `hardwareAddressHash`; raw MAC addresses are not uploaded.
+- `source=mrd_room` means records originated from the real Room collection path.
+  Synthetic software QA must use `source=synthetic_qa`.
+- `rawPayload`, PPG/RRI payload bytes, access tokens, phone numbers, and direct
+  identifiers must not be included in upload payloads or production logs.
+- Telemetry ingest does not trigger model scoring. Risk evaluation is a separate
+  canonical request after local feature extraction.
+- CatBoost, SHAP, LLM, and causal attribution remain outside the Android APK.
+- Offline health-assistant fallback must be labelled as generic and must not claim
+  to use the user's cloud record.
+
+## Retired Android Paths
+
+These prototype routes are forbidden in active Android code:
+
+```text
 POST /rehealth/mobile/ring/snapshots
-```
-
-Authenticated individual attribution uses:
-
-```http
-POST /rehealth/mobile/attribution/events
-X-Access-Token: <Jeecg mobile token>
-```
-
-The app supplies confirmed local Room risk history as `risk_history` until backend
-attribution persistence is implemented. Release builds do not call PIAS directly and
-do not permit cleartext transport; local debug builds may use emulator HTTP for Jeecg.
-
-The Android app sends the latest Room snapshot after a successful ring sync. Signal payload bytes are not uploaded in the MVP; only metadata is sent.
-
-Main payload fields:
-
-- `collectedAt`: client collection timestamp in milliseconds.
-- `trigger`: `manual_sync` or `auto_collection`.
-- `device`: ring address/name/RSSI.
-- `measurements`: heart rate, HRV, SpO2, blood pressure, temperature, steps, stress.
-- `sleep`: latest sleep session.
-- `activity`: latest activity summary.
-- `signals`: RRI/PPG metadata only.
-
-Patient MVP endpoints:
-
-```http
 GET  /rehealth/mobile/patient/mvp
 GET  /rehealth/mobile/patient/profile
-POST /rehealth/mobile/patient/profile
 GET  /rehealth/mobile/patient/risk-score
 GET  /rehealth/mobile/patient/intervention-plan
 POST /rehealth/mobile/patient/checkins
 ```
 
-`/patient/mvp` is the preferred Android entry point. It returns one BFF payload with:
+## Required Backend Configuration
 
-- `profile`: patient health profile and risk factors.
-- `risk`: latest algorithm/mock risk result.
-- `interventionPlan`: active patient actions.
-- `recentCheckins`: feedback/check-in history.
+Apply the additive software and hardware MySQL migrations, then explicitly enable:
 
-Android should call independent endpoints only when editing profile or submitting check-ins.
+```yaml
+rehealth:
+  software-db:
+    enabled: true
+  hardware-db:
+    enabled: true
+  mobile:
+    time-zone: Asia/Shanghai
+```
 
-## Backend to Algorithm
+Model and health-agent calls require `rehealth.model-service.base-url`. Provider
+credentials and internal service credentials belong only in backend/model-service
+runtime secrets.
 
-Backend can run in two modes:
+## QA Status
 
-- `mock`: no algorithm service configured; returns a local risk summary for app development.
-- `http`: set `rehealth.algorithm.base-url` to a running PIAS/FastAPI service, then backend calls `/api/pias/predict`.
-
-The PIAS model still requires clinical/profile fields such as glucose and lipids. Ring data should not be forced into those fields. For MVP, backend uses ring data as context, health profile values where available, and placeholders for lab fields until report/profile ingestion is built.
-
-## Near-Term TODO
-
-- Persist snapshots to MySQL instead of in-memory storage.
-- Add authenticated `/api/mobile/**` path with JWT.
-- Add report upload/OCR/profile fields for PIAS required inputs.
-- Add Android retry queue with upload status per snapshot.
-- Add production HTTPS base URL and remove cleartext traffic.
+Software-only contract, serialization, queue, repository, and APK build checks can
+run without a ring. Real BLE scanning, binding, measurement accuracy, background
+collection reliability, reconnect behavior, and battery impact are
+`HARDWARE_QA_PENDING` until an MRD ring and Android 13+ device are available.

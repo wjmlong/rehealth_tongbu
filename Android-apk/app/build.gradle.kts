@@ -7,16 +7,10 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
-// DeepSeek configuration: read from local.properties (DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL),
-// fallback to env vars, then to the public DeepSeek endpoint. Never hardcode secrets.
 val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) f.inputStream().use { load(it) }
 }
-fun deepSeekApiKey(): String =
-    (localProps.getProperty("DEEPSEEK_API_KEY") ?: System.getenv("DEEPSEEK_API_KEY") ?: "").trim()
-fun deepSeekBaseUrl(): String =
-    (localProps.getProperty("DEEPSEEK_BASE_URL") ?: System.getenv("DEEPSEEK_BASE_URL") ?: "https://api.deepseek.com").trim()
 fun reHealthApiBaseUrl(): String =
     (localProps.getProperty("rehealth.api.base.url") ?: System.getenv("REHEALTH_API_BASE_URL")
         ?: "http://10.0.2.2:8080/jeecg-boot/").trim().trimEnd('/') + "/"
@@ -50,11 +44,8 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "REHEALTH_API_BASE_URL", "\"${reHealthReleaseApiBaseUrl()}\"")
-        buildConfigField("String", "REHEALTH_API_TOKEN", "\"\"")
         manifestPlaceholders["usesCleartextTraffic"] = "false"
         // Provider credentials and request-signing secrets must never enter a release APK.
-        buildConfigField("String", "DEEPSEEK_API_KEY", "\"\"")
-        buildConfigField("String", "DEEPSEEK_BASE_URL", "\"${deepSeekBaseUrl()}\"")
         buildConfigField("String", "JEECG_SIGN_SECRET", "\"\"")
     }
 
@@ -63,7 +54,6 @@ android {
             buildConfigField("boolean", "USE_FAKE_RING", "false")
             buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", "false")
             buildConfigField("String", "REHEALTH_API_BASE_URL", "\"${reHealthApiBaseUrl()}\"")
-            buildConfigField("String", "DEEPSEEK_API_KEY", "\"${deepSeekApiKey()}\"")
             buildConfigField("String", "JEECG_SIGN_SECRET", "\"${signSecret()}\"")
             manifestPlaceholders["usesCleartextTraffic"] = "true"
         }

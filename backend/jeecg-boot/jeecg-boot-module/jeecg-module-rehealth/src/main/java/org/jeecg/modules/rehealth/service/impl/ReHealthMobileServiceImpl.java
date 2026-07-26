@@ -8,6 +8,7 @@ import org.jeecg.modules.rehealth.mobile.dto.AttributionResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.DeviceBindRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.DeviceBindResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.FeedbackRequestDto;
+import org.jeecg.modules.rehealth.mobile.dto.FeedbackResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.HealthResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.InterventionGenerateRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.InterventionGenerateResponseDto;
@@ -28,11 +29,12 @@ import org.jeecg.modules.rehealth.service.attribution.AttributionRequestAssemble
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import java.time.LocalDate;
+import java.time.ZoneId;
 
 @Service
 public class ReHealthMobileServiceImpl implements ReHealthMobileService {
@@ -44,6 +46,7 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
     private final ReHealthBusinessRepository businessRepository;
     private final ReHealthIngestProperties ingestProperties;
     private final boolean softwareDbEnabled;
+    private final ZoneId mobileZoneId;
 
     public ReHealthMobileServiceImpl(
             ModelServiceClient modelServiceClient,
@@ -51,7 +54,8 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
             HardwareTelemetryQuery hardwareTelemetryQuery,
             ReHealthBusinessRepository businessRepository,
             ReHealthIngestProperties ingestProperties,
-            @Value("${rehealth.software-db.enabled:false}") boolean softwareDbEnabled
+            @Value("${rehealth.software-db.enabled:false}") boolean softwareDbEnabled,
+            @Value("${rehealth.mobile.time-zone:Asia/Shanghai}") String mobileTimeZone
     ) {
         this.modelServiceClient = modelServiceClient;
         this.hardwareIngestionPort = hardwareIngestionPort;
@@ -59,6 +63,7 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
         this.businessRepository = businessRepository;
         this.ingestProperties = ingestProperties;
         this.softwareDbEnabled = softwareDbEnabled;
+        this.mobileZoneId = ZoneId.of(mobileTimeZone);
     }
 
     @Override
@@ -127,6 +132,7 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
 
     @Override
     public PatientProfileDto profile(String userId) {
+        requireSoftwareDb();
         return businessRepository.findPatientProfile(userId).orElse(null);
     }
 
@@ -141,11 +147,13 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
 
     @Override
     public HealthInterviewSubmitRequestDto latestInterview(String userId) {
+        requireSoftwareDb();
         return businessRepository.findLatestHealthInterview(userId).orElse(null);
     }
 
     @Override
     public DeviceBindResponseDto bindDevice(String userId, DeviceBindRequestDto request) {
+        requireSoftwareDb();
         return businessRepository.recordDeviceBinding(userId, request);
     }
 
@@ -161,6 +169,7 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
 
     @Override
     public RiskEvaluateResponseDto evaluateFeatures(String userId, RiskEvaluateRequestDto request) {
+        requireSoftwareDb();
         String requestId = correlationId(request == null ? null : request.requestId);
         if (request != null) {
             request.requestId = requestId;
@@ -187,11 +196,13 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
 
     @Override
     public RiskEvaluateResponseDto latestRisk(String userId) {
+        requireSoftwareDb();
         return businessRepository.findLatestRiskResult(userId).orElse(null);
     }
 
     @Override
     public InterventionGenerateResponseDto generateIntervention(String userId, InterventionGenerateRequestDto request) {
+        requireSoftwareDb();
         String requestId = correlationId(request == null ? null : request.requestId);
         if (request != null) {
             request.requestId = requestId;
@@ -218,21 +229,30 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
 
     @Override
     public InterventionGenerateResponseDto latestIntervention(String userId) {
-        return businessRepository.findLatestInterventionPlan(userId).orElse(null);
+        requireSoftwareDb();
+        LocalDate today = LocalDate.now(mobileZoneId);
+        return businessRepository.findInterventionPlanInWindow(
+                userId,
+                today.atStartOfDay(mobileZoneId).toInstant(),
+                today.plusDays(1).atStartOfDay(mobileZoneId).toInstant()
+        ).orElse(null);
     }
 
     @Override
-    public Map<String, Object> submitFeedback(String userId, String interventionId, FeedbackRequestDto request) {
+    public FeedbackResponseDto submitFeedback(String userId, String interventionId, FeedbackRequestDto request) {
+        requireSoftwareDb();
         businessRepository.saveFeedback(userId, interventionId, request);
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("interventionId", interventionId);
-        response.put("status", softwareDbEnabled ? "SOFTWARE_DB_COMMITTED" : "SOFTWARE_DB_DISABLED");
-        response.put("persisted", softwareDbEnabled);
+        FeedbackResponseDto response = new FeedbackResponseDto();
+        response.interventionId = interventionId;
+        response.status = request.status;
+        response.persisted = true;
+        response.persistenceStage = "SOFTWARE_DB_COMMITTED";
         return response;
     }
 
     @Override
     public AttributionResponseDto recordAttributionEvents(String userId, AttributionEventsRequestDto request) {
+        requireSoftwareDb();
         long startedNanos = System.nanoTime();
         try {
             AttributionEventsRequestDto authorizedRequest = AttributionRequestAssembler.fromPersistedHistory(

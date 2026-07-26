@@ -5,11 +5,10 @@ import android.os.Build
 import com.rehealth.genie.data.AppDatabase
 import com.rehealth.genie.data.RiskHistoryRepository
 import com.rehealth.genie.data.sync.InterventionFeedbackRepository
+import com.rehealth.genie.data.sync.RingCloudRepository
 import com.rehealth.genie.data.sync.SyncRepository
 import com.rehealth.genie.network.AuthenticatedApiClient
 import com.rehealth.genie.network.BackendConfig
-import com.rehealth.genie.network.ReHealthBackendClient
-import com.rehealth.genie.network.ReHealthMobileApi
 import com.rehealth.genie.network.SessionStore
 import com.rehealth.genie.notification.RingNotificationChannels
 import com.rehealth.genie.phm.MockPhmService
@@ -29,25 +28,6 @@ class ReHealthApplication : Application() {
     // D3: Auth and session management
     val sessionStore by lazy { SessionStore(this) }
 
-    val backendClient by lazy {
-        ReHealthBackendClient(
-            baseUrl = BuildConfig.REHEALTH_API_BASE_URL,
-            apiToken = BuildConfig.REHEALTH_API_TOKEN.takeIf { it.isNotBlank() },
-        )
-    }
-    /**
-     * Typed E1 mobile API client for the D1-safe endpoints (feature evaluate, risk/intervention
-     * retrieval, intervention feedback, health, config). Built on Retrofit/Moshi with the
-     * shared OkHttp configuration. Does NOT implement the durable `/measurements/batch`
-     * telemetry upload path; that is E2-pending.
-     */
-    val reHealthMobileApi: ReHealthMobileApi by lazy {
-        ReHealthMobileApi(
-            baseUrl = BuildConfig.REHEALTH_API_BASE_URL,
-            apiToken = BuildConfig.REHEALTH_API_TOKEN.takeIf { it.isNotBlank() },
-            httpClient = BackendConfig.buildHttpClient(signSecret = BuildConfig.JEECG_SIGN_SECRET),
-        )
-    }
     /**
      * D3: Auth-aware API client with 401 detection and queue pause.
      */
@@ -79,6 +59,16 @@ class ReHealthApplication : Application() {
         )
     }
 
+    val ringCloudRepository by lazy {
+        RingCloudRepository(
+            dao = database.ringDataDao(),
+            syncRepository = syncRepository,
+            apiClient = authenticatedApiClient,
+            sessionStore = sessionStore,
+            triggerSync = { MeasurementSyncWorker.triggerImmediate(this) },
+        )
+    }
+
     val riskHistoryRepository by lazy {
         RiskHistoryRepository(
             riskHistoryDao = database.riskHistoryDao(),
@@ -88,13 +78,13 @@ class ReHealthApplication : Application() {
     }
 
     /**
-     * Remote-capable PHM service. Falls back to [MockPhmService] when the backend is
-     * unavailable, misconfigured, or not yet wired. The local mock remains the snapshot
-     * the legacy UI already consumes via [MockPhmService].
+     * Remote-capable PHM service. Production network calls use the session-aware client.
+     * Local mock results remain explicitly labelled as fallback and are never persisted
+     * as remote model output.
      */
     val remotePhmService: RemotePhmService by lazy {
         RemotePhmService(
-            api = reHealthMobileApi,
+            api = null,
             authenticatedApi = authenticatedApiClient,
             mockFallback = MockPhmService(),
         )

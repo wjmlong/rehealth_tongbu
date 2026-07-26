@@ -14,6 +14,7 @@ import org.jeecg.modules.rehealth.model.ModelCallAudit;
 import org.jeecg.modules.rehealth.repository.ReHealthBusinessRepository;
 
 import java.util.ArrayList;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -38,6 +39,16 @@ class StubReHealthBusinessRepository implements ReHealthBusinessRepository {
 
     @Override
     public Optional<InterventionGenerateResponseDto> findLatestInterventionPlan(String userId) {
+        queriedUsers.add(userId);
+        return Optional.ofNullable(intervention);
+    }
+
+    @Override
+    public Optional<InterventionGenerateResponseDto> findInterventionPlanInWindow(
+            String userId,
+            Instant startInclusive,
+            Instant endExclusive
+    ) {
         queriedUsers.add(userId);
         return Optional.ofNullable(intervention);
     }

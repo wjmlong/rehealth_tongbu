@@ -21,6 +21,7 @@ import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 
 import java.util.UUID;
 import java.util.List;
+import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -79,6 +80,29 @@ class JdbcSoftwareDbReHealthBusinessRepositoryTest {
         assertEquals(0.73, repository.findLatestRiskResult("user-b").orElseThrow().riskScore);
         assertEquals("plan-a", repository.findLatestInterventionPlan("user-a").orElseThrow().planId);
         assertTrue(repository.findLatestInterventionPlan("user-b").isEmpty());
+    }
+
+    @Test
+    void readsInterventionOnlyInsideRequestedDayWindow() {
+        InterventionGenerateResponseDto plan = new InterventionGenerateResponseDto();
+        plan.planId = "plan-day";
+        plan.modelVersion = "test-v1";
+        plan.generatedAt = "2026-07-23T02:00:00Z";
+        repository.saveInterventionPlan("user-a", plan);
+
+        assertEquals(
+                "plan-day",
+                repository.findInterventionPlanInWindow(
+                        "user-a",
+                        Instant.parse("2026-07-23T00:00:00Z"),
+                        Instant.parse("2026-07-24T00:00:00Z")
+                ).orElseThrow().planId
+        );
+        assertTrue(repository.findInterventionPlanInWindow(
+                "user-a",
+                Instant.parse("2026-07-24T00:00:00Z"),
+                Instant.parse("2026-07-25T00:00:00Z")
+        ).isEmpty());
     }
 
     @Test

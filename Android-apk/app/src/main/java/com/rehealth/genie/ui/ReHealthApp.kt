@@ -79,7 +79,7 @@ fun ReHealthApp() {
             RingViewModel.Factory(
                 application.ringRepository,
                 application.database.ringDataDao(),
-                application.backendClient,
+                application.ringCloudRepository,
             )
         },
     )
@@ -175,11 +175,18 @@ private fun MainShell(
     var showInterview by remember { mutableStateOf(false) }
     val canonicalRiskStatus = remember { mutableStateOf<RemoteFeatureEvaluateStatus?>(null) }
     LaunchedEffect(
-        ringState.patientMvp?.updatedAt,
         ringState.lastSyncAt,
         ringState.collectedMetricCount,
     ) {
         refreshRemoteFeatureEvaluateStatus(application, ringState, canonicalRiskStatus)
+    }
+    LaunchedEffect(
+        canonicalRiskStatus.value?.requestId,
+        canonicalRiskStatus.value?.reachable,
+    ) {
+        if (canonicalRiskStatus.value?.reachable == true) {
+            ringViewModel.refreshPatientMvp()
+        }
     }
     if (showInterview) {
         HealthInterviewFlow(

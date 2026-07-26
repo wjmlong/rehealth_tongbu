@@ -59,7 +59,11 @@ class InterventionFeedbackRepository(
 
         return when (result) {
             is ApiResult.Success -> {
-                feedback.copy(uploadStatus = "done", lastError = null)
+                if (result.data.persisted) {
+                    feedback.copy(uploadStatus = "done", lastError = null)
+                } else {
+                    feedback.nextBackoff(error = "feedback_not_persisted")
+                }
             }
             is ApiResult.Unauthorized -> {
                 null // Queue paused, don't retry

@@ -14,6 +14,7 @@ import org.jeecg.modules.rehealth.model.ModelCallAudit;
 
 import java.util.Optional;
 import java.util.List;
+import java.time.Instant;
 
 public interface ReHealthBusinessRepository {
     PatientProfileDto savePatientProfile(String userId, PatientProfileDto profile);
@@ -39,6 +40,12 @@ public interface ReHealthBusinessRepository {
     void saveInterventionPlan(String userId, InterventionGenerateResponseDto response);
 
     Optional<InterventionGenerateResponseDto> findLatestInterventionPlan(String userId);
+
+    Optional<InterventionGenerateResponseDto> findInterventionPlanInWindow(
+            String userId,
+            Instant startInclusive,
+            Instant endExclusive
+    );
 
     void saveFeedback(String userId, String interventionId, FeedbackRequestDto request);
 
