@@ -28,6 +28,25 @@ function Read-Secret {
     return (Get-Content -LiteralPath $path -Raw).Trim()
 }
 
+function Read-LocalSetting {
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][string]$DefaultValue
+    )
+    $envFile = Join-Path $PSScriptRoot '.env'
+    if (-not (Test-Path -LiteralPath $envFile -PathType Leaf)) {
+        return $DefaultValue
+    }
+    $prefix = "$Name="
+    $entry = Get-Content -LiteralPath $envFile |
+        Where-Object { $_.TrimStart().StartsWith($prefix, [System.StringComparison]::Ordinal) } |
+        Select-Object -Last 1
+    if ($null -eq $entry) {
+        return $DefaultValue
+    }
+    return $entry.Substring($entry.IndexOf('=') + 1).Trim()
+}
+
 function Test-ManagedProcess {
     param([Parameter(Mandatory)][string]$Name)
     $pidFile = Join-Path $runtimeDir "$Name.pid"
@@ -66,11 +85,21 @@ Require-File $java
 
 $internalCredentialFile = Join-Path $secretsDir 'internal_service_credential'
 Require-File $internalCredentialFile
+$providerCredentialFile = Join-Path $secretsDir 'provider_credential'
+$agentProviderEnabled = Read-LocalSetting 'REHEALTH_AGENT_PROVIDER_ENABLED' 'false'
 
 $env:REHEALTH_RUNTIME_MODE = 'development'
 $env:REHEALTH_MODEL_DIR = Join-Path $repoRoot 'model-service\models'
-$env:REHEALTH_AGENT_PROVIDER_ENABLED = 'false'
+$env:REHEALTH_AGENT_PROVIDER_ENABLED = $agentProviderEnabled
+$env:REHEALTH_AGENT_PROVIDER_BASE_URL = Read-LocalSetting 'REHEALTH_AGENT_PROVIDER_BASE_URL' 'https://api.deepseek.com'
+$env:REHEALTH_AGENT_PROVIDER_MODEL = Read-LocalSetting 'REHEALTH_AGENT_PROVIDER_MODEL' 'deepseek-chat'
 $env:REHEALTH_AGENT_INTERNAL_TOKEN_FILE = $internalCredentialFile
+if ($agentProviderEnabled -eq 'true') {
+    Require-File $providerCredentialFile
+    $env:REHEALTH_PROVIDER_CREDENTIAL_FILE = $providerCredentialFile
+} else {
+    Remove-Item Env:REHEALTH_PROVIDER_CREDENTIAL_FILE -ErrorAction SilentlyContinue
+}
 Start-ManagedProcess `
     -Name 'model-service' `
     -FilePath $python `

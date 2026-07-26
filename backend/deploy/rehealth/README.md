@@ -121,6 +121,16 @@ Keep passwords and internal service credentials in the ignored
 `backend/deploy/rehealth/secrets/` files. Load them into the local process
 environment at startup; never copy them into tracked YAML or source files.
 
+To enable Android AI health Q&A locally:
+
+1. Put the provider API key on a single line, without quotes, in the ignored
+   `backend/deploy/rehealth/secrets/provider_credential` file.
+2. Set `REHEALTH_AGENT_PROVIDER_ENABLED=true` plus the matching provider base
+   URL and model in the ignored `backend/deploy/rehealth/.env` file. Use
+   `.env.example` as the template.
+3. Restart the local applications. The API key is read only by `model-service`;
+   it must never be copied into the Android project, JeecgBoot YAML, or Git.
+
 After the current JARs and Python virtual environment have been built, start
 or stop all application processes with:
 
@@ -133,4 +143,4 @@ The scripts run applications as hidden Windows processes. PID files and
 separate stdout/stderr logs are written to the ignored
 `backend/deploy/rehealth/.local-runtime/` directory. The model service loads
 the reviewed local model, PIAS uses its production entrypoint, and the external
-health-agent provider remains disabled unless explicitly configured.
+health-agent provider follows the ignored local `.env` configuration.
