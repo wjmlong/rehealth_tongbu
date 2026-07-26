@@ -92,7 +92,7 @@ $env:REHEALTH_RUNTIME_MODE = 'development'
 $env:REHEALTH_MODEL_DIR = Join-Path $repoRoot 'model-service\models'
 $env:REHEALTH_AGENT_PROVIDER_ENABLED = $agentProviderEnabled
 $env:REHEALTH_AGENT_PROVIDER_BASE_URL = Read-LocalSetting 'REHEALTH_AGENT_PROVIDER_BASE_URL' 'https://api.deepseek.com'
-$env:REHEALTH_AGENT_PROVIDER_MODEL = Read-LocalSetting 'REHEALTH_AGENT_PROVIDER_MODEL' 'deepseek-chat'
+$env:REHEALTH_AGENT_PROVIDER_MODEL = Read-LocalSetting 'REHEALTH_AGENT_PROVIDER_MODEL' 'deepseek-v4-flash'
 $env:REHEALTH_AGENT_INTERNAL_TOKEN_FILE = $internalCredentialFile
 if ($agentProviderEnabled -eq 'true') {
     Require-File $providerCredentialFile

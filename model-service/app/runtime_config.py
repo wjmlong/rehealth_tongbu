@@ -50,7 +50,7 @@ class RuntimeConfig(BaseModel):
     model_circuit_reset_seconds: float = Field(default=30.0, gt=0)
     agent_provider_enabled: bool = False
     agent_provider_base_url: str = "https://api.deepseek.com"
-    agent_provider_model: str = "deepseek-chat"
+    agent_provider_model: str = "deepseek-v4-flash"
     agent_provider_timeout_seconds: float = Field(default=12.0, gt=0, le=60)
     agent_internal_token_file: str = ""
     agent_internal_token: str = ""
@@ -105,7 +105,7 @@ def load_runtime_config(environ: Mapping[str, str] | None = None) -> RuntimeConf
         ).strip(),
         agent_provider_model=source.get(
             "REHEALTH_AGENT_PROVIDER_MODEL",
-            "deepseek-chat",
+            "deepseek-v4-flash",
         ).strip(),
         agent_provider_timeout_seconds=float(
             source.get("REHEALTH_AGENT_PROVIDER_TIMEOUT_SECONDS", "12")

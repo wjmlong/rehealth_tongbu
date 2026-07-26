@@ -442,7 +442,7 @@ services:
       REHEALTH_PROVIDER_CREDENTIAL_FILE: /run/secrets/provider_credential
       REHEALTH_AGENT_PROVIDER_ENABLED: ${REHEALTH_AGENT_PROVIDER_ENABLED:-true}
       REHEALTH_AGENT_PROVIDER_BASE_URL: ${REHEALTH_AGENT_PROVIDER_BASE_URL:-https://api.deepseek.com}
-      REHEALTH_AGENT_PROVIDER_MODEL: ${REHEALTH_AGENT_PROVIDER_MODEL:-deepseek-chat}
+      REHEALTH_AGENT_PROVIDER_MODEL: ${REHEALTH_AGENT_PROVIDER_MODEL:-deepseek-v4-flash}
       REHEALTH_AGENT_INTERNAL_TOKEN_FILE: /run/secrets/internal_service_credential
     secrets:
       - provider_credential
