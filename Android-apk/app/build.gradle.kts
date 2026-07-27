@@ -86,6 +86,7 @@ android {
 
 dependencies {
     implementation(files("libs/sdk_mrd2026_1.3.0.aar"))
+    implementation(files("libs/blesdk-rwfit-release_v2_260724.aar"))
 
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.activity:activity-compose:1.10.1")
