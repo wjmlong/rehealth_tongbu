@@ -1,17 +1,27 @@
 # ReHealth Android / Backend MVP Integration Contract
 
-Status: canonical Android contract, updated 2026-07-26.
+Status: canonical Android contract, updated 2026-07-27.
 
 ## Runtime Boundary
 
 ```text
-MRD ring -> Android BLE -> Room -> durable upload queue -> JeecgBoot
+productCode -> single active RingRepository Provider -> Android BLE
+-> Room -> durable upload queue -> JeecgBoot
 JeecgBoot -> software_db / hardware_db -> model-service
 ```
 
 BLE collection is independent from network availability. Android must persist a
 health record in Room before it creates an upload item. Backend or model-service
 failure must not stop BLE collection.
+
+Android keeps exactly one active wearable binding in encrypted preferences. The
+Release registry currently contains only MRD; RWFit/HBand catalog entries cannot
+be activated until their Providers exist. Switching a product disconnects the
+old Provider and does not delete historical `ring_*` rows. Vendor SDK objects do
+not cross the `RingRepository` boundary into UI/ViewModel/Room entities.
+
+This local routing change does not change endpoint paths, authentication, DTOs,
+durable acknowledgement, or backend PIAS behavior.
 
 Debug emulator base URL:
 

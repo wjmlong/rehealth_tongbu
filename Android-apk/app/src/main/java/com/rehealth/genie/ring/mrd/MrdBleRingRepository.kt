@@ -25,6 +25,9 @@ import com.rehealth.genie.ring.RingSyncResult
 import com.rehealth.genie.ring.data.RingDataBatch
 import com.rehealth.genie.ring.data.RingDataDao
 import com.rehealth.genie.ring.data.RingSignalChunkEntity
+import com.rehealth.genie.ring.provider.ActiveWearableBindingStore
+import com.rehealth.genie.ring.provider.ActiveWearableBinding
+import com.rehealth.genie.ring.provider.WearableVendor
 import java.util.UUID
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +41,7 @@ class MrdBleRingRepository(
     private val context: Context,
     private val dao: RingDataDao,
     private val protocol: MrdProtocolAdapter,
+    private val activeWearableStore: ActiveWearableBindingStore,
 ) : RingRepository {
     private val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val adapter: BluetoothAdapter?
@@ -136,7 +140,7 @@ class MrdBleRingRepository(
                 val name = device.name.orEmpty()
                 name.contains("MR11", ignoreCase = true) ||
                     name.contains("MRD", ignoreCase = true) ||
-                    device.address.equals(KNOWN_RING_ADDRESS, ignoreCase = true)
+                    device.address.equals(boundDevice()?.address, ignoreCase = true)
             }.thenByDescending { it.rssi ?: -999 },
         ).take(12)
     }
@@ -167,6 +171,9 @@ class MrdBleRingRepository(
         val ok = withTimeoutOrNull(15_000) { connectReady?.await() } == true
         mutableConnectedDevice.value = if (ok) device else null
         mutableConnectionState.value = if (ok) RingConnectionState.CONNECTED else RingConnectionState.ERROR
+        if (ok) {
+            activeWearableStore.recordConnectedDevice(WearableVendor.MRD, device)
+        }
     }
 
     override suspend fun disconnect() = withContext(Dispatchers.Main) {
@@ -177,7 +184,8 @@ class MrdBleRingRepository(
 
     override suspend fun autoConnect(): Boolean = withContext(Dispatchers.Main) {
         if (mutableConnectionState.value == RingConnectionState.CONNECTED && gatt != null) return@withContext true
-        connect(RingDevice(KNOWN_RING_ADDRESS, "MR11 智能戒指", null))
+        val device = boundDevice() ?: return@withContext false
+        connect(device)
         mutableConnectionState.value == RingConnectionState.CONNECTED && gatt != null
     }
 
@@ -191,8 +199,7 @@ class MrdBleRingRepository(
     override suspend fun syncAll(): RingSyncResult = withContext(Dispatchers.Main) {
         if (writeCharacteristic == null || gatt == null) {
             Log.i(TAG, "sync reconnecting")
-            connect(RingDevice(KNOWN_RING_ADDRESS, "MR11 鏅鸿兘鎴掓寚", null))
-            delay(800)
+            reconnectBoundDevice()
         }
         val writer = writeCharacteristic
         val currentGatt = gatt
@@ -231,8 +238,7 @@ class MrdBleRingRepository(
         }
         if (writeCharacteristic == null || gatt == null) {
             Log.i(TAG, "manual measure reconnecting before type=$type")
-            connect(RingDevice(KNOWN_RING_ADDRESS, "MR11 智能戒指", null))
-            delay(800)
+            reconnectBoundDevice()
         }
         val writer = writeCharacteristic
         val currentGatt = gatt
@@ -261,8 +267,7 @@ class MrdBleRingRepository(
     private suspend fun readTemperature(): RingSyncResult {
         if (writeCharacteristic == null || gatt == null) {
             Log.i(TAG, "temperature read reconnecting")
-            connect(RingDevice(KNOWN_RING_ADDRESS, "MR11 智能戒指", null))
-            delay(800)
+            reconnectBoundDevice()
         }
         val writer = writeCharacteristic
         val currentGatt = gatt
@@ -415,6 +420,14 @@ class MrdBleRingRepository(
         return RingBleGuards.hasCollectionPermission(context)
     }
 
+    private suspend fun reconnectBoundDevice() {
+        if (autoConnect()) delay(800)
+    }
+
+    private fun boundDevice(): RingDevice? {
+        return mrdBoundDevice(activeWearableStore.activeBinding.value)
+    }
+
     private fun ByteArray.toHex(): String = joinToString(" ") { "%02X".format(it) }
 
     private fun ByteArray.containsUuid(uuid: UUID): Boolean {
@@ -467,7 +480,6 @@ class MrdBleRingRepository(
 
     private companion object {
         const val TAG = "MrdBleRingRepository"
-        const val KNOWN_RING_ADDRESS = "D9:18:68:41:00:C6"
         val WRITE_SERVICE_UUID: UUID = UUID.fromString("f000efe0-0451-4000-0000-00000000b000")
         val WRITE_CHARACTERISTIC_UUID: UUID = UUID.fromString("f000efe1-0451-4000-0000-00000000b000")
         val NOTIFY_CHARACTERISTIC_UUID: UUID = UUID.fromString("f000efe3-0451-4000-0000-00000000b000")
@@ -483,4 +495,10 @@ internal fun mrdScanDisplayName(advertisesMrd: Boolean, name: String?): String =
     advertisesMrd -> "$name · MRD"
     name.isNullOrBlank() -> "未知 BLE 设备"
     else -> name
+}
+
+internal fun mrdBoundDevice(binding: ActiveWearableBinding): RingDevice? {
+    if (binding.vendor != WearableVendor.MRD) return null
+    val address = binding.address?.takeIf { it.isNotBlank() } ?: return null
+    return RingDevice(address, binding.deviceName ?: "已绑定的 MRD 戒指", null)
 }

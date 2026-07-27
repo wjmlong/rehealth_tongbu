@@ -10,6 +10,8 @@
 
 - Compose 登录、注册、健康访谈、设备绑定、主页、数据、风险、干预、反馈、归因和健康助手页面。
 - MRD SDK `sdk_mrd2026_1.3.0.aar` 与 BLE 协议适配。
+- 基于 `productCode` 的单一有效设备路由；当前 Release 只注册 MRD Provider，
+  Debug 可按原构建开关注册 Mock。
 - 心率、血氧、血压、体温、睡眠、步数和活动等本地记录。
 - Room 本地优先持久化及显式数据库迁移。
 - Foreground Service 后台低频采集与 WorkManager 恢复任务。
@@ -22,6 +24,7 @@
 ```text
 app/src/main/java/com/rehealth/genie/
 ├─ ring/            戒指领域、Repository、BLE 守卫与 MRD/vendor 适配
+├─ ring/provider/   单一有效绑定、商品目录、Provider 懒加载与路由
 ├─ ring/data/       Room 遥测实体和 DAO
 ├─ service/         RingForegroundService
 ├─ work/            采集恢复和上传 WorkManager
@@ -41,7 +44,7 @@ app/libs/sdk_mrd2026_1.3.0.aar
 ## 核心数据流
 
 ```text
-MRD SDK / BLE
+productCode -> ActiveRingRepository -> MRD SDK / BLE
   -> RingRepository
   -> Room
   -> UploadQueue
@@ -81,6 +84,10 @@ secret 禁止进入 `local.properties`、BuildConfig 或 APK。
 `USE_FAKE_RING`/`SEED_FAKE_HEALTH_DATA` 控制。`app/src/release` 的工厂只构造
 `MrdBleRingRepository`；远程风险评估失败时显示不可用，不生成本地模拟风险。
 
+当前有效设备绑定保存在 `EncryptedSharedPreferences`，不进入 Room。MRD 首次
+扫描连接成功后才保存绑定地址；没有绑定地址时，后台采集不会使用固定地址或
+自动扫描连接。
+
 ## 构建与测试
 
 需要 JDK 17、Android SDK 36 和 Build Tools 36.0.0。
@@ -99,7 +106,8 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## 当前限制
 
-- 多设备领域仍以 `RingRepository` 为中心，尚未完成通用 Device Adapter 插件化。
+- 已有单一有效设备路由，但 RWFit/HBand Provider、正式 SDK 和真机能力验证尚未接入；
+  当前不支持多设备同时连接或数据融合。
 - 本地遥测和上传队列仍需进一步按登录用户和设备维度隔离。
 - 遥测上传仍需从“最新快照”演进到按本地游标处理全部未上传记录。
 - MRD 扫描、重连、锁屏长时间采集、功耗和测量准确性仍需物理设备 QA。

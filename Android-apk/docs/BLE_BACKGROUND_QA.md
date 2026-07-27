@@ -4,7 +4,7 @@ Last updated: 2026-07-22
 
 ## Scope
 
-B1 adds a local-first foreground service for low-frequency MRD ring collection and a WorkManager recovery job. The service only calls the existing `RingRepository.syncAll()` path, which persists parsed measurements, sleep, activity, and signal chunks through Room. It does not call backend APIs, model-service, `/measurements/batch`, or raw PPG/RRI upload.
+B1 adds a local-first foreground service for low-frequency wearable collection and a WorkManager recovery job. The service only calls the routed `RingRepository.syncAll()` path, which currently selects the single active MRD Provider and persists parsed measurements, sleep, activity, and signal chunks through Room. It does not call backend APIs, model-service, `/measurements/batch`, or raw PPG/RRI upload.
 
 The production UI toggle is not part of B1. The app-facing APIs are:
 
@@ -21,20 +21,25 @@ The production UI toggle is not part of B1. The app-facing APIs are:
 4. Grant `BLUETOOTH_SCAN` and `BLUETOOTH_CONNECT` on Android 12+ or location permission on Android 11 and below.
 5. Scan for the MRD ring from the existing device-binding screen.
 6. Connect the ring from the existing device-binding screen.
-7. Confirm manual heart-rate measurement still works and the latest row appears in Room.
-8. Confirm manual SpO2 measurement still works and the latest row appears in Room.
-9. Confirm manual BP measurement still works if the ring firmware supports it.
-10. Start background collection using the service/ViewModel API.
-11. Put the app in the background.
-12. Lock the screen.
-13. Wait for one conservative interval, currently 15 minutes.
-14. Confirm Room receives new local data in `ring_measurements`, `ring_sleep_sessions`, `ring_activities`, or `ring_signal_chunks`.
-15. Stop the service and confirm the foreground notification disappears.
-16. Disconnect the ring and restart background collection; verify it retries later without a fast loop.
-17. Reconnect the ring and verify the next interval can persist local records.
-18. Kill the app process while collection is active.
-19. Reopen the app; verify WorkManager recovery is scheduled and no duplicate aggressive loops appear.
-20. Search logs/network inspector and verify B1 performs no backend upload, model-service call, `/measurements/batch` call, or raw PPG/RRI upload.
+7. Restart the app and confirm the same encrypted active binding is used; logs
+   and cloud payloads must not expose the raw address.
+8. Confirm manual heart-rate measurement still works and the latest row appears in Room.
+9. Confirm manual SpO2 measurement still works and the latest row appears in Room.
+10. Confirm manual BP measurement still works if the ring firmware supports it.
+11. Start background collection using the service/ViewModel API.
+12. Put the app in the background.
+13. Lock the screen.
+14. Wait for one conservative interval, currently 15 minutes.
+15. Confirm Room receives new local data in `ring_measurements`, `ring_sleep_sessions`, `ring_activities`, or `ring_signal_chunks`.
+16. Stop the service and confirm the foreground notification disappears.
+17. Disconnect the ring and restart background collection; verify it retries later without a fast loop.
+18. Reconnect the ring and verify the next interval can persist local records.
+19. Kill the app process while collection is active.
+20. Reopen the app; verify WorkManager recovery is scheduled and no duplicate aggressive loops appear.
+21. Search logs/network inspector and verify B1 performs no backend upload, model-service call, `/measurements/batch` call, or raw PPG/RRI upload.
+22. After clearing app data, start collection before scanning/binding. Confirm no
+    hardcoded-device connection or automatic scan occurs and no zero/simulated
+    health row is inserted.
 
 ## Expected Behavior
 
@@ -43,6 +48,8 @@ The production UI toggle is not part of B1. The app-facing APIs are:
 - Missing permission, unsupported Bluetooth, and Bluetooth-off states are reported in the notification instead of crashing.
 - The service uses a persistent low-importance notification with a Stop action.
 - WorkManager is recovery-only and does not collect BLE data directly.
+- Only the active Provider may collect. A missing active binding address causes
+  an empty retryable cycle, not a fixed-address connection or fabricated data.
 - Android 12+ BLE platform calls re-check `BLUETOOTH_SCAN` and
   `BLUETOOTH_CONNECT` immediately before use. Revoking permission during a scan
   or connection attempt must return an empty/error state without crashing.

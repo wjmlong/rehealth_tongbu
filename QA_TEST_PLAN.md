@@ -53,7 +53,12 @@ git diff --check
    - Turn Bluetooth on.
    - Scan from device binding screen.
    - Connect MRD ring.
-   - Confirm connection state updates and no duplicate scan/connect loop is created.
+   - Confirm connection state updates, the active binding survives app restart,
+     and no duplicate scan/connect loop is created.
+   - After clearing app data, start background collection before binding and
+     confirm no fixed-address connection, automatic scan, or fabricated row occurs.
+   - Confirm the current `productCode` activates exactly one Provider; RWFit/HBand
+     catalog entries remain unavailable until their Providers are installed.
 
 4. Manual measurement
    - Trigger HR, SpO2, BP, and temperature measurement where firmware supports the metric.

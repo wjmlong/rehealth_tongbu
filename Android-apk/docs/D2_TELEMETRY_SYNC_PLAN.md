@@ -1,6 +1,6 @@
 # D2 Telemetry Sync Status and Remaining QA
 
-Status: implemented software path; updated 2026-07-26.
+Status: implemented software path; updated 2026-07-27.
 
 ## Implemented
 
@@ -12,6 +12,11 @@ Status: implemented software path; updated 2026-07-26.
 - Raw signal bytes and entity `rawPayload` fields are excluded.
 - Device addresses are SHA-256 hashed before cloud binding/upload.
 - Synthetic QA provenance is labelled `synthetic_qa`.
+- Collection is routed through one `productCode`-selected Provider. The current
+  Release registry contains only MRD and keeps the existing Room batch path.
+- MRD background reconnect uses only the encrypted active binding address. With
+  no successful foreground binding, it writes no record and retries later; it
+  does not use a fixed address or synthesize missing metrics.
 
 ## Software-Only Validation
 
@@ -26,6 +31,8 @@ The following cannot be accepted without a physical MRD ring and Android 13+ tes
 device:
 
 - BLE scan/connect/reconnect and permission behavior.
+- First-bind address persistence and restart/background reconnect using that
+  binding, including the no-binding no-connect case.
 - MR11 SDK measurement commands and timestamp/quality accuracy.
 - Foreground collection across screen-off, process restart, and network loss.
 - Long-duration duplicate/loss rate and upload latency.

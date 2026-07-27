@@ -1,0 +1,42 @@
+[
+  {
+    "productCode": "RH-MOCK-DEBUG",
+    "vendor": "MOCK",
+    "displayName": "ReHealth Debug Mock",
+    "modelNameHints": ["Mock"],
+    "expectedMetrics": [
+      "HEART_RATE",
+      "HRV",
+      "BLOOD_OXYGEN",
+      "BLOOD_PRESSURE",
+      "SLEEP",
+      "TEMPERATURE",
+      "STEPS",
+      "ACTIVITY",
+      "STRESS",
+      "RRI",
+      "PPG"
+    ]
+  },
+  {
+    "productCode": "RH-MRD-S01",
+    "vendor": "MRD",
+    "displayName": "ReHealth 标准戒指",
+    "modelNameHints": ["MR11", "MRD"],
+    "expectedMetrics": ["HEART_RATE", "STEPS", "SLEEP", "BLOOD_OXYGEN"]
+  },
+  {
+    "productCode": "RH-RW-P01",
+    "vendor": "RWFIT",
+    "displayName": "ReHealth 高端戒指",
+    "modelNameHints": ["RW"],
+    "expectedMetrics": ["HEART_RATE", "HRV", "STEPS", "SLEEP", "BLOOD_OXYGEN", "TEMPERATURE"]
+  },
+  {
+    "productCode": "RH-HB-E01",
+    "vendor": "HBAND",
+    "displayName": "ReHealth 基础手环",
+    "modelNameHints": [],
+    "expectedMetrics": ["HEART_RATE", "STEPS", "ACTIVITY", "SLEEP"]
+  }
+]
