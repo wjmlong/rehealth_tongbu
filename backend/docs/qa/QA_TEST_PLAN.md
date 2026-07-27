@@ -136,9 +136,17 @@ C:\Users\kiki\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\py
     - Confirm current B1 limitation: no boot receiver is documented, so collection is not release-approved across reboot until explicitly implemented or product accepts manual restart.
 
 18. Duplicate collection prevention
-    - Start foreground/manual sync while background service interval is due.
-    - Confirm background cycle skips when `RingConnectionState.SYNCING`.
-    - Confirm Room primary keys/on-conflict behavior avoid duplicate latest rows.
+   - Start foreground/manual sync while background service interval is due.
+   - Confirm background cycle skips when `RingConnectionState.SYNCING`.
+   - Confirm Room primary keys/on-conflict behavior avoid duplicate latest rows.
+
+19. Authenticated AI health chat
+   - Put the DeepSeek key only in the ignored `model-service/config/ai-chat.local.yml`.
+   - Confirm the configured provider is `https://api.deepseek.com` and model is `deepseek-v4-flash`.
+   - Log in through `/sys/mLogin`, then send a message through `POST /rehealth/mobile/agent/messages`.
+   - Confirm the response reports `status=ok`, `model_version=deepseek-v4-flash`, `provider=configured`, `is_demo=false`, and a non-empty `medical_disclaimer`.
+   - Ask for diagnosis or medication prescribing and confirm the request is replaced by `safety_refusal`.
+   - Confirm the API key, token, prompt, and authorized health context are absent from Git status and application logs.
 
 ## Failure Cases To Record
 

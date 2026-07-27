@@ -25,6 +25,85 @@ def test_loads_explicit_development_configuration() -> None:
     assert config.mock_attribution_enabled is False
 
 
+def test_loads_development_health_agent_from_local_yaml(tmp_path) -> None:
+    config_path = tmp_path / "ai-chat.local.yml"
+    config_path.write_text(
+        """
+runtime:
+  mode: development
+health-agent:
+  internal-token: local-agent-token
+  provider:
+    base-url: https://api.deepseek.com
+    model: deepseek-v4-flash
+    api-key: local-deepseek-key
+    timeout-seconds: 20
+""".strip(),
+        encoding="utf-8",
+    )
+
+    config = load_runtime_config({"REHEALTH_LOCAL_CONFIG_FILE": str(config_path)})
+
+    assert config.runtime_mode is RuntimeMode.DEVELOPMENT
+    assert config.agent_provider_enabled is True
+    assert config.agent_provider_base_url == "https://api.deepseek.com"
+    assert config.agent_provider_model == "deepseek-v4-flash"
+    assert config.embedded_provider_secret == "local-deepseek-key"
+    assert config.agent_provider_timeout_seconds == 20
+    assert config.agent_internal_token == "local-agent-token"
+
+
+def test_environment_overrides_local_yaml(tmp_path) -> None:
+    config_path = tmp_path / "ai-chat.local.yml"
+    config_path.write_text(
+        """
+health-agent:
+  provider:
+    model: deepseek-v4-flash
+    api-key: local-deepseek-key
+""".strip(),
+        encoding="utf-8",
+    )
+
+    config = load_runtime_config(
+        {
+            "REHEALTH_LOCAL_CONFIG_FILE": str(config_path),
+            "REHEALTH_AGENT_PROVIDER_MODEL": "environment-model",
+            "REHEALTH_PROVIDER_SECRET": "environment-key",
+        }
+    )
+
+    assert config.agent_provider_model == "environment-model"
+    assert config.embedded_provider_secret == "environment-key"
+
+
+def test_rejects_embedded_local_yaml_key_in_protected_runtime(tmp_path) -> None:
+    config_path = tmp_path / "ai-chat.local.yml"
+    config_path.write_text(
+        """
+runtime:
+  mode: production
+health-agent:
+  provider:
+    api-key: must-not-be-accepted
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeConfigurationError, match="EMBEDDED_SECRET_FORBIDDEN"):
+        load_runtime_config({"REHEALTH_LOCAL_CONFIG_FILE": str(config_path)})
+
+
+def test_rejects_malformed_local_yaml_without_exposing_content(tmp_path) -> None:
+    config_path = tmp_path / "ai-chat.local.yml"
+    config_path.write_text("health-agent: [secret-value", encoding="utf-8")
+
+    with pytest.raises(RuntimeConfigurationError, match="LOCAL_CONFIG_INVALID") as failure:
+        load_runtime_config({"REHEALTH_LOCAL_CONFIG_FILE": str(config_path)})
+
+    assert "secret-value" not in str(failure.value)
+
+
 @pytest.mark.parametrize("runtime_mode", ["production", "staging"])
 def test_loads_protected_configuration_with_secure_service_boundary(runtime_mode: str) -> None:
     config = load_runtime_config(

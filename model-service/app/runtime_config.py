@@ -10,6 +10,11 @@ from pathlib import Path
 import re
 
 from pydantic import BaseModel, ConfigDict, Field
+import yaml
+
+
+LOCAL_CONFIG_ENV = "REHEALTH_LOCAL_CONFIG_FILE"
+DEFAULT_LOCAL_CONFIG_PATH = Path(__file__).resolve().parents[1] / "config" / "ai-chat.local.yml"
 
 
 class RuntimeMode(StrEnum):
@@ -67,7 +72,9 @@ class RuntimeStatus(BaseModel):
 
 
 def load_runtime_config(environ: Mapping[str, str] | None = None) -> RuntimeConfig:
-    source = os.environ if environ is None else environ
+    environment = dict(os.environ if environ is None else environ)
+    local_values = _load_local_config(environment, use_default=environ is None)
+    source = {**local_values, **environment}
     runtime_mode = _parse_runtime_mode(source.get("REHEALTH_RUNTIME_MODE", "development"))
     attribution_mode = _parse_attribution_mode(source.get("REHEALTH_ATTRIBUTION_MODE", "pias"))
     demo_enabled = _parse_bool(source.get("REHEALTH_DEMO_ENABLED", "false"), "REHEALTH_DEMO_ENABLED")
@@ -118,6 +125,100 @@ def load_runtime_config(environ: Mapping[str, str] | None = None) -> RuntimeConf
     )
     validate_runtime_config(config)
     return config
+
+
+def _load_local_config(source: Mapping[str, str], *, use_default: bool) -> dict[str, str]:
+    configured_path = source.get(LOCAL_CONFIG_ENV, "").strip()
+    if configured_path:
+        config_path = Path(configured_path).expanduser()
+        required = True
+    elif use_default:
+        config_path = DEFAULT_LOCAL_CONFIG_PATH
+        required = False
+    else:
+        return {}
+
+    if not config_path.is_file():
+        if required:
+            raise RuntimeConfigurationError(
+                code="LOCAL_CONFIG_UNAVAILABLE",
+                detail="the configured local YAML file is unavailable",
+            )
+        return {}
+
+    try:
+        document = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as error:
+        raise RuntimeConfigurationError(
+            code="LOCAL_CONFIG_INVALID",
+            detail="the local YAML file could not be read safely",
+        ) from error
+
+    if document is None:
+        return {}
+    root = _yaml_section(document, "root")
+    runtime = _yaml_section(root.get("runtime"), "runtime")
+    health_agent = _yaml_section(root.get("health-agent"), "health-agent")
+    provider = _yaml_section(health_agent.get("provider"), "health-agent.provider")
+
+    values: dict[str, str] = {}
+    _set_yaml_value(values, "REHEALTH_RUNTIME_MODE", runtime, "mode")
+    _set_yaml_value(values, "REHEALTH_AGENT_INTERNAL_TOKEN", health_agent, "internal-token")
+    _set_yaml_value(
+        values,
+        "REHEALTH_AGENT_INTERNAL_TOKEN_FILE",
+        health_agent,
+        "internal-token-file",
+    )
+    _set_yaml_value(values, "REHEALTH_AGENT_PROVIDER_BASE_URL", provider, "base-url")
+    _set_yaml_value(values, "REHEALTH_AGENT_PROVIDER_MODEL", provider, "model")
+    _set_yaml_value(
+        values,
+        "REHEALTH_AGENT_PROVIDER_TIMEOUT_SECONDS",
+        provider,
+        "timeout-seconds",
+    )
+    _set_yaml_value(values, "REHEALTH_PROVIDER_CREDENTIAL_FILE", provider, "credential-file")
+    _set_yaml_value(values, "REHEALTH_PROVIDER_SECRET", provider, "api-key")
+
+    if "enabled" in provider:
+        _set_yaml_value(values, "REHEALTH_AGENT_PROVIDER_ENABLED", provider, "enabled")
+    elif values.get("REHEALTH_PROVIDER_SECRET", "").strip() or values.get(
+        "REHEALTH_PROVIDER_CREDENTIAL_FILE", ""
+    ).strip():
+        values["REHEALTH_AGENT_PROVIDER_ENABLED"] = "true"
+    return values
+
+
+def _yaml_section(value: object, name: str) -> Mapping[str, object]:
+    if value is None:
+        return {}
+    if not isinstance(value, Mapping):
+        raise RuntimeConfigurationError(
+            code="LOCAL_CONFIG_INVALID",
+            detail=f"local YAML section {name} must be an object",
+        )
+    return value
+
+
+def _set_yaml_value(
+    target: dict[str, str],
+    environment_name: str,
+    section: Mapping[str, object],
+    key: str,
+) -> None:
+    if key not in section or section[key] is None:
+        return
+    value = section[key]
+    if isinstance(value, (Mapping, list, tuple, set)):
+        raise RuntimeConfigurationError(
+            code="LOCAL_CONFIG_INVALID",
+            detail=f"local YAML value {key} must be a scalar",
+        )
+    if isinstance(value, bool):
+        target[environment_name] = "true" if value else "false"
+    else:
+        target[environment_name] = str(value).strip()
 
 
 def validate_runtime_config(config: RuntimeConfig) -> None:

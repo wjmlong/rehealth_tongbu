@@ -26,7 +26,7 @@ import com.rehealth.genie.ui.theme.*
 import kotlinx.coroutines.launch
 
 /**
- * AI健康问答页面 - 连接GPT-5.6 Luna
+ * AI健康问答页面 - 通过后端托管的健康助手模型服务（本地默认 DeepSeek V4 Flash）。
  */
 @Composable
 fun HealthChatScreen(

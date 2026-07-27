@@ -2,5 +2,6 @@ __pycache__/
 .pytest_cache/
 .venv/
 *.pyc
+config/ai-chat.local.yml
 models/*
 !models/.gitkeep

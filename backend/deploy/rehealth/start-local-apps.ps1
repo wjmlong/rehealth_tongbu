@@ -86,19 +86,28 @@ Require-File $java
 $internalCredentialFile = Join-Path $secretsDir 'internal_service_credential'
 Require-File $internalCredentialFile
 $providerCredentialFile = Join-Path $secretsDir 'provider_credential'
-$agentProviderEnabled = Read-LocalSetting 'REHEALTH_AGENT_PROVIDER_ENABLED' 'false'
+$localAiConfig = Join-Path $repoRoot 'model-service\config\ai-chat.local.yml'
 
 $env:REHEALTH_RUNTIME_MODE = 'development'
 $env:REHEALTH_MODEL_DIR = Join-Path $repoRoot 'model-service\models'
-$env:REHEALTH_AGENT_PROVIDER_ENABLED = $agentProviderEnabled
-$env:REHEALTH_AGENT_PROVIDER_BASE_URL = Read-LocalSetting 'REHEALTH_AGENT_PROVIDER_BASE_URL' 'https://api.deepseek.com'
-$env:REHEALTH_AGENT_PROVIDER_MODEL = Read-LocalSetting 'REHEALTH_AGENT_PROVIDER_MODEL' 'deepseek-v4-flash'
 $env:REHEALTH_AGENT_INTERNAL_TOKEN_FILE = $internalCredentialFile
-if ($agentProviderEnabled -eq 'true') {
-    Require-File $providerCredentialFile
-    $env:REHEALTH_PROVIDER_CREDENTIAL_FILE = $providerCredentialFile
-} else {
+if (Test-Path -LiteralPath $localAiConfig -PathType Leaf) {
+    $env:REHEALTH_LOCAL_CONFIG_FILE = $localAiConfig
+    Remove-Item Env:REHEALTH_AGENT_PROVIDER_ENABLED -ErrorAction SilentlyContinue
+    Remove-Item Env:REHEALTH_AGENT_PROVIDER_BASE_URL -ErrorAction SilentlyContinue
+    Remove-Item Env:REHEALTH_AGENT_PROVIDER_MODEL -ErrorAction SilentlyContinue
     Remove-Item Env:REHEALTH_PROVIDER_CREDENTIAL_FILE -ErrorAction SilentlyContinue
+} else {
+    $agentProviderEnabled = Read-LocalSetting 'REHEALTH_AGENT_PROVIDER_ENABLED' 'false'
+    $env:REHEALTH_AGENT_PROVIDER_ENABLED = $agentProviderEnabled
+    $env:REHEALTH_AGENT_PROVIDER_BASE_URL = Read-LocalSetting 'REHEALTH_AGENT_PROVIDER_BASE_URL' 'https://api.deepseek.com'
+    $env:REHEALTH_AGENT_PROVIDER_MODEL = Read-LocalSetting 'REHEALTH_AGENT_PROVIDER_MODEL' 'deepseek-v4-flash'
+    if ($agentProviderEnabled -eq 'true') {
+        Require-File $providerCredentialFile
+        $env:REHEALTH_PROVIDER_CREDENTIAL_FILE = $providerCredentialFile
+    } else {
+        Remove-Item Env:REHEALTH_PROVIDER_CREDENTIAL_FILE -ErrorAction SilentlyContinue
+    }
 }
 Start-ManagedProcess `
     -Name 'model-service' `

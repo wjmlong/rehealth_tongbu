@@ -121,15 +121,20 @@ Keep passwords and internal service credentials in the ignored
 `backend/deploy/rehealth/secrets/` files. Load them into the local process
 environment at startup; never copy them into tracked YAML or source files.
 
-To enable Android AI health Q&A locally:
+To enable Android AI health Q&A locally with the YAML-first development path:
 
-1. Put the provider API key on a single line, without quotes, in the ignored
-   `backend/deploy/rehealth/secrets/provider_credential` file.
-2. Set `REHEALTH_AGENT_PROVIDER_ENABLED=true` plus the matching provider base
-   URL and model in the ignored `backend/deploy/rehealth/.env` file. Use
-   `.env.example` as the template.
-3. Restart the local applications. The API key is read only by `model-service`;
+1. Copy `model-service/config/ai-chat.example.yml` to the ignored
+   `model-service/config/ai-chat.local.yml` file.
+2. Fill `health-agent.provider.api-key`. The default provider is
+   `https://api.deepseek.com` with model `deepseek-v4-flash`; a non-empty key
+   automatically enables it.
+3. Restart the local applications. `start-local-apps.ps1` detects this file and
+   lets model-service load it directly. The API key is read only by `model-service`;
    it must never be copied into the Android project, JeecgBoot YAML, or Git.
+
+The secret-file plus ignored `.env` path remains supported when
+`ai-chat.local.yml` is absent and is still the required pattern for staging and
+production.
 
 After the current JARs and Python virtual environment have been built, start
 or stop all application processes with:

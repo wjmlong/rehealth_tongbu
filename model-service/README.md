@@ -36,6 +36,28 @@ python -m pip install -r requirements.txt
 python -m uvicorn app.main:app --reload
 ```
 
+### Local DeepSeek V4 Flash configuration
+
+For local development, copy `config/ai-chat.example.yml` to the Git-ignored
+`config/ai-chat.local.yml`, then fill only the local `api-key` value:
+
+```yaml
+health-agent:
+  provider:
+    base-url: https://api.deepseek.com
+    model: deepseek-v4-flash
+    api-key: "your-local-api-key"
+```
+
+The default local YAML is loaded automatically when the service starts. A
+non-empty `api-key` automatically enables the provider, and process environment
+variables still take precedence. For an alternate local path, set
+`REHEALTH_LOCAL_CONFIG_FILE`.
+
+Embedded YAML credentials are development-only. Production and staging still
+reject them and require `REHEALTH_PROVIDER_CREDENTIAL_FILE` plus an externally
+mounted secret.
+
 ## Test
 
 ```powershell
