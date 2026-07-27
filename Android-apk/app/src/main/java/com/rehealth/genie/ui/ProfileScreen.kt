@@ -46,9 +46,17 @@ import com.rehealth.genie.ui.theme.Line
 import com.rehealth.genie.ui.theme.Mint
 import com.rehealth.genie.ui.theme.MintSoft
 import com.rehealth.genie.ui.theme.Muted
+import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.ExitToApp
+import androidx.compose.material.icons.outlined.QuestionAnswer
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rehealth.genie.work.MeasurementSyncWorker
 
 @Composable
@@ -57,11 +65,23 @@ internal fun ProfileScreen(
     onDeviceBinding: () -> Unit,
     onRestartOnboarding: () -> Unit,
     onGoToLogin: () -> Unit,
+    onStartInterview: () -> Unit = {},
+    onProfileUpdated: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
     val profile = state.patientMvp?.profile
     val session = (context.applicationContext as? ReHealthApplication)?.sessionStore
+    val editViewModel: ProfileEditViewModel = viewModel(factory = ProfileEditViewModel.Factory(context))
+    val editState by editViewModel.uiState.collectAsState()
+    LaunchedEffect(editState.saved) {
+        if (editState.saved) {
+            showEditDialog = false
+            editViewModel.reset()
+            onProfileUpdated()
+        }
+    }
     Page("我的") {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             ReHealthCardBlock {
@@ -90,6 +110,11 @@ internal fun ProfileScreen(
                 Metric("体重", profile?.weightKg?.let { "%.1f".format(it) } ?: "--", "kg", Modifier.weight(1f))
             }
             ReHealthCardBlock {
+                MenuRow(Icons.Outlined.EditNote, "编辑个人资料") {
+                    editViewModel.reset()
+                    showEditDialog = true
+                }
+                MenuRow(Icons.Outlined.QuestionAnswer, "更新健康问答", onStartInterview)
                 MenuRow(Icons.Outlined.Devices, "设备绑定", onDeviceBinding)
                 MenuRow(Icons.Outlined.Lock, "隐私中心")
                 MenuRow(Icons.Outlined.Download, "数据导出")
@@ -100,6 +125,25 @@ internal fun ProfileScreen(
                 MenuRow(Icons.Outlined.ExitToApp, "退出登录") { showLogoutDialog = true }
             }
         }
+    }
+    if (showEditDialog) {
+        ProfileEditDialog(
+            initialName = profile?.name ?: session?.username.orEmpty(),
+            initialAge = profile?.age?.toString().orEmpty(),
+            initialHeight = profile?.heightCm?.toString().orEmpty(),
+            initialWeight = profile?.weightKg?.toString().orEmpty(),
+            isSaving = editState.isSaving,
+            errorMessage = editState.errorMessage,
+            onSave = { name, age, height, weight ->
+                editViewModel.save(name, age, height, weight)
+            },
+            onDismiss = {
+                if (!editState.isSaving) {
+                    showEditDialog = false
+                    editViewModel.reset()
+                }
+            },
+        )
     }
     if (showLogoutDialog) {
         AlertDialog(
@@ -128,6 +172,77 @@ private fun performLogout(context: Context) {
     MeasurementSyncWorker.cancel(context)
     app.authenticatedApiClient.onLogout()
     app.syncRepository.pauseQueue()
+}
+
+@Composable
+private fun ProfileEditDialog(
+    initialName: String,
+    initialAge: String,
+    initialHeight: String,
+    initialWeight: String,
+    isSaving: Boolean,
+    errorMessage: String?,
+    onSave: (name: String, age: String, height: String, weight: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by remember { mutableStateOf(initialName) }
+    var age by remember { mutableStateOf(initialAge) }
+    var height by remember { mutableStateOf(initialHeight) }
+    var weight by remember { mutableStateOf(initialWeight) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("编辑个人资料") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it.take(32) },
+                    label = { Text("姓名 / 昵称") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = age,
+                    onValueChange = { age = it.filter { c -> c.isDigit() }.take(3) },
+                    label = { Text("年龄") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = height,
+                    onValueChange = { height = it.filter { c -> c.isDigit() || c == '.' }.take(6) },
+                    label = { Text("身高 (cm)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = weight,
+                    onValueChange = { weight = it.filter { c -> c.isDigit() || c == '.' }.take(6) },
+                    label = { Text("体重 (kg)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                errorMessage?.let {
+                    Text(it, color = Color(0xFFD94C4C), fontSize = 12.sp)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSave(name, age, height, weight) },
+                enabled = !isSaving && name.isNotBlank(),
+            ) {
+                if (isSaving) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
+                } else {
+                    Text("保存")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isSaving) { Text("取消") }
+        },
+    )
 }
 
 @Composable

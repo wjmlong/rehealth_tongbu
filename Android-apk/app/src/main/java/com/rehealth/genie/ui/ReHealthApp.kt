@@ -249,6 +249,8 @@ private fun MainShell(
                             onDeviceBinding = { showDeviceBinding = true },
                             onRestartOnboarding = onRestartOnboarding,
                             onGoToLogin = onGoToLogin,
+                            onStartInterview = { showInterview = true },
+                            onProfileUpdated = ringViewModel::refreshPatientMvp,
                         )
                     }
                 }
