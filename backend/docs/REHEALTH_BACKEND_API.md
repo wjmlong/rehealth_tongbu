@@ -7,7 +7,7 @@ Module: `jeecg-boot/jeecg-boot-module/jeecg-module-rehealth`.
 
 Production ReHealth backend code lives in `jeecg-module-rehealth`.
 
-The previous prototype controller under `jeecg-module-demo/src/main/java/org/jeecg/modules/rehealth/` was removed from the Java source tree because it used `@IgnoreAuth`, in-memory state, obsolete model URLs, and Java-side mock scoring.
+The obsolete Demo module and its earlier prototype route location were removed after confirming that all production ReHealth APIs live in the dedicated module.
 
 ## Endpoint List
 

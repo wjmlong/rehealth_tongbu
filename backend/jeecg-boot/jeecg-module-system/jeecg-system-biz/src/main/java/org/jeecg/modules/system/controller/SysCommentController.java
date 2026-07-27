@@ -182,7 +182,6 @@ public class SysCommentController extends JeecgController<SysComment, ISysCommen
      * @return
      */
     @Operation(summary = "系统评论回复表-添加")
-    //@RequiresPermissions("org.jeecg.modules.demo:sys_comment:add")
     @PostMapping(value = "/add")
     public Result<String> add(@RequestBody SysComment sysComment) {
         sysCommentService.save(sysComment);
@@ -197,7 +196,6 @@ public class SysCommentController extends JeecgController<SysComment, ISysCommen
      */
     //@AutoLog(value = "系统评论回复表-编辑")
     @Operation(summary = "系统评论回复表-编辑")
-    //@RequiresPermissions("org.jeecg.modules.demo:sys_comment:edit")
     @RequestMapping(value = "/edit", method = {RequestMethod.PUT, RequestMethod.POST})
     public Result<String> edit(@RequestBody SysComment sysComment) {
         sysCommentService.updateById(sysComment);
@@ -212,7 +210,6 @@ public class SysCommentController extends JeecgController<SysComment, ISysCommen
      */
     //@AutoLog(value = "系统评论回复表-通过id删除")
     @Operation(summary = "系统评论回复表-通过id删除")
-    //@RequiresPermissions("org.jeecg.modules.demo:sys_comment:delete")
     @DeleteMapping(value = "/delete")
     public Result<String> delete(@RequestParam(name = "id", required = true) String id) {
         sysCommentService.removeById(id);
@@ -227,7 +224,6 @@ public class SysCommentController extends JeecgController<SysComment, ISysCommen
      */
     //@AutoLog(value = "系统评论回复表-批量删除")
     @Operation(summary = "系统评论回复表-批量删除")
-    //@RequiresPermissions("org.jeecg.modules.demo:sys_comment:deleteBatch")
     @DeleteMapping(value = "/deleteBatch")
     public Result<String> deleteBatch(@RequestParam(name = "ids", required = true) String ids) {
         this.sysCommentService.removeByIds(Arrays.asList(ids.split(",")));
@@ -257,7 +253,6 @@ public class SysCommentController extends JeecgController<SysComment, ISysCommen
      * @param request
      * @param sysComment
      */
-    //@RequiresPermissions("org.jeecg.modules.demo:sys_comment:exportXls")
     @RequestMapping(value = "/exportXls")
     public ModelAndView exportXls(HttpServletRequest request, SysComment sysComment) {
         return super.exportXls(request, sysComment, SysComment.class, "系统评论回复表");

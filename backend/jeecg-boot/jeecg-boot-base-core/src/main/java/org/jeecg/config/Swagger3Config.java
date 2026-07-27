@@ -46,7 +46,6 @@ public class Swagger3Config implements WebMvcConfigurer {
             "/sys/mLogin",
             "/sys/sms",
             "/sys/cas/client/validateLogin",
-            "/test/jeecgDemo/demo3",
             "/sys/thirdLogin/**",
             "/sys/user/register"
     ));

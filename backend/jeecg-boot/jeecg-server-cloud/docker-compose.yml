@@ -1,4 +1,3 @@
-version: '2'
 services:
   jeecg-boot-mysql:
     build:
@@ -81,19 +80,6 @@ services:
     networks:
       - jeecg-boot
 
-  jeecg-boot-demo:
-    depends_on:
-      - jeecg-boot-nacos
-    build:
-      context: ./jeecg-demo-cloud-start
-    container_name: jeecg-demo-start
-    hostname: jeecg-boot-demo
-    restart: on-failure
-    environment:
-      - TZ=Asia/Shanghai
-    networks:
-      - jeecg-boot
-
   jeecg-boot-gateway:
     restart: on-failure
     build:
@@ -120,7 +106,6 @@ networks:
 #      - 9000:9000
 #    depends_on:
 #      - jeecg-boot-nacos
-#      - jeecg-boot-demo
 #      - jeecg-boot-system
 #      - jeecg-boot-gateway
 #    container_name: jeecg-boot-sentinel

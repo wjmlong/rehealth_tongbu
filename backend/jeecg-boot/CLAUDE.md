@@ -47,7 +47,7 @@ jeecg-boot-parent (root pom)
 │   ├── jeecg-system-biz           # Business logic, entities, mappers, services
 │   └── jeecg-system-start         # Main entry point (JeecgSystemApplication), all configs
 ├── jeecg-boot-module              # Business feature modules
-│   ├── jeecg-module-demo          # Demo/example code
+│   ├── jeecg-module-rehealth      # ReHealth product APIs and orchestration
 │   ├── jeecg-boot-module-airag    # AI/RAG integration
 │   ├── jeecg-boot-module-easyoa   # Simple OA module
 │   ├── jeecg-boot-module-joa-flowable  # OA + Flowable workflow

@@ -5,7 +5,7 @@ Module: `jeecg-boot/jeecg-boot-module/jeecg-module-rehealth`.
 
 ## Boundary
 
-Production ReHealth backend code lives in `jeecg-module-rehealth`, not `jeecg-module-demo`.
+Production ReHealth backend code lives in `jeecg-module-rehealth`; the upstream Demo module is not part of this repository's runtime.
 
 Java backend owns API, persistence boundaries, and orchestration. Python `model-service` remains the authority for risk evaluation, intervention generation, and attribution. Java does not implement CatBoost, SHAP, CVD scoring, clinical diagnosis, treatment logic, or model fallback scoring.
 

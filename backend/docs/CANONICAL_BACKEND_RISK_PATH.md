@@ -81,6 +81,6 @@ P0c source inspection confirmed:
 - `/rehealth/mobile/features/evaluate` exists in `jeecg-module-rehealth`.
 - `HttpModelServiceClient` posts risk evaluation to `/v1/cvd/risk/evaluate`.
 - `HttpModelServiceClient` posts intervention generation to `/v1/cvd/intervention/generate`.
-- `jeecg-module-demo` contains no ReHealth Java mobile routes.
+- The unused `jeecg-module-demo` runtime was removed; ReHealth routes exist only in `jeecg-module-rehealth`.
 - `application-dev.yml` uses `rehealth.model-service.base-url`, not the old algorithm URL.
 - Legacy route strings are historical/docs-only and are not active production backend paths.

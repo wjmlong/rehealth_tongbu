@@ -38,7 +38,7 @@
 
 - `backend/jeecgboot-vue3` 保留，作为 JeecgBoot 管理前端。
 - `jeecg-boot-module-airag` 保留，不在本轮清理范围。
-- `jeecg-module-demo` 需在依赖、配置和构建检查确认无 ReHealth 用途后移除。
+- `jeecg-module-demo` 与 `jeecg-demo-cloud-start` 已确认不含 ReHealth 用途并移除。
 - Git 历史不重写；已删除内容仍可从历史 commit 恢复。
 - 本地代理状态、构建产物、虚拟环境、APK、截图和下载工具不进入 Git。
 
