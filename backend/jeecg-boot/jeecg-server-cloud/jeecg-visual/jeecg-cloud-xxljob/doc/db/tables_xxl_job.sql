@@ -35,7 +35,6 @@ CREATE TABLE `xxl_job_group`  (
 -- Records of xxl_job_group
 -- ----------------------------
 INSERT INTO `xxl_job_group` VALUES (1, 'xxl-job-executor-sample', '示例执行器', 0, NULL, '2025-02-10 13:49:04');
-INSERT INTO `xxl_job_group` VALUES (2, 'jeecg-demo', '测试Demo模块', 0, NULL, '2025-02-10 13:49:04');
 INSERT INTO `xxl_job_group` VALUES (3, 'jeecg-system', '系统System模块', 0, NULL, '2025-02-10 13:49:04');
 
 -- ----------------------------

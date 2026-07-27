@@ -19,7 +19,7 @@ assistant generation, and attribution.
 | `jeecg-server-cloud/jeecg-cloud-gateway` | Keep | Optional cloud gateway and route aggregation. |
 | `jeecg-server-cloud/jeecg-cloud-nacos` | Keep | Optional discovery and configuration service. |
 | `jeecg-server-cloud/jeecg-system-cloud-start` | Keep | Optional cloud-mode system/ReHealth launcher. |
-| `jeecg-server-cloud/jeecg-visual` | Keep | Optional monitoring, Sentinel, XXLJob, and upstream cloud examples. |
+| `jeecg-server-cloud/jeecg-visual` | Keep | Optional monitoring, Sentinel, and XXLJob infrastructure. |
 | `backend/jeecgboot-vue3` | Keep | JeecgBoot management frontend. |
 
 ## Removed modules
@@ -28,6 +28,8 @@ assistant generation, and attribution.
   static big-screen assets, and Demo test data. Inspection found no ReHealth code or
   product dependency.
 - `jeecg-demo-cloud-start`: launcher that existed only to expose `jeecg-module-demo`.
+- `jeecg-server-cloud/jeecg-visual/jeecg-cloud-test`: upstream Feign, messaging,
+  Seata, and ShardingSphere examples with no ReHealth product dependency.
 
 The system launchers no longer depend on or exclude the removed artifact. Their code
 generator defaults now target `jeecg-module-rehealth` instead of a machine-local Demo

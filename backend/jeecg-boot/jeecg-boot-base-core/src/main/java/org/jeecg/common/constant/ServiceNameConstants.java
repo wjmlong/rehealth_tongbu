@@ -32,7 +32,6 @@ public interface ServiceNameConstants {
 	/**
 	 * 微服务名： demo模块
 	 */
-	String SERVICE_DEMO = "jeecg-demo";
 	/**
 	 * 微服务名：joa模块
 	 */

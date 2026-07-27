@@ -273,11 +273,6 @@ JeecgBoot平台提供了一套完善的AI应用管理系统模块，是一套类
         ├─jeecg-cloud-monitor       --微服务监控模块 (9111)
         ├─jeecg-cloud-xxljob        --微服务xxljob定时任务服务端 (9080)
         ├─jeecg-cloud-sentinel     --sentinel服务端 (9000)
-        ├─jeecg-cloud-test           -- 微服务测试示例（各种例子）
-           ├─jeecg-cloud-test-more         -- 微服务测试示例（feign、熔断降级、xxljob、分布式锁）
-           ├─jeecg-cloud-test-rabbitmq     -- 微服务测试示例（rabbitmq）
-           ├─jeecg-cloud-test-seata          -- 微服务测试示例（seata分布式事务）
-           ├─jeecg-cloud-test-shardingsphere    -- 微服务测试示例（分库分表）
 ```
 
 
