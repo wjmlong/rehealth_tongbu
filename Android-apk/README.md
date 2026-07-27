@@ -106,6 +106,16 @@ secret 禁止进入 `local.properties`、BuildConfig 或 APK。
 .\gradlew.bat "-Prehealth.debug.wearable.product.code=RH-RW-P01" testDebugUnitTest assembleDebug
 ```
 
+使用 Android Studio 的 Run 按钮进行 RWFit 真机调试时，在不提交版本库的
+`local.properties` 中加入：
+
+```properties
+rehealth.debug.wearable.product.code=RH-RW-P01
+```
+
+命令行 `-Prehealth.debug.wearable.product.code=...` 会覆盖本地配置；两者都未设置时
+Debug 默认使用 MRD。切换配置后需重新构建并安装应用。
+
 Debug APK：
 
 ```text

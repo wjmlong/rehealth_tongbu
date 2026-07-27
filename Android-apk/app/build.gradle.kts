@@ -30,14 +30,16 @@ fun signSecret(): String =
     (localProps.getProperty("JEECG_SIGNATURE_SECRET") ?: System.getenv("JEECG_SIGNATURE_SECRET")
         ?: "").trim()
 fun debugWearableProductCode(): String {
-    val productCode = providers.gradleProperty("rehealth.debug.wearable.product.code")
-        .orElse("RH-MRD-S01")
-        .get()
-        .trim()
-    require(productCode in setOf("RH-MRD-S01", "RH-RW-P01")) {
+    val normalizedProductCode = (
+        providers.gradleProperty("rehealth.debug.wearable.product.code")
+            .orNull
+            ?: localProps.getProperty("rehealth.debug.wearable.product.code")
+            ?: "RH-MRD-S01"
+        ).trim()
+    require(normalizedProductCode in setOf("RH-MRD-S01", "RH-RW-P01")) {
         "rehealth.debug.wearable.product.code must be RH-MRD-S01 or RH-RW-P01"
     }
-    return productCode
+    return normalizedProductCode
 }
 
 android {

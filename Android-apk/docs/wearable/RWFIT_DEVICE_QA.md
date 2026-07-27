@@ -13,6 +13,16 @@ present.
 .\gradlew.bat "-Prehealth.debug.wearable.product.code=RH-RW-P01" testDebugUnitTest assembleDebug
 ```
 
+For Android Studio Run, add the following untracked local setting to
+`local.properties`, then rebuild and reinstall the app:
+
+```properties
+rehealth.debug.wearable.product.code=RH-RW-P01
+```
+
+The command-line `-P` value takes precedence over `local.properties`. If neither
+is present, Debug intentionally defaults to MRD.
+
 Install `app/build/outputs/apk/debug/app-debug.apk`. If another application with
 the same package/signature is installed, uninstall it or clear its data before
 the first run. Grant Bluetooth scan/connect and notification permissions.
@@ -43,6 +53,12 @@ Git or production logs:
 2. Enable Bluetooth, scan, select the target device, and wait until the function
    menu/capability callback completes. A transport-level connection alone is not
    considered ready.
+   - Do not select a device from a noisy generic BLE list. That normally means
+     the test APK was built in MRD mode; verify the RWFit setting above first.
+   - Keep the target next to the phone and compare the list before and after
+     putting the wearable into its charging case or powering it off. Select only
+     the entry that disappears and reappears consistently. RSSI is supporting
+     evidence, not identity proof, and a full BLE address must not be recorded.
 3. Restart the app and verify the encrypted RWFit binding is reused without an
    automatic scan or fixed test address.
 4. Run full sync. Only capabilities reported by the device are requested. Verify
