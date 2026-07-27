@@ -29,6 +29,16 @@ fun reHealthReleaseApiBaseUrl(): String {
 fun signSecret(): String =
     (localProps.getProperty("JEECG_SIGNATURE_SECRET") ?: System.getenv("JEECG_SIGNATURE_SECRET")
         ?: "").trim()
+fun debugWearableProductCode(): String {
+    val productCode = providers.gradleProperty("rehealth.debug.wearable.product.code")
+        .orElse("RH-MRD-S01")
+        .get()
+        .trim()
+    require(productCode in setOf("RH-MRD-S01", "RH-RW-P01")) {
+        "rehealth.debug.wearable.product.code must be RH-MRD-S01 or RH-RW-P01"
+    }
+    return productCode
+}
 
 android {
     namespace = "com.rehealth.genie"
@@ -53,6 +63,7 @@ android {
         debug {
             buildConfigField("boolean", "USE_FAKE_RING", "false")
             buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", "false")
+            buildConfigField("String", "DEBUG_WEARABLE_PRODUCT_CODE", "\"${debugWearableProductCode()}\"")
             buildConfigField("String", "REHEALTH_API_BASE_URL", "\"${reHealthApiBaseUrl()}\"")
             buildConfigField("String", "JEECG_SIGN_SECRET", "\"${signSecret()}\"")
             manifestPlaceholders["usesCleartextTraffic"] = "true"

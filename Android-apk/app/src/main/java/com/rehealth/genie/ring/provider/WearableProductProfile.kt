@@ -55,4 +55,5 @@ private fun com.google.gson.JsonObject.requireStringSet(name: String): Set<Strin
         ?: error("wearable product field '$name' is required")
 
 const val DEFAULT_MRD_PRODUCT_CODE = "RH-MRD-S01"
+const val RWFIT_PRODUCT_CODE = "RH-RW-P01"
 const val DEBUG_MOCK_PRODUCT_CODE = "RH-MOCK-DEBUG"

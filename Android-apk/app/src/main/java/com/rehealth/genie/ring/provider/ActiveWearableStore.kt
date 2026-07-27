@@ -63,7 +63,7 @@ class ActiveWearableStore(
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
     )
     private val mutableActiveBinding = MutableStateFlow(
-        if (forceDefaultSelection) defaultBinding else readBinding(),
+        resolveInitialWearableBinding(defaultBinding, readBinding(), forceDefaultSelection),
     )
 
     override val activeBinding: StateFlow<ActiveWearableBinding> = mutableActiveBinding.asStateFlow()
@@ -154,4 +154,15 @@ class ActiveWearableStore(
         const val KEY_BOUND_AT = "bound_at"
         const val KEY_LAST_DEVICE_CHANGED_AT = "last_device_changed_at"
     }
+}
+
+internal fun resolveInitialWearableBinding(
+    defaultBinding: ActiveWearableBinding,
+    storedBinding: ActiveWearableBinding,
+    forceDefaultSelection: Boolean,
+): ActiveWearableBinding {
+    if (!forceDefaultSelection) return storedBinding
+    return storedBinding.takeIf { stored ->
+        stored.productCode == defaultBinding.productCode && stored.vendor == defaultBinding.vendor
+    } ?: defaultBinding
 }

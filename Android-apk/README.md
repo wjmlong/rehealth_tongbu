@@ -1,6 +1,6 @@
 # ReHealth AI Android
 
-睿禾精灵 Android 客户端，负责 MRD 戒指 BLE 采集、本地持久化、轻量健康
+睿禾精灵 Android 客户端，负责 MRD/RWFit 戒指采集、本地持久化、轻量健康
 特征提取、离线上传和用户交互。CatBoost、SHAP、LLM 和生产归因均位于云端，
 不进入 Android APK。
 
@@ -9,9 +9,9 @@
 ## 当前能力
 
 - Compose 登录、注册、健康访谈、设备绑定、主页、数据、风险、干预、反馈、归因和健康助手页面。
-- MRD SDK `sdk_mrd2026_1.3.0.aar` 与 BLE 协议适配。
-- 基于 `productCode` 的单一有效设备路由；当前 Release 只注册 MRD Provider，
-  Debug 可按原构建开关注册 Mock。
+- MRD SDK/协议适配，以及固定版本 RWFit 官方 SDK Provider。
+- 基于 `productCode` 的单一有效设备路由；Release 注册 MRD/RWFit，Debug 另可
+  注册 Mock 或通过 Gradle 属性生成 RWFit 真机测试 APK。
 - 心率、血氧、血压、体温、睡眠、步数和活动等本地记录。
 - Room 本地优先持久化及显式数据库迁移。
 - Foreground Service 后台低频采集与 WorkManager 恢复任务。
@@ -23,7 +23,7 @@
 
 ```text
 app/src/main/java/com/rehealth/genie/
-├─ ring/            戒指领域、Repository、BLE 守卫与 MRD/vendor 适配
+├─ ring/            戒指领域、Repository、BLE 守卫与 MRD/RWFit 适配
 ├─ ring/provider/   单一有效绑定、商品目录、Provider 懒加载与路由
 ├─ ring/data/       Room 遥测实体和 DAO
 ├─ service/         RingForegroundService
@@ -39,12 +39,13 @@ app/src/main/java/com/rehealth/genie/
 
 ```text
 app/libs/sdk_mrd2026_1.3.0.aar
+app/libs/blesdk-rwfit-release_v2_260724.aar
 ```
 
 ## 核心数据流
 
 ```text
-productCode -> ActiveRingRepository -> MRD SDK / BLE
+productCode -> ActiveRingRepository -> MRD BLE / RWFit SDK
   -> RingRepository
   -> Room
   -> UploadQueue
@@ -61,6 +62,7 @@ CVD 评估通过独立的 feature-evaluate 路径完成。
 - `docs/D2_TELEMETRY_SYNC_PLAN.md`
 - `docs/FEATURE_EXTRACTOR.md`
 - `docs/wearable/SDK_BASELINE.md`（厂商 SDK、采购型号与能力证据基线）
+- `docs/wearable/RWFIT_DEVICE_QA.md`（RWFit 真机测试步骤与证据清单）
 
 ## 配置
 
@@ -82,9 +84,9 @@ secret 禁止进入 `local.properties`、BuildConfig 或 APK。
 
 模拟戒指只存在于 `app/src/debug`，由 Debug 专用工厂和
 `USE_FAKE_RING`/`SEED_FAKE_HEALTH_DATA` 控制。`app/src/release` 的工厂只构造
-`MrdBleRingRepository`；远程风险评估失败时显示不可用，不生成本地模拟风险。
+真实 MRD/RWFit Provider；远程风险评估失败时显示不可用，不生成本地模拟风险。
 
-当前有效设备绑定保存在 `EncryptedSharedPreferences`，不进入 Room。MRD 首次
+当前有效设备绑定保存在 `EncryptedSharedPreferences`，不进入 Room。设备首次
 扫描连接成功后才保存绑定地址；没有绑定地址时，后台采集不会使用固定地址或
 自动扫描连接。
 
@@ -98,6 +100,12 @@ secret 禁止进入 `local.properties`、BuildConfig 或 APK。
 .\gradlew.bat assembleRelease
 ```
 
+生成强制选择 RWFit、并保留重启后绑定重连能力的真机测试 APK：
+
+```powershell
+.\gradlew.bat "-Prehealth.debug.wearable.product.code=RH-RW-P01" testDebugUnitTest assembleDebug
+```
+
 Debug APK：
 
 ```text
@@ -106,8 +114,8 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## 当前限制
 
-- 已有单一有效设备路由，但 RWFit/HBand Provider、正式 SDK 和真机能力验证尚未接入；
-  当前不支持多设备同时连接或数据融合。
+- 已有 MRD/RWFit 单一有效设备路由；RWFit 真机型号/固件、HRV 单位、数据准确性
+  和后台稳定性仍待验证，HBand 尚未接入；不支持多设备同时连接或数据融合。
 - 本地遥测和上传队列仍需进一步按登录用户和设备维度隔离。
 - 遥测上传仍需从“最新快照”演进到按本地游标处理全部未上传记录。
 - MRD 扫描、重连、锁屏长时间采集、功耗和测量准确性仍需物理设备 QA。

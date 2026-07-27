@@ -15,10 +15,10 @@ health record in Room before it creates an upload item. Backend or model-service
 failure must not stop BLE collection.
 
 Android keeps exactly one active wearable binding in encrypted preferences. The
-Release registry currently contains only MRD; RWFit/HBand catalog entries cannot
-be activated until their Providers exist. Switching a product disconnects the
-old Provider and does not delete historical `ring_*` rows. Vendor SDK objects do
-not cross the `RingRepository` boundary into UI/ViewModel/Room entities.
+Release registry contains MRD and RWFit; HBand cannot be activated until its
+Provider exists. Switching a product disconnects the old Provider and does not
+delete historical `ring_*` rows. Vendor SDK objects do not cross the
+`RingRepository` boundary into UI/ViewModel/Room entities.
 
 This local routing change does not change endpoint paths, authentication, DTOs,
 durable acknowledgement, or backend PIAS behavior.
@@ -65,9 +65,12 @@ Feedback and device binding completion require `persisted == true`.
 
 ## Data and Privacy Rules
 
-- Device identity is `mrd-<first 24 SHA-256 hex characters>` plus
-  `hardwareAddressHash`; raw MAC addresses are not uploaded.
-- `source=mrd_room` means records originated from the real Room collection path.
+- Device identity is `<vendor>-<first 24 SHA-256 hex characters>` plus
+  `hardwareAddressHash`; raw MAC addresses are not uploaded. Currently `<vendor>`
+  is `mrd` or `rwfit`.
+- `source=mrd_room` and `source=rwfit_room` identify the real Room collection
+  path for the active Provider. The upload snapshot filters out rows from other
+  vendors before creating a batch.
   Synthetic software QA must use `source=synthetic_qa`.
 - `rawPayload`, PPG/RRI payload bytes, access tokens, phone numbers, and direct
   identifiers must not be included in upload payloads or production logs.
@@ -113,4 +116,5 @@ runtime secrets.
 Software-only contract, serialization, queue, repository, and APK build checks can
 run without a ring. Real BLE scanning, binding, measurement accuracy, background
 collection reliability, reconnect behavior, and battery impact are
-`HARDWARE_QA_PENDING` until an MRD ring and Android 13+ device are available.
+`HARDWARE_QA_PENDING` until the applicable MRD/RWFit ring and Android 13+ device
+have been validated.

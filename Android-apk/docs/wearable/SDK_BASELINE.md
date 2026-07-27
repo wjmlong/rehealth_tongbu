@@ -1,7 +1,8 @@
 # Wearable SDK baseline
 
-> Checked on 2026-07-27 at Git commit
-> `49aa569d8db45dbb70550a5a2e9d45a0537f0599` before provider-routing changes.
+> The original build baseline was checked on 2026-07-27 at Git commit
+> `49aa569d8db45dbb70550a5a2e9d45a0537f0599`. SDK inventory and Provider scope
+> were updated on 2026-07-27 as the staged integration progressed.
 
 This baseline records only material that is present in the repository or has
 been verified by a build. It must not be treated as proof that a physical
@@ -61,3 +62,10 @@ requires the purchased model, firmware, capability output, unit confirmation,
 and scan/connect/sync evidence. HBand dependency/provider work remains blocked
 until its formal SDK and device evidence are available. Vendor Bean fields and
 metric mappings must not be inferred from samples or guessed.
+
+RWFit Provider scope is limited to capabilities reported by the connected device:
+step/activity, sleep, heart rate, blood oxygen, and HRV. The SDK documentation does
+not state the HRV unit, so Android persists the real integer with unit
+`rwfit_raw`; it does not claim milliseconds. Blood pressure, temperature, stress,
+blood sugar, PPG, and other SDK callbacks are not requested or persisted in this
+phase.

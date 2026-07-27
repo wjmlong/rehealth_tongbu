@@ -9,7 +9,7 @@ Scope: Android MVP, backend services, model-service, contract gates, and release
 - Android app: `Android-apk/`
 - Backend: `backend/`
 - Model service: `model-service/`
-- Physical QA required: BLE-capable Android phone and MRD ring.
+- Physical QA required: BLE-capable Android phone and the applicable MRD/RWFit ring.
 - Use JDK, Maven, Python, Android SDK, and Gradle wrapper versions documented by each module; do not commit machine-local paths.
 
 ## Automated Validation
@@ -52,16 +52,20 @@ git diff --check
 3. Ring scan/connect
    - Turn Bluetooth on.
    - Scan from device binding screen.
-   - Connect MRD ring.
+   - Connect the ring selected by the current `productCode` (MRD or RWFit).
    - Confirm connection state updates, the active binding survives app restart,
      and no duplicate scan/connect loop is created.
    - After clearing app data, start background collection before binding and
      confirm no fixed-address connection, automatic scan, or fabricated row occurs.
-   - Confirm the current `productCode` activates exactly one Provider; RWFit/HBand
-     catalog entries remain unavailable until their Providers are installed.
+   - Confirm the current `productCode` activates exactly one Provider; HBand
+     remains unavailable until its Provider is installed.
+   - For RWFit, build with
+     `-Prehealth.debug.wearable.product.code=RH-RW-P01`, then record model,
+     firmware and capability output per `Android-apk/docs/wearable/RWFIT_DEVICE_QA.md`.
 
 4. Manual measurement
-   - Trigger HR, SpO2, BP, and temperature measurement where firmware supports the metric.
+   - Trigger only metrics advertised by the active Provider. RWFit manual measure
+     currently supports HR, SpO2 and HRV; BP/temperature/stress are not requested.
    - Confirm each successful result is written to Room before any upload attempt.
    - Confirm unsupported metrics fail with safe UI text.
 

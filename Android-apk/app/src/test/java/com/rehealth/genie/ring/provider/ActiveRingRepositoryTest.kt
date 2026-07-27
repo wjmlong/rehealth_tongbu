@@ -16,6 +16,16 @@ import kotlinx.coroutines.test.runTest
 
 class ActiveRingRepositoryTest {
     @Test
+    fun forcedDebugProductKeepsBindingAfterThatProductConnected() {
+        val default = profile("RH-RW-P01", WearableVendor.RWFIT).toBinding()
+        val connected = default.copy(address = "AA:BB", deviceName = "RW Ring", boundAt = 10L)
+        val oldMrd = profile(DEFAULT_MRD_PRODUCT_CODE, WearableVendor.MRD).toBinding()
+
+        assertEquals(connected, resolveInitialWearableBinding(default, connected, true))
+        assertEquals(default, resolveInitialWearableBinding(default, oldMrd, true))
+    }
+
+    @Test
     fun registryCreatesOnlyRequestedProviderAndCachesIt() {
         var mrdCreations = 0
         var mockCreations = 0

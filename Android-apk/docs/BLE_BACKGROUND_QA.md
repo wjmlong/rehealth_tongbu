@@ -1,10 +1,10 @@
 # BLE Background Collection QA
 
-Last updated: 2026-07-22
+Last updated: 2026-07-27
 
 ## Scope
 
-B1 adds a local-first foreground service for low-frequency wearable collection and a WorkManager recovery job. The service only calls the routed `RingRepository.syncAll()` path, which currently selects the single active MRD Provider and persists parsed measurements, sleep, activity, and signal chunks through Room. It does not call backend APIs, model-service, `/measurements/batch`, or raw PPG/RRI upload.
+B1 adds a local-first foreground service for low-frequency wearable collection and a WorkManager recovery job. The service only calls the routed `RingRepository.syncAll()` path, which selects one active MRD or RWFit Provider and persists parsed measurements, sleep, activity, and signal chunks through Room. It does not call backend APIs, model-service, `/measurements/batch`, or raw PPG/RRI upload.
 
 The production UI toggle is not part of B1. The app-facing APIs are:
 
@@ -19,13 +19,15 @@ The production UI toggle is not part of B1. The app-facing APIs are:
 2. Leave Bluetooth off and start background collection from a debug call path; verify the foreground notification appears and reports Bluetooth is off.
 3. Deny BLE permissions, start background collection, and verify collection is paused without crashing.
 4. Grant `BLUETOOTH_SCAN` and `BLUETOOTH_CONNECT` on Android 12+ or location permission on Android 11 and below.
-5. Scan for the MRD ring from the existing device-binding screen.
+5. Scan for the device selected by the current MRD/RWFit `productCode` from the existing device-binding screen.
 6. Connect the ring from the existing device-binding screen.
 7. Restart the app and confirm the same encrypted active binding is used; logs
    and cloud payloads must not expose the raw address.
 8. Confirm manual heart-rate measurement still works and the latest row appears in Room.
 9. Confirm manual SpO2 measurement still works and the latest row appears in Room.
-10. Confirm manual BP measurement still works if the ring firmware supports it.
+10. For MRD, confirm manual BP measurement if firmware supports it. For RWFit,
+    confirm HRV only when the capability flag is present; BP/temperature/stress
+    are outside the current RWFit Provider.
 11. Start background collection using the service/ViewModel API.
 12. Put the app in the background.
 13. Lock the screen.
@@ -62,7 +64,7 @@ The production UI toggle is not part of B1. The app-facing APIs are:
 4. Trigger scan without granting the permission prompt; verify the app remains
    alive and exposes the permission-required state.
 5. Grant both permissions with `pm grant`, relaunch, and trigger scan again.
-6. An emulator may return no MRD devices, but the scan path must complete without
+6. An emulator may return no wearable devices, but the scan path must complete without
    `SecurityException`, fatal exception, or ANR.
 
 ## Known Follow-Ups

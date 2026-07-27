@@ -6,9 +6,13 @@ import com.rehealth.genie.ring.mrd.MrdBleRingRepository
 import com.rehealth.genie.ring.mrd.MrdProtocolAdapter
 import com.rehealth.genie.ring.provider.ActiveWearableBindingStore
 import com.rehealth.genie.ring.provider.DEFAULT_MRD_PRODUCT_CODE
+import com.rehealth.genie.ring.provider.RWFIT_PRODUCT_CODE
 import com.rehealth.genie.ring.provider.WearableVendor
+import com.rehealth.genie.ring.provider.WearableProductCatalog
+import com.rehealth.genie.ring.rwfit.RealRwFitSdkGateway
+import com.rehealth.genie.ring.rwfit.RwFitRingRepository
 
-/** Release builds register only the real MRD implementation and contain no mock repository. */
+/** Release builds register real providers only and contain no mock repository. */
 internal fun createRuntimeRingProviderFactories(
     context: Context,
     dao: RingDataDao,
@@ -17,6 +21,14 @@ internal fun createRuntimeRingProviderFactories(
 ): Map<WearableVendor, () -> RingRepository> = mapOf(
     WearableVendor.MRD to {
         MrdBleRingRepository(context, dao, protocolAdapter, activeWearableStore)
+    },
+    WearableVendor.RWFIT to {
+        RwFitRingRepository(
+            dao = dao,
+            activeWearableStore = activeWearableStore,
+            gateway = RealRwFitSdkGateway(context),
+            modelNameHints = WearableProductCatalog(context).find(RWFIT_PRODUCT_CODE)?.modelNameHints.orEmpty(),
+        )
     },
 )
 

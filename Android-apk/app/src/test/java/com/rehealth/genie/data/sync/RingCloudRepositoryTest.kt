@@ -2,6 +2,7 @@ package com.rehealth.genie.data.sync
 
 import com.rehealth.genie.ring.RingDevice
 import com.rehealth.genie.ring.data.RingMeasurementEntity
+import com.rehealth.genie.ring.provider.WearableVendor
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -9,6 +10,31 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class RingCloudRepositoryTest {
+    @Test
+    fun `uses rwfit identity and provenance for rwfit telemetry`() {
+        val measurement = RingMeasurementEntity(
+            id = "rwfit-heart-1",
+            metricType = "HEART_RATE",
+            measuredAt = 1_720_000_000_000L,
+            primaryValue = 70.0,
+            unit = "bpm",
+            source = "rwfit",
+        )
+
+        val payload = RingCloudRepository.telemetryBatchPayload(
+            device = RingDevice("11:22:33:44:55:66", "RW Ring", -40),
+            collectedAt = 1_720_000_000_100L,
+            trigger = "manual_sync",
+            measurements = listOf(measurement),
+            sleep = null,
+            activity = null,
+            vendor = WearableVendor.RWFIT,
+        )
+
+        assertTrue(payload.deviceId.orEmpty().startsWith("rwfit-"))
+        assertEquals("rwfit_room", payload.source)
+    }
+
     @Test
     fun `maps persisted room measurement into stable privacy safe telemetry batch`() {
         val device = RingDevice(

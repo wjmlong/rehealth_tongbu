@@ -1,7 +1,7 @@
 # ReHealth AI / 睿禾健康
 
 ReHealth 是面向可穿戴设备和健康干预场景的软硬件一体化系统。当前 MVP
-以 MRD 智能戒指为首个真实设备，完成从设备采集、本地持久化、离线上传、
+以 MRD 和 RWFit 智能戒指为真实设备接入，完成从设备采集、本地持久化、离线上传、
 云端时序存储，到 CVD 风险评分、干预建议和用户反馈的闭环。
 
 本文档是仓库级项目入口和结构说明。具体接口、数据契约、部署细节和当前
@@ -13,7 +13,7 @@ ReHealth 是面向可穿戴设备和健康干预场景的软硬件一体化系�
 
 ```text
 登录与健康访谈
-  -> 绑定 MRD 戒指
+  -> 按 productCode 绑定单一可穿戴设备
   -> BLE 前台/后台采集
   -> Room 本地持久化
   -> 本地上传队列
@@ -24,9 +24,9 @@ ReHealth 是面向可穿戴设备和健康干预场景的软硬件一体化系�
   -> 用户反馈与风险趋势
 ```
 
-Android 已增加按 `productCode` 选择单一有效 Provider 的路由层，MRD 是当前
-唯一注册的 Release Provider。RWFit/HBand 仍需正式 SDK、采购型号和真机能力
-证据后才能接入；当前不支持多设备同时连接或数据融合。
+Android 按 `productCode` 选择单一有效 Provider，Release 已注册 MRD 和 RWFit。
+RWFit 使用固定版本官方 SDK，当前仍需采购型号的真机能力和单位验证；HBand 尚未
+接入。当前不支持多设备同时连接或数据融合。
 
 ## 2. 系统架构
 
@@ -69,7 +69,7 @@ flowchart LR
 rehealth_tongbu/
 ├─ Android-apk/                 Android Compose 客户端
 │  ├─ app/src/main/java/com/rehealth/genie/
-│  │  ├─ ring/                  戒指领域、BLE 仓库、MRD 协议适配
+│  │  ├─ ring/                  戒指领域、BLE 仓库、MRD/RWFit 适配
 │  │  ├─ ring/provider/         单一有效绑定、商品目录与 Provider 路由
 │  │  ├─ ring/data/             Room 遥测实体与 DAO
 │  │  ├─ service/               前台采集服务
@@ -113,7 +113,7 @@ rehealth_tongbu/
 ```text
 productCode / 单一有效绑定
   -> ActiveRingRepository
-  -> MRD SDK / BLE（当前 Release Provider）
+  -> MRD BLE 或 RWFit SDK（当前 productCode 对应的唯一 Provider）
   -> RingRepository
   -> 规范化测量、睡眠、活动记录
   -> Room
@@ -231,8 +231,8 @@ python backend/qa/rehealth_stack_gate.py topology `
 ## 8. 当前已知边界
 
 - 真实 MRD 扫描、长时间重连、锁屏采集、功耗和测量准确性仍需要物理设备 QA。
-- Android 已有单一有效 Provider 路由；RWFit/HBand Provider 尚未接入，且不支持
-  多设备同时连接或数据融合。
+- Android 已有 MRD/RWFit 单一有效 Provider 路由；RWFit 的具体型号、固件、HRV
+  单位和长时间采集仍待真机确认，HBand 尚未接入；不支持多设备同时连接或数据融合。
 - 本地遥测与上传队列仍需进一步按用户和设备隔离，并改成完整增量同步。
 - Kafka 当前主要承载持久化/质量事件和运营投影，云端连续 Feature Pipeline 尚未实现。
 - 独立 IoT 设备直连所需的 MQTT、mTLS、设备证书、激活和吊销体系尚未实现。
@@ -248,6 +248,7 @@ python backend/qa/rehealth_stack_gate.py topology `
 | `Android-apk/docs/REHEALTH_INTEGRATION_CONTRACT.md` | Android/Backend 正式接口契约 | 路径、认证、DTO、完成语义变化时 |
 | `Android-apk/docs/D2_TELEMETRY_SYNC_PLAN.md` | 遥测同步状态和剩余 QA | 队列、重试、持久化确认、硬件 QA 变化时 |
 | `Android-apk/docs/wearable/SDK_BASELINE.md` | 厂商 SDK、采购型号与能力证据基线 | SDK、型号、能力或厂商 Demo 证据变化时 |
+| `Android-apk/docs/wearable/RWFIT_DEVICE_QA.md` | RWFit 真机安装、采集与证据清单 | RWFit 构建开关、指标映射或真机结果变化时 |
 | `backend/contracts/openapi/rehealth-mobile-v1.openapi.json` | 公共移动 API 机器可读契约 | 公共 API 字段或路径变化时 |
 | `backend/contracts/adrs/` | 跨服务架构决策 | 权威边界、消息系统、数据库或信任模型变化时 |
 | `backend/deploy/rehealth/README.md` | 部署拓扑和运行方式 | 服务、端口、环境变量、secret、容器变化时 |

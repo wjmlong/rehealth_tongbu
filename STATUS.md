@@ -9,7 +9,7 @@
 
 主要阻塞项：
 
-1. 物理 MRD 戒指与 Android 13+ 真机的扫描、重连、锁屏长时间采集、功耗和准确性 QA 尚未完成。
+1. 物理 MRD/RWFit 戒指与 Android 13+ 真机的扫描、重连、锁屏长时间采集、功耗和准确性 QA 尚未完成。
 2. Android 运行时端到端证据仍需覆盖登录、采集、离线队列、遥测上传、风险评估和反馈回传。
 3. 签名 Release APK 的运行时 logcat、权限、隐私和真实 HTTPS 环境仍需验收。
 
@@ -17,7 +17,7 @@
 
 | 范围 | 当前实现 |
 | --- | --- |
-| Android | 单一有效设备 Provider 路由（Release 当前仅 MRD）、MRD BLE、Room、本地优先、Foreground Service、WorkManager、CVD 16 特征、认证感知上传队列、风险/干预/反馈 UI |
+| Android | 单一有效设备 Provider 路由（Release 注册 MRD/RWFit）、真实 SDK/BLE、Room、本地优先、Foreground Service、WorkManager、CVD 16 特征、认证感知上传队列、风险/干预/反馈 UI |
 | Device Service | 遥测校验、TimescaleDB 持久化、幂等批次、Transactional Outbox、Kafka 发布 |
 | JeecgBoot | 登录与权限、用户/设备绑定、业务数据、风险/干预/反馈编排、software_db |
 | model-service | CVD 风险评分、模型制品校验、干预生成、健康助手安全边界 |
@@ -33,7 +33,8 @@
 - 生产和 staging 不允许把 Mock 结果伪装成真实模型结果。
 - Android Release 源集不包含模拟戒指实现；远程风险失败不会生成本地模拟结果。
 - `productCode` 只选择一个懒加载 Provider；绑定存于加密偏好且不迁移 Room，
-  未绑定地址时 MRD 后台采集不会使用固定 MAC 自动连接。
+  未绑定地址时后台采集不会使用固定 MAC 自动连接；RWFit SDK 类型不进入 UI、
+  ViewModel 或 Room Entity，未支持的指标不生成占位记录。
 - MySQL 8 staging 已有迁移、用户隔离、幂等和重启回读证据；生产容量与恢复仍待验证。
 
 ## 当前仓库治理决定
@@ -48,7 +49,7 @@
 
 1. Docker 引擎恢复后补跑 Device Service 的 TimescaleDB/Testcontainers 集成测试。
 2. 在发布环境挂载已审核模型制品并复核真实模型门禁。
-3. 完成物理 MRD 与 Android 运行时端到端 QA。
+3. 完成物理 MRD/RWFit 与 Android 运行时端到端 QA。
 4. 完成签名 Release APK 和真实部署环境验收。
 
 ## 历史证据

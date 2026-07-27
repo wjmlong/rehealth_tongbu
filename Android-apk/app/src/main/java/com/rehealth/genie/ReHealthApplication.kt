@@ -73,6 +73,7 @@ class ReHealthApplication : Application() {
             apiClient = authenticatedApiClient,
             sessionStore = sessionStore,
             triggerSync = { MeasurementSyncWorker.triggerImmediate(this) },
+            wearableBindingProvider = { activeWearableStore.activeBinding.value },
         )
     }
 
