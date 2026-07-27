@@ -23,6 +23,35 @@ def run_fixture(tmp_path: Path, payload: Mapping[str, str | int | Mapping[str, i
     )
 
 
+def test_no_arguments_runs_complete_contract_suite() -> None:
+    result = subprocess.run(
+        [sys.executable, str(VALIDATOR)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    report = json.loads(result.stdout)
+    assert result.returncode == 0
+    assert report["status"] == "passed"
+    assert len(report["checks"]) > 0
+    assert any(check["artifact"] == "controller:routes" for check in report["checks"])
+
+
+def test_empty_fixture_directory_cannot_pass_without_checks(tmp_path: Path) -> None:
+    fixture_dir = tmp_path / "fixtures"
+    fixture_dir.mkdir()
+    result = subprocess.run(
+        [sys.executable, str(VALIDATOR), "--fixtures", str(fixture_dir)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    report = json.loads(result.stdout)
+    assert result.returncode == 1
+    assert report["status"] == "failed"
+    assert "configuration:no_checks" in report["rejected_reasons"]
+
+
 def test_unknown_event_type_is_rejected(tmp_path: Path) -> None:
     result = run_fixture(tmp_path, {"event_type": "rehealth.telemetry.persistedd.v1"})
     report = json.loads(result.stdout)

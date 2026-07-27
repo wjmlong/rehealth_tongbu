@@ -12,7 +12,6 @@
 1. 物理 MRD 戒指与 Android 13+ 真机的扫描、重连、锁屏长时间采集、功耗和准确性 QA 尚未完成。
 2. Android 运行时端到端证据仍需覆盖登录、采集、离线队列、遥测上传、风险评估和反馈回传。
 3. 签名 Release APK 的运行时 logcat、权限、隐私和真实 HTTPS 环境仍需验收。
-4. 契约校验当前有 3 个 characterization 漂移，必须修复后恢复绿色门禁。
 
 ## 已实现能力
 
@@ -44,10 +43,9 @@
 
 ## 下一验收顺序
 
-1. 恢复契约校验绿色门禁。
-2. 完成仓库清理后的 Android、Java、Python 和部署拓扑回归。
-3. 完成物理 MRD 与 Android 运行时端到端 QA。
-4. 完成签名 Release APK 和真实部署环境验收。
+1. 完成仓库清理后的 Android、Java、Python 和部署拓扑回归。
+2. 完成物理 MRD 与 Android 运行时端到端 QA。
+3. 完成签名 Release APK 和真实部署环境验收。
 
 ## 历史证据
 

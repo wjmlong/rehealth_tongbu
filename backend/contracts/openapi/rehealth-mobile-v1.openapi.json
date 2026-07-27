@@ -34,9 +34,9 @@
       "DeviceBindRequestDto": {"type": "object", "properties": {"deviceId": {}, "deviceName": {}, "manufacturer": {}, "model": {}, "firmwareVersion": {}, "hardwareAddressHash": {}}},
       "TelemetryBatchRequestDto": {"type": "object", "description": "Legacy Android request shape; authenticated server identity overrides userId and raw signal upload remains disabled by configuration.", "properties": {"batchId": {}, "userId": {}, "deviceId": {}, "collectedFrom": {}, "collectedTo": {}, "source": {}, "measurements": {}, "sleepSessions": {}, "activitySessions": {}, "signalChunks": {}, "quality": {}}},
       "RiskEvaluateRequestDto": {"type": "object", "properties": {"featureVector": {}, "requestId": {}}},
-      "InterventionGenerateRequestDto": {"type": "object", "properties": {"riskResult": {}, "featureVector": {}, "patientContext": {}}},
+      "InterventionGenerateRequestDto": {"type": "object", "properties": {"request_id": {"type": "string"}, "riskResult": {}, "featureVector": {}, "patientContext": {}}},
       "FeedbackRequestDto": {"type": "object", "properties": {"status": {}, "adherence": {}, "note": {}, "checkedAt": {}}},
-      "AttributionEventsRequestDto": {"type": "object", "description": "Authenticated service scopes stored history; client history is compatibility input and never establishes ownership.", "properties": {"risk_history": {}, "forecast_days": {}, "language": {}}},
+      "AttributionEventsRequestDto": {"type": "object", "description": "Authenticated service scopes stored history; client history is compatibility input and never establishes ownership.", "properties": {"request_id": {"type": "string"}, "risk_history": {}, "forecast_days": {}, "language": {}}},
       "HealthResponseDto": {"type": "object", "properties": {"status": {}, "service": {}, "module": {}, "modelServiceConfigured": {}, "dependencies": {}}},
       "MobileConfigResponseDto": {"type": "object", "properties": {"apiVersion": {}, "modelContract": {}, "softwareDbPersistenceEnabled": {}, "hardwareIngestEnabled": {}, "ingestMode": {}, "ingestQueueType": {}, "hardwareDbEnabled": {}, "rawSignalUploadEnabled": {}, "endpoints": {}, "limitations": {}}},
       "DeviceBindResponseDto": {"type": "object", "properties": {"deviceId": {}, "status": {}, "persisted": {}, "persistenceStage": {}}},
@@ -44,14 +44,14 @@
       "RecentTelemetryResponseDto": {"type": "object", "properties": {"userId": {}, "limit": {}, "measurements": {}, "sleepSessions": {}, "activities": {}}},
       "RiskEvaluateResponseDto": {"type": "object", "properties": {"risk_score": {}, "risk_level": {}, "feature_contributions": {}, "model_version": {}, "is_mock": {}, "missing_fields": {}, "quality_warnings": {}, "summary": {}, "model_trace": {}}},
       "InterventionGenerateResponseDto": {"type": "object", "properties": {"plan_id": {}, "generated_at": {}, "priority_intervention": {}, "rationale": {}, "expected_impact": {}, "contraindications": {}, "confidence": {}, "model_version": {}, "is_mock": {}, "medical_disclaimer": {}}},
-      "AttributionResponseDto": {"type": "object", "properties": {"status": {}, "history_days": {}, "min_history_days": {}, "intervention_days": {}, "intervention_data_sufficient": {}, "current_state": {}, "forecast": {}, "intervention_effect": {}, "reports": {}, "model_version": {}, "trend_delta": {}, "adherence_average": {}, "interpretation": {}}}
+      "AttributionResponseDto": {"type": "object", "properties": {"status": {}, "history_days": {}, "min_history_days": {}, "intervention_days": {}, "intervention_data_sufficient": {}, "current_state": {}, "forecast": {}, "intervention_effect": {}, "reports": {}, "model_version": {}, "attribution_mode": {}, "is_mock": {"type": "boolean"}, "provider": {}, "request_id": {"type": "string"}, "error_code": {}, "error_message": {}, "retryable": {"type": "boolean"}, "trend_delta": {}, "adherence_average": {}, "interpretation": {}}}
     }
   },
   "x-rehealth-characterization": {
     "source": "ReHealthMobileController.java and serialized DTO annotations",
     "dtoFields": {
-      "AttributionEventsRequestDto": ["Y", "Z", "date", "forecast_days", "language", "risk_history"],
-      "AttributionResponseDto": ["30d_no_action", "30d_with_plan", "adherence_average", "advice", "att_available", "att_ci_lower", "att_ci_upper", "att_p_value", "att_significant", "att_unavailable_reason", "body", "ci_lower", "ci_upper", "current_state", "dates", "forecast", "headline", "history_days", "individual_att", "interpretation", "intervention_data_sufficient", "intervention_days", "intervention_effect", "min_history_days", "model_version", "no_action", "raw", "reports", "risk_level", "risk_reduction", "risk_score", "status", "summary", "trend", "trend_delta", "user", "with_plan"],
+      "AttributionEventsRequestDto": ["Y", "Z", "date", "forecast_days", "language", "request_id", "risk_history"],
+      "AttributionResponseDto": ["30d_no_action", "30d_with_plan", "adherence_average", "advice", "att_available", "att_ci_lower", "att_ci_upper", "att_p_value", "att_significant", "att_unavailable_reason", "attribution_mode", "body", "ci_lower", "ci_upper", "current_state", "dates", "error_code", "error_message", "forecast", "headline", "history_days", "individual_att", "interpretation", "intervention_data_sufficient", "intervention_days", "intervention_effect", "is_mock", "min_history_days", "model_version", "no_action", "provider", "raw", "reports", "request_id", "retryable", "risk_level", "risk_reduction", "risk_score", "status", "summary", "trend", "trend_delta", "user", "with_plan"],
       "CvdFeatureVectorDto": ["age", "bmi", "dbp", "diabetes_history", "drinking", "exercise_days", "family_history", "fasting_glucose", "featureQuality", "gender", "hdl", "hypertension_history", "ldl", "sbp", "smoking", "total_cholesterol", "triglycerides"],
       "DeviceBindRequestDto": ["deviceId", "deviceName", "firmwareVersion", "hardwareAddressHash", "manufacturer", "model"],
       "DeviceBindResponseDto": ["deviceId", "persisted", "persistenceStage", "status"],
@@ -61,7 +61,7 @@
       "HealthInterviewBaselineItemDto": ["label", "value"],
       "HealthInterviewSubmitRequestDto": ["answers", "baselineItems", "focusAreas", "generatedAt"],
       "HealthResponseDto": ["dependencies", "modelServiceConfigured", "module", "service", "status"],
-      "InterventionGenerateRequestDto": ["featureVector", "patientContext", "riskResult"],
+      "InterventionGenerateRequestDto": ["featureVector", "patientContext", "request_id", "riskResult"],
       "InterventionGenerateResponseDto": ["confidence", "contraindications", "expected_impact", "generated_at", "is_mock", "medical_disclaimer", "model_version", "plan_id", "priority_intervention", "rationale"],
       "MobileConfigResponseDto": ["apiVersion", "endpoints", "hardwareDbEnabled", "hardwareIngestEnabled", "ingestMode", "ingestQueueType", "limitations", "modelContract", "rawSignalUploadEnabled", "softwareDbPersistenceEnabled"],
       "ModelTraceDto": ["artifact_name", "fallback_reason", "feature_schema_version", "model_version", "request_id", "scorer_mode"],

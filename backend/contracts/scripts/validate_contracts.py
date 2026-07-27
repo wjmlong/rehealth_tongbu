@@ -2,8 +2,8 @@
 # requires-python = ">=3.11"
 # dependencies = []
 # ///
-# ─── How to run ───
-# D:\rehealthAI\model-service\.venv\Scripts\python.exe backend/contracts/scripts/validate_contracts.py --all --fixtures backend/contracts/fixtures/valid
+# Run from the repository root. With no arguments, the complete static contract
+# suite runs; fixture-only invocations remain available for policy tests.
 
 from __future__ import annotations
 
@@ -239,9 +239,11 @@ def main() -> int:
     parser.add_argument("--expect-rejected")
     parser.add_argument("--report", type=Path)
     args = parser.parse_args()
-    checks = validate_all() if args.all else []
+    checks = validate_all() if args.all or args.fixtures is None else []
     if args.fixtures is not None:
         checks.extend(validate_fixtures(args.fixtures))
+    if not checks:
+        checks.append(Check("configuration:checks", False, (Reason("configuration:no_checks"),)))
     rejected = sorted({str(reason) for check in checks for reason in check.reasons})
     expected = sorted(args.expect_rejected.split(",")) if args.expect_rejected else []
     success = (set(expected).issubset(rejected) and all(not check.accepted for check in checks)) if expected else all(check.accepted for check in checks)
