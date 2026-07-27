@@ -2,10 +2,9 @@
 *.DS_Store
 Thumbs.db
 
-# ---- rehealth 同步：构建/缓存/下载产物（2026-07-22 添加，避免推送到 GitHub） ----
-.codegraph/
+# Build outputs, caches, downloaded toolchains
 *.zip
-**/build/
+/Android-apk/**/build/
 **/target/
 **/.venv/
 **/node_modules/
@@ -15,13 +14,26 @@ Thumbs.db
 .gradle/
 *.log
 /sync_to_github.log
-
 /sync_debug.log
+/tools/apache-maven-*/
+/tools/apache-maven-*-bin.zip
+/tools/commandlinetools-*.zip
 
-# ---- 本地工具/会话产物，不进入版本控制 ----
+# Local IDE, agent, runtime, and generated evidence state
+.claude/
+.codegraph/
+.idea/
 .omo/
 .workbuddy/
-.idea/
+**/.git_backup/
+**/.ref/
+/outputs/
+*.backup
+*.disabled
 *.done
 *.exit
+*.orig
+*.tmp
+**/local.properties
+**/local.properties.backup
 /MuMu_启动与adb配置.md

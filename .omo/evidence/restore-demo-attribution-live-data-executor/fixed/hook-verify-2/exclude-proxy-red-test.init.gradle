@@ -1,7 +1,0 @@
-gradle.projectsEvaluated {
-    rootProject.allprojects.each { project ->
-        project.tasks.matching { task -> task.name == 'compileDebugUnitTestKotlin' }.configureEach { task ->
-            task.exclude('**/ReHealthMobileApiAttributionTest.kt')
-        }
-    }
-}
