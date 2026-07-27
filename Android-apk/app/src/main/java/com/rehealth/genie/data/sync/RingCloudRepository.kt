@@ -21,6 +21,8 @@ import com.rehealth.genie.ring.data.RingActivityEntity
 import com.rehealth.genie.ring.data.RingDataDao
 import com.rehealth.genie.ring.data.RingMeasurementEntity
 import com.rehealth.genie.ring.data.RingSleepSessionEntity
+import com.rehealth.genie.ring.provider.ActiveWearableBinding
+import com.rehealth.genie.ring.provider.WearableVendor
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.UUID
@@ -34,14 +36,17 @@ class RingCloudRepository(
     private val triggerSync: () -> Unit,
     private val gson: Gson = Gson(),
     private val nowProvider: () -> Long = System::currentTimeMillis,
+    private val wearableBindingProvider: () -> ActiveWearableBinding? = { null },
 ) {
     suspend fun bindDevice(device: RingDevice): Result<DeviceBindResponseDto> = runCatching {
         val addressHash = sha256(device.address)
+        val binding = wearableBindingProvider()
+        val vendor = binding?.vendor ?: WearableVendor.MRD
         val request = DeviceBindRequestDto(
-            deviceId = deviceId(addressHash),
+            deviceId = deviceId(addressHash, vendor),
             deviceName = device.name,
-            manufacturer = "MRD",
-            model = "MR11",
+            manufacturer = vendor.name,
+            model = binding?.modelCode ?: binding?.productCode ?: DEFAULT_MRD_MODEL,
             hardwareAddressHash = addressHash,
         )
         when (val result = apiClient.bindDevice(request)) {
@@ -57,10 +62,14 @@ class RingCloudRepository(
         trigger: String,
     ): Result<String> = runCatching {
         check(sessionStore.isLoggedIn) { "登录已失效，请重新登录后同步。" }
+        val vendor = wearableBindingProvider()?.vendor ?: WearableVendor.MRD
         val measurements = dao.observeLatestMeasurements().first()
+            .filter { entity -> entity.source.matchesVendor(vendor) }
         val sleep = dao.observeLatestSleepSession().first()
+            ?.takeIf { entity -> entity.source.matchesVendor(vendor) }
         val activity = dao.observeLatestActivity().first()
-        val request = telemetryBatchPayload(device, collectedAt, trigger, measurements, sleep, activity)
+            ?.takeIf { entity -> entity.source.matchesVendor(vendor) }
+        val request = telemetryBatchPayload(device, collectedAt, trigger, measurements, sleep, activity, vendor)
         val now = nowProvider()
         syncRepository.enqueue(
             UploadQueueEntity(
@@ -105,12 +114,13 @@ class RingCloudRepository(
         measurements: List<RingMeasurementEntity>,
         sleep: RingSleepSessionEntity?,
         activity: RingActivityEntity?,
+        vendor: WearableVendor = WearableVendor.MRD,
     ): TelemetryBatchRequestDto {
         require(measurements.isNotEmpty() || sleep != null || activity != null) {
             "没有可上传的本地健康记录。"
         }
         val addressHash = sha256(device.address)
-        val effectiveDeviceId = deviceId(addressHash)
+        val effectiveDeviceId = deviceId(addressHash, vendor)
         val timestamps = buildList {
             addAll(measurements.map { it.measuredAt })
             sleep?.let { add(it.startedAt); add(it.endedAt) }
@@ -120,7 +130,7 @@ class RingCloudRepository(
             measurements.any { it.source.contains("mock", true) || it.source.contains("synthetic", true) } ||
             sleep?.source?.let { it.contains("mock", true) || it.contains("synthetic", true) } == true ||
             activity?.source?.let { it.contains("mock", true) || it.contains("synthetic", true) } == true
-        ) "synthetic_qa" else "mrd_room"
+        ) "synthetic_qa" else "${vendor.name.lowercase()}_room"
         val batchId = UUID.nameUUIDFromBytes(
             "$effectiveDeviceId|$collectedAt|$trigger".toByteArray(StandardCharsets.UTF_8),
         ).toString()
@@ -181,13 +191,23 @@ class RingCloudRepository(
         )
     }
 
-        private fun deviceId(addressHash: String): String = "mrd-${addressHash.take(24)}"
+        private fun deviceId(addressHash: String, vendor: WearableVendor): String =
+            "${vendor.name.lowercase()}-${addressHash.take(24)}"
 
         private fun sha256(value: String): String =
             MessageDigest.getInstance("SHA-256")
                 .digest(value.toByteArray(StandardCharsets.UTF_8))
                 .joinToString("") { "%02x".format(it) }
+
+        private const val DEFAULT_MRD_MODEL = "MR11"
     }
+}
+
+private fun String.matchesVendor(vendor: WearableVendor): Boolean = when (vendor) {
+    WearableVendor.RWFIT -> startsWith("rwfit", ignoreCase = true)
+    WearableVendor.MRD -> startsWith("mrd", ignoreCase = true)
+    WearableVendor.MOCK -> contains("mock", ignoreCase = true) || contains("synthetic", ignoreCase = true)
+    WearableVendor.HBAND -> startsWith("hband", ignoreCase = true)
 }
 
 private fun <T> ApiResult<T>.successOrThrow(fallback: String): T = when (this) {

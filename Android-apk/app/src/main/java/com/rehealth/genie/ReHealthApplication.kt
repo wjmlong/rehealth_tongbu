@@ -13,12 +13,23 @@ import com.rehealth.genie.notification.RingNotificationChannels
 import com.rehealth.genie.phm.RemotePhmService
 import com.rehealth.genie.ring.RingBackgroundCollectionSettings
 import com.rehealth.genie.ring.RingRepository
-import com.rehealth.genie.ring.createRuntimeRingRepository
+import com.rehealth.genie.ring.createRuntimeRingProviderFactories
 import com.rehealth.genie.ring.mrd.MrdProtocolAdapter
+import com.rehealth.genie.ring.provider.ActiveRingRepository
+import com.rehealth.genie.ring.provider.ActiveWearableManager
+import com.rehealth.genie.ring.provider.ActiveWearableStore
+import com.rehealth.genie.ring.provider.RingProviderRegistry
+import com.rehealth.genie.ring.provider.WearableProductCatalog
+import com.rehealth.genie.ring.runtimeDefaultWearableSelection
+import com.rehealth.genie.ring.shouldForceRuntimeWearableSelection
 import com.rehealth.genie.work.MeasurementSyncWorker
 import com.rehealth.genie.work.RingBackgroundRecoveryWorker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 class ReHealthApplication : Application() {
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val database by lazy { AppDatabase.create(this) }
 
     // D3: Auth and session management
@@ -62,6 +73,7 @@ class ReHealthApplication : Application() {
             apiClient = authenticatedApiClient,
             sessionStore = sessionStore,
             triggerSync = { MeasurementSyncWorker.triggerImmediate(this) },
+            wearableBindingProvider = { activeWearableStore.activeBinding.value },
         )
     }
 
@@ -82,8 +94,41 @@ class ReHealthApplication : Application() {
     }
 
     val mrdProtocolAdapter by lazy { MrdProtocolAdapter(this) }
-    val ringRepository: RingRepository by lazy {
-        createRuntimeRingRepository(this, database.ringDataDao(), mrdProtocolAdapter)
+    val activeWearableStore by lazy {
+        val (productCode, vendor) = runtimeDefaultWearableSelection()
+        ActiveWearableStore(
+            context = this,
+            defaultProductCode = productCode,
+            defaultVendor = vendor,
+            forceDefaultSelection = shouldForceRuntimeWearableSelection(),
+        )
+    }
+    val ringProviderRegistry by lazy {
+        RingProviderRegistry(
+            createRuntimeRingProviderFactories(
+                context = this,
+                dao = database.ringDataDao(),
+                protocolAdapter = mrdProtocolAdapter,
+                activeWearableStore = activeWearableStore,
+            ),
+        )
+    }
+    private val activeRingRepository by lazy {
+        ActiveRingRepository(
+            appScope = applicationScope,
+            store = activeWearableStore,
+            registry = ringProviderRegistry,
+        )
+    }
+    val ringRepository: RingRepository
+        get() = activeRingRepository
+    val activeWearableManager by lazy {
+        ActiveWearableManager(
+            store = activeWearableStore,
+            products = WearableProductCatalog(this).products,
+            registry = ringProviderRegistry,
+            repository = activeRingRepository,
+        )
     }
 
     override fun onCreate() {
