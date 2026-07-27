@@ -49,7 +49,7 @@ The Device Service may use the successful response only for the current operatio
 From the repository root with Java 17 configured:
 
 ```powershell
-D:\rehealthAI\tools\apache-maven-3.9.11\bin\mvn.cmd `
+mvn `
   -f backend\jeecg-boot\pom.xml `
   -pl jeecg-boot-module\jeecg-module-rehealth `
   -Dtest=InternalIdentityAndDeviceAuthorizationIT test
@@ -58,7 +58,7 @@ D:\rehealthAI\tools\apache-maven-3.9.11\bin\mvn.cmd `
 Adversarial selection used by the release gate:
 
 ```powershell
-D:\rehealthAI\tools\apache-maven-3.9.11\bin\mvn.cmd `
+mvn `
   -f backend\jeecg-boot\pom.xml `
   -pl jeecg-boot-module\jeecg-module-rehealth `
   -Dtest=InternalIdentityAndDeviceAuthorizationIT `

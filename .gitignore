@@ -29,7 +29,8 @@ Thumbs.db
 **/codex-runs/
 **/.git_backup/
 **/.ref/
-/outputs/
+**/outputs/
+/topology.json
 *.backup
 *.disabled
 *.done

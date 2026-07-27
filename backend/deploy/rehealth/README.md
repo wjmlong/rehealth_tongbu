@@ -20,7 +20,7 @@ pipeline must record their resulting content digests before promotion.
 ## Validation
 
 ```powershell
-D:\rehealthAI\model-service\.venv\Scripts\python.exe backend/qa/rehealth_stack_gate.py topology --compose backend/deploy/rehealth/docker-compose.yml --profiles staging,production --report topology.json
+python backend/qa/rehealth_stack_gate.py topology --compose backend/deploy/rehealth/docker-compose.yml --profiles staging,production --report topology.json
 ```
 
 The topology gate is static. Runtime readiness requires the application JARs,
@@ -51,7 +51,7 @@ $env:REHEALTH_CUTOVER_VERIFY_KEY = (
   Resolve-Path backend/deploy/rehealth/gateway/cutover-verification.pub
 ).Path
 
-D:\rehealthAI\model-service\.venv\Scripts\python.exe `
+python `
   backend/qa/rehealth_stack_gate.py cutover `
   --reconciliation <approved-bundle>\reconciliation.json `
   --signature <approved-bundle>\reconciliation.sig `
@@ -71,7 +71,7 @@ tenant identity headers. Device Service returns the existing
 Failure cases are executable and must leave the route and audit bytes unchanged:
 
 ```powershell
-D:\rehealthAI\model-service\.venv\Scripts\python.exe `
+python `
   backend/qa/rehealth_stack_gate.py cutover `
   --reconciliation <approved-bundle>\reconciliation.json `
   --signature <approved-bundle>\reconciliation.sig `

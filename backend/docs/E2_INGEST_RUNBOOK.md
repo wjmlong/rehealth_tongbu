@@ -9,7 +9,7 @@ Endpoint: `POST /rehealth/mobile/measurements/batch`
 2. Apply the add-only V1 migration:
 
 ```powershell
-$migration = "D:\rehealthAI\backend\jeecg-boot\jeecg-boot-module\jeecg-module-rehealth\src\main\resources\db\hardware\mysql\V1__create_hardware_telemetry_tables.sql"
+$migration = "backend\jeecg-boot\jeecg-boot-module\jeecg-module-rehealth\src\main\resources\db\hardware\mysql\V1__create_hardware_telemetry_tables.sql"
 Get-Content -Raw $migration | & mysql -h 127.0.0.1 -u root -p rehealth_hardware
 ```
 
@@ -41,12 +41,10 @@ queue must retry later.
 
 ## Start Backend
 
-From `D:\rehealthAI\backend\jeecg-boot`:
+From the repository root:
 
 ```powershell
-$env:JAVA_HOME = "D:\Android_Studio\jbr"
-$env:Path = "$env:JAVA_HOME\bin;$env:Path"
-D:\rehealthAI\tools\apache-maven-3.9.11\bin\mvn.cmd -pl jeecg-module-system/jeecg-system-start -am spring-boot:run -Dspring-boot.run.profiles=dev
+mvn -f backend/jeecg-boot/pom.xml -pl jeecg-module-system/jeecg-system-start -am spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
 Use a valid Jeecg token. Only `/rehealth/mobile/health` is unauthenticated.
@@ -100,8 +98,8 @@ Add a `signalChunks` item or a nested `ppgPayload`/`rawPayload` key and confirm
 ## Automated Validation
 
 ```powershell
-D:\rehealthAI\tools\apache-maven-3.9.11\bin\mvn.cmd -pl jeecg-boot-module/jeecg-module-rehealth -am '-Dtest=TelemetryBatchValidatorTest,HardwareTelemetryIngestionServiceTest,JdbcHardwareTelemetryWriterTest' test
-D:\rehealthAI\tools\apache-maven-3.9.11\bin\mvn.cmd -pl jeecg-boot-module/jeecg-module-rehealth -am package
+mvn -f backend/jeecg-boot/pom.xml -pl jeecg-boot-module/jeecg-module-rehealth -am '-Dtest=TelemetryBatchValidatorTest,HardwareTelemetryIngestionServiceTest,JdbcHardwareTelemetryWriterTest' test
+mvn -f backend/jeecg-boot/pom.xml -pl jeecg-boot-module/jeecg-module-rehealth -am package
 git diff --check
 git status --short --branch
 ```

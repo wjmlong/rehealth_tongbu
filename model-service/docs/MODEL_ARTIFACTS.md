@@ -1,22 +1,23 @@
 # Model Artifacts
 
-Status: a reviewed local CVD-16 CatBoost artifact is available as of 2026-07-11. The binary remains local and is excluded from git.
+Status: a reviewed CVD-16 CatBoost candidate was recorded on 2026-07-11. Its
+binary is external to git and is not provisioned in a fresh checkout.
 
 ## Current Deployment Candidate
 
 Source output:
 
 ```text
-D:\rehealthAI\rehealth-algorithms\outputs\cvd_retrain_20260710_173543
+rehealth-algorithms/outputs/cvd_retrain_20260710_173543
 ```
 
 The output timestamp is UTC. The reviewed candidate was produced on 2026-07-11 Asia/Shanghai time.
 
 | Artifact | Local destination | Status |
 | --- | --- | --- |
-| `rehealth_cvd_catboost.pkl` | `model-service/models/rehealth_cvd_catboost.pkl` | Present locally; gitignored |
-| `feature_cols.pkl` | `model-service/models/feature_cols.pkl` | Present locally; gitignored |
-| `model_meta_v2.json` | `model-service/models/model_meta_v2.json` | Present locally; gitignored |
+| `rehealth_cvd_catboost.pkl` | `model-service/models/rehealth_cvd_catboost.pkl` | Provision externally; gitignored |
+| `feature_cols.pkl` | `model-service/models/feature_cols.pkl` | Provision externally; gitignored |
+| `model_meta_v2.json` | `model-service/models/model_meta_v2.json` | Provision externally; gitignored |
 
 Reviewed metadata:
 
@@ -81,32 +82,30 @@ models/*
 
 ## Reproduce And Validate
 
-From `D:\rehealthAI\rehealth-algorithms`:
+From the repository's `rehealth-algorithms` directory:
 
 ```powershell
-$PY = "C:\Users\kiki\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"
-& $PY train\train_cvd_retrain.py
-& $PY train\validate_deploy_candidate.py --candidate outputs\<new-timestamp>\deploy_candidate
+python train\train_cvd_retrain.py
+python train\validate_deploy_candidate.py --candidate outputs\<new-timestamp>\deploy_candidate
 ```
 
 Copy only a reviewed candidate:
 
 ```powershell
-$src = "D:\rehealthAI\rehealth-algorithms\outputs\<reviewed-timestamp>\deploy_candidate"
-$dst = "D:\rehealthAI\model-service\models"
+$src = "rehealth-algorithms\outputs\<reviewed-timestamp>\deploy_candidate"
+$dst = "model-service\models"
 Copy-Item "$src\rehealth_cvd_catboost.pkl" "$dst\rehealth_cvd_catboost.pkl" -Force
 Copy-Item "$src\feature_cols.pkl" "$dst\feature_cols.pkl" -Force
 Copy-Item "$src\model_meta_v2.json" "$dst\model_meta_v2.json" -Force
 ```
 
-From `D:\rehealthAI\model-service`:
+From the repository's `model-service` directory:
 
 ```powershell
-$PY = "C:\Users\kiki\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"
-& $PY -m pip install -r requirements.txt
-& $PY -m pytest
-& $PY -m compileall app
-& $PY -m uvicorn app.main:app
+python -m pip install -r requirements.txt
+python -m pytest
+python -m compileall app
+python -m uvicorn app.main:app
 ```
 
 The real-model gate is closed only when `/health` returns `scorer_mode=real_available` and `model_available=true`, and a valid risk request returns `is_mock=false` after prediction succeeds.

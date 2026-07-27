@@ -59,7 +59,7 @@ services:
       # inside the docker network.
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: "6379"
-      SPRING_REDIS_PASSWORD: ${REHEALTH_REDIS_PASSWORD}
+      SPRING_CONFIG_IMPORT: optional:configtree:/run/secrets/
       # Dynamic route loading source. jeecg.route.config.data-type must be non-null
       # or DynamicRouteLoader.refresh() NPEs on RouterDataType.yml.toString().endsWith(null)
       # at line 99. 'nacos' makes the gateway pull its route table from the seeded
@@ -68,6 +68,9 @@ services:
       JEECG_ROUTE_CONFIG_DATA_ID: gateway-router
     volumes:
       - ./gateway/rehealth-routes.json:/etc/rehealth/gateway/rehealth-routes.json:ro
+    secrets:
+      - source: redis_password
+        target: spring.redis.password
     depends_on:
       nacos:
         condition: service_healthy

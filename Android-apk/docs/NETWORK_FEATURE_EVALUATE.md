@@ -153,7 +153,7 @@ Unchanged and out of scope:
 
 ## Validation
 
-From `D:\rehealthAI\Android-apk`:
+From the repository's `Android-apk` directory:
 
 ```powershell
 .\gradlew.bat testDebugUnitTest

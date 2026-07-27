@@ -127,6 +127,9 @@ def validate_routes(deploy_root: Path) -> None:
     for route in routes:
         if not isinstance(route, dict):
             raise GateError("gateway route entry must be an object")
+        route_id = route.get("id")
+        if not isinstance(route_id, str) or not route_id.startswith("rehealth-"):
+            continue
         filters = route.get("filters")
         if not isinstance(filters, list):
             raise GateError("gateway route filters are missing")

@@ -31,7 +31,7 @@ Real model artifact requirements, F2 safety gates, historical artifact traces, a
 ## Run
 
 ```powershell
-cd D:\rehealthAI\model-service
+cd model-service
 python -m pip install -r requirements.txt
 python -m uvicorn app.main:app --reload
 ```
@@ -61,14 +61,14 @@ mounted secret.
 ## Test
 
 ```powershell
-cd D:\rehealthAI\model-service
+cd model-service
 python -m pytest
 ```
 
 ## Docker
 
 ```powershell
-cd D:\rehealthAI\model-service
+cd model-service
 docker build -t rehealth-model-service .
 docker run --rm -p 8000:8000 rehealth-model-service
 ```

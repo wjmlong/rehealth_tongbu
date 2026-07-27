@@ -218,6 +218,8 @@ def test_real_scorer_loads_only_when_artifacts_validate(tmp_path):
 
 def test_reviewed_calibrated_model_returns_native_shap_contributions():
     scorer = load_risk_scorer()
+    if not isinstance(scorer, RealCatBoostRiskScorer):
+        pytest.skip("reviewed model artifact is provisioned outside git")
 
     result = scorer.evaluate(complete_vector())
 

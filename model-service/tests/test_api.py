@@ -1,10 +1,11 @@
 from fastapi.testclient import TestClient
 
-from app.main import app, create_app
+from app.main import create_app
+from app.risk_scorer import MockRiskScorer
 from app.runtime_config import AttributionMode, RuntimeConfig, RuntimeMode
 
 
-client = TestClient(app)
+client = TestClient(create_app(scorer=MockRiskScorer()))
 
 
 def feature_vector():
