@@ -81,8 +81,23 @@ services:
     depends_on:
       - jeecg-boot-nacos
       - jeecg-boot-system
+      - rehealth-device-service
     container_name: jeecg-boot-gateway
     hostname: jeecg-boot-gateway
+    networks:
+      - jeecg-boot
+
+  rehealth-device-service:
+    build:
+      context: .
+      dockerfile: deploy/rehealth/images/java-service.Dockerfile
+      args:
+        JAR_FILE: device-service/target/device-service.jar
+    image: rehealth-device-service
+    hostname: rehealth-device-service
+    restart: on-failure
+    environment:
+      - SPRING_PROFILES_ACTIVE=development
     networks:
       - jeecg-boot
 

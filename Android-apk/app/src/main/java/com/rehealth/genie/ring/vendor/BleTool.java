@@ -1,9 +1,14 @@
 package com.rehealth.genie.ring.vendor;
 
+import android.Manifest;
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.os.Build;
+
+import androidx.core.content.ContextCompat;
 
 /**
  * BLE helper copied from the MRD SDK demo (com.manridy.sdkdemo_mrd2019.bluetooth.BleTool).
@@ -57,13 +62,19 @@ public class BleTool {
     /**
      * 打开蓝牙
      */
+    @SuppressLint("MissingPermission")
     public boolean openBLE() {
         if (mBluetoothAdapter == null) {
             return false;
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                && ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT)
+                != PackageManager.PERMISSION_GRANTED) {
+            return false;
+        }
         try {
             return mBluetoothAdapter.enable();
-        } catch (Exception e) {
+        } catch (SecurityException e) {
             return false;
         }
     }

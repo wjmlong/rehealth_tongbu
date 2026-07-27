@@ -43,6 +43,12 @@ spring:
                   - "*"
                 allowed-headers:
                   - "*"
+    discovery:
+      client:
+        simple:
+          instances:
+            rehealth-device-service:
+              - uri: ${REHEALTH_DEVICE_SERVICE_URL:http://device-service:8091}
     #Sentinel配置
     sentinel:
       transport:

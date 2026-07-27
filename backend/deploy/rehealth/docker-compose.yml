@@ -1,0 +1,584 @@
+name: rehealth
+
+x-rehealth-profiles: &rehealth-profiles
+  - development
+  - staging
+  - production
+
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  init: true
+  networks:
+    - backend
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  edge:
+    <<: *service-defaults
+    profiles: *rehealth-profiles
+    image: rehealth/edge:${REHEALTH_RELEASE_TAG:-local}
+    pull_policy: never
+    build:
+      context: ../..
+      dockerfile: deploy/rehealth/images/edge.Dockerfile
+    ports:
+      - "${REHEALTH_EDGE_BIND:-127.0.0.1}:${REHEALTH_EDGE_PORT:-8080}:8080"
+    depends_on:
+      gateway:
+        condition: service_healthy
+      admin-web:
+        condition: service_healthy
+    networks:
+      - edge
+      - backend
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+
+  gateway:
+    <<: *service-defaults
+    profiles: *rehealth-profiles
+    image: rehealth/jeecg-gateway:${REHEALTH_RELEASE_TAG:-local}
+    pull_policy: never
+    build:
+      context: ../..
+      dockerfile: deploy/rehealth/images/java-service.Dockerfile
+      args:
+        JAR_FILE: jeecg-boot/jeecg-server-cloud/jeecg-cloud-gateway/target/jeecg-cloud-gateway-3.9.2.jar
+    environment:
+      SPRING_PROFILES_ACTIVE: ${REHEALTH_RUNTIME_MODE:-development}
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
+      REHEALTH_GATEWAY_ROUTE_SEED: /etc/rehealth/gateway/rehealth-routes.json
+      REHEALTH_DEVICE_SERVICE_URL: http://device-service:8091
+      # Gateway uses standard spring.redis (not the rehealth override), so point it
+      # at the redis service explicitly. Default jar config is localhost, which fails
+      # inside the docker network.
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: "6379"
+      SPRING_CONFIG_IMPORT: optional:configtree:/run/secrets/
+      # Dynamic route loading source. jeecg.route.config.data-type must be non-null
+      # or DynamicRouteLoader.refresh() NPEs on RouterDataType.yml.toString().endsWith(null)
+      # at line 99. 'nacos' makes the gateway pull its route table from the seeded
+      # gateway-router.json dataId (namespace springboot3 / group DEFAULT_GROUP).
+      JEECG_ROUTE_CONFIG_DATA_TYPE: nacos
+      JEECG_ROUTE_CONFIG_DATA_ID: gateway-router
+    volumes:
+      - ./gateway/rehealth-routes.json:/etc/rehealth/gateway/rehealth-routes.json:ro
+    secrets:
+      - source: redis_password
+        target: spring.redis.password
+    depends_on:
+      nacos:
+        condition: service_healthy
+      nacos-seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9999"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  jeecg-boot:
+    <<: *service-defaults
+    profiles: *rehealth-profiles
+    image: rehealth/jeecg-system:${REHEALTH_RELEASE_TAG:-local}
+    pull_policy: never
+    build:
+      context: ../..
+      dockerfile: deploy/rehealth/images/java-service.Dockerfile
+      args:
+        JAR_FILE: jeecg-boot/jeecg-server-cloud/jeecg-system-cloud-start/target/jeecg-system-cloud-start-3.9.2.jar
+    environment:
+      SPRING_PROFILES_ACTIVE: ${REHEALTH_RUNTIME_MODE:-development}
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
+      REHEALTH_SOFTWARE_DB_URL: jdbc:mysql://software-db:3306/rehealth_software?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC
+      REHEALTH_SOFTWARE_DB_USERNAME: rehealth_software
+      REHEALTH_SOFTWARE_DB_PASSWORD_FILE: /run/secrets/software_db_password
+      REHEALTH_REDIS_HOST: redis
+      REHEALTH_REDIS_PASSWORD_FILE: /run/secrets/redis_password
+      REHEALTH_MODEL_SERVICE_BASE_URL: http://model-service:8000
+      REHEALTH_ATTRIBUTION_SERVICE_BASE_URL: http://pias:8010
+      REHEALTH_ATTRIBUTION_MODE: ${REHEALTH_ATTRIBUTION_MODE:-pias}
+      REHEALTH_ATTRIBUTION_PROVENANCE: ${REHEALTH_ATTRIBUTION_PROVENANCE:-pias}
+      # PIAS 内部服务调用需要 internal token；注意属性名是 rehealth.attribution-service.internal-token-file，
+      # 与 agent/model-service 用的 REHEALTH_AGENT_INTERNAL_TOKEN_FILE / REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE 不同。
+      REHEALTH_ATTRIBUTION_SERVICE_INTERNAL_TOKEN_FILE: /run/secrets/internal_service_credential
+      REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE: /run/secrets/internal_service_credential
+      REHEALTH_AGENT_INTERNAL_TOKEN_FILE: /run/secrets/internal_service_credential
+      REHEALTH_KAFKA_CONSUMER_ENABLED: "true"
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_KAFKA_CONSUMER_ENABLE_AUTO_COMMIT: "false"
+      SPRING_KAFKA_CONSUMER_AUTO_OFFSET_RESET: earliest
+      SPRING_KAFKA_CONSUMER_KEY_DESERIALIZER: org.apache.kafka.common.serialization.StringDeserializer
+      SPRING_KAFKA_CONSUMER_VALUE_DESERIALIZER: org.apache.kafka.common.serialization.StringDeserializer
+      SPRING_KAFKA_PRODUCER_KEY_SERIALIZER: org.apache.kafka.common.serialization.StringSerializer
+      SPRING_KAFKA_PRODUCER_VALUE_SERIALIZER: org.apache.kafka.common.serialization.StringSerializer
+      SPRING_KAFKA_PROPERTIES_SECURITY_PROTOCOL: ${REHEALTH_KAFKA_SECURITY_PROTOCOL:-PLAINTEXT}
+      SPRING_KAFKA_PROPERTIES_SASL_MECHANISM: ${REHEALTH_KAFKA_SASL_MECHANISM:-PLAIN}
+      SPRING_KAFKA_PROPERTIES_SSL_TRUSTSTORE_LOCATION: /run/secrets/kafka_truststore
+      REHEALTH_KAFKA_SECURITY_SASL_JAAS_CONFIG_FILE: /run/secrets/kafka_sasl_jaas_config
+      REHEALTH_KAFKA_SECURITY_SSL_TRUSTSTORE_PASSWORD_FILE: /run/secrets/kafka_truststore_password
+      # 本地/测试环境无真实短信网关：开启开发模式，让 /sys/sms 生成固定验证码并存入 Redis，
+      # 否则注册链路永远因为"短信接口未配置"而失败。生产环境必须关闭此变量并配置 DySmsHelper。
+      JEECG_SMS_DEV_MODE: "true"
+    secrets:
+      - software_db_password
+      - redis_password
+      - internal_service_credential
+      - kafka_sasl_jaas_config
+      - kafka_truststore
+      - kafka_truststore_password
+    depends_on:
+      software-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      nacos-seed:
+        condition: service_completed_successfully
+      model-service:
+        condition: service_healthy
+      pias:
+        condition: service_healthy
+    healthcheck:
+      # Actuator /health/readiness is Shiro-protected (401) in jeecg-system, so a plain
+      # wget probe fails. Use a TCP port check instead — Tomcat only binds 7001 after the
+      # Spring context is fully refreshed, so this is a valid liveness signal.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/7001"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 120s
+
+  device-service:
+    <<: *service-defaults
+    profiles: *rehealth-profiles
+    image: rehealth/device-service:${REHEALTH_RELEASE_TAG:-local}
+    pull_policy: never
+    build:
+      context: ../..
+      dockerfile: deploy/rehealth/images/java-service.Dockerfile
+      args:
+        JAR_FILE: device-service/target/device-service.jar
+    environment:
+      SPRING_PROFILES_ACTIVE: ${REHEALTH_RUNTIME_MODE:-development}
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      REHEALTH_HARDWARE_DB_ENABLED: "true"
+      REHEALTH_HARDWARE_DB_URL: jdbc:postgresql://hardware-db:5432/rehealth_hardware
+      REHEALTH_HARDWARE_DB_USERNAME: rehealth_hardware
+      REHEALTH_HARDWARE_DB_PASSWORD_FILE: /run/secrets/hardware_db_password
+      REHEALTH_IDENTITY_BASE_URL: http://jeecg-boot:7001/rehealth/internal/v1/identity
+      REHEALTH_IDENTITY_ENABLED: "true"
+      REHEALTH_IDENTITY_READINESS_URL: http://jeecg-boot:7001/actuator/health/readiness
+      REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE: /run/secrets/internal_service_credential
+      REHEALTH_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REHEALTH_KAFKA_PUBLISHER_ENABLED: "false"
+      REHEALTH_KAFKA_SECURITY_PROTOCOL: ${REHEALTH_KAFKA_SECURITY_PROTOCOL:-PLAINTEXT}
+      REHEALTH_KAFKA_SASL_MECHANISM: ${REHEALTH_KAFKA_SASL_MECHANISM:-PLAIN}
+      REHEALTH_KAFKA_SSL_TRUSTSTORE_LOCATION: /run/secrets/kafka_truststore
+      REHEALTH_KAFKA_SASL_JAAS_CONFIG_FILE: /run/secrets/kafka_sasl_jaas_config
+      REHEALTH_KAFKA_SSL_TRUSTSTORE_PASSWORD_FILE: /run/secrets/kafka_truststore_password
+    secrets:
+      - hardware_db_password
+      - internal_service_credential
+      - kafka_sasl_jaas_config
+      - kafka_truststore
+      - kafka_truststore_password
+    depends_on:
+      hardware-db:
+        condition: service_healthy
+      jeecg-boot:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      nacos:
+        condition: service_healthy
+      nacos-seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8091"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 45s
+    x-rehealth-readiness:
+      required:
+        - hardware-db
+        - jeecg-boot
+      degraded:
+        - kafka
+
+  software-db:
+    profiles: *rehealth-profiles
+    image: mysql:8.4.6@sha256:869218921e61d6c3c89820955d63cca42971f0e3e6c1e2792247bbd944ebc6e9
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: rehealth_software
+      MYSQL_USER: rehealth_software
+      MYSQL_PASSWORD_FILE: /run/secrets/software_db_password
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/software_db_root_password
+      TZ: UTC
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+00:00
+    secrets:
+      - software_db_password
+      - software_db_root_password
+    volumes:
+      - software-db-data:/var/lib/mysql
+    networks:
+      - data
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$(cat /run/secrets/software_db_password) mysqladmin ping -h 127.0.0.1 -u rehealth_software --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 45s
+    security_opt:
+      - no-new-privileges:true
+
+  hardware-db:
+    profiles: *rehealth-profiles
+    image: timescale/timescaledb:2.21.1-pg17@sha256:c17f60ac41a9b5c529af918e8827156bb02faeddb3fab1c961b4eebe52b25d83
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: rehealth_hardware
+      POSTGRES_USER: rehealth_hardware
+      POSTGRES_PASSWORD_FILE: /run/secrets/hardware_db_password
+      TZ: UTC
+    secrets:
+      - hardware_db_password
+    volumes:
+      - hardware-db-data:/var/lib/postgresql/data
+      - ./timescale/init.sql:/docker-entrypoint-initdb.d/001-init-timescale.sql:ro
+    networks:
+      - data
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rehealth_hardware -d rehealth_hardware"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+
+  kafka:
+    profiles: *rehealth-profiles
+    image: apache/kafka:4.3.1@sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: CONTROLLER://:9093,INTERNAL://:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_LOG_RETENTION_HOURS: 168
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+
+  kafka-init:
+    <<: *service-defaults
+    profiles: *rehealth-profiles
+    image: apache/kafka:4.3.1@sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837
+    restart: "no"
+    environment:
+      REHEALTH_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REHEALTH_KAFKA_MAIN_PARTITIONS: ${REHEALTH_KAFKA_MAIN_PARTITIONS:-12}
+      REHEALTH_KAFKA_DLQ_PARTITIONS: ${REHEALTH_KAFKA_DLQ_PARTITIONS:-3}
+      REHEALTH_KAFKA_REPLICATION_FACTOR: ${REHEALTH_KAFKA_REPLICATION_FACTOR:-1}
+    command: ["/bin/sh", "/etc/rehealth/kafka/provision-topics.sh"]
+    volumes:
+      - ./kafka/provision-topics.sh:/etc/rehealth/kafka/provision-topics.sh:ro
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  redis:
+    profiles: *rehealth-profiles
+    image: redis:7.4.5-alpine@sha256:bb186d083732f669da90be8b0f975a37812b15e913465bb14d845db72a4e3e08
+    restart: unless-stopped
+    command: ["sh", "-ec", "exec redis-server --appendonly yes --requirepass \"$$(tr -d '\\r\\n' < /run/secrets/redis_password)\""]
+    secrets:
+      - redis_password
+    volumes:
+      - redis-data:/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$(tr -d '\\r\\n' < /run/secrets/redis_password) redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    security_opt:
+      - no-new-privileges:true
+
+  nacos:
+    profiles: *rehealth-profiles
+    image: nacos/nacos-server:v2.5.1@sha256:8987908cb94ed5f9d30522a64493d35732a6c05f216d667a7addb022f3d92e80
+    restart: unless-stopped
+    entrypoint:
+      - sh
+      - -ec
+      - |
+        export NACOS_AUTH_TOKEN="$$(cat /run/secrets/nacos_auth_token)"
+        export NACOS_AUTH_IDENTITY_KEY="$$(cat /run/secrets/nacos_identity_key)"
+        export NACOS_AUTH_IDENTITY_VALUE="$$(cat /run/secrets/nacos_identity_value)"
+        exec sh bin/docker-startup.sh
+    environment:
+      MODE: standalone
+      # Local-dev convenience: Nacos auth disabled so the Spring Cloud clients
+      # (which ship with empty Nacos credentials) and manual config seeding can
+      # read/write configs without a bootstrap token. The auth filter in
+      # nacos/nacos-server:v2.5.1 also rejects header names derived from the
+      # NACOS_AUTH_TOKEN secret (which contains '/' and '+'), breaking the
+      # config API entirely. Re-enable + provision a user for non-local runs.
+      NACOS_AUTH_ENABLE: "false"
+    secrets:
+      - nacos_auth_token
+      - nacos_identity_key
+      - nacos_identity_value
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8848/nacos/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 45s
+    security_opt:
+      - no-new-privileges:true
+
+  # One-shot idempotent Nacos config seeder. Nacos runs with no persistent
+  # volume in dev, so its config (jeecg.yaml/jeecg-dev.yaml/gateway-router.json)
+  # is lost whenever the nacos container is recreated. This container re-pushes
+  # the seeds on every `up` before the Java services start, so the stack is
+  # self-healing and never boots into the gateway NPE (missing route config).
+  nacos-seed:
+    profiles: *rehealth-profiles
+    image: nacos/nacos-server:v2.5.1@sha256:8987908cb94ed5f9d30522a64493d35732a6c05f216d667a7addb022f3d92e80
+    restart: "no"
+    entrypoint: ["/bin/bash"]
+    command: ["/nacos-seed.sh"]
+    volumes:
+      - ./.local-runtime/nacos-seed:/seed:ro
+      - ./scripts/nacos-seed.sh:/nacos-seed.sh:ro
+    depends_on:
+      nacos:
+        condition: service_healthy
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+
+  model-artifact-verify:
+    profiles: *rehealth-profiles
+    image: rehealth/model-artifact-verifier:${REHEALTH_RELEASE_TAG:-local}
+    pull_policy: never
+    build:
+      context: ../..
+      dockerfile: deploy/rehealth/images/model-artifact-verifier.Dockerfile
+    command:
+      - /opt/rehealth/verify-model-artifact.sh
+      - /artifacts/model_manifest.json
+      - /artifacts/model_manifest.sig
+      - /run/secrets/model_artifact_public_key
+      - /verified/manifest.sha256
+    secrets:
+      - model_artifact_public_key
+    volumes:
+      - ${REHEALTH_MODEL_ARTIFACT_DIR:-./artifacts}:/artifacts:ro
+      - model-artifact-verification:/verified
+    networks:
+      - backend
+    restart: "no"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+  model-service:
+    <<: *service-defaults
+    profiles: *rehealth-profiles
+    image: rehealth/model-service:${REHEALTH_RELEASE_TAG:-local}
+    pull_policy: never
+    build:
+      context: ../../..
+      dockerfile: backend/deploy/rehealth/images/model-service.Dockerfile
+    environment:
+      REHEALTH_RUNTIME_MODE: ${REHEALTH_RUNTIME_MODE:-development}
+      # model-service 通过 REHEALTH_CVD_* 读取模型工件；REHEALTH_MODEL_DIR 是死配置（代码未消费）。
+      # 工件挂载在 /artifacts，必须给出绝对路径以满足 scorer 的路径安全校验（路径须位于 artifact root 之下）。
+      REHEALTH_CVD_ARTIFACT_ROOT: /artifacts
+      REHEALTH_CVD_MODEL_PATH: /artifacts/rehealth_cvd_catboost.pkl
+      REHEALTH_CVD_FEATURE_ORDER_PATH: /artifacts/cvd_features.json
+      REHEALTH_CVD_MODEL_META_PATH: /artifacts/model_meta_v2.json
+      REHEALTH_MODEL_VERIFICATION_FILE: /verified/manifest.sha256
+      REHEALTH_MODEL_SERVICE_BASE_URL: ${REHEALTH_MODEL_SERVICE_BASE_URL:-https://model.internal.rehealth.invalid}
+      REHEALTH_PROVIDER_CREDENTIAL_FILE: /run/secrets/provider_credential
+      REHEALTH_AGENT_PROVIDER_ENABLED: ${REHEALTH_AGENT_PROVIDER_ENABLED:-true}
+      REHEALTH_AGENT_PROVIDER_BASE_URL: ${REHEALTH_AGENT_PROVIDER_BASE_URL:-https://api.deepseek.com}
+      REHEALTH_AGENT_PROVIDER_MODEL: ${REHEALTH_AGENT_PROVIDER_MODEL:-deepseek-v4-flash}
+      REHEALTH_AGENT_INTERNAL_TOKEN_FILE: /run/secrets/internal_service_credential
+    secrets:
+      - provider_credential
+      - internal_service_credential
+    volumes:
+      - ${REHEALTH_MODEL_ARTIFACT_DIR:-./artifacts}:/artifacts:ro
+      - model-artifact-verification:/verified:ro
+    depends_on:
+      model-artifact-verify:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  pias:
+    <<: *service-defaults
+    profiles: *rehealth-profiles
+    image: rehealth/pias:${REHEALTH_RELEASE_TAG:-local}
+    pull_policy: never
+    build:
+      context: ../../..
+      dockerfile: backend/deploy/rehealth/images/pias.Dockerfile
+    environment:
+      REHEALTH_RUNTIME_MODE: ${REHEALTH_RUNTIME_MODE:-development}
+      REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE: /run/secrets/internal_service_credential
+    secrets:
+      - internal_service_credential
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8010/health/readiness', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  admin-web:
+    <<: *service-defaults
+    profiles: *rehealth-profiles
+    image: rehealth/jeecg-vue:${REHEALTH_RELEASE_TAG:-local}
+    pull_policy: never
+    build:
+      context: ../..
+      dockerfile: deploy/rehealth/images/admin-web.Dockerfile
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8080/"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  prometheus:
+    profiles: *rehealth-profiles
+    image: prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - observability
+      - backend
+    security_opt:
+      - no-new-privileges:true
+
+  grafana:
+    profiles: *rehealth-profiles
+    image: grafana/grafana:12.1.0@sha256:6ac590e7cabc2fbe8d7b8fc1ce9c9f0582177b334e0df9c927ebd9670469440f
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    secrets:
+      - grafana_admin_password
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./observability/grafana-datasources.yml:/etc/grafana/provisioning/datasources/rehealth.yml:ro
+    networks:
+      - observability
+    security_opt:
+      - no-new-privileges:true
+
+secrets:
+  software_db_password:
+    file: ./secrets/software_db_password
+  software_db_root_password:
+    file: ./secrets/software_db_root_password
+  hardware_db_password:
+    file: ./secrets/hardware_db_password
+  redis_password:
+    file: ./secrets/redis_password
+  internal_service_credential:
+    file: ./secrets/internal_service_credential
+  nacos_auth_token:
+    file: ./secrets/nacos_auth_token
+  nacos_identity_key:
+    file: ./secrets/nacos_identity_key
+  nacos_identity_value:
+    file: ./secrets/nacos_identity_value
+  grafana_admin_password:
+    file: ./secrets/grafana_admin_password
+  model_artifact_public_key:
+    file: ./secrets/model_artifact_public_key.pem
+  provider_credential:
+    file: ./secrets/provider_credential
+  kafka_sasl_jaas_config:
+    file: ./secrets/kafka_sasl_jaas_config
+  kafka_truststore:
+    file: ./secrets/kafka_truststore.p12
+  kafka_truststore_password:
+    file: ./secrets/kafka_truststore_password
+
+volumes:
+  software-db-data:
+  hardware-db-data:
+  kafka-data:
+  redis-data:
+  model-artifact-verification:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  edge:
+  backend:
+    internal: true
+  data:
+    internal: true
+  observability:
+    internal: true

@@ -63,7 +63,7 @@ As of this update, no `app/src/test` or `app/src/androidTest` sources are presen
 
 ## Android Studio Open Checklist
 
-1. Choose `File > Open` and select `D:\rehealthAI\Android-apk`.
+1. Choose `File > Open` and select this repository's `Android-apk` directory.
 2. Confirm the selected Gradle JDK is Java 17.
 3. Let Gradle sync complete.
 4. Confirm SDK Platform 36 is installed if sync reports a missing SDK.

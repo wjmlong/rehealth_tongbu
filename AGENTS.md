@@ -8,8 +8,9 @@ This repository is part of ReHealth AI / 睿禾健康.
 
 Current engineering goal: convert the Android demo into a usable MVP that supports real device data collection, local persistence, CVD feature extraction, backend upload, cloud risk scoring, intervention generation, and feedback loop.
 
+Read `README.md` first for the repository map, current service boundaries, core data flows, development commands, and documentation index.
 Read `ENGINEERING.md` before making any non-trivial change.
-Read `ACCEPTANCE_REVIEW_2026-07-16.md` for the current Orchestrator acceptance checkpoint covering E2/P0b/P0c completion and release blocker status. `backend/docs/qa/PRODUCT_ARCHITECTURE_ACCEPTANCE_2026-07-13.md` and `ACCEPTANCE_REVIEW_2026-07-10.md` are historical snapshots.
+Read `STATUS.md` for the current implementation and release checkpoint. Historical acceptance snapshots are archived under `docs/archive/acceptance/` and must not be treated as current state.
 For Android-rule reference docs, see the canonical paths listed in `Android-apk/docs/REHEALTH_INTEGRATION_CONTRACT.md` (rewritten 2026-07-10).
 For telemetry status and remaining QA, read `Android-apk/docs/D2_TELEMETRY_SYNC_PLAN.md`. D2, E2.1, and E1.1 are implemented; do not reopen them as unstarted work.
 
@@ -18,10 +19,12 @@ For telemetry status and remaining QA, read `Android-apk/docs/D2_TELEMETRY_SYNC_
 Preferred architecture:
 
 ```text
-Android-apk        Android app: BLE/MRD ring, Room, Compose UI, local feature extraction, upload queue
-backend            JeecgBoot backend: user/device/account/admin/doctor/operations APIs
-model-service      Python FastAPI: CatBoost/SHAP/LLM/attribution
-rehealth-algorithms   Model training, HealthAgent/PIAS simulation, and algorithm research
+Android-apk              Android app: BLE/MRD ring, Room, Compose UI, local feature extraction, upload queue
+backend/device-service   Hardware telemetry ingress, TimescaleDB, transactional Outbox, Kafka publication
+backend/jeecg-boot       JeecgBoot user/device/account/admin/doctor/operations APIs and software_db
+backend/contracts        Versioned mobile/telemetry/event contracts and architecture decisions
+model-service            Python FastAPI: CatBoost/SHAP/LLM/attribution
+rehealth-algorithms      Model training, HealthAgent/PIAS simulation, and algorithm research
 ```
 
 Do not put CatBoost, SHAP, LLM, or causal attribution directly into the Android app.
@@ -59,6 +62,29 @@ Before final response:
 3. Check `git status`.
 4. Commit changes if the task produced code and the environment allows commits.
 5. Leave clear notes in a relevant markdown file when requested.
+6. Perform the documentation impact check in `README.md` and update every affected project, contract, deployment, QA, or release document. If no documentation change is needed, state why in the final response.
+
+## Documentation maintenance
+
+`README.md` is the repository-level project entry point. Keep it concise and current;
+put detailed contracts and decisions in their canonical module documents and link them
+from the root README instead of duplicating them.
+
+Documentation updates are mandatory when a change affects any of the following:
+
+- module/service ownership, repository structure, or the end-to-end data flow;
+- API paths, authentication, DTO fields, completion semantics, or event schemas;
+- Room, MySQL, TimescaleDB, queue, or retention schemas and migrations;
+- supported devices, BLE/vendor protocols, metrics, collection, or sync behavior;
+- Kafka topics, message guarantees, consumers, or broker replacement decisions;
+- model inputs/outputs, model versions, Mock behavior, attribution, or health-agent safety;
+- ports, environment variables, secrets, containers, deployment topology, or build/test commands;
+- user-visible behavior, permissions, privacy posture, QA steps, or release gates.
+
+Use the documentation mapping table in `README.md` to select the canonical files.
+Do not create a parallel status or architecture document when an existing canonical
+document can be updated. Documentation-only changes still require link/format checks
+and a final `git status` review.
 
 ## Android commands
 

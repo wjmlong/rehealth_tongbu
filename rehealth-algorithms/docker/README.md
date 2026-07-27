@@ -13,8 +13,8 @@ a docker.io installed inside WSL2.
    ```powershell
    docker info   # ServerVersion should print; OSType=linux (WSL2 backend)
    ```
-3. The repo lives on Windows `D:\rehealthAI` and is auto-mounted into WSL2 as
-   `/mnt/d/rehealthAI`; Docker Desktop can build from the Windows path directly.
+3. Clone the repository to a Docker Desktop file-sharing location. Docker Desktop
+   can build directly from the Windows checkout; no fixed drive or directory is required.
 
 
 ## Build the image

@@ -2,7 +2,7 @@ package com.rehealth.genie.phm
 
 import com.rehealth.genie.ring.RingMetricType
 
-// ---- UI domain types (moved here from MockPhmService) ----
+// ---- UI domain types ----
 
 data class LifeState(
     val score: Int,
@@ -174,6 +174,9 @@ data class AttributionHistoryPoint(
 )
 
 data class IndividualAttributionResult(
+    val status: String? = null,
+    val historyDays: Int? = null,
+    val minHistoryDays: Int? = null,
     val currentRiskScore: Double? = null,
     val riskLevel: String? = null,
     val trend: String? = null,
@@ -185,6 +188,10 @@ data class IndividualAttributionResult(
     val attCiUpper: Double? = null,
     val attPValue: Double? = null,
     val attSignificant: Boolean? = null,
+    val attAvailable: Boolean? = null,
+    val attUnavailableReason: String? = null,
+    val interventionDays: Int? = null,
+    val interventionDataSufficient: Boolean? = null,
     val headline: String? = null,
     val body: String? = null,
     val advice: String? = null,

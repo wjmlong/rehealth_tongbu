@@ -41,7 +41,35 @@
 -keep class com.rehealth.genie.phm.PhmModels** { *; }
 -keep class com.rehealth.genie.ring.RingModels** { *; }
 
+# MRD SDK uses runtime model lookup and BLE callbacks that are not visible to R8.
+-keep class com.manridy.** { *; }
+
+# Release builds must not emit identifiers, raw BLE frames, or health values via logcat.
+-assumenosideeffects class android.util.Log {
+    public static *** v(...);
+    public static *** d(...);
+    public static *** i(...);
+    public static *** w(...);
+    public static *** e(...);
+    public static *** wtf(...);
+}
+
 # OkHttp platform used only on JVM and when Conscrypt dependency is available.
 -dontwarn org.conscrypt.**
 -dontwarn org.bouncycastle.**
 -dontwarn org.openjsse.**
+
+# HBand's Bluetooth AAR has optional dial/OTA references to JL_Watch classes.
+# ReHealth does not invoke those APIs and intentionally does not package JL_Watch.
+-dontwarn com.jieli.jl_rcsp.impl.WatchOpImpl
+-dontwarn com.jieli.jl_rcsp.interfaces.watch.OnWatchCallback
+
+# The pinned HBand manager exposes optional dial/image/FAT and Nordic OTA APIs
+# from the same class as health operations. ReHealth never calls these APIs and
+# intentionally does not package their feature libraries.
+-dontwarn com.jieli.bmp_convert.BmpConvert
+-dontwarn com.jieli.jl_fatfs.model.FatFile
+-dontwarn io.runtime.mcumgr.McuMgrTransport
+-dontwarn io.runtime.mcumgr.ble.McuMgrBleTransport
+-dontwarn io.runtime.mcumgr.dfu.FirmwareUpgradeCallback
+-dontwarn io.runtime.mcumgr.dfu.mcuboot.FirmwareUpgradeManager

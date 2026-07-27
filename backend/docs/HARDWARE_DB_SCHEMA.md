@@ -78,6 +78,10 @@ identifier. Android's `userId` JSON field remains for wire compatibility but is
 overwritten before validation and persistence. The database contains internal
 IDs only, not phone numbers or names.
 
+## Recent Telemetry Query
+
+`GET /rehealth/mobile/measurements/recent?limit=50` reads normalized rows from `hardware_measurement`, `hardware_sleep_session`, and `hardware_activity`. Every query is filtered by the authenticated Jeecg user ID, ordered newest first, and limited to 1–200 rows per category. The response excludes raw signal chunks and payload references. A disabled hardware datasource returns a controlled `503` response.
+
 ## Retention
 
 | Data | MVP policy | Implementation status |

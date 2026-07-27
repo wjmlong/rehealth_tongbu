@@ -1,0 +1,28 @@
+rehealth:
+  runtime:
+    mode: demo
+  demo:
+    enabled: true
+  software-db:
+    enabled: ${REHEALTH_SOFTWARE_DB_ENABLED:false}
+  device-service:
+    enabled: ${REHEALTH_DEVICE_SERVICE_ENABLED:false}
+    base-url: ${REHEALTH_DEVICE_SERVICE_BASE_URL:}
+  timescale:
+    enabled: ${REHEALTH_TIMESCALE_ENABLED:false}
+  model-service:
+    base-url: ${REHEALTH_MODEL_SERVICE_BASE_URL:http://127.0.0.1:8000}
+    require-real-model: false
+  health-agent:
+    internal-token-file: ${REHEALTH_AGENT_INTERNAL_TOKEN_FILE:${REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE:}}
+    rate-limit:
+      requests: ${REHEALTH_AGENT_RATE_LIMIT_REQUESTS:20}
+      window-seconds: ${REHEALTH_AGENT_RATE_LIMIT_WINDOW_SECONDS:60}
+  attribution-service:
+    base-url: ${REHEALTH_ATTRIBUTION_SERVICE_BASE_URL:http://127.0.0.1:8000}
+    internal-token-file: ${REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE:}
+  attribution:
+    mode: ${REHEALTH_ATTRIBUTION_MODE:demo_mock}
+    provenance: demo_mock
+  provider-credentials:
+    embedded-secret: ""

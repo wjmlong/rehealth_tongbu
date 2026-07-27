@@ -4,6 +4,9 @@ Review: E0.5_backend_module_selection_and_database_split
 Date: 2026-07-09  
 Scope: software database and hardware telemetry database split before E1.
 
+Low-code management pages and handwritten execution services must also follow
+[`REHEALTH_LOW_CODE_BOUNDARY.md`](./REHEALTH_LOW_CODE_BOUNDARY.md).
+
 ## Decision
 
 ReHealth backend needs two database ownership domains:

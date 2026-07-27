@@ -5,35 +5,47 @@ import org.jeecg.modules.rehealth.mobile.dto.AttributionResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.DeviceBindRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.DeviceBindResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.FeedbackRequestDto;
+import org.jeecg.modules.rehealth.mobile.dto.FeedbackResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.HealthResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.InterventionGenerateRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.InterventionGenerateResponseDto;
+import org.jeecg.modules.rehealth.mobile.dto.HealthInterviewSubmitRequestDto;
+import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.jeecg.modules.rehealth.mobile.dto.MobileConfigResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
+import org.jeecg.modules.rehealth.mobile.dto.RecentTelemetryResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.TelemetryBatchRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.TelemetryBatchResponseDto;
-
-import java.util.Map;
 
 public interface ReHealthMobileService {
     HealthResponseDto health();
 
     MobileConfigResponseDto config();
 
-    DeviceBindResponseDto bindDevice(DeviceBindRequestDto request);
+    PatientProfileDto saveProfile(String userId, PatientProfileDto profile);
+
+    PatientProfileDto profile(String userId);
+
+    HealthInterviewSubmitRequestDto submitInterview(String userId, HealthInterviewSubmitRequestDto request);
+
+    HealthInterviewSubmitRequestDto latestInterview(String userId);
+
+    DeviceBindResponseDto bindDevice(String userId, DeviceBindRequestDto request);
 
     TelemetryBatchResponseDto acceptTelemetryBatch(TelemetryBatchRequestDto request);
 
-    RiskEvaluateResponseDto evaluateFeatures(RiskEvaluateRequestDto request);
+    RecentTelemetryResponseDto recentTelemetry(String userId, int limit);
 
-    RiskEvaluateResponseDto latestRisk();
+    RiskEvaluateResponseDto evaluateFeatures(String userId, RiskEvaluateRequestDto request);
 
-    InterventionGenerateResponseDto generateIntervention(InterventionGenerateRequestDto request);
+    RiskEvaluateResponseDto latestRisk(String userId);
 
-    InterventionGenerateResponseDto latestIntervention();
+    InterventionGenerateResponseDto generateIntervention(String userId, InterventionGenerateRequestDto request);
 
-    Map<String, Object> submitFeedback(String interventionId, FeedbackRequestDto request);
+    InterventionGenerateResponseDto latestIntervention(String userId);
 
-    AttributionResponseDto recordAttributionEvents(AttributionEventsRequestDto request);
+    FeedbackResponseDto submitFeedback(String userId, String interventionId, FeedbackRequestDto request);
+
+    AttributionResponseDto recordAttributionEvents(String userId, AttributionEventsRequestDto request);
 }

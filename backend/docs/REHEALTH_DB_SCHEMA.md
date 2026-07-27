@@ -1,6 +1,6 @@
-# ReHealth DB Schema E1
+# ReHealth DB Schema
 
-Status: E1 schema boundary document. No database migrations are added in E1.
+Status: software_db and hardware_db MVP schema scripts are implemented; production provisioning remains deployment-owned.
 
 ## Decision
 
@@ -9,7 +9,7 @@ ReHealth uses two logical databases:
 - `software_db`: user/business/application records.
 - `hardware_db`: high-volume wearable telemetry and ingestion records.
 
-E1 creates Java interfaces and DTO boundaries only. E2 owns physical hardware ingestion tables, MQ, and high-concurrency writer implementation.
+The ReHealth module provides conditional JDBC writers for both database domains. They stay disabled until their schemas and datasource settings are provisioned.
 
 ## software_db Boundary
 
@@ -20,20 +20,22 @@ E1 Java boundary:
 ```text
 org.jeecg.modules.rehealth.repository.ReHealthBusinessRepository
 org.jeecg.modules.rehealth.repository.impl.E1PendingSoftwareDbReHealthBusinessRepository
+org.jeecg.modules.rehealth.repository.impl.JdbcSoftwareDbReHealthBusinessRepository
 ```
 
 Planned tables:
 
 | Table | Purpose | E1 status |
 | --- | --- | --- |
-| `rehealth_device_binding` | User-to-device binding. | Interface only. |
-| `rehealth_patient_profile` | ReHealth profile reference. | Deferred. |
-| `rehealth_health_interview` | Health interview/business profile fields. | Deferred. |
-| `rehealth_cvd_feature_vector` | CVD 16 vector and feature quality metadata. | Interface only via `/features/evaluate`. |
-| `rehealth_cvd_risk_result` | Risk score, level, contributions, model version, missing fields, warnings, summary. | Interface only. |
-| `rehealth_intervention_plan` | Conservative model-service intervention response. | Interface only. |
-| `rehealth_intervention_feedback` | User feedback/adherence/check-in. | Interface only via `/interventions/{id}/feedback`. |
-| `rehealth_model_request_log` | Minimal request metadata without raw PII or raw telemetry payloads. | Deferred. |
+| `rehealth_device_binding` | User-to-device binding. | Implemented. |
+| `rehealth_patient_profile` | ReHealth profile reference. | Implemented via authenticated `GET/PUT /profile`. |
+| `rehealth_health_interview` | Health interview/business profile fields. | Implemented via authenticated `POST /interviews` and `GET /interviews/latest`. |
+| `rehealth_cvd_feature_vector` | CVD 16 vector and feature quality metadata. | Implemented via `/features/evaluate`. |
+| `rehealth_cvd_risk_result` | Risk score, level, contributions, model version, missing fields, warnings, summary. | Implemented with per-user latest read. |
+| `rehealth_intervention_plan` | Conservative model-service intervention response. | Implemented with per-user latest read. |
+| `rehealth_intervention_feedback` | User feedback/adherence/check-in. | Implemented via `/interventions/{id}/feedback`. |
+| `rehealth_attribution_result` | PIAS request and result snapshot. | Implemented via `/attribution/events`. |
+| `rehealth_model_request_log` | Minimal request metadata without raw PII or raw telemetry payloads. | Implemented for risk, intervention, and attribution model calls. |
 | `rehealth_upload_batch` | Software-side upload status/materialized summary. | Deferred. |
 
 Transaction strategy:
@@ -44,44 +46,51 @@ Transaction strategy:
 
 ## hardware_db Boundary
 
-Owner: future `rehealth-ingest-service`/hardware ingestion module.
+Owner: `backend/device-service`, with a future dedicated ingest service remaining an optional scaling step.
 
-E1 Java boundary:
+The PostgreSQL 17 / TimescaleDB schema is versioned by Flyway under
+`backend/device-service/src/main/resources/db/migration/timescale`. Todo 8 owns
+the telemetry-port adapter; enabling migrations does not by itself make the
+currently unavailable adapter ready.
 
-```text
-org.jeecg.modules.rehealth.ingest.HardwareIngestionPort
-org.jeecg.modules.rehealth.ingest.impl.E2PendingHardwareIngestionPort
-```
+| Table | Purpose |
+| --- | --- |
+| `hardware_upload_batch` | Idempotent upload receipt and batch state. |
+| `hardware_measurement` | Normalized scalar measurements; one-day `observed_at` chunks. |
+| `hardware_sleep_session` | Normalized sleep sessions; seven-day `started_at` chunks. |
+| `hardware_activity` | Normalized activity sessions; seven-day `started_at` chunks. |
+| `hardware_signal_chunk_metadata` | Signal metadata only; no raw waveform payload. |
+| `hardware_data_quality_event` | Quality events; seven-day `event_at` chunks. |
+| `hardware_reconciliation` | Reconciliation state and retry metadata. |
+| `hardware_outbox` | Durable publication state. |
+| `hardware_migration_checkpoint` | Legacy migration checkpoints. |
 
-Planned tables:
+All domain times are `TIMESTAMPTZ`. Source uniqueness includes tenant, user,
+device, event time, record type, and source record ID. Telemetry/session/quality
+hypertables compress chunks after seven days.
 
-| Table | Purpose | E1 status |
+| Data class | Default retention | Configuration |
 | --- | --- | --- |
-| `rehealth_hw_measurement_batch` | Idempotent raw upload batch/receipt. | Deferred to E2. |
-| `rehealth_hw_measurement` | HR, SpO2, BP, temperature, and related measurement rows. | Deferred to E2. |
-| `rehealth_hw_sleep_session` | Sleep session details. | Deferred to E2. |
-| `rehealth_hw_activity_session` | Steps/activity sessions. | Deferred to E2. |
-| `rehealth_hw_hrv` | HRV values. | Deferred to E2. |
-| `rehealth_hw_rri_metadata` | RRI metadata if allowed. | Deferred to E2. |
-| `rehealth_hw_ppg_chunk` | PPG metadata/chunks if allowed. | Deferred to E2 and consent review. |
-| `rehealth_hw_quality_flag` | Data quality flags. | Deferred to E2. |
-| `rehealth_hw_ingestion_event` | Ingestion state, rejection, retry, dead-letter metadata. | Deferred to E2. |
+| Measurement, sleep, activity | 730 days | `REHEALTH_MEASUREMENT_RETENTION_DAYS` |
+| Signal metadata | 90 days | `REHEALTH_SIGNAL_METADATA_RETENTION_DAYS` |
+| Quality and operational history | 1,095 days | `REHEALTH_OPERATIONAL_RETENTION_DAYS` |
+| Published outbox rows | 30 days | `REHEALTH_PUBLISHED_OUTBOX_RETENTION_DAYS` |
 
-E1 `/measurements/batch` returns:
+The ordinary-table lifecycle job removes only terminal data. Failed or
+unresolved outbox records are never automatically deleted, and upload batches
+with unresolved reconciliation or outbox work are retained.
 
-- `accepted=false`
-- `persisted=false`
-- `status=INGEST_INTERFACE_READY_E2_PENDING`
+## Provisioning
 
-This is intentional so Android D1 does not mistake API reachability for durable hardware ingestion.
+Apply `db/software/mysql/V1__create_rehealth_software_tables.sql` to the Jeecg primary software datasource, then set `rehealth.software-db.enabled=true`. Every mobile business write/read derives ownership from the authenticated Jeecg user; client-supplied user IDs are not accepted for these records.
 
-## E2 Migration Requirements
+For `hardware_db`, set `REHEALTH_HARDWARE_DB_ENABLED=true`,
+`REHEALTH_HARDWARE_DB_URL`, `REHEALTH_HARDWARE_DB_USERNAME`, and either
+`REHEALTH_HARDWARE_DB_PASSWORD` or `REHEALTH_HARDWARE_DB_PASSWORD_FILE`.
+Startup validates and applies the Timescale Flyway migrations before any
+hardware write adapter is created. PostgreSQL without the Timescale extension
+fails in the prerequisite migration before application tables are written.
 
-E2 must add:
-
-- Real `hardware_db` datasource configuration or external time-series/ClickHouse choice.
-- Idempotency key constraints for batches.
-- Batch writer and validation rules.
-- MQ or stream transport if required by concurrency target.
-- Retention policy for raw telemetry, especially PPG/RRI.
-- Migrations or explicit schema deployment scripts.
+Legacy MySQL `DATETIME(3)` values are interpreted as UTC by
+`rehealth_legacy_mysql_datetime_utc(timestamp)` before conversion to
+`TIMESTAMPTZ`; migration callers must not apply the server session timezone.

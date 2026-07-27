@@ -1,26 +1,53 @@
 package org.jeecg.modules.rehealth.repository;
 
 import org.jeecg.modules.rehealth.mobile.dto.AttributionEventsRequestDto;
+import org.jeecg.modules.rehealth.mobile.dto.AttributionResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.DeviceBindRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.DeviceBindResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.FeedbackRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.InterventionGenerateResponseDto;
+import org.jeecg.modules.rehealth.mobile.dto.HealthInterviewSubmitRequestDto;
+import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
+import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateRequestDto;
+import org.jeecg.modules.rehealth.model.ModelCallAudit;
 
 import java.util.Optional;
+import java.util.List;
+import java.time.Instant;
 
 public interface ReHealthBusinessRepository {
-    DeviceBindResponseDto recordDeviceBinding(DeviceBindRequestDto request);
+    PatientProfileDto savePatientProfile(String userId, PatientProfileDto profile);
 
-    void saveRiskResult(String requestId, RiskEvaluateResponseDto response);
+    Optional<PatientProfileDto> findPatientProfile(String userId);
 
-    Optional<RiskEvaluateResponseDto> findLatestRiskResult();
+    HealthInterviewSubmitRequestDto saveHealthInterview(String userId, HealthInterviewSubmitRequestDto request);
 
-    void saveInterventionPlan(InterventionGenerateResponseDto response);
+    Optional<HealthInterviewSubmitRequestDto> findLatestHealthInterview(String userId);
 
-    Optional<InterventionGenerateResponseDto> findLatestInterventionPlan();
+    void recordModelRequest(String userId, ModelCallAudit audit);
 
-    void saveFeedback(String interventionId, FeedbackRequestDto request);
+    DeviceBindResponseDto recordDeviceBinding(String userId, DeviceBindRequestDto request);
 
-    void recordAttributionEvents(AttributionEventsRequestDto request);
+    boolean hasActiveDeviceBinding(String userId, String deviceId);
+
+    void saveRiskResult(String userId, String requestId, RiskEvaluateRequestDto request, RiskEvaluateResponseDto response);
+
+    Optional<RiskEvaluateResponseDto> findLatestRiskResult(String userId);
+
+    List<AttributionEventsRequestDto.AttributionHistoryPointDto> findAttributionHistory(String userId);
+
+    void saveInterventionPlan(String userId, InterventionGenerateResponseDto response);
+
+    Optional<InterventionGenerateResponseDto> findLatestInterventionPlan(String userId);
+
+    Optional<InterventionGenerateResponseDto> findInterventionPlanInWindow(
+            String userId,
+            Instant startInclusive,
+            Instant endExclusive
+    );
+
+    void saveFeedback(String userId, String interventionId, FeedbackRequestDto request);
+
+    void recordAttributionResult(String userId, AttributionEventsRequestDto request, AttributionResponseDto response);
 }

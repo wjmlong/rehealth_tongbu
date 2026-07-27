@@ -7,26 +7,45 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
-// DeepSeek configuration: read from local.properties (DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL),
-// fallback to env vars, then to the public DeepSeek endpoint. Never hardcode secrets.
 val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) f.inputStream().use { load(it) }
 }
-fun deepSeekApiKey(): String =
-    (localProps.getProperty("DEEPSEEK_API_KEY") ?: System.getenv("DEEPSEEK_API_KEY") ?: "").trim()
-fun deepSeekBaseUrl(): String =
-    (localProps.getProperty("DEEPSEEK_BASE_URL") ?: System.getenv("DEEPSEEK_BASE_URL") ?: "https://api.deepseek.com").trim()
+fun reHealthApiBaseUrl(): String =
+    (localProps.getProperty("rehealth.api.base.url") ?: System.getenv("REHEALTH_API_BASE_URL")
+        ?: "http://10.0.2.2:8080/jeecg-boot/").trim().trimEnd('/') + "/"
+fun reHealthReleaseApiBaseUrl(): String {
+    val configured = localProps.getProperty("rehealth.release.api.base.url")
+        ?: System.getenv("REHEALTH_RELEASE_API_BASE_URL")
+        ?: "https://api.rehealth.invalid/"
+    val normalized = configured.trim().trimEnd('/') + "/"
+    require(normalized.startsWith("https://")) {
+        "Release backend URL must use HTTPS (rehealth.release.api.base.url or REHEALTH_RELEASE_API_BASE_URL)"
+    }
+    return normalized
+}
 // JeecgBoot request-signing secret for endpoints that require the `X-Sign` header
-// (e.g. /sys/sms). Read from local.properties (JEECG_SIGNATURE_SECRET), fallback to env,
-// then to the repo default. MUST match the running backend's `jeecg.signatureSecret`.
+// (e.g. /sys/sms). It must be supplied by local.properties or the environment.
 fun signSecret(): String =
     (localProps.getProperty("JEECG_SIGNATURE_SECRET") ?: System.getenv("JEECG_SIGNATURE_SECRET")
-        ?: "dd05f1c54d63749eda95f9fa6d49v442a").trim()
+        ?: "").trim()
+fun debugWearableProductCode(): String {
+    val normalizedProductCode = (
+        providers.gradleProperty("rehealth.debug.wearable.product.code")
+            .orNull
+            ?: localProps.getProperty("rehealth.debug.wearable.product.code")
+            ?: "RH-MRD-S01"
+        ).trim()
+    require(normalizedProductCode in setOf("RH-MRD-S01", "RH-RW-P01", "RH-HB-E01")) {
+        "rehealth.debug.wearable.product.code must be RH-MRD-S01, RH-RW-P01, or RH-HB-E01"
+    }
+    return normalizedProductCode
+}
 
 android {
     namespace = "com.rehealth.genie"
     compileSdk = 36
+    buildToolsVersion = "36.0.0"
 
     defaultConfig {
         applicationId = "com.rehealth.genie"
@@ -36,24 +55,29 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "REHEALTH_API_BASE_URL", "\"http://10.0.2.2:8080/jeecg-boot/\"")
-        buildConfigField("String", "REHEALTH_API_TOKEN", "\"\"")
-        // DeepSeek (首页 AI 问答 / 健康助手)。key 从 local.properties 读取，缺失时留空（客户端给出占位提示）。
-        buildConfigField("String", "DEEPSEEK_API_KEY", "\"${deepSeekApiKey()}\"")
-        buildConfigField("String", "DEEPSEEK_BASE_URL", "\"${deepSeekBaseUrl()}\"")
-        // JeecgBoot sign secret for /sys/sms (X-Sign header). Override via local.properties.
-        buildConfigField("String", "JEECG_SIGN_SECRET", "\"${signSecret()}\"")
+        buildConfigField("String", "REHEALTH_API_BASE_URL", "\"${reHealthReleaseApiBaseUrl()}\"")
+        manifestPlaceholders["usesCleartextTraffic"] = "false"
+        // Provider credentials and request-signing secrets must never enter a release APK.
+        buildConfigField("String", "JEECG_SIGN_SECRET", "\"\"")
     }
 
     buildTypes {
         debug {
             buildConfigField("boolean", "USE_FAKE_RING", "false")
-            buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", "true")
+            buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", "false")
+            buildConfigField("boolean", "ALLOW_WEARABLE_PRODUCT_SWITCH", "true")
+            buildConfigField("String", "DEBUG_WEARABLE_PRODUCT_CODE", "\"${debugWearableProductCode()}\"")
+            buildConfigField("String", "REHEALTH_API_BASE_URL", "\"${reHealthApiBaseUrl()}\"")
+            buildConfigField("String", "JEECG_SIGN_SECRET", "\"${signSecret()}\"")
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
         }
         release {
-            buildConfigField("boolean", "USE_FAKE_RING", "false")
-            buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", "false")
-            isMinifyEnabled = false
+            buildConfigField("boolean", "ALLOW_WEARABLE_PRODUCT_SWITCH", "false")
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 
@@ -77,6 +101,13 @@ android {
 
 dependencies {
     implementation(files("libs/sdk_mrd2026_1.3.0.aar"))
+    implementation(files("libs/blesdk-rwfit-release_v2_260724.aar"))
+    implementation(files("libs/vpbluetooth-1.20.aar"))
+    implementation(files("libs/vpprotocol-2.3.73.15.aar"))
+    // Required by VPOperateManager/Bluetooth authentication class signatures.
+    // ReHealth does not expose or invoke the vendor OTA and dial APIs.
+    implementation(files("libs/jl_bt_ota_V1.10.0_10931-release.aar"))
+    implementation(files("libs/jl_rcsp_V0.7.2_527-release.aar"))
 
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.activity:activity-compose:1.10.1")
@@ -95,6 +126,7 @@ dependencies {
     implementation("androidx.room:room-runtime:2.7.1")
     implementation("androidx.room:room-ktx:2.7.1")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation("androidx.localbroadcastmanager:localbroadcastmanager:1.1.0")
     implementation("com.google.code.gson:gson:2.11.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     // Retrofit + Moshi: typed E1 mobile API client for /features/evaluate and risk/intervention retrieval.

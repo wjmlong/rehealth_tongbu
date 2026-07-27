@@ -263,6 +263,26 @@ class HealthResponse(BaseModel):
     loaded_artifact_name: str | None = None
 
 
+class ReadinessResponse(BaseModel):
+    status: str
+    code: str
+    model_version: str
+    feature_schema_version: str
+    scorer_mode: str
+    is_mock: bool
+
+
+class ActiveModelResponse(BaseModel):
+    registry_version: str
+    feature_schema_version: str
+    model_version: str
+    scorer_mode: str
+    is_mock: bool
+    artifact_name: str | None = None
+    ready: bool
+    readiness_code: str
+
+
 FEATURE_FIELDS = [
     "age",
     "gender",

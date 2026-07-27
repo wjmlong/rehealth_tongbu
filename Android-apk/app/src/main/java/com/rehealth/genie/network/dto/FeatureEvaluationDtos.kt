@@ -120,10 +120,10 @@ data class InterventionFeedbackRequest(
 
 @JsonClass(generateAdapter = true)
 data class InterventionFeedbackResponse(
-    val id: String? = null,
+    val interventionId: String? = null,
     val status: String? = null,
-    val persistenceStatus: String? = null,
-    val message: String? = null,
+    val persisted: Boolean = false,
+    val persistenceStage: String? = null,
 )
 
 @JsonClass(generateAdapter = true)
@@ -137,6 +137,25 @@ data class HealthCheckResponse(
 data class MobileConfigResponse(
     val apiVersion: String? = null,
     val endpoints: List<String>? = null,
-    val modelContract: Map<String, String>? = null,
+    val modelContract: String? = null,
     val limitations: List<String>? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class HealthAgentMessageRequest(
+    val requestId: String,
+    val message: String,
+    val locale: String = "zh-CN",
+)
+
+@JsonClass(generateAdapter = true)
+data class HealthAgentResponse(
+    val request_id: String? = null,
+    val status: String? = null,
+    val answer: String? = null,
+    val medical_disclaimer: String? = null,
+    val provider: String? = null,
+    val model_version: String? = null,
+    val is_demo: Boolean? = null,
+    val retryable: Boolean? = null,
 )

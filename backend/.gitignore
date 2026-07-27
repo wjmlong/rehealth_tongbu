@@ -9,6 +9,7 @@ rebel.xml
 
 ## front
 **/*.lock
+!deploy/rehealth/images.lock
 os_del.cmd
 os_del_doc.cmd
 .svn

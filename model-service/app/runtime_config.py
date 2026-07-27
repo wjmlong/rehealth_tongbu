@@ -1,0 +1,379 @@
+from __future__ import annotations
+
+import os
+from collections.abc import Mapping
+from dataclasses import dataclass
+from enum import StrEnum
+from typing import assert_never
+from urllib.parse import urlparse
+from pathlib import Path
+import re
+
+from pydantic import BaseModel, ConfigDict, Field
+import yaml
+
+
+LOCAL_CONFIG_ENV = "REHEALTH_LOCAL_CONFIG_FILE"
+DEFAULT_LOCAL_CONFIG_PATH = Path(__file__).resolve().parents[1] / "config" / "ai-chat.local.yml"
+
+
+class RuntimeMode(StrEnum):
+    PRODUCTION = "production"
+    STAGING = "staging"
+    DEVELOPMENT = "development"
+    DEMO = "demo"
+
+
+class AttributionMode(StrEnum):
+    PIAS = "pias"
+    DEMO_MOCK = "demo_mock"
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeConfigurationError(RuntimeError):
+    code: str
+    detail: str
+
+    def __str__(self) -> str:
+        return f"{self.code}: {self.detail}"
+
+
+class RuntimeConfig(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    runtime_mode: RuntimeMode = RuntimeMode.DEVELOPMENT
+    attribution_mode: AttributionMode = AttributionMode.PIAS
+    demo_enabled: bool = False
+    mock_attribution_enabled: bool = False
+    provenance: str = "pias"
+    service_base_url: str = ""
+    provider_credential_file: str = ""
+    embedded_provider_secret: str = ""
+    model_verification_file: str = ""
+    model_evaluation_timeout_seconds: float = Field(default=5.0, gt=0)
+    model_circuit_failure_threshold: int = Field(default=3, ge=1)
+    model_circuit_reset_seconds: float = Field(default=30.0, gt=0)
+    agent_provider_enabled: bool = False
+    agent_provider_base_url: str = "https://api.deepseek.com"
+    agent_provider_model: str = "deepseek-v4-flash"
+    agent_provider_timeout_seconds: float = Field(default=12.0, gt=0, le=60)
+    agent_internal_token_file: str = ""
+    agent_internal_token: str = ""
+
+
+class RuntimeStatus(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    runtime_mode: RuntimeMode
+    attribution_mode: AttributionMode
+    demo_enabled: bool
+    mock_attribution_enabled: bool
+    provenance: str
+
+
+def load_runtime_config(environ: Mapping[str, str] | None = None) -> RuntimeConfig:
+    environment = dict(os.environ if environ is None else environ)
+    local_values = _load_local_config(environment, use_default=environ is None)
+    source = {**local_values, **environment}
+    runtime_mode = _parse_runtime_mode(source.get("REHEALTH_RUNTIME_MODE", "development"))
+    attribution_mode = _parse_attribution_mode(source.get("REHEALTH_ATTRIBUTION_MODE", "pias"))
+    demo_enabled = _parse_bool(source.get("REHEALTH_DEMO_ENABLED", "false"), "REHEALTH_DEMO_ENABLED")
+    provenance = source.get("REHEALTH_ATTRIBUTION_PROVENANCE", "pias").strip()
+    service_base_url = source.get("REHEALTH_MODEL_SERVICE_BASE_URL", "").strip()
+    provider_credential_file = source.get("REHEALTH_PROVIDER_CREDENTIAL_FILE", "").strip()
+    embedded_provider_secret = source.get("REHEALTH_PROVIDER_SECRET", "").strip()
+    model_verification_file = source.get("REHEALTH_MODEL_VERIFICATION_FILE", "").strip()
+    config = RuntimeConfig(
+        runtime_mode=runtime_mode,
+        attribution_mode=attribution_mode,
+        demo_enabled=demo_enabled,
+        mock_attribution_enabled=attribution_mode is AttributionMode.DEMO_MOCK,
+        provenance=provenance,
+        service_base_url=service_base_url,
+        provider_credential_file=provider_credential_file,
+        embedded_provider_secret=embedded_provider_secret,
+        model_verification_file=model_verification_file,
+        model_evaluation_timeout_seconds=float(
+            source.get("REHEALTH_MODEL_EVALUATION_TIMEOUT_SECONDS", "5")
+        ),
+        model_circuit_failure_threshold=int(
+            source.get("REHEALTH_MODEL_CIRCUIT_FAILURE_THRESHOLD", "3")
+        ),
+        model_circuit_reset_seconds=float(
+            source.get("REHEALTH_MODEL_CIRCUIT_RESET_SECONDS", "30")
+        ),
+        agent_provider_enabled=_parse_bool(
+            source.get("REHEALTH_AGENT_PROVIDER_ENABLED", "false"),
+            "REHEALTH_AGENT_PROVIDER_ENABLED",
+        ),
+        agent_provider_base_url=source.get(
+            "REHEALTH_AGENT_PROVIDER_BASE_URL",
+            "https://api.deepseek.com",
+        ).strip(),
+        agent_provider_model=source.get(
+            "REHEALTH_AGENT_PROVIDER_MODEL",
+            "deepseek-v4-flash",
+        ).strip(),
+        agent_provider_timeout_seconds=float(
+            source.get("REHEALTH_AGENT_PROVIDER_TIMEOUT_SECONDS", "12")
+        ),
+        agent_internal_token_file=source.get(
+            "REHEALTH_AGENT_INTERNAL_TOKEN_FILE",
+            "",
+        ).strip(),
+        agent_internal_token=source.get("REHEALTH_AGENT_INTERNAL_TOKEN", "").strip(),
+    )
+    validate_runtime_config(config)
+    return config
+
+
+def _load_local_config(source: Mapping[str, str], *, use_default: bool) -> dict[str, str]:
+    configured_path = source.get(LOCAL_CONFIG_ENV, "").strip()
+    if configured_path:
+        config_path = Path(configured_path).expanduser()
+        required = True
+    elif use_default:
+        config_path = DEFAULT_LOCAL_CONFIG_PATH
+        required = False
+    else:
+        return {}
+
+    if not config_path.is_file():
+        if required:
+            raise RuntimeConfigurationError(
+                code="LOCAL_CONFIG_UNAVAILABLE",
+                detail="the configured local YAML file is unavailable",
+            )
+        return {}
+
+    try:
+        document = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as error:
+        raise RuntimeConfigurationError(
+            code="LOCAL_CONFIG_INVALID",
+            detail="the local YAML file could not be read safely",
+        ) from error
+
+    if document is None:
+        return {}
+    root = _yaml_section(document, "root")
+    runtime = _yaml_section(root.get("runtime"), "runtime")
+    health_agent = _yaml_section(root.get("health-agent"), "health-agent")
+    provider = _yaml_section(health_agent.get("provider"), "health-agent.provider")
+
+    values: dict[str, str] = {}
+    _set_yaml_value(values, "REHEALTH_RUNTIME_MODE", runtime, "mode")
+    _set_yaml_value(values, "REHEALTH_AGENT_INTERNAL_TOKEN", health_agent, "internal-token")
+    _set_yaml_value(
+        values,
+        "REHEALTH_AGENT_INTERNAL_TOKEN_FILE",
+        health_agent,
+        "internal-token-file",
+    )
+    _set_yaml_value(values, "REHEALTH_AGENT_PROVIDER_BASE_URL", provider, "base-url")
+    _set_yaml_value(values, "REHEALTH_AGENT_PROVIDER_MODEL", provider, "model")
+    _set_yaml_value(
+        values,
+        "REHEALTH_AGENT_PROVIDER_TIMEOUT_SECONDS",
+        provider,
+        "timeout-seconds",
+    )
+    _set_yaml_value(values, "REHEALTH_PROVIDER_CREDENTIAL_FILE", provider, "credential-file")
+    _set_yaml_value(values, "REHEALTH_PROVIDER_SECRET", provider, "api-key")
+
+    if "enabled" in provider:
+        _set_yaml_value(values, "REHEALTH_AGENT_PROVIDER_ENABLED", provider, "enabled")
+    elif values.get("REHEALTH_PROVIDER_SECRET", "").strip() or values.get(
+        "REHEALTH_PROVIDER_CREDENTIAL_FILE", ""
+    ).strip():
+        values["REHEALTH_AGENT_PROVIDER_ENABLED"] = "true"
+    return values
+
+
+def _yaml_section(value: object, name: str) -> Mapping[str, object]:
+    if value is None:
+        return {}
+    if not isinstance(value, Mapping):
+        raise RuntimeConfigurationError(
+            code="LOCAL_CONFIG_INVALID",
+            detail=f"local YAML section {name} must be an object",
+        )
+    return value
+
+
+def _set_yaml_value(
+    target: dict[str, str],
+    environment_name: str,
+    section: Mapping[str, object],
+    key: str,
+) -> None:
+    if key not in section or section[key] is None:
+        return
+    value = section[key]
+    if isinstance(value, (Mapping, list, tuple, set)):
+        raise RuntimeConfigurationError(
+            code="LOCAL_CONFIG_INVALID",
+            detail=f"local YAML value {key} must be a scalar",
+        )
+    if isinstance(value, bool):
+        target[environment_name] = "true" if value else "false"
+    else:
+        target[environment_name] = str(value).strip()
+
+
+def validate_runtime_config(config: RuntimeConfig) -> None:
+    _validate_attribution_mode(config)
+    _validate_protected_boundary(config)
+    _validate_agent_boundary(config)
+
+
+def validate_model_runtime(config: RuntimeConfig, scorer_mode: str) -> None:
+    match config.runtime_mode:
+        case RuntimeMode.PRODUCTION | RuntimeMode.STAGING:
+            if scorer_mode != "real_available":
+                raise RuntimeConfigurationError(
+                    code="REAL_MODEL_REQUIRED",
+                    detail=f"{config.runtime_mode.value} requires an available real model",
+                )
+        case RuntimeMode.DEVELOPMENT | RuntimeMode.DEMO:
+            return
+        case unreachable:
+            assert_never(unreachable)
+
+
+def runtime_status(config: RuntimeConfig) -> RuntimeStatus:
+    return RuntimeStatus(
+        runtime_mode=config.runtime_mode,
+        attribution_mode=config.attribution_mode,
+        demo_enabled=config.demo_enabled,
+        mock_attribution_enabled=config.mock_attribution_enabled,
+        provenance=config.provenance,
+    )
+
+
+def artifact_verification_available(config: RuntimeConfig) -> bool:
+    if config.runtime_mode not in {RuntimeMode.PRODUCTION, RuntimeMode.STAGING}:
+        return True
+    if not config.model_verification_file:
+        return False
+    verification_path = Path(config.model_verification_file)
+    try:
+        digest = verification_path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return False
+    return re.fullmatch(r"[a-f0-9]{64}", digest) is not None
+
+
+def _validate_attribution_mode(config: RuntimeConfig) -> None:
+    match config.attribution_mode:
+        case AttributionMode.PIAS:
+            return
+        case AttributionMode.DEMO_MOCK:
+            if config.runtime_mode in {RuntimeMode.PRODUCTION, RuntimeMode.STAGING}:
+                raise RuntimeConfigurationError(
+                    code="ATTRIBUTION_MODE_UNSAFE",
+                    detail="demo_mock attribution is forbidden in production and staging",
+                )
+            if not config.demo_enabled:
+                raise RuntimeConfigurationError(
+                    code="DEMO_FLAG_REQUIRED",
+                    detail="demo_mock attribution requires REHEALTH_DEMO_ENABLED=true",
+                )
+            if config.provenance != "demo_mock":
+                raise RuntimeConfigurationError(
+                    code="DEMO_PROVENANCE_REQUIRED",
+                    detail="demo_mock attribution must report demo_mock provenance",
+                )
+        case unreachable:
+            assert_never(unreachable)
+
+
+def _validate_protected_boundary(config: RuntimeConfig) -> None:
+    if config.runtime_mode not in {RuntimeMode.PRODUCTION, RuntimeMode.STAGING}:
+        return
+    if config.embedded_provider_secret:
+        raise RuntimeConfigurationError(
+            code="EMBEDDED_SECRET_FORBIDDEN",
+            detail="provider credentials must come from an external secret file",
+        )
+    parsed = urlparse(config.service_base_url)
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname is None
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
+        raise RuntimeConfigurationError(
+            code="SECURE_URL_REQUIRED",
+            detail="protected runtime requires an HTTPS model-service URL without embedded credentials",
+        )
+    if not config.provider_credential_file:
+        raise RuntimeConfigurationError(
+            code="PROVIDER_CREDENTIAL_REQUIRED",
+            detail="protected runtime requires REHEALTH_PROVIDER_CREDENTIAL_FILE",
+        )
+
+
+def _validate_agent_boundary(config: RuntimeConfig) -> None:
+    if not config.agent_provider_enabled:
+        return
+    if not config.agent_provider_model:
+        raise RuntimeConfigurationError(
+            code="AGENT_MODEL_REQUIRED",
+            detail="health-agent provider requires a model name",
+        )
+    parsed = urlparse(config.agent_provider_base_url)
+    if parsed.hostname is None or parsed.username is not None or parsed.password is not None:
+        raise RuntimeConfigurationError(
+            code="AGENT_PROVIDER_URL_INVALID",
+            detail="health-agent provider URL is invalid",
+        )
+    if config.runtime_mode in {RuntimeMode.PRODUCTION, RuntimeMode.STAGING}:
+        if parsed.scheme != "https":
+            raise RuntimeConfigurationError(
+                code="AGENT_PROVIDER_HTTPS_REQUIRED",
+                detail="protected health-agent provider URL must use HTTPS",
+            )
+        if config.agent_internal_token:
+            raise RuntimeConfigurationError(
+                code="EMBEDDED_AGENT_TOKEN_FORBIDDEN",
+                detail="protected runtime requires a mounted internal-token file",
+            )
+        if not config.agent_internal_token_file:
+            raise RuntimeConfigurationError(
+                code="AGENT_INTERNAL_TOKEN_REQUIRED",
+                detail="protected runtime requires REHEALTH_AGENT_INTERNAL_TOKEN_FILE",
+            )
+
+
+def _parse_runtime_mode(value: str) -> RuntimeMode:
+    try:
+        return RuntimeMode(value.strip().lower())
+    except ValueError as error:
+        raise RuntimeConfigurationError(
+            code="INVALID_RUNTIME_MODE",
+            detail="runtime mode must be production, staging, development, or demo",
+        ) from error
+
+
+def _parse_attribution_mode(value: str) -> AttributionMode:
+    try:
+        return AttributionMode(value.strip().lower())
+    except ValueError as error:
+        raise RuntimeConfigurationError(
+            code="INVALID_ATTRIBUTION_MODE",
+            detail="attribution mode must be pias or demo_mock",
+        ) from error
+
+
+def _parse_bool(value: str, name: str) -> bool:
+    match value.strip().lower():
+        case "true" | "1" | "yes" | "on":
+            return True
+        case "false" | "0" | "no" | "off" | "":
+            return False
+        case invalid:
+            raise RuntimeConfigurationError(
+                code="INVALID_BOOLEAN",
+                detail=f"{name} has unsupported boolean value {invalid!r}",
+            )

@@ -4,7 +4,7 @@
 Runs inside WSL2 (uses the pias-venv). Calls the real FastAPI model-service at
 http://localhost:8000/api/pias/v2/attribute/individual, then writes a
 self-contained, interactive H5 (ECharts charts + layered reports + print-to-PDF)
-to /mnt/d/rehealthAI/outputs/pias_attribution_report.html.
+to the repository-local `outputs/pias_attribution_report.html`.
 
 This proves the full loop: app random input -> WSL2 PIAS -> interactive H5.
 
@@ -12,12 +12,12 @@ H5 now includes a SECOND-LEVEL drill-down screen (查看归因逐日明细): a b
 the main page opens a full-screen overlay with 逐日数据 / 方法说明 / 原始输入 tabs.
 """
 import json
-import os
 import urllib.request
 import datetime
 import random
+from pathlib import Path
 
-OUT = "/mnt/d/rehealthAI/outputs/pias_attribution_report.html"
+OUT = Path(__file__).resolve().parents[1] / "outputs" / "pias_attribution_report.html"
 URL = "http://localhost:8000/api/pias/v2/attribute/individual"
 
 base = datetime.date(2026, 5, 1)
@@ -265,7 +265,7 @@ function showOv(pane){{
 </body>
 </html>"""
 
-os.makedirs(os.path.dirname(OUT), exist_ok=True)
-with open(OUT, "w", encoding="utf-8") as f:
+OUT.parent.mkdir(parents=True, exist_ok=True)
+with OUT.open("w", encoding="utf-8") as f:
     f.write(html)
 print("H5 written ->", OUT, "bytes=", len(html))

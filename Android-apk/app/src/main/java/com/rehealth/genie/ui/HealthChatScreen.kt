@@ -14,9 +14,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.network.HealthChatService
 import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.RingViewModel
@@ -24,7 +26,7 @@ import com.rehealth.genie.ui.theme.*
 import kotlinx.coroutines.launch
 
 /**
- * AI健康问答页面 - 连接GPT-5.6 Luna
+ * AI健康问答页面 - 通过后端托管的健康助手模型服务（本地默认 DeepSeek V4 Flash）。
  */
 @Composable
 fun HealthChatScreen(
@@ -34,8 +36,8 @@ fun HealthChatScreen(
     var messages by remember { mutableStateOf(listOf<ChatMessage>()) }
     var inputText by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
-    var currentModel by remember { mutableStateOf("DeepSeek V4 Pro") }
-    val chatService = remember { HealthChatService() }
+    val application = LocalContext.current.applicationContext as ReHealthApplication
+    val chatService = remember(application) { HealthChatService(application.authenticatedApiClient) }
     val scope = rememberCoroutineScope()
     val ringState by ringViewModel.uiState.collectAsState()
 
@@ -57,23 +59,7 @@ fun HealthChatScreen(
             }
             Column(Modifier.weight(1f)) {
                 Text("AI健康问答", color = Ink, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                Text(currentModel, color = Muted, fontSize = 11.sp)
-            }
-            // 切换AI模型按钮
-            IconButton(
-                onClick = {
-                    scope.launch {
-                        if (currentModel.contains("Luna")) {
-                            chatService.switchToDeepSeek()
-                            currentModel = "DeepSeek V4 Pro (国内直连)"
-                        } else {
-                            chatService.switchToLuna()
-                            currentModel = "GPT-5.6 Luna (需要VPN)"
-                        }
-                    }
-                }
-            ) {
-                Icon(Icons.Outlined.Sync, "切换模型", tint = Mint, modifier = Modifier.size(20.dp))
+                Text(chatService.currentModelName(), color = Muted, fontSize = 11.sp)
             }
         }
 

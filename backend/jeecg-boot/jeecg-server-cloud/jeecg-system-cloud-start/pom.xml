@@ -28,54 +28,17 @@
         <dependency>
             <groupId>org.jeecgframework.boot3</groupId>
             <artifactId>jeecg-system-biz</artifactId>
-            <!-- 排除demo模块，demo模块采用微服务独立启动 -->
-            <exclusions>
-                <exclusion>
-                    <groupId>org.jeecgframework.boot3</groupId>
-                    <artifactId>jeecg-module-demo</artifactId>
-                </exclusion>
-            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.jeecgframework.boot3</groupId>
+            <artifactId>jeecg-module-rehealth</artifactId>
+            <version>${jeecgboot.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.jeecgframework.boot3</groupId>
             <artifactId>jeecg-boot-starter-job</artifactId>
         </dependency>
-
-        <!-- feign 熔断限流、分布式锁、xxljob示例 
-        <dependency>
-            <groupId>org.jeecgframework.boot3</groupId>
-            <artifactId>jeecg-cloud-test-more</artifactId>
-            <version>${jeecgboot.version}</version>
-        </dependency>-->
-        <!-- rabbitmq例子
-        <dependency>
-            <groupId>org.jeecgframework.boot3</groupId>
-            <artifactId>jeecg-cloud-test-rabbitmq</artifactId>
-            <version>${jeecgboot.version}</version>
-        </dependency>-->
-        <!-- rocketmq例子-->
-        <!--<dependency>
-            <groupId>org.jeecgframework.boot3</groupId>
-            <artifactId>jeecg-cloud-test-rocketmq</artifactId>
-            <version>${jeecgboot.version}</version>
-        </dependency>-->
-        <!-- 分布式事务例子
-       <dependency>
-           <groupId>org.jeecgframework.boot3</groupId>
-           <artifactId>jeecg-cloud-test-seata</artifactId>
-           <version>${jeecgboot.version}</version>
-       </dependency>-->
-        <!-- 分库分表例子
-       <dependency>
-           <groupId>org.jeecgframework.boot3</groupId>
-           <artifactId>jeecg-cloud-test-shardingsphere</artifactId>
-           <version>${jeecgboot.version}</version>
-       </dependency>
-        <dependency>
-            <groupId>org.jeecgframework.boot3</groupId>
-            <artifactId>jeecg-boot-starter-shardingsphere-nacos</artifactId>
-        </dependency>-->
 
     </dependencies>
 

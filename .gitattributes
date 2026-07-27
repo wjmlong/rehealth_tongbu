@@ -1,1 +1,8 @@
-tools/commandlinetools-win_latest.zip filter=lfs diff=lfs merge=lfs -text
+# Source files use repository-consistent line endings. Generated binaries and
+# downloaded toolchains are ignored instead of being stored through Git LFS.
+* text=auto
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+*.sh text eol=lf
+*.aar binary

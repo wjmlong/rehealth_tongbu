@@ -1,3 +1,42 @@
 # OS files
 *.DS_Store
 Thumbs.db
+
+# Build outputs, caches, downloaded toolchains
+*.zip
+/Android-apk/**/build/
+**/target/
+**/.venv/
+**/node_modules/
+**/__pycache__/
+*.pyc
+*.class
+.gradle/
+*.log
+/sync_to_github.log
+/sync_debug.log
+/tools/apache-maven-*/
+/tools/apache-maven-*-bin.zip
+/tools/commandlinetools-*.zip
+
+# Local IDE, agent, runtime, and generated evidence state
+.claude/
+.codegraph/
+.idea/
+.omo/
+.workbuddy/
+.codex/
+**/codex-runs/
+**/.git_backup/
+**/.ref/
+**/outputs/
+/topology.json
+*.backup
+*.disabled
+*.done
+*.exit
+*.orig
+*.tmp
+**/local.properties
+**/local.properties.backup
+/MuMu_启动与adb配置.md

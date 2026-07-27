@@ -256,7 +256,9 @@ JeecgBoot平台提供了一套完善的AI应用管理系统模块，是一套类
 项目结构
 ├─jeecg-boot-parent（父POM： 项目依赖、modules组织）
 │  ├─jeecg-boot-base-core（共通模块： 工具类、config、权限、查询过滤器、注解等）
-│  ├─jeecg-module-demo    示例代码
+│  ├─jeecg-boot-module
+│  │  ├─jeecg-module-rehealth      睿禾健康业务模块
+│  │  └─jeecg-boot-module-airag    Jeecg AI/RAG 模块
 │  ├─jeecg-module-system  System系统管理目录
 │  │  ├─jeecg-system-biz    System系统管理权限等功能
 │  │  ├─jeecg-system-start  System单体启动项目(8080）
@@ -267,16 +269,10 @@ JeecgBoot平台提供了一套完善的AI应用管理系统模块，是一套类
      ├─jeecg-cloud-gateway       --微服务网关模块(9999)
      ├─jeecg-cloud-nacos       --Nacos服务模块(8848)
      ├─jeecg-system-cloud-start  --System微服务启动项目(7001)
-     ├─jeecg-demo-cloud-start    --Demo微服务启动项目(7002)
      ├─jeecg-visual
         ├─jeecg-cloud-monitor       --微服务监控模块 (9111)
         ├─jeecg-cloud-xxljob        --微服务xxljob定时任务服务端 (9080)
         ├─jeecg-cloud-sentinel     --sentinel服务端 (9000)
-        ├─jeecg-cloud-test           -- 微服务测试示例（各种例子）
-           ├─jeecg-cloud-test-more         -- 微服务测试示例（feign、熔断降级、xxljob、分布式锁）
-           ├─jeecg-cloud-test-rabbitmq     -- 微服务测试示例（rabbitmq）
-           ├─jeecg-cloud-test-seata          -- 微服务测试示例（seata分布式事务）
-           ├─jeecg-cloud-test-shardingsphere    -- 微服务测试示例（分库分表）
 ```
 
 

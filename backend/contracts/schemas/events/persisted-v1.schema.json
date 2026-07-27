@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:rehealth:telemetry:persisted:v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_type", "event_id", "batch_id", "schema_id", "tenant_ref", "user_ref", "device_ref", "window_started_at", "window_ended_at", "record_count", "quality_status", "persistence_status"],
+  "properties": {
+    "event_type": {"type": "string", "enum": ["rehealth.telemetry.persisted.v1"]},
+    "event_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{8,128}$"},
+    "batch_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{8,128}$"},
+    "schema_id": {"type": "string", "enum": ["rehealth.telemetry.persisted.v1"]},
+    "tenant_ref": {"type": "string", "pattern": "^opaque_[A-Za-z0-9_-]{8,128}$"},
+    "user_ref": {"type": "string", "pattern": "^opaque_[A-Za-z0-9_-]{8,128}$"},
+    "device_ref": {"type": "string", "pattern": "^opaque_[A-Za-z0-9_-]{8,128}$"},
+    "window_started_at": {"type": "string"},
+    "window_ended_at": {"type": "string"},
+    "record_count": {"type": "integer"},
+    "quality_status": {"type": "string", "enum": ["accepted", "accepted_with_warnings"]},
+    "persistence_status": {"type": "string", "enum": ["persisted"]}
+  }
+}

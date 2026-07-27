@@ -1,0 +1,90 @@
+[
+  {
+    "id": "rehealth-device-telemetry",
+    "order": -100,
+    "predicates": [
+      {
+        "name": "Path",
+        "args": {
+          "_genkey_0": "/jeecg-boot/rehealth/mobile/measurements/batch",
+          "_genkey_1": "/jeecg-boot/rehealth/mobile/measurements/recent"
+        }
+      }
+    ],
+    "filters": [
+      {
+        "name": "StripPrefix",
+        "args": {
+          "parts": "1"
+        }
+      },
+      {
+        "name": "RemoveRequestHeader",
+        "args": {
+          "name": "X-ReHealth-User-Id"
+        }
+      },
+      {
+        "name": "RemoveRequestHeader",
+        "args": {
+          "name": "X-ReHealth-Tenant-Id"
+        }
+      }
+    ],
+    "uri": "lb://rehealth-device-service"
+  },
+  {
+    "id": "rehealth-business",
+    "order": -90,
+    "predicates": [
+      {
+        "name": "Path",
+        "args": {
+          "_genkey_0": "/jeecg-boot/rehealth/**"
+        }
+      }
+    ],
+    "filters": [
+      {
+        "name": "StripPrefix",
+        "args": {
+          "parts": "1"
+        }
+      },
+      {
+        "name": "RemoveRequestHeader",
+        "args": {
+          "name": "X-ReHealth-User-Id"
+        }
+      },
+      {
+        "name": "RemoveRequestHeader",
+        "args": {
+          "name": "X-ReHealth-Tenant-Id"
+        }
+      }
+    ],
+    "uri": "lb://jeecg-system"
+  },
+  {
+    "id": "jeecg-system",
+    "order": 0,
+    "predicates": [
+      {
+        "name": "Path",
+        "args": {
+          "_genkey_0": "/jeecg-boot/**"
+        }
+      }
+    ],
+    "filters": [
+      {
+        "name": "StripPrefix",
+        "args": {
+          "parts": "1"
+        }
+      }
+    ],
+    "uri": "lb://jeecg-system"
+  }
+]

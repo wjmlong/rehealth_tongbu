@@ -8,9 +8,9 @@ This note records the model artifact evidence found in `rehealth-algorithms` doc
 
 Reviewed files:
 
-- `D:\rehealthAI\rehealth-algorithms\docs\工程日记_CVD模型训练.md`
-- `D:\rehealthAI\rehealth-algorithms\docs\V1_工程实施版_端云协同系统开发框架说明书.md`
-- `D:\rehealthAI\rehealth-algorithms\docs\CTO技术决策对话记录_20260525.md`
+- `rehealth-algorithms/docs/工程日记_CVD模型训练.md`
+- `rehealth-algorithms/docs/V1_工程实施版_端云协同系统开发框架说明书.md`
+- `rehealth-algorithms/docs/CTO技术决策对话记录_20260525.md`
 
 Key evidence:
 

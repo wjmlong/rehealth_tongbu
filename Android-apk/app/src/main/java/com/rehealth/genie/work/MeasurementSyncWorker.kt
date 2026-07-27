@@ -4,12 +4,13 @@ import android.content.Context
 import android.util.Log
 import androidx.work.*
 import com.rehealth.genie.ReHealthApplication
+import com.rehealth.genie.data.sync.MeasurementUploadOutcome
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 
 /**
- * D3 periodic worker that drains the intervention feedback queue.
+ * D3 periodic worker that drains durable measurement and intervention feedback queues.
  *
  * Runs every 30 minutes when:
  * - Network is available
@@ -46,6 +47,15 @@ class MeasurementSyncWorker(
         }
 
         try {
+            for (item in syncRepo.pending()) {
+                when (measurementWorkerAction(syncRepo.uploadQueuedItem(item))) {
+                    MeasurementWorkerAction.RETRY -> return@withContext Result.retry()
+                    MeasurementWorkerAction.STOP_SUCCESS -> return@withContext Result.success()
+                    MeasurementWorkerAction.CONTINUE -> Unit
+                }
+            }
+            syncRepo.pruneDone()
+
             // Fetch pending feedback
             val pendingItems = feedbackRepo.getPendingUploads()
             Log.i(TAG, "Found ${pendingItems.size} pending feedback items")
@@ -61,8 +71,6 @@ class MeasurementSyncWorker(
             var pausedDueToAuth = false
 
             for (item in pendingItems) {
-                Log.d(TAG, "Uploading feedback ${item.id} for intervention ${item.interventionId}")
-
                 val updatedItem = feedbackRepo.uploadFeedback(item)
 
                 if (updatedItem == null) {
@@ -77,14 +85,13 @@ class MeasurementSyncWorker(
                 when (updatedItem.uploadStatus) {
                     "done" -> {
                         uploadedCount++
-                        Log.i(TAG, "Feedback ${item.id} uploaded successfully")
                     }
                     "failed" -> {
                         if (updatedItem.uploadAttempts >= MAX_ATTEMPTS) {
                             failedCount++
-                            Log.e(TAG, "Feedback ${item.id} failed permanently after ${updatedItem.uploadAttempts} attempts")
+                            Log.e(TAG, "feedback upload exhausted retry policy")
                         } else {
-                            Log.w(TAG, "Feedback ${item.id} failed, will retry (attempt ${updatedItem.uploadAttempts})")
+                            Log.w(TAG, "feedback upload scheduled for retry")
                         }
                     }
                 }
@@ -162,4 +169,16 @@ class MeasurementSyncWorker(
             Log.i(TAG, "Immediate sync triggered")
         }
     }
+}
+
+internal enum class MeasurementWorkerAction {
+    CONTINUE,
+    RETRY,
+    STOP_SUCCESS,
+}
+
+internal fun measurementWorkerAction(outcome: MeasurementUploadOutcome): MeasurementWorkerAction = when (outcome) {
+    MeasurementUploadOutcome.RetryScheduled -> MeasurementWorkerAction.RETRY
+    MeasurementUploadOutcome.Paused -> MeasurementWorkerAction.STOP_SUCCESS
+    else -> MeasurementWorkerAction.CONTINUE
 }

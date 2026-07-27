@@ -53,15 +53,14 @@ cards.
 `cloudRiskLevel`, `cloudRiskMode`, `cloudRiskSummary`) for existing sync behavior, but
 P0b risk UI reads from the canonical feature-evaluate status instead.
 
-## Mock And Fallback Behavior
+## Mock And Failure Behavior
 
 `RemotePhmService` is the primary risk service. It evaluates a `CvdFeatureVector`
 through the backend `/features/evaluate` endpoint.
 
-`MockPhmService` remains available only as an explicit fallback when the backend,
-model-service through backend, or local DTO mapping is unavailable. The UI labels fallback
-as `local mock fallback` and labels backend mock responses separately as backend/cloud mock
-responses. Mock values must not be presented as production risk results.
+Backend, model-service, and local DTO mapping failures produce an explicit unavailable
+state and no local risk score. A backend response with `is_mock=true` remains visible as
+cloud mock output and is excluded from confirmed risk history and attribution input.
 
 The UI preserves and displays, when available:
 
@@ -69,7 +68,7 @@ The UI preserves and displays, when available:
 - risk level
 - feature contributions
 - model version
-- mock/fallback flag
+- backend mock flag or explicit unavailable state
 - request id
 
 ## E2 Telemetry Note

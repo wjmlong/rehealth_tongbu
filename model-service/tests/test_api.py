@@ -1,9 +1,11 @@
 from fastapi.testclient import TestClient
 
-from app.main import app
+from app.main import create_app
+from app.risk_scorer import MockRiskScorer
+from app.runtime_config import AttributionMode, RuntimeConfig, RuntimeMode
 
 
-client = TestClient(app)
+client = TestClient(create_app(scorer=MockRiskScorer()))
 
 
 def feature_vector():
@@ -144,6 +146,7 @@ def test_risk_endpoint_response_field_names_are_stable():
         "summary",
         "request_id",
         "contribution_method",
+        "base_value",
         "model_trace",
     }
 
@@ -205,13 +208,19 @@ def test_risk_endpoint_rejects_missing_quality_entries():
 
 
 def test_individual_attribution_endpoint_shape():
-    response = client.post(
+    demo_client = TestClient(create_app(RuntimeConfig(
+        runtime_mode=RuntimeMode.DEMO,
+        attribution_mode=AttributionMode.DEMO_MOCK,
+        demo_enabled=True,
+        mock_attribution_enabled=True,
+        provenance="demo_mock",
+    )))
+    response = demo_client.post(
         "/v1/cvd/attribution/individual",
         json={
-            "baselineRiskScore": 0.40,
-            "events": [
-                {"date": "2026-07-01", "risk_score": 0.40, "intervention_id": "walking", "adherence": 0.5},
-                {"date": "2026-07-08", "risk_score": 0.34, "intervention_id": "walking", "adherence": 0.8},
+            "risk_history": [
+                {"date": "2026-07-01", "Y": 0.40, "Z": 0},
+                {"date": "2026-07-08", "Y": 0.34, "Z": 1},
             ],
         },
     )
@@ -220,4 +229,19 @@ def test_individual_attribution_endpoint_shape():
     body = response.json()
     assert body["model_version"]
     assert body["trend_delta"] == -0.06
-    assert body["adherence_average"] == 0.65
+    assert body["adherence_average"] == 0.5
+    assert body["status"] == "ready"
+    assert body["attribution_mode"] == "demo_mock"
+    assert body["is_mock"] is True
+    assert body["provider"] == "model-service"
+    assert len(body["forecast"]["raw"]["dates"]) == 30
+    assert "individual_att" in body["intervention_effect"]
+
+
+def test_mock_attribution_endpoint_is_absent_by_default():
+    response = client.post(
+        "/v1/cvd/attribution/individual",
+        json={"baselineRiskScore": 0.4, "events": []},
+    )
+
+    assert response.status_code == 404

@@ -16,8 +16,12 @@ The runtime loads a reviewed local CVD-16 CatBoost artifact when canonical files
 ## API
 
 - `GET /health`
+- `GET /ready`
+- `GET /metrics`
+- `GET /v1/models/active`
 - `POST /v1/cvd/risk/evaluate`
 - `POST /v1/cvd/intervention/generate`
+- `POST /v1/cvd/attribution/individual` only when explicit `demo_mock` mode is enabled outside production/staging
 
 `/v1/cvd/risk/evaluate` accepts either a flat Android feature vector body or `{ "featureVector": { ... } }`. The service accepts Android camelCase names and snake_case names for the CVD fields.
 
@@ -27,22 +31,44 @@ Real model artifact requirements, F2 safety gates, historical artifact traces, a
 ## Run
 
 ```powershell
-cd D:\rehealthAI\model-service
+cd model-service
 python -m pip install -r requirements.txt
 python -m uvicorn app.main:app --reload
 ```
 
+### Local DeepSeek V4 Flash configuration
+
+For local development, copy `config/ai-chat.example.yml` to the Git-ignored
+`config/ai-chat.local.yml`, then fill only the local `api-key` value:
+
+```yaml
+health-agent:
+  provider:
+    base-url: https://api.deepseek.com
+    model: deepseek-v4-flash
+    api-key: "your-local-api-key"
+```
+
+The default local YAML is loaded automatically when the service starts. A
+non-empty `api-key` automatically enables the provider, and process environment
+variables still take precedence. For an alternate local path, set
+`REHEALTH_LOCAL_CONFIG_FILE`.
+
+Embedded YAML credentials are development-only. Production and staging still
+reject them and require `REHEALTH_PROVIDER_CREDENTIAL_FILE` plus an externally
+mounted secret.
+
 ## Test
 
 ```powershell
-cd D:\rehealthAI\model-service
+cd model-service
 python -m pytest
 ```
 
 ## Docker
 
 ```powershell
-cd D:\rehealthAI\model-service
+cd model-service
 docker build -t rehealth-model-service .
 docker run --rm -p 8000:8000 rehealth-model-service
 ```
@@ -125,6 +151,13 @@ The current reviewed local candidate is `cvd-core16-catboost-20260710T173543Z` w
 
 `app.risk_scorer.load_risk_scorer()` falls back to `MockRiskScorer` when a real model is unavailable. A real scorer can be enabled only when a local model artifact and a local feature-order artifact exist under the local `models/` directory and validate.
 
+Protected runtime modes also require
+`REHEALTH_MODEL_SERVICE_BASE_URL` to be an HTTPS URL without embedded
+credentials and `REHEALTH_PROVIDER_CREDENTIAL_FILE` to name the externally
+mounted provider credential. `REHEALTH_PROVIDER_SECRET` is rejected in
+production and staging; provider values must not be embedded in environment
+configuration.
+
 Model artifact search order:
 
 ```text
@@ -143,6 +176,29 @@ models/cvd_features.json
 `feature_cols.pkl`, `feature_cols_v2.pkl`, or `cvd_features.json` must exactly match the Android C1 CVD 16 feature order. `models/model_meta_v2.json` or `models/model_metadata.json` is optional but recommended for `model_version`. The service does not hardcode old AUC values such as `0.847`; AUC is omitted unless verified metadata provides it.
 
 `GET /health` reports `scorer_mode` as `real_unavailable`, `real_available`, or `mock`. The service must not return `is_mock=false` unless the real model artifact loads and scores successfully.
+
+`GET /ready` is the deployment readiness probe. It returns HTTP 503 with a
+stable code when the reviewed model is unavailable, its schema is invalid, or
+the externally verified production artifact marker is absent. `GET /health`
+remains a liveness probe and stays HTTP 200 while the process can serve
+diagnostics. Explicit Demo mock mode is never relabeled as a real model.
+
+`GET /v1/models/active` exposes only bounded model version, schema, mode,
+artifact basename, and readiness metadata. It does not expose configured
+filesystem paths or validation exception details. Every response carries
+`X-Request-ID`; risk responses mirror the same value in `request_id` and
+`model_trace.request_id`.
+
+`GET /metrics` exposes Prometheus counters and latency histograms labeled only
+by the fixed operation and outcome sets. Request IDs, tokens, feature values,
+and payload fields are never metric labels.
+
+Production and staging additionally require `REHEALTH_MODEL_VERIFICATION_FILE`
+to reference the 64-character SHA-256 marker written by the artifact verifier.
+Inference is bounded by `REHEALTH_MODEL_EVALUATION_TIMEOUT_SECONDS`; repeated
+runtime failures open a short circuit controlled by
+`REHEALTH_MODEL_CIRCUIT_FAILURE_THRESHOLD` and
+`REHEALTH_MODEL_CIRCUIT_RESET_SECONDS`.
 
 ## Model Governance
 
@@ -164,3 +220,17 @@ When a real artifact is validated and predicts successfully, `model_trace.artifa
 - Request payloads are not logged.
 - Raw PII fields are not part of the model-service contract.
 - Intervention text is conservative wellness support and includes a medical disclaimer.
+
+## Health-agent boundary
+
+`POST /v1/health-agent/respond` is an internal, stateless model-service
+boundary. JeecgBoot authenticates the mobile user and selects only the current
+user's age band, latest risk summary, and current recommended action. The
+provider credential remains in model-service only.
+
+Deployment uses `REHEALTH_AGENT_PROVIDER_ENABLED`,
+`REHEALTH_AGENT_PROVIDER_BASE_URL`, `REHEALTH_AGENT_PROVIDER_MODEL`,
+`REHEALTH_PROVIDER_CREDENTIAL_FILE`, and
+`REHEALTH_AGENT_INTERNAL_TOKEN_FILE`. Provider-disabled demo output is
+available only with an explicit Demo flag outside production. Audit records
+contain request/model/outcome metadata, never prompts or health context.

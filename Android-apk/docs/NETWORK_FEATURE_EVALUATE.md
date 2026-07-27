@@ -2,7 +2,7 @@
 
 > Android workstream D1: connect the local C1 feature extractor to the backend E1
 > `/rehealth/mobile/features/evaluate` endpoint and replace the purely mock PHM path
-> with a remote-capable service while keeping local fallback safe.
+> with a remote-only service that fails explicitly when the backend is unavailable.
 
 Status: D1 narrowed scope. Production durable telemetry sync is intentionally E2.
 
@@ -17,12 +17,12 @@ D1 delivers:
 - `RemotePhmService` that orchestrates feature evaluation, risk retrieval, and
   intervention retrieval/feedback, with a single lightweight timeout-only retry on
   feature evaluation.
-- `MockPhmService` retained as a local/dev fallback when the backend is unreachable,
-  misconfigured, returns a non-success envelope, or the request DTO mapping fails.
+- Backend, model-service, authentication, and DTO failures return a typed unavailable
+  outcome without generating synthetic risk data.
 - Safe, typed error handling: backend unavailable, timeout, model-service
   unavailable, invalid DTO, missing feature fields, HTTP status.
 - Minimal, additive UI wiring: the "端侧健康模型" page now surfaces whether the
-  backend E1 health check is reachable and which mode (mock/cloud/local fallback) is
+  backend E1 health check is reachable and which mode (cloud mock/cloud/unavailable) is
   being used. No large redesign.
 
 ## D1-safe endpoints
@@ -88,9 +88,8 @@ HealthFeatureExtractor (C1) -> CvdFeatureVector (camelCase)
    -> unwrap JeecgBoot Result<> envelope
    -> RemotePhmOutcome.Success(RiskResultDto) | Failure(RemotePhmError)
    -> RemotePhmService.evaluateFeatures()
-       success -> FeatureEvaluationOutcome(result, usedMockFallback=false)
-       failure -> usedMockFallback=true, error typed, MockPhmService remains as the
-                  local snapshot the legacy UI consumes.
+       success -> FeatureEvaluationOutcome(result, failureReason=null)
+       failure -> result=null, error typed, failureReason shown as unavailable.
 ```
 
 The feature-evaluation request DTO keeps `featureQuality` entries for every canonical
@@ -154,7 +153,7 @@ Unchanged and out of scope:
 
 ## Validation
 
-From `D:\rehealthAI\Android-apk`:
+From the repository's `Android-apk` directory:
 
 ```powershell
 .\gradlew.bat testDebugUnitTest
@@ -177,6 +176,6 @@ failure handling), 0 failures.
   feature-evaluation contract; if cross-workstream D2/E2 work standardizes on the new
   typed client, a follow-up task should migrate the snapshot path.
 - D1 does not implement token refresh. When the configured `X-Access-Token` is rejected
-  by protected endpoints, the app stays on local mock fallback.
+  by protected endpoints, the app reports that evaluation is unavailable.
 - No production telemetry upload. Handheld/physical-device testing requires the E2 work
   to add durable `/measurements/batch` with idempotency and a real hardware_db writer.

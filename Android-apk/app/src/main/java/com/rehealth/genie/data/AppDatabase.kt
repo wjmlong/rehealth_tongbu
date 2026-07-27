@@ -47,16 +47,41 @@ data class AttributionLogEntity(
         RingSignalChunkEntity::class,
         UploadQueueEntity::class,
         InterventionFeedbackEntity::class,
+        RiskHistoryEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun ringDataDao(): RingDataDao
     abstract fun uploadQueueDao(): UploadQueueDao
     abstract fun interventionFeedbackDao(): InterventionFeedbackDao
+    abstract fun riskHistoryDao(): RiskHistoryDao
 
     companion object {
+        private val Migration3To4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                val tables = buildSet {
+                    db.query("SELECT name FROM sqlite_master WHERE type = 'table'").use { cursor ->
+                        val nameIndex = cursor.getColumnIndex("name")
+                        while (cursor.moveToNext()) {
+                            add(cursor.getString(nameIndex))
+                        }
+                    }
+                }
+                VersionThreeSchemaSql.forExistingTables(tables).forEach(db::execSQL)
+                val columns = buildSet {
+                    db.query("PRAGMA table_info(cvd_risk_history)").use { cursor ->
+                        val nameIndex = cursor.getColumnIndex("name")
+                        while (cursor.moveToNext()) {
+                            add(cursor.getString(nameIndex))
+                        }
+                    }
+                }
+                RiskHistoryMigrationSql.forColumns(columns).forEach(db::execSQL)
+            }
+        }
+
         private val Migration2To3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // D3 sync queue for offline uploads
@@ -179,7 +204,7 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun create(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, "rehealth-local.db")
-                .addMigrations(Migration1To2, Migration2To3)
+                .addMigrations(Migration1To2, Migration2To3, Migration3To4)
                 .fallbackToDestructiveMigration()
                 .build()
     }

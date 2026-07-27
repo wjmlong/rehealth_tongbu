@@ -6,6 +6,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class InterventionGenerateRequestDto {
+    @JSONField(name = "request_id")
+    public String requestId;
     @JSONField(name = "riskResult")
     public RiskEvaluateResponseDto riskResult;
     @JSONField(name = "featureVector")

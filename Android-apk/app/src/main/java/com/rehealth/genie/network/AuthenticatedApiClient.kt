@@ -6,6 +6,22 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import retrofit2.Response
 
+interface MeasurementUploadClient {
+    val authState: AuthState
+
+    suspend fun uploadMeasurements(
+        request: TelemetryBatchRequestDto,
+    ): ApiResult<TelemetryBatchResponseDto>
+}
+
+interface HealthInterviewUploadClient {
+    val authState: AuthState
+
+    suspend fun submitHealthInterview(
+        request: HealthInterviewSubmitRequestDto,
+    ): ApiResult<HealthInterviewSubmitRequestDto>
+}
+
 /**
  * D3 authenticated API client with 401 detection and queue pause.
  *
@@ -20,20 +36,32 @@ class AuthenticatedApiClient(
     private val baseUrl: String,
     private val httpClient: OkHttpClient,
     private val sessionStore: SessionStore,
-) {
+) : MeasurementUploadClient, HealthInterviewUploadClient {
     private var mobileApi = ReHealthMobileApi(
         baseUrl = baseUrl,
         httpClient = httpClient,
         apiToken = sessionStore.token,
     )
 
-    var authState: AuthState = if (sessionStore.isLoggedIn) AuthState.Authorized else AuthState.Unauthorized
+    override var authState: AuthState = if (sessionStore.isLoggedIn) AuthState.Authorized else AuthState.Unauthorized
         private set
 
     suspend fun evaluateFeatures(
         request: FeatureEvaluateRequest,
     ): ApiResult<RiskResultDto> = executeWithAuth {
         mobileApi.evaluateFeatures(request)
+    }
+
+    suspend fun getProfile(): ApiResult<PatientProfileDto?> = executeWithAuth {
+        mobileApi.getProfile()
+    }
+
+    suspend fun updateProfile(request: PatientProfileDto): ApiResult<PatientProfileDto> = executeWithAuth {
+        mobileApi.updateProfile(request)
+    }
+
+    suspend fun bindDevice(request: DeviceBindRequestDto): ApiResult<DeviceBindResponseDto> = executeWithAuth {
+        mobileApi.bindDevice(request)
     }
 
     suspend fun submitInterventionFeedback(
@@ -43,12 +71,42 @@ class AuthenticatedApiClient(
         mobileApi.submitInterventionFeedback(interventionId, request)
     }
 
+    override suspend fun uploadMeasurements(
+        request: TelemetryBatchRequestDto,
+    ): ApiResult<TelemetryBatchResponseDto> = executeWithAuth {
+        mobileApi.uploadMeasurements(request)
+    }
+
+    override suspend fun submitHealthInterview(
+        request: HealthInterviewSubmitRequestDto,
+    ): ApiResult<HealthInterviewSubmitRequestDto> = executeWithAuth {
+        mobileApi.submitHealthInterview(request)
+    }
+
+    suspend fun attributeIndividual(
+        request: IndividualAttributionRequestDto,
+    ): ApiResult<IndividualAttributionResponseDto> = executeWithAuth {
+        mobileApi.attributeIndividual(request)
+    }
+
+    suspend fun sendHealthAgentMessage(
+        request: HealthAgentMessageRequest,
+    ): ApiResult<HealthAgentResponse> = executeWithAuth {
+        mobileApi.sendHealthAgentMessage(request)
+    }
+
     suspend fun getRiskLatest(): ApiResult<RiskResultDto?> = executeWithAuth {
         mobileApi.getRiskLatest()
     }
 
     suspend fun getInterventionsToday(): ApiResult<InterventionPlanDto?> = executeWithAuth {
         mobileApi.getInterventionsToday()
+    }
+
+    suspend fun generateIntervention(
+        request: InterventionGenerateRequestDto,
+    ): ApiResult<InterventionPlanDto> = executeWithAuth {
+        mobileApi.generateIntervention(request)
     }
 
     suspend fun getHealth(): ApiResult<HealthCheckResponse> = executeWithAuth {
@@ -104,12 +162,16 @@ class AuthenticatedApiClient(
      * Maps a [RemotePhmError] for the pre-auth registration endpoints. Business/validation
      * errors (e.g. "短信接口未配置", "手机验证码失效") are surfaced as [ApiResult.InvalidRequest]
      * so the UI can show the backend message; transport errors become [ApiResult.NetworkError].
+     *
+     * Note: the backend wraps business failures in HTTP 200 with JeecgResult.code = 0/500/412,
+     * which [toRemotePhmError] represents as [RemotePhmError.HttpStatusError]. For pre-auth
+     * endpoints only 401/403 are true auth errors, so everything else is shown to the user.
      */
     private fun mapPreAuthFailure(error: RemotePhmError): ApiResult<Nothing> = when (error) {
         is RemotePhmError.HttpStatusError -> when (error.code) {
             401 -> ApiResult.Unauthorized(error.message)
             403 -> ApiResult.Forbidden(error.message)
-            else -> ApiResult.NetworkError(error.message)
+            else -> ApiResult.InvalidRequest(error.message)
         }
         is RemotePhmError.ModelServiceUnavailable -> ApiResult.ServiceUnavailable(error.message)
         is RemotePhmError.InvalidDto -> ApiResult.InvalidRequest(error.message)
@@ -157,6 +219,8 @@ class AuthenticatedApiClient(
                             ApiResult.Unauthorized("Token expired or invalid, please re-login")
                         } else if (error.code == 403) {
                             ApiResult.Forbidden(error.message)
+                        } else if (error.code == 503) {
+                            ApiResult.ServiceUnavailable(error.message)
                         } else {
                             ApiResult.NetworkError(error.message)
                         }

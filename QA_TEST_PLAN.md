@@ -1,43 +1,40 @@
 # ReHealth MVP QA Test Plan
 
-Date: 2026-07-09
-Owner: G_qa_release_acceptance
-Scope: acceptance audit plan for Android MVP, backend E1, and model-service F1. This is not final release approval.
+Last reviewed: 2026-07-27
+Scope: Android MVP, backend services, model-service, contract gates, and release QA. This plan is not final release approval; see `STATUS.md` for current blockers.
 
 ## Test Environment
 
-- Android app: `D:\rehealthAI\Android-apk`
-- Backend: `D:\rehealthAI\backend\jeecg-boot`
-- Model service: `D:\rehealthAI\model-service`
-- Physical QA required: BLE-capable Android phone and MRD ring.
-- Command-line Java: set `JAVA_HOME=D:\Android_Studio\jbr`.
-- Command-line Python fallback: `C:\Users\kiki\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe`.
+- Run commands from the repository root unless a command explicitly changes directory.
+- Android app: `Android-apk/`
+- Backend: `backend/`
+- Model service: `model-service/`
+- Physical QA required: BLE-capable Android phone and the applicable MRD/RWFit ring or HBand watch/band.
+- Use JDK, Maven, Python, Android SDK, and Gradle wrapper versions documented by each module; do not commit machine-local paths.
 
 ## Automated Validation
 
 Run before every candidate handoff:
 
 ```powershell
-cd D:\rehealthAI\Android-apk
-$env:JAVA_HOME = "D:\Android_Studio\jbr"
-$env:Path = "$env:JAVA_HOME\bin;$env:Path"
+cd Android-apk
 .\gradlew.bat testDebugUnitTest
 .\gradlew.bat assembleDebug
+cd ..
+```
+
+```powershell
+mvn -f backend/contracts/telemetry/pom.xml test
+mvn -f backend/device-service/pom.xml test
+mvn -f backend/jeecg-boot/pom.xml -pl jeecg-boot-module/jeecg-module-rehealth -am test
+```
+
+```powershell
+python -m pytest model-service
+python -m compileall model-service/app
+python backend/contracts/scripts/validate_contracts.py
+python backend/qa/rehealth_stack_gate.py topology --compose backend/deploy/rehealth/docker-compose.yml --profiles staging,production --report topology.json
 git diff --check
-```
-
-```powershell
-cd D:\rehealthAI\backend\jeecg-boot
-$env:JAVA_HOME = "D:\Android_Studio\jbr"
-$env:Path = "$env:JAVA_HOME\bin;$env:Path"
-D:\rehealthAI\tools\apache-maven-3.9.11\bin\mvn.cmd -pl jeecg-boot-module/jeecg-module-rehealth -am package -DskipTests
-D:\rehealthAI\tools\apache-maven-3.9.11\bin\mvn.cmd -pl jeecg-module-system/jeecg-system-start -am package -DskipTests
-```
-
-```powershell
-cd D:\rehealthAI\model-service
-C:\Users\kiki\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m pytest
-C:\Users\kiki\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m compileall app
 ```
 
 ## Manual Android QA
@@ -55,11 +52,26 @@ C:\Users\kiki\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\py
 3. Ring scan/connect
    - Turn Bluetooth on.
    - Scan from device binding screen.
-   - Connect MRD ring.
-   - Confirm connection state updates and no duplicate scan/connect loop is created.
+   - Connect the wearable selected by the current `productCode` (MRD, RWFit, or HBand).
+   - Confirm connection state updates, the active binding survives app restart,
+     and no duplicate scan/connect loop is created.
+   - After clearing app data, start background collection before binding and
+     confirm no fixed-address connection, automatic scan, or fabricated row occurs.
+   - Confirm the current `productCode` activates exactly one Provider.
+   - In Debug, confirm switching products requires confirmation, pauses active
+     collection, disconnects the old Provider, preserves Room history, and does
+     not let the old Provider reconnect. Confirm the selector is absent in Release.
+   - For RWFit, build with
+     `-Prehealth.debug.wearable.product.code=RH-RW-P01`, then record model,
+     firmware and capability output per `Android-apk/docs/wearable/RWFIT_DEVICE_QA.md`.
+   - For HBand, build with
+     `-Prehealth.debug.wearable.product.code=RH-HB-E01`, then follow
+     `Android-apk/docs/wearable/HBAND_DEVICE_QA.md`; this row remains pending while no device is available.
 
 4. Manual measurement
-   - Trigger HR, SpO2, BP, and temperature measurement where firmware supports the metric.
+   - Trigger only metrics advertised by the active Provider. RWFit manual measure
+     currently supports HR, SpO2 and HRV; BP/temperature/stress are not requested.
+     HBand `RH-HB-E01` manual measure currently supports HR only.
    - Confirm each successful result is written to Room before any upload attempt.
    - Confirm unsupported metrics fail with safe UI text.
 
@@ -68,6 +80,11 @@ C:\Users\kiki\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\py
    - Confirm foreground notification appears with Stop action.
    - Put app in background and wait at least one 15 minute interval.
    - Confirm no tight loop and no duplicate collection while foreground sync is active.
+   - Kill and reopen the process, then confirm the active Provider reconnects
+     only its bound address. For HBand, verify encrypted real demographics are
+     restored without a network request or Demo fallback.
+   - Log out while collection is active and confirm the service stops and the
+     device disconnects.
 
 6. Room persistence
    - Inspect local Room tables:
@@ -88,7 +105,7 @@ C:\Users\kiki\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\py
    - Run backend E1 and model-service F1.
    - Configure Android base URL for emulator or physical device LAN.
    - Submit feature evaluation through `POST /rehealth/mobile/features/evaluate`.
-   - Confirm model-service errors fall back to `MockPhmService` and do not block BLE collection.
+   - Confirm model-service errors surface an unavailable state without synthetic risk output and do not block BLE collection.
 
 9. Model-service risk result
    - Confirm response includes `risk_score`, `risk_level`, `feature_contributions`, `model_version`, `is_mock`, `missing_fields`, `quality_warnings`, and `summary`.
@@ -139,6 +156,14 @@ C:\Users\kiki\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\py
     - Start foreground/manual sync while background service interval is due.
     - Confirm background cycle skips when `RingConnectionState.SYNCING`.
     - Confirm Room primary keys/on-conflict behavior avoid duplicate latest rows.
+
+19. Authenticated AI health chat
+   - Put the DeepSeek key only in ignored `model-service/config/ai-chat.local.yml`.
+   - Confirm provider `https://api.deepseek.com` and configured model `deepseek-v4-flash`.
+   - Log in through `/sys/mLogin`, then send a message through `POST /rehealth/mobile/agent/messages`.
+   - Confirm `status=ok`, `model_version=deepseek-v4-flash`, `provider=configured`, `is_demo=false`, and a non-empty `medical_disclaimer`.
+   - Ask for a diagnosis or medication prescription and confirm the response is `safety_refusal`.
+   - Confirm the API key, access token, prompt, and authorized health context are absent from Git status and logs.
 
 ## Failure Cases To Record
 

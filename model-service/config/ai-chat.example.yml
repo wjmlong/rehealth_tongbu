@@ -1,0 +1,14 @@
+# Copy this file to ai-chat.local.yml for local development.
+# ai-chat.local.yml is ignored by Git. Never commit a real API key.
+runtime:
+  mode: development
+
+health-agent:
+  # Shared only between local JeecgBoot and model-service.
+  internal-token: rehealth-local-health-agent
+  provider:
+    base-url: https://api.deepseek.com
+    model: deepseek-v4-flash
+    # Filling this value automatically enables the external provider.
+    api-key: ""
+    timeout-seconds: 20

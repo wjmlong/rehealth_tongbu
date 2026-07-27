@@ -1,12 +1,14 @@
 package com.rehealth.genie.ring.vendor
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
 import androidx.core.content.ContextCompat
+import com.rehealth.genie.logging.SafeLogValues
 import com.rehealth.genie.ring.RequiredRingMetrics
 import com.rehealth.genie.ring.RingConnectionState
 import com.rehealth.genie.ring.RingDevice
@@ -75,11 +77,14 @@ class VendorRingRepository(
                 synchronized(packetsLock) { packets.add(value.copyOf()) }
                 runCatching { protocol.parse(value) }
                     .onSuccess { Log.i(TAG, "read enum=${it.mrdReadEnum} status=${it.status} bytes=${value.size}") }
-                    .onFailure { Log.w(TAG, "read parse failed bytes=${value.size}", it) }
+                    .onFailure { error ->
+                        Log.w(TAG, "read parse failed ${SafeLogValues.byteCount(value)} error=${SafeLogValues.exceptionType(error)}")
+                    }
             }
         })
     }
 
+    @SuppressLint("MissingPermission")
     private fun onConnectionChange(device: BluetoothDevice?, state: BleState) {
         when (state) {
             BleState.CONNECTING -> mutableConnectionState.value = RingConnectionState.CONNECTING
@@ -89,7 +94,11 @@ class VendorRingRepository(
                 mutableConnectionState.value = RingConnectionState.CONNECTED
                 val address = device?.address ?: savedAddress()
                 if (address != null) {
-                    val name = runCatching { device?.name }.getOrNull()
+                    val name = if (hasBlePermission()) {
+                        runCatching { device?.name }.getOrNull()
+                    } else {
+                        null
+                    }
                         ?: preferences.getString(SAVED_NAME, "MRD 智能戒指")
                     val resolved = RingDevice(address, name, null)
                     mutableConnectedDevice.value = resolved
@@ -105,6 +114,7 @@ class VendorRingRepository(
         }
     }
 
+    @SuppressLint("MissingPermission")
     override suspend fun scan(): List<RingDevice> = withContext(Dispatchers.Main) {
         if (!hasBlePermission()) {
             mutableConnectionState.value = RingConnectionState.PERMISSION_REQUIRED
@@ -113,7 +123,7 @@ class VendorRingRepository(
         mutableConnectionState.value = RingConnectionState.SCANNING
         val found = linkedMapOf<String, RingDevice>()
         val listener = SearchListener.ScanListener { device, rssi ->
-            val name = runCatching { device.name }.getOrNull()
+            val name = if (hasBlePermission()) runCatching { device.name }.getOrNull() else null
             val address = device.address ?: return@ScanListener
             val isKnownDevice = address.equals(savedAddress(), ignoreCase = true)
             val isMrdName = name?.contains("MR11", ignoreCase = true) == true ||
@@ -121,7 +131,7 @@ class VendorRingRepository(
             if (isKnownDevice || isMrdName || !name.isNullOrBlank()) {
                 val displayName = name ?: "未知 BLE 设备"
                 found[address] = RingDevice(address, displayName, rssi)
-                Log.i(TAG, "scan candidate name=$name rssi=$rssi")
+                Log.i(TAG, "scan candidate rssi=$rssi known=$isKnownDevice")
             }
         }
         searchBle.addListener(listener)
@@ -283,7 +293,9 @@ class VendorRingRepository(
                 .onSuccess { (request, _) ->
                     Log.i(TAG, "parsed enum=${request.mrdReadEnum} status=${request.status}")
                 }
-                .onFailure { Log.w(TAG, "parse failed bytes=${packet.size}", it) }
+                .onFailure { error ->
+                    Log.w(TAG, "parse failed ${SafeLogValues.byteCount(packet)} error=${SafeLogValues.exceptionType(error)}")
+                }
                 .getOrNull()
         }
         val parsedBatch = protocol.toDataBatch(parsedPackets, now)

@@ -1,52 +1,40 @@
 package com.rehealth.genie
 
 import android.app.Application
-import android.os.Build
 import com.rehealth.genie.data.AppDatabase
+import com.rehealth.genie.data.RiskHistoryRepository
 import com.rehealth.genie.data.sync.InterventionFeedbackRepository
+import com.rehealth.genie.data.sync.RingCloudRepository
 import com.rehealth.genie.data.sync.SyncRepository
 import com.rehealth.genie.network.AuthenticatedApiClient
 import com.rehealth.genie.network.BackendConfig
-import com.rehealth.genie.network.ReHealthBackendClient
-import com.rehealth.genie.network.ReHealthMobileApi
 import com.rehealth.genie.network.SessionStore
 import com.rehealth.genie.notification.RingNotificationChannels
-import com.rehealth.genie.phm.MockPhmService
-import com.rehealth.genie.phm.PhmService
 import com.rehealth.genie.phm.RemotePhmService
 import com.rehealth.genie.ring.RingBackgroundCollectionSettings
-import com.rehealth.genie.ring.MockRingRepository
 import com.rehealth.genie.ring.RingRepository
-import com.rehealth.genie.ring.mrd.MrdBleRingRepository
+import com.rehealth.genie.ring.createRuntimeRingProviderFactories
 import com.rehealth.genie.ring.mrd.MrdProtocolAdapter
+import com.rehealth.genie.ring.provider.ActiveRingRepository
+import com.rehealth.genie.ring.provider.ActiveWearableManager
+import com.rehealth.genie.ring.provider.ActiveWearableStore
+import com.rehealth.genie.ring.provider.RingProviderRegistry
+import com.rehealth.genie.ring.provider.WearableProductCatalog
+import com.rehealth.genie.ring.runtimeDefaultWearableSelection
+import com.rehealth.genie.ring.shouldForceRuntimeWearableSelection
 import com.rehealth.genie.work.MeasurementSyncWorker
 import com.rehealth.genie.work.RingBackgroundRecoveryWorker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 class ReHealthApplication : Application() {
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val database by lazy { AppDatabase.create(this) }
 
     // D3: Auth and session management
     val sessionStore by lazy { SessionStore(this) }
 
-    val backendClient by lazy {
-        ReHealthBackendClient(
-            baseUrl = BuildConfig.REHEALTH_API_BASE_URL,
-            apiToken = BuildConfig.REHEALTH_API_TOKEN.takeIf { it.isNotBlank() },
-        )
-    }
-    /**
-     * Typed E1 mobile API client for the D1-safe endpoints (feature evaluate, risk/intervention
-     * retrieval, intervention feedback, health, config). Built on Retrofit/Moshi with the
-     * shared OkHttp configuration. Does NOT implement the durable `/measurements/batch`
-     * telemetry upload path; that is E2-pending.
-     */
-    val reHealthMobileApi: ReHealthMobileApi by lazy {
-        ReHealthMobileApi(
-            baseUrl = BuildConfig.REHEALTH_API_BASE_URL,
-            apiToken = BuildConfig.REHEALTH_API_TOKEN.takeIf { it.isNotBlank() },
-            httpClient = BackendConfig.buildHttpClient(signSecret = BuildConfig.JEECG_SIGN_SECRET),
-        )
-    }
     /**
      * D3: Auth-aware API client with 401 detection and queue pause.
      */
@@ -78,42 +66,78 @@ class ReHealthApplication : Application() {
         )
     }
 
-    /**
-     * Remote-capable PHM service. Falls back to [MockPhmService] when the backend is
-     * unavailable, misconfigured, or not yet wired. The local mock remains the snapshot
-     * the legacy UI already consumes via [MockPhmService].
-     */
-    val remotePhmService: RemotePhmService by lazy {
-        RemotePhmService(
-            api = reHealthMobileApi,
-            mockFallback = MockPhmService(),
+    val ringCloudRepository by lazy {
+        RingCloudRepository(
+            dao = database.ringDataDao(),
+            syncRepository = syncRepository,
+            apiClient = authenticatedApiClient,
+            sessionStore = sessionStore,
+            triggerSync = { MeasurementSyncWorker.triggerImmediate(this) },
+            wearableBindingProvider = { activeWearableStore.activeBinding.value },
         )
     }
 
-    /** Exposes the offline mock PHM service for UI screens that need local demo data. */
-    val phmService: PhmService by lazy { remotePhmService.mock() }
+    val riskHistoryRepository by lazy {
+        RiskHistoryRepository(
+            riskHistoryDao = database.riskHistoryDao(),
+            feedbackDao = database.interventionFeedbackDao(),
+            userIdProvider = { sessionStore.userId },
+        )
+    }
+
+    /** Remote-only PHM service. Network failures are surfaced and never synthesize risk output. */
+    val remotePhmService: RemotePhmService by lazy {
+        RemotePhmService(
+            api = null,
+            authenticatedApi = authenticatedApiClient,
+        )
+    }
+
     val mrdProtocolAdapter by lazy { MrdProtocolAdapter(this) }
-    val ringRepository: RingRepository by lazy {
-        if (BuildConfig.USE_FAKE_RING || (BuildConfig.SEED_FAKE_HEALTH_DATA && isProbablyEmulator())) {
-            MockRingRepository(database.ringDataDao())
-        } else {
-            MrdBleRingRepository(this, database.ringDataDao(), mrdProtocolAdapter)
-        }
+    val activeWearableStore by lazy {
+        val (productCode, vendor) = runtimeDefaultWearableSelection()
+        ActiveWearableStore(
+            context = this,
+            defaultProductCode = productCode,
+            defaultVendor = vendor,
+            forceDefaultSelection = shouldForceRuntimeWearableSelection(),
+        )
+    }
+    val ringProviderRegistry by lazy {
+        RingProviderRegistry(
+            createRuntimeRingProviderFactories(
+                context = this,
+                dao = database.ringDataDao(),
+                protocolAdapter = mrdProtocolAdapter,
+                activeWearableStore = activeWearableStore,
+            ),
+        )
+    }
+    private val activeRingRepository by lazy {
+        ActiveRingRepository(
+            appScope = applicationScope,
+            store = activeWearableStore,
+            registry = ringProviderRegistry,
+            initialUserProfile = activeWearableStore.readUserProfile(sessionStore.userId),
+            persistUserProfile = { profile ->
+                activeWearableStore.saveUserProfile(sessionStore.userId, profile)
+            },
+        )
+    }
+    val ringRepository: RingRepository
+        get() = activeRingRepository
+    val activeWearableManager by lazy {
+        ActiveWearableManager(
+            store = activeWearableStore,
+            products = WearableProductCatalog(this).products,
+            registry = ringProviderRegistry,
+            repository = activeRingRepository,
+        )
     }
 
     override fun onCreate() {
         super.onCreate()
         RingNotificationChannels.ensure(this)
-
-        // DEBUG: On emulator, auto-inject valid token so API calls work without login
-        if (isProbablyEmulator() && !sessionStore.isLoggedIn) {
-            val debugToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IjEzNTA3MDA3OTg0IiwiY2xpZW50VHlwZSI6IkFQUCIsImV4cCI6MTc4NTg1Njc2Nn0.q4M7zJqgJnWcdyzIz59vAsJzYaVmITdl1lMyfoH-xJQ"
-            sessionStore.token = debugToken
-            sessionStore.userId = "2079224669877686274"
-            sessionStore.username = "13507007984"
-            // Rebuild the authenticated API client with the injected token
-            authenticatedApiClient.onLoginSuccess(debugToken)
-        }
 
         if (RingBackgroundCollectionSettings.isActive(this)) {
             RingBackgroundRecoveryWorker.schedule(this)
@@ -122,19 +146,5 @@ class ReHealthApplication : Application() {
         if (sessionStore.isLoggedIn) {
             MeasurementSyncWorker.schedule(this)
         }
-    }
-
-    private fun isProbablyEmulator(): Boolean {
-        val fingerprint = Build.FINGERPRINT.lowercase()
-        val model = Build.MODEL.lowercase()
-        val product = Build.PRODUCT.lowercase()
-        val brand = Build.BRAND.lowercase()
-        return fingerprint.contains("generic") ||
-            fingerprint.contains("emulator") ||
-            model.contains("emulator") ||
-            model.contains("android sdk built for") ||
-            product.contains("sdk") ||
-            product.contains("emulator") ||
-            brand.contains("generic")
     }
 }
