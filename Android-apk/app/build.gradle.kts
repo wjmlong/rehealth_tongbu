@@ -36,8 +36,8 @@ fun debugWearableProductCode(): String {
             ?: localProps.getProperty("rehealth.debug.wearable.product.code")
             ?: "RH-MRD-S01"
         ).trim()
-    require(normalizedProductCode in setOf("RH-MRD-S01", "RH-RW-P01")) {
-        "rehealth.debug.wearable.product.code must be RH-MRD-S01 or RH-RW-P01"
+    require(normalizedProductCode in setOf("RH-MRD-S01", "RH-RW-P01", "RH-HB-E01")) {
+        "rehealth.debug.wearable.product.code must be RH-MRD-S01, RH-RW-P01, or RH-HB-E01"
     }
     return normalizedProductCode
 }

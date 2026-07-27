@@ -1,10 +1,12 @@
 package com.rehealth.genie.ring.provider
 
+import com.rehealth.genie.features.BaselineHealthProfile
 import com.rehealth.genie.ring.RingConnectionState
 import com.rehealth.genie.ring.RingDevice
 import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.RingRepository
 import com.rehealth.genie.ring.RingSyncResult
+import com.rehealth.genie.ring.WearableUserProfileSink
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -85,6 +87,25 @@ class ActiveRingRepositoryTest {
         assertEquals(WearableVendor.MRD, store.activeBinding.value.vendor)
     }
 
+    @Test
+    fun realUserProfileFollowsTheSingleActiveProvider() = runTest {
+        val mrdProfile = profile(DEFAULT_MRD_PRODUCT_CODE, WearableVendor.MRD)
+        val hbandProfile = profile(HBAND_PRODUCT_CODE, WearableVendor.HBAND)
+        val store = FakeBindingStore(mrdProfile)
+        val mrd = FakeRingRepository("MRD")
+        val hband = FakeRingRepository("HBAND")
+        val registry = RingProviderRegistry(
+            mapOf(WearableVendor.MRD to { mrd }, WearableVendor.HBAND to { hband }),
+        )
+        val routed = ActiveRingRepository(backgroundScope, store, registry)
+        val profile = BaselineHealthProfile(age = 30, gender = "male", heightCm = 175.0, weightKg = 70.0)
+
+        routed.wearableUserProfile = profile
+        routed.switchProduct(hbandProfile)
+
+        assertEquals(profile, hband.wearableUserProfile)
+    }
+
     private fun profile(productCode: String, vendor: WearableVendor) = WearableProductProfile(
         productCode = productCode,
         vendor = vendor,
@@ -135,10 +156,11 @@ private fun WearableProductProfile.toBinding(changedAt: Long = 0L) = ActiveWeara
     lastDeviceChangedAt = changedAt,
 )
 
-private class FakeRingRepository(private val label: String) : RingRepository {
+private class FakeRingRepository(private val label: String) : RingRepository, WearableUserProfileSink {
     private val mutableConnectionState = MutableStateFlow(RingConnectionState.DISCONNECTED)
     private val mutableConnectedDevice = MutableStateFlow<RingDevice?>(null)
     var disconnectCalls = 0
+    override var wearableUserProfile: BaselineHealthProfile? = null
 
     override val connectionState: StateFlow<RingConnectionState> = mutableConnectionState
     override val connectedDevice: StateFlow<RingDevice?> = mutableConnectedDevice
