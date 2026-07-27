@@ -1,35 +1,91 @@
 # ReHealth AI Android
 
-睿禾精灵 Android 端工程，当前重点是健康数据展示、智能戒指绑定、MRD 戒指 SDK 接入、真实设备数据采集和本地数据保存。
+睿禾精灵 Android 客户端，负责 MRD 戒指 BLE 采集、本地持久化、轻量健康
+特征提取、离线上传和用户交互。CatBoost、SHAP、LLM 和生产归因均位于云端，
+不进入 Android APK。
+
+仓库级架构、数据边界和文档同步规则见根目录 `README.md`。
 
 ## 当前能力
 
-- 启动页、登录页、健康初识采访页、设备绑定页、主页和数据页基础流程。
-- 数据页展示健康指数、戒指连接状态、生命体征、睡眠与活动数据。
-- 已接入 MRD 智能戒指 SDK `sdk_mrd2026_1.3.0.aar`。
-- 已在真机上验证心率、血氧、血压手动测量。
-- 已开启体温定时采集，并可读取体温历史数据。
-- 进入主页后会自动进行低频数据采集，减少用户手动点击。
-- 数据默认保存到本机 Room 数据库，当前没有接入云端服务器。
+- Compose 登录、注册、健康访谈、设备绑定、主页、数据、风险、干预、反馈、归因和健康助手页面。
+- MRD SDK `sdk_mrd2026_1.3.0.aar` 与 BLE 协议适配。
+- 心率、血氧、血压、体温、睡眠、步数和活动等本地记录。
+- Room 本地优先持久化及显式数据库迁移。
+- Foreground Service 后台低频采集与 WorkManager 恢复任务。
+- 认证感知的 durable upload queue；401 时暂停，重新登录后恢复。
+- 遥测批量上传、设备绑定、访谈、CVD 16 特征评估和 typed intervention feedback。
+- Debug 环境可连接本机 JeecgBoot，Release 环境强制 HTTPS 后端地址。
 
 ## 主要目录
 
-- `app/src/main/java/com/rehealth/genie/ui/`：Compose UI 页面与交互。
-- `app/src/main/java/com/rehealth/genie/ring/`：戒指领域模型、ViewModel、仓库接口。
-- `app/src/main/java/com/rehealth/genie/ring/mrd/`：MRD 戒指 BLE 与 SDK 协议适配。
-- `app/src/main/java/com/rehealth/genie/ring/data/`：Room 数据库实体与 DAO。
-- `app/libs/sdk_mrd2026_1.3.0.aar`：MRD 戒指厂商 SDK。
-- `rehealth-*.png/xml/txt`：开发过程中的真机 UI、日志和验证资料。
+```text
+app/src/main/java/com/rehealth/genie/
+├─ ring/            戒指领域、Repository、BLE 守卫与 MRD/vendor 适配
+├─ ring/data/       Room 遥测实体和 DAO
+├─ service/         RingForegroundService
+├─ work/            采集恢复和上传 WorkManager
+├─ data/sync/       上传队列、云端映射和反馈同步
+├─ features/        CVD 16 维特征与质量信息
+├─ network/         会话、认证客户端、API 和 DTO
+├─ phm/             风险/干预服务抽象及显式 Mock fallback
+└─ ui/              Compose UI
+```
 
-## 构建
+厂商 SDK 位于：
 
-需要 Android Studio / JDK 17 环境。
+```text
+app/libs/sdk_mrd2026_1.3.0.aar
+```
+
+## 核心数据流
+
+```text
+MRD SDK / BLE
+  -> RingRepository
+  -> Room
+  -> UploadQueue
+  -> MeasurementSyncWorker
+  -> JeecgBoot / Device Service
+```
+
+采集必须先写 Room，网络请求不得阻塞 BLE。遥测上传不直接触发模型评分；
+CVD 评估通过独立的 feature-evaluate 路径完成。
+
+正式 Android/Backend 契约：
+
+- `docs/REHEALTH_INTEGRATION_CONTRACT.md`
+- `docs/D2_TELEMETRY_SYNC_PLAN.md`
+- `docs/FEATURE_EXTRACTOR.md`
+
+## 配置
+
+Debug 默认后端：
+
+```text
+http://10.0.2.2:8080/jeecg-boot/
+```
+
+可在未跟踪的 `local.properties` 中配置：
+
+```properties
+rehealth.api.base.url=http://10.0.2.2:8080/jeecg-boot/
+rehealth.release.api.base.url=https://api.example.com/jeecg-boot/
+```
+
+Release 的后端地址必须使用 HTTPS。模型 Provider 凭据、内部服务 token 和生产
+secret 禁止进入 `local.properties`、BuildConfig 或 APK。
+
+## 构建与测试
+
+需要 JDK 17、Android SDK 36 和 Build Tools 36.0.0。
 
 ```powershell
+.\gradlew.bat testDebugUnitTest
 .\gradlew.bat assembleDebug
 ```
 
-Debug APK 输出位置：
+Debug APK：
 
 ```text
 app/build/outputs/apk/debug/app-debug.apk
@@ -37,7 +93,17 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## 当前限制
 
-- 当前自动采集是 APP 打开或前台运行时的自动循环。
-- 锁屏或退到后台后的长期采集，需要补充 Android 前台服务和系统常驻通知。
-- 后端服务器、用户账号体系、云端上传、模型推理接口尚未正式接入。
-- 登录和健康采访仍以本地演示流程为主。
+- 多设备领域仍以 `RingRepository` 为中心，尚未完成通用 Device Adapter 插件化。
+- 本地遥测和上传队列仍需进一步按登录用户和设备维度隔离。
+- 遥测上传仍需从“最新快照”演进到按本地游标处理全部未上传记录。
+- MRD 扫描、重连、锁屏长时间采集、功耗和测量准确性仍需物理设备 QA。
+- 原始信号云端上传默认关闭；后续启用必须增加用户同意、加密和保留策略。
+
+## 文档同步
+
+以下变化必须同步本 README 及对应专项文档：
+
+- 新设备、厂商 SDK、BLE 协议、指标或采集行为；
+- Room Schema、上传队列、重试和持久化完成语义；
+- API、认证、DTO、BuildConfig、权限或 Release 地址；
+- 用户可见流程、硬件 QA 步骤或隐私规则。
