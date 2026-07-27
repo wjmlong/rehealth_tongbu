@@ -1,479 +1,91 @@
-# 睿禾健康 Android App 工程实施总纲
+# ReHealth MVP 工程总纲
 
-> 放置位置：仓库根目录 `ENGINEERING.md`  
-> 适用仓库：`RehealthAI/Android-apk` 为主，`RehealthAI/backend` 与 `model-service` 配合  
-> 当前目标：从 Demo App 走向“真实采集数据 + 本地特征 + 云端评分 + 干预建议 + 反馈闭环”的可用 MVP
+本文档只定义长期稳定的工程原则、服务边界和交付纪律。当前完成度、发布阻塞项与
+最近验证结果统一记录在 `STATUS.md`。
 
-> **Current implementation update (2026-07-13):** Android D2 telemetry queue,
-> backend E2.1 hardware persistence, backend E1.1 authenticated software
-> persistence, and the reviewed real Core16 model-service path are implemented
-> and covered by automated tests recorded in their status files. Remaining
-> release blockers are Android auth/typed feedback integration, cross-service
-> evidence, real MySQL 8 QA, physical MRD QA, and release privacy/log review.
-> Use `backend/docs/qa/PRODUCT_ARCHITECTURE_ACCEPTANCE_2026-07-13.md` for current
-> planning; older milestone/gap lists below are retained as architecture history.
-
----
-
-## 0. 当前判断
-
-当前最稳的工程路线：
+## 1. MVP 目标
 
 ```text
-RehealthAI/Android-apk        真正 Android App 主仓库，负责真机采集、Room 本地缓存、用户交互
-RehealthAI/backend            JeecgBoot 后台，负责账号、权限、后台管理、医生/运营端、配置管理
-RehealthAI/model-service      建议新建，Python FastAPI，负责 CatBoost/SHAP/LLM/归因
-RehealthAI/rehealth-algorithms   模型训练、HealthAgent/PIAS 干预模拟与算法研究仓库
+登录与健康访谈
+  -> 绑定 MRD 戒指
+  -> 前后台采集真实生命体征
+  -> Room 本地持久化
+  -> CVD 16 维特征
+  -> 离线上传队列
+  -> 云端风险评分和干预
+  -> 用户反馈与趋势
 ```
 
-不要把所有能力塞进 Android，也不要把 CatBoost / SHAP / LLM 强行塞进 Java 后端。  
-正确做法是：Android 采集和展示；Java 管用户、设备、后台；Python 跑模型和干预生成。
-
----
-
-## 1. MVP 一句话目标
-
-用户安装 App 后，可以完成：
-
-```text
-登录/采访 → 绑定 MRD 戒指 → 前后台采集真实生命体征 → 本地 Room 保存
-→ 生成 CVD 16 维特征 → 上传后端 → 模型服务评分 → 返回风险等级和今日干预建议
-→ 用户反馈执行情况 → 连续形成风险趋势和依从性记录
-```
-
----
-
-## 2. 必须坚持的工程原则
-
-### 2.1 先真实可用，再追求完整愿景
-
-本阶段不要做：
-
-- 端侧大模型
-- 端侧 LoRA
-- 联邦学习
-- 保险结算签名
-- 复杂群体归因
-- 医生端完整工作台
-
-本阶段必须做：
-
-- 真机稳定采集
-- 后台采集不掉线
-- 本地数据质量可控
-- 16 维特征生成
-- 后端上传和模型服务评分
-- Mock PHM 替换为真实服务
-
-### 2.2 所有健康数据先落本地，再异步上传
-
-不要在 BLE 采集链路里直接调用网络接口。
-
-正确顺序：
-
-```text
-BLE/MRD SDK → Repository → Room → FeatureExtractor → UploadQueue → Worker → Backend/API
-```
-
-### 2.3 Android 端只做轻量计算
-
-Android 可做：
-
-- 最近 7/14/30 天统计
-- mean / std / slope
-- 数据质量标记
-- 缺失字段标记
-- 本地健康记忆文件
-- 离线队列
-
-Android 暂不做：
-
-- CatBoost 推理
-- SHAP
-- LLM
-- 归因模型
-- 大规模模型训练
-
-### 2.4 后端 Java 和模型 Python 解耦
-
-JeecgBoot 后端只做业务编排和数据管理：
-
-```text
-Android → backend/mobile API → model-service
-```
-
-Python `model-service` 独立部署，提供：
-
-```text
-POST /v1/cvd/risk/evaluate
-POST /v1/cvd/intervention/generate
-POST /v1/cvd/attribution/individual
-GET  /health
-```
-
----
-
-## 3. Android-apk 当前模块定位
-
-### 3.1 现有能力
-
-已有：
-
-- Compose UI 主流程
-- 登录、健康采访、设备绑定、首页、数据页
-- MRD 智能戒指 SDK 接入
-- 真机验证心率、血氧、血压手动测量
-- 体温定时采集
-- 低频自动采集
-- Room 本地保存
-
-### 3.2 当前缺口
-
-必须补齐：
-
-1. Foreground Service：退后台/锁屏后仍能低频采集
-2. WorkManager：后台任务兜底
-3. FeatureExtractor：Room 数据转 CVD 16 维
-4. UploadQueue：离线上传队列
-5. Retrofit/OkHttp：正式后端接入
-6. RemotePhmService：替换 MockPhmService
-7. 真机 QA 和 Release Checklist
-
----
-
-## 4. 推荐目录结构
-
-### 4.1 Android 新增目录
-
-```text
-app/src/main/java/com/rehealth/genie/
-  service/
-    RingForegroundService.kt
-
-  features/
-    CvdFeatureVector.kt
-    FeatureQuality.kt
-    HealthFeatureExtractor.kt
-    HealthMemorySnapshot.kt
-
-  network/
-    ApiClient.kt
-    ReHealthApi.kt
-    AuthInterceptor.kt
-    dto/
-
-  sync/
-    UploadQueueEntity.kt
-    UploadQueueDao.kt
-    MeasurementSyncWorker.kt
-    SyncRepository.kt
-
-  phm/
-    PhmService.kt
-    LocalPhmService.kt
-    RemotePhmService.kt
-```
-
-### 4.2 Android 依赖建议
-
-```kotlin
-implementation("com.squareup.retrofit2:retrofit:2.11.0")
-implementation("com.squareup.retrofit2:converter-moshi:2.11.0")
-implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
-implementation("androidx.work:work-runtime-ktx:2.10.0")
-implementation("androidx.security:security-crypto:1.1.0-alpha06")
-```
-
-新增生产依赖前，必须在 PR 说明中写清楚：
-
-- 为什么需要
-- 替代方案是什么
-- 是否影响 APK 体积
-- 是否涉及隐私/权限变化
-
----
-
-## 5. CVD 16 维特征
-
-### 5.1 标准输入
-
-```kotlin
-data class CvdFeatureVector(
-    val age: Int,
-    val gender: Int,
-    val bmi: Double,
-    val sbp: Double,
-    val dbp: Double,
-    val fastingGlucose: Double?,
-    val totalCholesterol: Double?,
-    val ldl: Double?,
-    val hdl: Double?,
-    val triglycerides: Double?,
-    val exerciseDays: Int,
-    val smoking: Int,
-    val drinking: Int,
-    val diabetesHistory: Int,
-    val hypertensionHistory: Int,
-    val familyHistory: Int,
-    val featureQuality: Map<String, FeatureQuality>
-)
-```
-
-### 5.2 字段来源
-
-```text
-age/gender/smoking/drinking/history   健康采访
-bmi                                   健康采访/体检录入
-sbp/dbp                               MRD 戒指血压 + 用户手动录入兜底
-exerciseDays                          戒指步数/运动记录 + 用户确认
-fastingGlucose/lipids                 体检录入/报告识别，MVP 可为空但必须标记缺失
-```
-
-### 5.3 数据质量
-
-每个字段必须带质量状态：
-
-```kotlin
-enum class FeatureQuality {
-    REAL_DEVICE,
-    USER_REPORTED,
-    CLINICAL_REPORT,
-    DERIVED,
-    MISSING,
-    STALE,
-    LOW_CONFIDENCE
-}
-```
-
-模型接口可以接受缺失，但 UI 必须告诉用户哪些字段需要补充。
-
----
-
-## 6. 后端 API 最小合同
-
-移动端最小 API：
-
-```text
-POST /jeecg-boot/rehealth/mobile/auth/login
-POST /jeecg-boot/rehealth/mobile/devices/bind
-POST /jeecg-boot/rehealth/mobile/measurements/batch
-POST /jeecg-boot/rehealth/mobile/features/evaluate
-GET  /jeecg-boot/rehealth/mobile/risk/latest
-GET  /jeecg-boot/rehealth/mobile/interventions/today
-POST /jeecg-boot/rehealth/mobile/interventions/{id}/feedback
-POST /jeecg-boot/rehealth/mobile/attribution/events
-GET  /jeecg-boot/rehealth/mobile/config
-```
-
-### 6.1 上传策略
-
-- 采集数据：批量上传
-- 特征向量：每日或用户主动评估时上传
-- 干预反馈：实时写本地，异步上传
-- 网络失败：进入 UploadQueue，指数退避重试
-- token 过期：暂停队列，刷新登录后继续
-
----
-
-## 7. model-service 最小合同
-
-建议新仓库：
-
-```text
-RehealthAI/model-service
-  app/
-    main.py
-    schemas.py
-    risk_scorer.py
-    prescription_generator.py
-    attribution.py
-  models/
-    rehealth_v2_final.pkl
-    feature_cols.pkl
-  tests/
-  Dockerfile
-  README.md
-```
-
-接口：
-
-```text
-POST /v1/cvd/risk/evaluate
-POST /v1/cvd/intervention/generate
-POST /v1/cvd/attribution/individual
-GET  /health
-```
-
-风险评分返回：
-
-```json
-{
-  "risk_score": 0.42,
-  "risk_level": "moderate",
-  "feature_contributions": {
-    "age": 0.11,
-    "sbp": 0.09,
-    "exercise_days": -0.04
-  },
-  "model_version": "cvd-catboost-v2"
-}
-```
-
----
-
-## 8. 4 周里程碑
-
-### Week 1：能跑、能采、能存
-
-验收：
-
-- Android Studio 可编译
-- Debug APK 可安装
-- 可完成 onboarding
-- 可绑定 MRD 戒指
-- 可采集心率/血氧/血压/体温/睡眠/步数
-- 退后台仍能低频采集
-- Room 可查到真实记录
-
-### Week 2：能提特征、能上传
-
-验收：
-
-- 生成 CVD 16 维
-- 每个字段有来源和质量标记
-- 离线时进入上传队列
-- 联网后自动上传
-- 后台能看到用户、设备、采集记录
-
-### Week 3：能评分、能返回建议
-
-验收：
-
-- App 点击“今日评估”
-- 后端收到 feature vector
-- model-service 返回 risk_score
-- App 展示风险等级、主要贡献因素、今日建议
-- MockPhmService 不再驱动主 UI
-
-### Week 4：能闭环、能试点
-
-验收：
-
-- 用户可完成/拒绝干预
-- 反馈写入本地并上传
-- 连续 7 天形成趋势
-- 后台能看依从性
-- 可导出单用户健康报告
-
----
-
-## 9. Definition of Done
-
-每个 Codex 任务完成时，必须满足：
-
-1. 代码已提交到当前分支
-2. `git status` 干净，或明确列出未提交原因
-3. 能运行的测试已运行
-4. 如果测试无法运行，说明原因和阻塞
-5. 修改了数据结构时，补充 migration
-6. 修改了接口时，补充 DTO / OpenAPI / README
-7. 修改了用户可见行为时，补充 QA checklist
-8. 不能用 mock 冒充真实功能，除非文件名/变量名明确标注 mock
-9. 不吞异常，不只写 `catch {}` 或空 `onFailure`
-10. 医疗建议必须保守，不能替代医生诊断
-
----
-
-## 10. Codex 并行任务总表
-
-| 线 | 名称 | 仓库 | 主要交付 |
-|---|---|---|---|
-| A | Android 构建健康线 | Android-apk | BUILD_NOTES.md，assembleDebug 通过 |
-| B | BLE/后台采集线 | Android-apk | RingForegroundService，WorkManager |
-| C | 特征工程线 | Android-apk | CvdFeatureVector，FeatureExtractor |
-| D | 网络同步线 | Android-apk | Retrofit，UploadQueue，Worker |
-| E | 后端移动 API 线 | backend | mobile API，基础表，Swagger |
-| F | Python 模型服务线 | model-service | FastAPI 风险评分接口 |
-| G | QA/验收线 | 全仓库 | QA_TEST_PLAN.md，RELEASE_CHECKLIST.md |
-
----
-
-## 11. Codex 执行纪律
-
-每次任务开头必须先做：
-
-```text
-1. 阅读 AGENTS.md
-2. 阅读 ENGINEERING.md
-3. 阅读与当前任务相关的 README / build.gradle / manifest / service 文件
-4. 先输出 5-10 行计划
-5. 再改代码
-```
-
-每次任务结束必须输出：
-
-```text
-Changed files
-Implementation summary
-Tests run
-Manual QA steps
-Known risks
-Next task recommendation
-```
-
----
-
-## 12. 运行时部署架构（WSL2 + Docker）
-
-> 新增记录（2026-07-15）：PIAS 归因算法已作为容器化服务跑在这台 PC 的 WSL2 上，
-> 经 Android 归因界面端到端验证。本段沉淀运行时事实，避免后续被当成“本地脚本验证”。
-
-### 12.1 PIAS 主力运行时 = `rehealth-algorithms/api` 容器（非 model-service stub）
-
-仓库里存在**两套**名称都叫“PIAS / attribution”的实现，必须区分清楚：
-
-| 服务 | 位置 | 端点 | 真实度 |
-|---|---|---|---|
-| **真实 PIAS** | `rehealth-algorithms/api`（FastAPI，调 `healthagent/pias/attribution/IndividualAttributor`） | `:8000/api/pias/v2/attribute/individual` | ✅ 真因果归因（Wilcoxon + Bootstrap ATT），需 ≥14 天历史、干预/对照各 ≥7 天 |
-| **占位 stub** | `model-service/app/attribution.py` | `:8000/v1/cvd/attribution/individual` | ⚠️ 仅 `trend_delta = 末值 - 基线`，非真归因 |
-
-- Android 归因屏 `PiasApi` 默认连 `/api/pias/v2/attribute/individual`（见 `local.properties` 的 `rehealth.model.service.base.url`）。**这条是对的，接的是真实 PIAS。**
-- `model-service` 的 attribution 目前只是占位，不能用于生产归因结论。
-
-### 12.2 容器化部署（Windows Docker Desktop + WSL2 后端）
-
-- Docker 用 **Windows 已装好的 Docker Desktop**（WSL2 backend），**不要**在 WSL2 里 `apt install docker.io`。
-  - 可执行：`C:\Program Files\Docker\Docker\resources\bin\docker`（v29.6.1）。
-  - 首次 daemon 未起时，用 **PowerShell**（非 Bash，Bash 调 cmd.exe 被安全策略拦截）`Start-Process "Docker Desktop.exe"` 拉起。
-- 部署套件位于 `rehealth-algorithms/docker/`：
-  - `Dockerfile`：`python:3.12-slim`，COPY `api` + `healthagent`，`HEALTHCHECK /health`，`CMD uvicorn`。
-  - `docker-compose.yml`：base 服务 `pias`，端口 8000。
-  - `docker-compose.dev.yml`：源码挂载 `../api` + `../healthagent`，`--reload`，`restart: "no"`（开发免重建）。
-  - `docker-compose.prod.yml`：不可变镜像，`restart: always`，healthcheck，`cpus: "2.0"`、`memory: 2G`（生产隔离）。
-  - `docker/requirements.txt`：**已补全** numpy/scipy/scikit-learn/pandas/joblib（原 `api/requirements.txt` 只有 5 个 web 包，跑不起 PIAS）。
-  - `.dockerignore`、`.env.example`、`README.md`（README 已更正为 Win Docker 流程）。
-- 验证全过：`docker compose -f docker-compose.yml -f docker-compose.dev.yml build` 成功（镜像 `rehealth-pias:dev`）；容器 `docker-pias-1` 发布 `0.0.0.0:8000`；Win 侧与 WSL2 侧 `curl localhost:8000/health` 均 `{"status":"healthy"}`；POST `/api/pias/v2/attribute/individual` 返回真实结构（3 天 → `accumulating`；30 天 → `ready`）。
-- 关键约束：**开发环境与生产环境通过 compose override 隔离**，生产用不可变镜像 + 资源上限，开发用源码挂载热重载，互不污染。
-
-### 12.3 交互式归因报告（H5，二层下钻）
-
-- 生成脚本：`tools/generate_live_h5.py` —— 从**活容器**取数，产出 `outputs/pias_attribution_report.html`。
-- 页面含 ECharts 双线趋势（不干预 vs 干预 + CI 带）、指标卡、分层报告 tab，以及浏览器“打印/导出 PDF”按钮（PDF 走浏览器打印，不依赖 reportlab 离线生成）。
-- **二层下钻（用户要求的可点进去界面）**：归因主页面有按钮「查看归因逐日明细 →」（风险轨迹面板）与「逐日明细 →」（ATT 面板），点击进入全屏 overlay，含三个 tab：
-  - `ov-data`：历史（日期/类型/风险分 Y/干预日 Z）+ 预测（不干预/干预/CI 上下）合并表；
-  - `ov-method`：ATT / Wilcoxon / Bootstrap 方法说明；
-  - `ov-raw`：提交的 `risk_history` 原始 JSON。
-  - 由 JS `openDetail / closeDetail / showOv` 控制。
-- Android 归因屏 `ui/AttributionReportScreen.kt` 调用真实 `phmService.attributeIndividual`；无后端时显示错误态 + 重试，H5 是给用户在归因界面里查看/分享的可交互产物。
-
-### 12.4 已知阻塞：assembleDebug 卡在预存损坏文件
-
-- 编译进入 Kotlin 阶段后报 `app/src/main/java/com/rehealth/genie/ui/DeviceSettingsScreen.kt` 错误。
-- 已修一处真错：45-46 行 `as Type\n.let{...}` 非法链式调用 → 改为 `MrdProtocolAdapter(application)`。
-- 文件**仍缺 2 个 `}`**（圆括号/方括号均平衡，`tools/brace_check.py` 扫描确认 net open braces = 2）。更可疑：文件里**存在两个 `SystemInfoContent`**（433 带参 / 757 不带参），疑似被重复拼接/损坏。
-- 该文件是既有戒指 BLE 设置 UI（907 行），与归因功能无关；Jul 14 已有可用 apk，说明属**预存损坏**，非本次工作引入。盲目补 `}` 可能引入回归。
-- 待用户拍板（A/B/C）：
-  - **A**：我谨慎定位缺 `}` 处修复（需更多读取，风险中）；
-  - **B**：用户提供已知好版本覆盖；
-  - **C**：确认该屏可暂时排除出编译（如 `exclude` 或移出 source set）以先出 apk，后续再修。
-- 沙箱（本会话）无 JDK/Android SDK，**无法在此真正 assembleDebug**；Win 主机（wjmlong）工具链：Android Studio `D:\Android_Studio`、SDK `D:\Android_SDK`（android-36 / build-tools 36.0.0）、JDK `D:\Android_Studio\jbr`。真机编译须在 Win 主机 `cd Android-apk && ./gradlew assembleDebug`。
+MVP 优先保证真实采集、本地可靠性、离线可用、云端评分和反馈闭环。不在当前阶段
+引入端侧大模型、端侧 SHAP、联邦学习、保险结算或完整医生工作台。
+
+## 2. 服务边界
+
+| 组件 | 负责 | 不负责 |
+| --- | --- | --- |
+| Android | BLE/厂商 SDK、Room、轻量特征、上传队列、用户交互 | CatBoost、SHAP、LLM、生产归因 |
+| Gateway | 公网入口、路由、安全头、限流边界 | 业务持久化、模型推理 |
+| Device Service | 遥测校验、TimescaleDB、Outbox、Kafka | 用户业务档案、模型推理 |
+| JeecgBoot | 账号、权限、绑定、业务编排、software_db、管理后台 | 硬件时序库所有权、模型执行 |
+| model-service | 风险评分、模型治理、干预与健康助手安全边界 | 用户认证、设备接入、业务主数据 |
+| PIAS | 个体归因服务 | Android 端归因、静默 Mock |
+| rehealth-algorithms | 训练、仿真、算法研究和 PIAS 实现 | 患者移动端入口 |
+
+## 3. 数据不变量
+
+1. 健康数据必须先持久化，再异步上传。
+2. BLE 采集不得等待网络或后端响应。
+3. 上传成功只表示权威服务完成约定的 durable write。
+4. 队列必须支持幂等、退避重试、401 暂停和重新登录后恢复。
+5. 原始 PPG/RRI 默认不上传；启用前必须完成同意、加密和保留策略评审。
+6. 客户端不得通过请求体声明数据所有者；用户和租户来自可信认证上下文。
+7. Kafka 事件只携带最小引用与状态，不携带原始健康值。
+
+## 4. Android 规则
+
+- Kotlin 优先，Compose 只负责 UI 状态呈现。
+- ViewModel 编排用例，不直接拥有低层 Bluetooth 操作。
+- BLE 和厂商协议位于 repository/adapter 层。
+- Room 写入必须显式、可迁移、可恢复。
+- 长时间采集使用 Foreground Service，恢复任务使用 WorkManager。
+- Mock 只能存在于明确的 debug/test 边界，Release 不得静默回退。
+- 保持 minSdk、targetSdk 和 Compose 兼容，除非任务明确要求升级。
+
+## 5. Backend 与模型规则
+
+- ReHealth 移动 API 隔离在 Jeecg `rehealth` 模块/package。
+- Device Service 独占硬件遥测写入和查询路径。
+- JeecgBoot 通过 client abstraction 调用 model-service 和 PIAS。
+- model-service 使用 FastAPI 和类型化 schema，每个评分响应包含模型版本。
+- 模型制品通过只读挂载、哈希和环境门禁加载，不提交到 Git。
+- 健康建议必须保守，不声称诊断、处方或替代医生。
+
+## 6. 安全与隐私
+
+- 生产日志禁止记录原始健康值、token、手机号、BLE MAC 和直接标识符。
+- Android 只上传稳定设备 ID 和允许的地址摘要。
+- Provider、服务间凭据和数据库 secret 只存在于运行时 secret 文件或受控环境。
+- 生产/staging 必须失败关闭，不允许缺少真实模型或 secret 时伪装就绪。
+
+## 7. 变更纪律
+
+每项任务必须：
+
+1. 检查相关源码、构建文件、契约和当前 Git 状态。
+2. 描述现状、最小实现方案、风险和验证命令。
+3. 保留用户已有的无关修改。
+4. 新 API 同步 OpenAPI、DTO、测试和集成契约。
+5. 新 Schema 提供迁移策略。
+6. 用户可见行为同步 QA 和发布检查表。
+7. 运行适用的 Android、Maven、Python、契约或部署门禁。
+8. 分批提交，避免把清理、业务修改和历史操作混在一个 commit。
+
+## 8. Definition of Done
+
+- 代码可编译，或失败原因和阻塞条件已明确记录。
+- 自动化测试已运行，或无法运行的原因已说明。
+- 新行为有基本自动化或人工验证步骤。
+- API、Schema、部署和用户行为文档保持同步。
+- `git diff --check` 通过。
+- `git status` 无意外修改。
+- Mock、隐私和医疗安全边界未被削弱。

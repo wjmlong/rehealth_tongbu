@@ -23,7 +23,7 @@ Before acting, read:
 
 1. `AGENTS.md`
 2. `ENGINEERING.md`
-3. `CODEX_ORCHESTRATION.md`
+3. `STATUS.md`
 4. Relevant repository README files
 5. Current build files and touched modules
 

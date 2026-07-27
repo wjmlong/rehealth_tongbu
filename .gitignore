@@ -25,6 +25,8 @@ Thumbs.db
 .idea/
 .omo/
 .workbuddy/
+.codex/
+**/codex-runs/
 **/.git_backup/
 **/.ref/
 /outputs/

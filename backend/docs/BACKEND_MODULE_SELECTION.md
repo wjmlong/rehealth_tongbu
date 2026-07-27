@@ -239,7 +239,7 @@ backend/jeecg-boot/jeecg-boot-module/jeecg-module-rehealth/**
 backend/jeecg-boot/jeecg-module-system/jeecg-system-start/pom.xml
 backend/jeecg-boot/jeecg-module-system/jeecg-system-start/src/main/resources/**
 backend/docs/**
-backend/codex-runs/<date>/**
+STATUS.md
 ```
 
 Conditionally allowed after explicit approval:
@@ -272,7 +272,7 @@ backend/docs/BACKEND_MODULE_SELECTION.md
 backend/docs/DATABASE_SPLIT_ARCHITECTURE.md
 backend/docs/REHEALTH_MOBILE_API.md
 backend/docs/REHEALTH_DB_SCHEMA.md
-backend/codex-runs/<date>/E1_status.md
+STATUS.md
 ```
 
 ## Validation Recommendation

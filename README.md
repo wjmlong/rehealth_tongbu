@@ -97,8 +97,9 @@ rehealth_tongbu/
 │  └─ docs/                     模型契约、制品和注册表文档
 │
 ├─ rehealth-algorithms/         HealthAgent、PIAS、训练和算法研究
-├─ codex-runs/                  工作流状态与验收证据
-├─ tools/                       仓库级辅助工具
+├─ docs/archive/                历史验收与 QA 快照（只读参考）
+├─ tools/                       仓库级源码辅助工具（不存放下载的工具链）
+├─ STATUS.md                    当前实现与发布状态唯一入口
 ├─ ENGINEERING.md               MVP 工程实施总纲
 ├─ QA_TEST_PLAN.md              测试计划
 └─ RELEASE_CHECKLIST.md         发布检查清单
@@ -238,6 +239,7 @@ python backend/qa/rehealth_stack_gate.py topology `
 | 文档 | 用途 | 何时更新 |
 | --- | --- | --- |
 | `README.md` | 项目入口、结构、整体架构和开发命令 | 模块、主链路、基础设施、关键命令变化时 |
+| `STATUS.md` | 当前实现、阻塞项和清理决策 | 验收结论、发布阻塞或关键清理决策变化时 |
 | `ENGINEERING.md` | MVP 原则、范围和工程路线 | 目标、边界、里程碑变化时 |
 | `Android-apk/docs/REHEALTH_INTEGRATION_CONTRACT.md` | Android/Backend 正式接口契约 | 路径、认证、DTO、完成语义变化时 |
 | `Android-apk/docs/D2_TELEMETRY_SYNC_PLAN.md` | 遥测同步状态和剩余 QA | 队列、重试、持久化确认、硬件 QA 变化时 |
@@ -247,7 +249,7 @@ python backend/qa/rehealth_stack_gate.py topology `
 | `model-service/docs/API_CONTRACT.md` | 模型服务接口 | 模型请求/响应、版本或就绪语义变化时 |
 | `QA_TEST_PLAN.md` | QA 范围 | 用户行为、硬件能力和发布门禁变化时 |
 | `RELEASE_CHECKLIST.md` | 发布条件 | 新权限、新数据类型、新依赖或新运行时风险出现时 |
-| `ACCEPTANCE_REVIEW_*.md` | 阶段验收快照 | 新验收节点时按既有命名模式更新 |
+| `docs/archive/acceptance/` | 历史阶段验收快照 | 仅归档已失效快照；当前结论写入 `STATUS.md` |
 
 ## 10. 文档同步规则
 

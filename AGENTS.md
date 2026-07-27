@@ -10,7 +10,7 @@ Current engineering goal: convert the Android demo into a usable MVP that suppor
 
 Read `README.md` first for the repository map, current service boundaries, core data flows, development commands, and documentation index.
 Read `ENGINEERING.md` before making any non-trivial change.
-Read `ACCEPTANCE_REVIEW_2026-07-16.md` for the current Orchestrator acceptance checkpoint covering E2/P0b/P0c completion and release blocker status. `backend/docs/qa/PRODUCT_ARCHITECTURE_ACCEPTANCE_2026-07-13.md` and `ACCEPTANCE_REVIEW_2026-07-10.md` are historical snapshots.
+Read `STATUS.md` for the current implementation and release checkpoint. Historical acceptance snapshots are archived under `docs/archive/acceptance/` and must not be treated as current state.
 For Android-rule reference docs, see the canonical paths listed in `Android-apk/docs/REHEALTH_INTEGRATION_CONTRACT.md` (rewritten 2026-07-10).
 For telemetry status and remaining QA, read `Android-apk/docs/D2_TELEMETRY_SYNC_PLAN.md`. D2, E2.1, and E1.1 are implemented; do not reopen them as unstarted work.
 
