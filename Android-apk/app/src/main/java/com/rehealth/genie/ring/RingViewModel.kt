@@ -604,7 +604,7 @@ private fun vectorFromMeasurements(measurements: List<RingMeasurementEntity>): C
  */
 private fun pushProfileToRepository(repository: RingRepository, profile: PatientProfilePayload?) {
     val baseline: BaselineHealthProfile? = HealthMemorySnapshot.fromPatientProfile(profile).profile
-    (repository as? MockRingRepository)?.profile = baseline
+    (repository as? SimulatedRingProfileSink)?.profile = baseline
 }
 
 private fun RingMetricType.displayName(): String = when (this) {

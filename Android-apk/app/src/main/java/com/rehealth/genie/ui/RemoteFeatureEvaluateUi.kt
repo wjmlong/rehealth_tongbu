@@ -54,7 +54,6 @@ internal data class RemoteFeatureEvaluateStatus(
     val riskScore: Double?,
     val featureContributions: Map<String, Double> = emptyMap(),
     val requestId: String? = null,
-    val usedMockFallback: Boolean,
     val fallbackReason: String? = null,
     val missingFields: List<String> = emptyList(),
     val qualityWarnings: List<String> = emptyList(),
@@ -62,7 +61,6 @@ internal data class RemoteFeatureEvaluateStatus(
 ) {
     val modeLabel: String
         get() = when {
-            usedMockFallback -> "本地mock兜底"
             isMock == true -> "云端mock"
             reachable -> "云端"
             else -> "不可用"
@@ -74,7 +72,7 @@ internal fun RemoteFeatureEvaluateStatus.toAttributionRiskEvaluation(): Attribut
         riskScore = riskScore,
         riskLevel = riskLevel,
         contributions = featureContributions,
-        confirmed = reachable && isMock == false && !usedMockFallback,
+        confirmed = reachable && isMock == false,
     )
 
 internal suspend fun refreshRemoteFeatureEvaluateStatus(
@@ -108,7 +106,6 @@ internal suspend fun refreshRemoteFeatureEvaluateStatus(
             riskScore = result.normalizedRiskScore,
             featureContributions = result.normalizedFeatureContributions,
             requestId = result.normalizedRequestId ?: outcome.requestId,
-            usedMockFallback = false,
             missingFields = result.normalizedMissingFields,
             qualityWarnings = result.normalizedQualityWarnings,
             summary = result.summary ?: "后端已基于本机特征完成风险评估。",
@@ -121,8 +118,7 @@ internal suspend fun refreshRemoteFeatureEvaluateStatus(
             riskLevel = null,
             riskScore = null,
             requestId = outcome.requestId,
-            usedMockFallback = false,
-            fallbackReason = outcome.mockFallbackReason,
+            fallbackReason = outcome.failureReason,
             missingFields = vector.missingFields,
             summary = "暂时无法完成风险评估，请检查网络和登录状态后重试。" +
                 "（${outcome.error?.eventName ?: "unavailable"}）",

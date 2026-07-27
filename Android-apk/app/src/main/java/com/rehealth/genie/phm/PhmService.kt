@@ -9,8 +9,8 @@ package com.rehealth.genie.phm
  *   the WSL2 backend (which in turn calls the Python model-service) and never
  *   touch the model directly from the device.
  *
- * [RemotePhmService] implements this against the real backend; [MockPhmService]
- * provides an offline demo fallback.
+ * Production calls are implemented against the authenticated backend. A failed remote
+ * evaluation must remain unavailable rather than synthesizing a local risk result.
  */
 interface PhmService {
     fun modelInputs(): List<ModelInputStatus>

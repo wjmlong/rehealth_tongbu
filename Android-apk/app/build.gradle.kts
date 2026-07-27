@@ -58,8 +58,6 @@ android {
             manifestPlaceholders["usesCleartextTraffic"] = "true"
         }
         release {
-            buildConfigField("boolean", "USE_FAKE_RING", "false")
-            buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", "false")
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

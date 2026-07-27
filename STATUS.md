@@ -31,6 +31,7 @@
 - 硬件时序数据归 Device Service/TimescaleDB，业务数据归 JeecgBoot/software_db。
 - CatBoost、SHAP、LLM 和生产归因不进入 Android APK。
 - 生产和 staging 不允许把 Mock 结果伪装成真实模型结果。
+- Android Release 源集不包含模拟戒指实现；远程风险失败不会生成本地模拟结果。
 - MySQL 8 staging 已有迁移、用户隔离、幂等和重启回读证据；生产容量与恢复仍待验证。
 
 ## 当前仓库治理决定

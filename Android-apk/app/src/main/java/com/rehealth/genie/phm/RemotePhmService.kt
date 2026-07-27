@@ -19,8 +19,8 @@ import kotlinx.coroutines.delay
 
 /**
  * Outcome of a remote feature-evaluation pass. Carries either the backend [result]
- * plus the locally-produced feature vector, or a typed [error] plus a flag indicating
- * whether the [mockFallback] used local mock data so the UI can be honest about it.
+ * plus the locally-produced feature vector, or a typed [error]. Remote failures never
+ * synthesize a local risk score.
  *
  * Raw feature vector values are intentionally NOT embedded in error/log surfaces.
  */
@@ -28,15 +28,14 @@ data class FeatureEvaluationOutcome(
     val result: RiskResultDto?,
     val featureVector: CvdFeatureVector,
     val requestId: String?,
-    val usedMockFallback: Boolean,
-    val mockFallbackReason: String?,
+    val failureReason: String?,
     val error: RemotePhmError?,
 )
 
 /**
  * Remote-capable PHM service. Connects the local C1 feature extractor to the backend
  * E1 `/rehealth/mobile/features/evaluate` endpoint and the risk/intervention retrieval
- * endpoints, while keeping [MockPhmService] available as a local/dev fallback.
+ * endpoints. Backend and model-service failures remain explicit unavailable states.
  *
  * Runtime boundaries:
  *  - Durable telemetry upload is owned by RingCloudRepository/SyncRepository, not this class.
@@ -50,7 +49,6 @@ data class FeatureEvaluationOutcome(
 class RemotePhmService(
     private val api: ReHealthMobileApi?,
     private val authenticatedApi: AuthenticatedApiClient? = null,
-    private val mockFallback: MockPhmService = MockPhmService(),
     private val retryDelayMillis: Long = 500L,
     private val maxAttempts: Int = 2,
     private val nowProvider: () -> Long = { System.currentTimeMillis() },
@@ -62,8 +60,7 @@ class RemotePhmService(
                 result = null,
                 featureVector = vector,
                 requestId = null,
-                usedMockFallback = true,
-                mockFallbackReason = "Remote PHM API is not configured; using local mock fallback.",
+                failureReason = "Remote PHM API is not configured.",
                 error = RemotePhmError.BackendUnavailable("Remote PHM API is not configured."),
             )
         }
@@ -79,8 +76,7 @@ class RemotePhmService(
                 result = null,
                 featureVector = vector,
                 requestId = null,
-                usedMockFallback = true,
-                mockFallbackReason = error.message,
+                failureReason = error.message,
                 error = error,
             )
         }
@@ -98,8 +94,7 @@ class RemotePhmService(
                         result = outcome.data,
                         featureVector = vector,
                         requestId = request.requestId,
-                        usedMockFallback = false,
-                        mockFallbackReason = null,
+                        failureReason = null,
                         error = null,
                     )
                 }
@@ -112,8 +107,7 @@ class RemotePhmService(
                             result = null,
                             featureVector = vector,
                             requestId = request.requestId,
-                            usedMockFallback = true,
-                            mockFallbackReason = describeFallback(outcome.error),
+                            failureReason = describeFailure(outcome.error),
                             error = outcome.error,
                         )
                     }
@@ -125,8 +119,7 @@ class RemotePhmService(
             result = null,
             featureVector = vector,
             requestId = request.requestId,
-            usedMockFallback = true,
-            mockFallbackReason = describeFallback(lastError),
+            failureReason = describeFailure(lastError),
             error = lastError,
         )
     }
@@ -220,11 +213,8 @@ class RemotePhmService(
         )
     }
 
-    /** Convenience accessor for the local mock fallback used by UI/dev/demo paths. */
-    fun mock(): PhmService = mockFallback
-
-    private fun describeFallback(error: RemotePhmError?): String =
-        "Remote feature evaluation unavailable (${error?.eventName ?: "unknown"}); using local mock fallback."
+    private fun describeFailure(error: RemotePhmError?): String =
+        "Remote feature evaluation unavailable (${error?.eventName ?: "unknown"})."
 }
 
 private fun <T> ApiResult<T>.toRemoteOutcome(): RemotePhmOutcome<T> = when (this) {

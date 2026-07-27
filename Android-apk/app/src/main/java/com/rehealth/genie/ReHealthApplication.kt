@@ -1,7 +1,6 @@
 package com.rehealth.genie
 
 import android.app.Application
-import android.os.Build
 import com.rehealth.genie.data.AppDatabase
 import com.rehealth.genie.data.RiskHistoryRepository
 import com.rehealth.genie.data.sync.InterventionFeedbackRepository
@@ -11,13 +10,10 @@ import com.rehealth.genie.network.AuthenticatedApiClient
 import com.rehealth.genie.network.BackendConfig
 import com.rehealth.genie.network.SessionStore
 import com.rehealth.genie.notification.RingNotificationChannels
-import com.rehealth.genie.phm.MockPhmService
-import com.rehealth.genie.phm.PhmService
 import com.rehealth.genie.phm.RemotePhmService
 import com.rehealth.genie.ring.RingBackgroundCollectionSettings
-import com.rehealth.genie.ring.MockRingRepository
 import com.rehealth.genie.ring.RingRepository
-import com.rehealth.genie.ring.mrd.MrdBleRingRepository
+import com.rehealth.genie.ring.createRuntimeRingRepository
 import com.rehealth.genie.ring.mrd.MrdProtocolAdapter
 import com.rehealth.genie.work.MeasurementSyncWorker
 import com.rehealth.genie.work.RingBackgroundRecoveryWorker
@@ -77,28 +73,17 @@ class ReHealthApplication : Application() {
         )
     }
 
-    /**
-     * Remote-capable PHM service. Production network calls use the session-aware client.
-     * Local mock results remain explicitly labelled as fallback and are never persisted
-     * as remote model output.
-     */
+    /** Remote-only PHM service. Network failures are surfaced and never synthesize risk output. */
     val remotePhmService: RemotePhmService by lazy {
         RemotePhmService(
             api = null,
             authenticatedApi = authenticatedApiClient,
-            mockFallback = MockPhmService(),
         )
     }
 
-    /** Exposes the offline mock PHM service for UI screens that need local demo data. */
-    val phmService: PhmService by lazy { remotePhmService.mock() }
     val mrdProtocolAdapter by lazy { MrdProtocolAdapter(this) }
     val ringRepository: RingRepository by lazy {
-        if (BuildConfig.USE_FAKE_RING || (BuildConfig.SEED_FAKE_HEALTH_DATA && isProbablyEmulator())) {
-            MockRingRepository(database.ringDataDao())
-        } else {
-            MrdBleRingRepository(this, database.ringDataDao(), mrdProtocolAdapter)
-        }
+        createRuntimeRingRepository(this, database.ringDataDao(), mrdProtocolAdapter)
     }
 
     override fun onCreate() {
@@ -112,19 +97,5 @@ class ReHealthApplication : Application() {
         if (sessionStore.isLoggedIn) {
             MeasurementSyncWorker.schedule(this)
         }
-    }
-
-    private fun isProbablyEmulator(): Boolean {
-        val fingerprint = Build.FINGERPRINT.lowercase()
-        val model = Build.MODEL.lowercase()
-        val product = Build.PRODUCT.lowercase()
-        val brand = Build.BRAND.lowercase()
-        return fingerprint.contains("generic") ||
-            fingerprint.contains("emulator") ||
-            model.contains("emulator") ||
-            model.contains("android sdk built for") ||
-            product.contains("sdk") ||
-            product.contains("emulator") ||
-            brand.contains("generic")
     }
 }

@@ -13,7 +13,6 @@ import okhttp3.mockwebserver.MockWebServer
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -29,7 +28,7 @@ class RemotePhmServiceRemoteFailureTest {
     }
 
     @Test
-    fun backendUnavailableFallsBackToMockAndReportsError() = runTest {
+    fun backendUnavailableReportsErrorWithoutSyntheticResult() = runTest {
         // Use a port nobody is listening on to force an IOException -> BackendUnavailable.
         val api = ReHealthMobileApi(
             baseUrl = "http://127.0.0.1:65535/jeecg-boot",
@@ -39,14 +38,13 @@ class RemotePhmServiceRemoteFailureTest {
 
         val outcome = service.evaluateFeatures(aCompleteVector())
 
-        assertTrue(outcome.usedMockFallback)
         assertNotNull(outcome.error)
         assertTrue(outcome.error is RemotePhmError.BackendUnavailable)
         assertNull(outcome.result)
     }
 
     @Test
-    fun http5xxFallsBackToMockWithHttpStatusError() = runTest {
+    fun http5xxReportsHttpStatusError() = runTest {
         server.start()
         server.enqueue(
             MockResponse().setResponseCode(500)
@@ -56,7 +54,6 @@ class RemotePhmServiceRemoteFailureTest {
 
         val outcome = service.evaluateFeatures(aCompleteVector())
 
-        assertTrue(outcome.usedMockFallback)
         val error = outcome.error
         assertNotNull(error)
         assertTrue(error is RemotePhmError.HttpStatusError)
@@ -75,7 +72,6 @@ class RemotePhmServiceRemoteFailureTest {
 
         val outcome = service.evaluateFeatures(aCompleteVector())
 
-        assertTrue(outcome.usedMockFallback)
         assertTrue(outcome.error is RemotePhmError.ModelServiceUnavailable)
     }
 
@@ -91,7 +87,6 @@ class RemotePhmServiceRemoteFailureTest {
 
         val outcome = service.evaluateFeatures(aCompleteVector())
 
-        assertTrue(outcome.usedMockFallback)
         assertTrue(outcome.error is RemotePhmError.InvalidDto)
     }
 
@@ -107,7 +102,6 @@ class RemotePhmServiceRemoteFailureTest {
 
         val outcome = service.evaluateFeatures(aCompleteVector())
 
-        assertTrue(outcome.usedMockFallback)
         assertTrue(outcome.error is RemotePhmError.MissingFeatureFields)
     }
 
@@ -119,7 +113,6 @@ class RemotePhmServiceRemoteFailureTest {
 
         val outcome = service.evaluateFeatures(aCompleteVector())
 
-        assertTrue(outcome.usedMockFallback)
         assertNotNull(outcome.error)
         // An empty JSON body should never reach the typed-payload path; the wrapper reports
         // either InvalidDto (when content-length is known to be 0) or a parsing failure.
@@ -142,7 +135,6 @@ class RemotePhmServiceRemoteFailureTest {
 
         val outcome = service.evaluateFeatures(aCompleteVector())
 
-        assertFalse(outcome.usedMockFallback)
         assertNull(outcome.error)
         val result = outcome.result
         assertNotNull(result)
@@ -163,7 +155,6 @@ class RemotePhmServiceRemoteFailureTest {
 
         val outcome = service.evaluateFeatures(aCompleteVector())
 
-        assertFalse(outcome.usedMockFallback)
         val result = outcome.result
         assertNotNull(result)
         assertEquals(0.41, result.normalizedRiskScore)
@@ -191,7 +182,6 @@ class RemotePhmServiceRemoteFailureTest {
 
         // Sanity: first success envelope resolves on attempt 1 to typed success.
         val outcome = service.evaluateFeatures(aCompleteVector())
-        assertFalse(outcome.usedMockFallback)
         assertNotNull(outcome.result)
         assertEquals("cvd-mock-rules-v1", outcome.result?.model_version)
     }
@@ -221,7 +211,6 @@ class RemotePhmServiceRemoteFailureTest {
         val interventions = service.getInterventionsToday()
         val feedback = service.submitInterventionFeedback("plan-1", "done")
 
-        assertTrue(evaluate.usedMockFallback)
         assertTrue(evaluate.error is RemotePhmError.BackendUnavailable)
         assertTrue(riskLatest is RemotePhmOutcome.Failure)
         assertTrue(interventions is RemotePhmOutcome.Failure)

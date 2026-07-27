@@ -28,13 +28,13 @@ import kotlinx.coroutines.flow.StateFlow
  */
 class MockRingRepository(
     private val dao: RingDataDao,
-) : RingRepository {
+) : RingRepository, SimulatedRingProfileSink {
     private val mutableConnectionState = MutableStateFlow(RingConnectionState.DISCONNECTED)
     private val mutableConnectedDevice = MutableStateFlow<RingDevice?>(null)
     private var baselineSeeded = false
 
     /** Patient profile used to parameterize the simulated vitals. Set by the VM when a real profile is available. */
-    var profile: BaselineHealthProfile? = null
+    override var profile: BaselineHealthProfile? = null
         set(value) { field = value }
 
     override val connectionState: StateFlow<RingConnectionState> = mutableConnectionState

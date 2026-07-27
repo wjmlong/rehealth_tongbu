@@ -28,7 +28,7 @@ app/src/main/java/com/rehealth/genie/
 ├─ data/sync/       上传队列、云端映射和反馈同步
 ├─ features/        CVD 16 维特征与质量信息
 ├─ network/         会话、认证客户端、API 和 DTO
-├─ phm/             风险/干预服务抽象及显式 Mock fallback
+├─ phm/             风险/干预远程服务抽象与显式失败状态
 └─ ui/              Compose UI
 ```
 
@@ -76,6 +76,10 @@ rehealth.release.api.base.url=https://api.example.com/jeecg-boot/
 Release 的后端地址必须使用 HTTPS。模型 Provider 凭据、内部服务 token 和生产
 secret 禁止进入 `local.properties`、BuildConfig 或 APK。
 
+模拟戒指只存在于 `app/src/debug`，由 Debug 专用工厂和
+`USE_FAKE_RING`/`SEED_FAKE_HEALTH_DATA` 控制。`app/src/release` 的工厂只构造
+`MrdBleRingRepository`；远程风险评估失败时显示不可用，不生成本地模拟风险。
+
 ## 构建与测试
 
 需要 JDK 17、Android SDK 36 和 Build Tools 36.0.0。
@@ -83,6 +87,7 @@ secret 禁止进入 `local.properties`、BuildConfig 或 APK。
 ```powershell
 .\gradlew.bat testDebugUnitTest
 .\gradlew.bat assembleDebug
+.\gradlew.bat assembleRelease
 ```
 
 Debug APK：

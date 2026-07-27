@@ -2,7 +2,7 @@ package com.rehealth.genie.phm
 
 import com.rehealth.genie.ring.RingMetricType
 
-// ---- UI domain types (moved here from MockPhmService) ----
+// ---- UI domain types ----
 
 data class LifeState(
     val score: Int,

@@ -85,7 +85,7 @@ git diff --check
    - Run backend E1 and model-service F1.
    - Configure Android base URL for emulator or physical device LAN.
    - Submit feature evaluation through `POST /rehealth/mobile/features/evaluate`.
-   - Confirm model-service errors fall back to `MockPhmService` and do not block BLE collection.
+   - Confirm model-service errors surface an unavailable state without synthetic risk output and do not block BLE collection.
 
 9. Model-service risk result
    - Confirm response includes `risk_score`, `risk_level`, `feature_contributions`, `model_version`, `is_mock`, `missing_fields`, `quality_warnings`, and `summary`.
