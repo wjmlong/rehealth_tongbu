@@ -57,6 +57,7 @@ CVD 评估通过独立的 feature-evaluate 路径完成。
 - `docs/REHEALTH_INTEGRATION_CONTRACT.md`
 - `docs/D2_TELEMETRY_SYNC_PLAN.md`
 - `docs/FEATURE_EXTRACTOR.md`
+- `docs/wearable/SDK_BASELINE.md`（厂商 SDK、采购型号与能力证据基线）
 
 ## 配置
 
