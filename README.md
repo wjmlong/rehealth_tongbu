@@ -27,6 +27,7 @@ ReHealth 是面向可穿戴设备和健康干预场景的软硬件一体化系�
 Android 按 `productCode` 选择单一有效 Provider，Release 已注册 MRD、RWFit 和 HBand。
 RWFit 使用固定版本官方 SDK，当前仍需采购型号的真机能力和单位验证；HBand 已完成
 隔离 Provider 和自动化构建，但因暂无设备尚未真机验收。当前不支持多设备同时连接或数据融合。
+Debug 设备页可验证套餐切换顺序；Release 不允许用户在客户端自行改变套餐。
 
 ## 2. 系统架构
 

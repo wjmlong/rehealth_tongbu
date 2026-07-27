@@ -58,6 +58,9 @@ git diff --check
    - After clearing app data, start background collection before binding and
      confirm no fixed-address connection, automatic scan, or fabricated row occurs.
    - Confirm the current `productCode` activates exactly one Provider.
+   - In Debug, confirm switching products requires confirmation, pauses active
+     collection, disconnects the old Provider, preserves Room history, and does
+     not let the old Provider reconnect. Confirm the selector is absent in Release.
    - For RWFit, build with
      `-Prehealth.debug.wearable.product.code=RH-RW-P01`, then record model,
      firmware and capability output per `Android-apk/docs/wearable/RWFIT_DEVICE_QA.md`.

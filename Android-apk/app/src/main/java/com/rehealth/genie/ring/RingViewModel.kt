@@ -20,6 +20,7 @@ import com.rehealth.genie.ring.data.RingDataDao
 import com.rehealth.genie.ring.data.RingMeasurementEntity
 import com.rehealth.genie.ring.data.RingSignalChunkEntity
 import com.rehealth.genie.ring.data.RingSleepSessionEntity
+import com.rehealth.genie.ring.provider.ActiveWearableManager
 import com.rehealth.genie.service.RingForegroundService
 import java.util.Calendar
 import kotlinx.coroutines.delay
@@ -54,6 +55,8 @@ data class RingUiState(
     val sleep: RingSleepSessionEntity? = null,
     val activity: RingActivityEntity? = null,
     val signals: Map<RingMetricType, RingSignalChunkEntity> = emptyMap(),
+    val wearableProducts: List<WearableProductOption> = emptyList(),
+    val activeProductCode: String? = null,
 ) {
     val collectedMetricCount: Int
         get() = measurements.keys.count { it in SupportedHardwareHealthMetrics && it != RingMetricType.SLEEP } +
@@ -81,6 +84,8 @@ class RingViewModel(
     private val repository: RingRepository,
     private val dao: RingDataDao,
     private val cloudRepository: RingCloudRepository? = null,
+    private val wearableManager: ActiveWearableManager? = null,
+    private val allowWearableProductSwitch: Boolean = false,
 ) : ViewModel() {
     private val mutableUiState = MutableStateFlow(RingUiState())
     val uiState: StateFlow<RingUiState> = mutableUiState.asStateFlow()
@@ -88,6 +93,25 @@ class RingViewModel(
     private var lastRingVector: CvdFeatureVector = CvdFeatureVector()
 
     init {
+        wearableManager?.let { manager ->
+            mutableUiState.update {
+                it.copy(
+                    wearableProducts = if (allowWearableProductSwitch) {
+                        manager.products.map { product ->
+                            WearableProductOption(product.productCode, product.displayName)
+                        }
+                    } else {
+                        emptyList()
+                    },
+                    activeProductCode = manager.activeBinding.value.productCode,
+                )
+            }
+            viewModelScope.launch {
+                manager.activeBinding.collect { binding ->
+                    mutableUiState.update { it.copy(activeProductCode = binding.productCode) }
+                }
+            }
+        }
         viewModelScope.launch {
             repository.connectionState.collect { connectionState ->
                 mutableUiState.update { it.copy(connectionState = connectionState) }
@@ -153,6 +177,34 @@ class RingViewModel(
 
     fun stopBackgroundCollection(context: Context) {
         RingForegroundService.stop(context.applicationContext)
+    }
+
+    fun switchWearableProduct(context: Context, productCode: String) {
+        val manager = wearableManager ?: return
+        if (!allowWearableProductSwitch || productCode == mutableUiState.value.activeProductCode) return
+        if (mutableUiState.value.isSyncing || mutableUiState.value.isScanning) return
+        val appContext = context.applicationContext
+        val resumeBackground = RingBackgroundCollectionSettings.isActive(appContext)
+        val resumeAuto = autoCollectionJob?.isActive == true
+        if (resumeBackground) RingForegroundService.stop(appContext)
+        stopAutoCollection()
+        viewModelScope.launch {
+            mutableUiState.update { it.copy(message = "正在切换设备套餐", devices = emptyList()) }
+            runCatching { manager.switchProduct(productCode) }
+                .onSuccess {
+                    mutableUiState.update {
+                        it.copy(
+                            devices = emptyList(),
+                            message = "套餐已切换，请搜索并绑定新设备；历史健康数据已保留",
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    mutableUiState.update { it.copy(message = error.message ?: "设备套餐切换失败") }
+                }
+            if (resumeBackground) RingForegroundService.start(appContext)
+            if (resumeAuto) startAutoCollection()
+        }
     }
 
     private suspend fun runAutoCollectionCycle() {
@@ -462,10 +514,18 @@ class RingViewModel(
         private val repository: RingRepository,
         private val dao: RingDataDao,
         private val cloudRepository: RingCloudRepository? = null,
+        private val wearableManager: ActiveWearableManager? = null,
+        private val allowWearableProductSwitch: Boolean = false,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            RingViewModel(repository, dao, cloudRepository) as T
+            RingViewModel(
+                repository,
+                dao,
+                cloudRepository,
+                wearableManager,
+                allowWearableProductSwitch,
+            ) as T
     }
 }
 
@@ -607,6 +667,8 @@ private fun pushProfileToRepository(repository: RingRepository, profile: Patient
     (repository as? SimulatedRingProfileSink)?.profile = baseline
     (repository as? WearableUserProfileSink)?.wearableUserProfile = baseline
 }
+
+data class WearableProductOption(val productCode: String, val displayName: String)
 
 private fun RingMetricType.displayName(): String = when (this) {
     RingMetricType.HEART_RATE -> "心率"

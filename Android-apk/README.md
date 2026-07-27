@@ -124,6 +124,10 @@ rehealth.debug.wearable.product.code=RH-RW-P01
 命令行 `-Prehealth.debug.wearable.product.code=...` 会覆盖本地配置；两者都未设置时
 Debug 默认使用 MRD。切换配置后需重新构建并安装应用。
 
+Debug 的“设备绑定”页也可在确认对话框后切换本地商品目录中的 `productCode`。
+切换会暂停采集、断开旧 Provider、清空旧绑定并保留全部 Room 历史，再恢复原先
+启用的采集任务。Release 不显示该入口，套餐仍由受信任的产品配置决定。
+
 HBand 无设备阶段可生成强制选择 `RH-HB-E01` 的待测 APK：
 
 ```powershell

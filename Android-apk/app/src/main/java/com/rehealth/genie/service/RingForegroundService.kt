@@ -181,6 +181,8 @@ class RingForegroundService : Service() {
         }
 
         fun stop(context: Context) {
+            RingBackgroundCollectionSettings.setActive(context, false)
+            RingBackgroundRecoveryWorker.cancel(context)
             context.startService(intent(context, ACTION_STOP, runImmediately = false))
         }
     }

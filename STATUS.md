@@ -35,6 +35,8 @@
 - `productCode` 只选择一个懒加载 Provider；绑定存于加密偏好且不迁移 Room，
   未绑定地址时后台采集不会使用固定 MAC 自动连接；RWFit SDK 类型不进入 UI、
   ViewModel 或 Room Entity；HBand SDK 类型同样被限制在 Gateway 文件内，未支持的指标不生成占位记录。
+- Debug 设备页可在明确确认后暂停采集、断开旧 Provider 并切换本地 `productCode`；
+  Release 隐藏该入口，切换不会删除历史 `ring_*` 数据。
 - MySQL 8 staging 已有迁移、用户隔离、幂等和重启回读证据；生产容量与恢复仍待验证。
 
 ## 当前仓库治理决定
