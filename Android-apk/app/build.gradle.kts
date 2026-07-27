@@ -29,6 +29,18 @@ fun reHealthReleaseApiBaseUrl(): String {
 fun signSecret(): String =
     (localProps.getProperty("JEECG_SIGNATURE_SECRET") ?: System.getenv("JEECG_SIGNATURE_SECRET")
         ?: "").trim()
+fun debugWearableProductCode(): String {
+    val normalizedProductCode = (
+        providers.gradleProperty("rehealth.debug.wearable.product.code")
+            .orNull
+            ?: localProps.getProperty("rehealth.debug.wearable.product.code")
+            ?: "RH-MRD-S01"
+        ).trim()
+    require(normalizedProductCode in setOf("RH-MRD-S01", "RH-RW-P01")) {
+        "rehealth.debug.wearable.product.code must be RH-MRD-S01 or RH-RW-P01"
+    }
+    return normalizedProductCode
+}
 
 android {
     namespace = "com.rehealth.genie"
@@ -53,6 +65,7 @@ android {
         debug {
             buildConfigField("boolean", "USE_FAKE_RING", "false")
             buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", "false")
+            buildConfigField("String", "DEBUG_WEARABLE_PRODUCT_CODE", "\"${debugWearableProductCode()}\"")
             buildConfigField("String", "REHEALTH_API_BASE_URL", "\"${reHealthApiBaseUrl()}\"")
             buildConfigField("String", "JEECG_SIGN_SECRET", "\"${signSecret()}\"")
             manifestPlaceholders["usesCleartextTraffic"] = "true"
@@ -86,6 +99,7 @@ android {
 
 dependencies {
     implementation(files("libs/sdk_mrd2026_1.3.0.aar"))
+    implementation(files("libs/blesdk-rwfit-release_v2_260724.aar"))
 
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.activity:activity-compose:1.10.1")
