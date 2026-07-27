@@ -118,6 +118,10 @@ class ReHealthApplication : Application() {
             appScope = applicationScope,
             store = activeWearableStore,
             registry = ringProviderRegistry,
+            initialUserProfile = activeWearableStore.readUserProfile(sessionStore.userId),
+            persistUserProfile = { profile ->
+                activeWearableStore.saveUserProfile(sessionStore.userId, profile)
+            },
         )
     }
     val ringRepository: RingRepository

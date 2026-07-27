@@ -1,6 +1,6 @@
 # ReHealth AI Android
 
-睿禾精灵 Android 客户端，负责 MRD/RWFit 戒指采集、本地持久化、轻量健康
+睿禾精灵 Android 客户端，负责 MRD/RWFit 戒指与 HBand 手表/手环采集、本地持久化、轻量健康
 特征提取、离线上传和用户交互。CatBoost、SHAP、LLM 和生产归因均位于云端，
 不进入 Android APK。
 
@@ -9,9 +9,9 @@
 ## 当前能力
 
 - Compose 登录、注册、健康访谈、设备绑定、主页、数据、风险、干预、反馈、归因和健康助手页面。
-- MRD SDK/协议适配，以及固定版本 RWFit 官方 SDK Provider。
-- 基于 `productCode` 的单一有效设备路由；Release 注册 MRD/RWFit，Debug 另可
-  注册 Mock 或通过 Gradle 属性生成 RWFit 真机测试 APK。
+- MRD SDK/协议适配，以及固定版本 RWFit、HBand 官方 SDK Provider。
+- 基于 `productCode` 的单一有效设备路由；Release 注册 MRD/RWFit/HBand，Debug 另可
+  注册 Mock 或通过 Gradle 属性生成指定厂商真机测试 APK。
 - 心率、血氧、血压、体温、睡眠、步数和活动等本地记录。
 - Room 本地优先持久化及显式数据库迁移。
 - Foreground Service 后台低频采集与 WorkManager 恢复任务。
@@ -23,7 +23,7 @@
 
 ```text
 app/src/main/java/com/rehealth/genie/
-├─ ring/            戒指领域、Repository、BLE 守卫与 MRD/RWFit 适配
+├─ ring/            可穿戴领域、Repository、BLE 守卫与 MRD/RWFit/HBand 适配
 ├─ ring/provider/   单一有效绑定、商品目录、Provider 懒加载与路由
 ├─ ring/data/       Room 遥测实体和 DAO
 ├─ service/         RingForegroundService
@@ -40,12 +40,19 @@ app/src/main/java/com/rehealth/genie/
 ```text
 app/libs/sdk_mrd2026_1.3.0.aar
 app/libs/blesdk-rwfit-release_v2_260724.aar
+app/libs/vpbluetooth-1.20.aar
+app/libs/vpprotocol-2.3.73.15.aar
+app/libs/jl_bt_ota_V1.10.0_10931-release.aar
+app/libs/jl_rcsp_V0.7.2_527-release.aar
 ```
+
+两个 JieLi AAR 仅满足 HBand 核心 SDK 的连接/认证类签名依赖；应用不提供 OTA、
+表盘或消息控制入口。
 
 ## 核心数据流
 
 ```text
-productCode -> ActiveRingRepository -> MRD BLE / RWFit SDK
+productCode -> ActiveRingRepository -> MRD BLE / RWFit SDK / HBand SDK
   -> RingRepository
   -> Room
   -> UploadQueue
@@ -63,6 +70,7 @@ CVD 评估通过独立的 feature-evaluate 路径完成。
 - `docs/FEATURE_EXTRACTOR.md`
 - `docs/wearable/SDK_BASELINE.md`（厂商 SDK、采购型号与能力证据基线）
 - `docs/wearable/RWFIT_DEVICE_QA.md`（RWFit 真机测试步骤与证据清单）
+- `docs/wearable/HBAND_DEVICE_QA.md`（HBand 待设备真机测试步骤与证据清单）
 
 ## 配置
 
@@ -84,11 +92,13 @@ secret 禁止进入 `local.properties`、BuildConfig 或 APK。
 
 模拟戒指只存在于 `app/src/debug`，由 Debug 专用工厂和
 `USE_FAKE_RING`/`SEED_FAKE_HEALTH_DATA` 控制。`app/src/release` 的工厂只构造
-真实 MRD/RWFit Provider；远程风险评估失败时显示不可用，不生成本地模拟风险。
+真实 MRD/RWFit/HBand Provider；远程风险评估失败时显示不可用，不生成本地模拟风险。
 
 当前有效设备绑定保存在 `EncryptedSharedPreferences`，不进入 Room。设备首次
 扫描连接成功后才保存绑定地址；没有绑定地址时，后台采集不会使用固定地址或
 自动扫描连接。
+HBand 恢复连接所需的真实性别、年龄、身高和体重也只保存在该加密存储中，键按
+登录 `userId` 的 SHA-256 前缀隔离；不保存到 Room、不记录日志、不上传给新增后端。
 
 ## 构建与测试
 
@@ -116,6 +126,19 @@ rehealth.debug.wearable.product.code=RH-RW-P01
 命令行 `-Prehealth.debug.wearable.product.code=...` 会覆盖本地配置；两者都未设置时
 Debug 默认使用 MRD。切换配置后需重新构建并安装应用。
 
+Debug 的“设备绑定”页也可在确认对话框后切换本地商品目录中的 `productCode`。
+切换会暂停采集、断开旧 Provider、清空旧绑定并保留全部 Room 历史，再恢复原先
+启用的采集任务。Release 不显示该入口，套餐仍由受信任的产品配置决定。
+
+HBand 无设备阶段可生成强制选择 `RH-HB-E01` 的待测 APK：
+
+```powershell
+.\gradlew.bat "-Prehealth.debug.wearable.product.code=RH-HB-E01" testDebugUnitTest assembleDebug
+```
+
+连接前必须从真实用户档案取得性别、年龄、身高和体重。当前 HBand 商品能力仅开放
+心率、步数/活动、睡眠；SDK 报告的其他能力不会越过 `expectedMetrics` 套餐交集。
+
 Debug APK：
 
 ```text
@@ -124,8 +147,9 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## 当前限制
 
-- 已有 MRD/RWFit 单一有效设备路由；RWFit 真机型号/固件、HRV 单位、数据准确性
-  和后台稳定性仍待验证，HBand 尚未接入；不支持多设备同时连接或数据融合。
+- 已有 MRD/RWFit/HBand 单一有效设备路由；RWFit 真机型号/固件、HRV 单位、数据准确性
+  和后台稳定性仍待验证；HBand 当前仅完成 SDK/Provider/自动化构建，无设备，全部真机
+  扫描、认证、画像同步、历史读取与后台稳定性验收待办；不支持多设备同时连接或数据融合。
 - 本地遥测和上传队列仍需进一步按登录用户和设备维度隔离。
 - 遥测上传仍需从“最新快照”演进到按本地游标处理全部未上传记录。
 - MRD 扫描、重连、锁屏长时间采集、功耗和测量准确性仍需物理设备 QA。

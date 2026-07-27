@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.rehealth.genie.BuildConfig
 import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.RingDevice
@@ -80,6 +81,8 @@ fun ReHealthApp() {
                 application.ringRepository,
                 application.database.ringDataDao(),
                 application.ringCloudRepository,
+                application.activeWearableManager,
+                BuildConfig.ALLOW_WEARABLE_PRODUCT_SWITCH,
             )
         },
     )
@@ -125,6 +128,9 @@ fun ReHealthApp() {
                 onConnect = ringViewModel::connect,
                 onDisconnect = ringViewModel::disconnect,
                 onSync = ringViewModel::syncAll,
+                onSwitchProduct = { productCode ->
+                    ringViewModel.switchWearableProduct(application, productCode)
+                },
                 onboarding = true,
                 onComplete = {
                     profilePreferences.edit()
@@ -141,13 +147,20 @@ fun ReHealthApp() {
                 onConnect = ringViewModel::connect,
                 onDisconnect = ringViewModel::disconnect,
                 onSync = ringViewModel::syncAll,
+                onSwitchProduct = { productCode ->
+                    ringViewModel.switchWearableProduct(application, productCode)
+                },
                 onMeasure = ringViewModel::measure,
                 onRestartOnboarding = {
                     profilePreferences.edit().clear().apply()
                     ringViewModel.disconnect()
                     stage = AppStage.Splash
                 },
-                onGoToLogin = { stage = AppStage.Login },
+                onGoToLogin = {
+                    ringViewModel.stopBackgroundCollection(application)
+                    ringViewModel.disconnect()
+                    stage = AppStage.Login
+                },
             )
         }
     }
@@ -161,6 +174,7 @@ private fun MainShell(
     onConnect: (RingDevice) -> Unit,
     onDisconnect: () -> Unit,
     onSync: () -> Unit,
+    onSwitchProduct: (String) -> Unit,
     onMeasure: (RingMetricType) -> Unit,
     onRestartOnboarding: () -> Unit,
     onGoToLogin: () -> Unit,
@@ -203,6 +217,7 @@ private fun MainShell(
             onConnect = onConnect,
             onDisconnect = onDisconnect,
             onSync = onSync,
+            onSwitchProduct = onSwitchProduct,
         )
         return
     }

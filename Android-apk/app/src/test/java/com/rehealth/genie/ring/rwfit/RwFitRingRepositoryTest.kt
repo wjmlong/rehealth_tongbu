@@ -84,6 +84,39 @@ class RwFitRingRepositoryTest {
         assertEquals("BOUND", results.first().address)
         assertEquals(3, results.size)
     }
+
+    @Test
+    fun backgroundSyncReconnectsOnlyTheBoundDevice() = runTest {
+        val store = TrackingBindingStore().apply {
+            recordConnectedDevice(WearableVendor.RWFIT, RingDevice("BOUND", "RW Ring", null))
+        }
+        val gateway = FakeRwFitGateway(
+            RwFitCapabilities(heartRate = true),
+            RwFitPayload(measurements = listOf(RwFitMetricSample(RingMetricType.HEART_RATE, 1000, 65.0, "bpm"))),
+        )
+        val repository = RwFitRingRepository(TrackingRingDataDao(), store, gateway, emptySet())
+
+        val result = repository.syncAll()
+
+        assertEquals(1, gateway.connectCalls)
+        assertEquals("BOUND", gateway.lastConnectedAddress)
+        assertEquals(1, result.recordsWritten)
+    }
+
+    @Test
+    fun backgroundSyncWithoutBindingDoesNotScanOrCallSdk() = runTest {
+        val gateway = FakeRwFitGateway(RwFitCapabilities(), RwFitPayload())
+        val result = RwFitRingRepository(
+            TrackingRingDataDao(),
+            TrackingBindingStore(),
+            gateway,
+            emptySet(),
+        ).syncAll()
+
+        assertEquals(0, gateway.connectCalls)
+        assertEquals(0, gateway.syncCalls)
+        assertEquals(0, result.recordsWritten)
+    }
 }
 
 private class FakeRwFitGateway(
@@ -94,6 +127,9 @@ private class FakeRwFitGateway(
     private val mutableDevice = MutableStateFlow<RingDevice?>(null)
     private val mutableCapabilities = MutableStateFlow(initialCapabilities)
     var measureCalls = 0
+    var connectCalls = 0
+    var syncCalls = 0
+    var lastConnectedAddress: String? = null
     var scanResults: List<RingDevice> = emptyList()
 
     override val connectionState: StateFlow<RingConnectionState> = mutableState
@@ -103,6 +139,8 @@ private class FakeRwFitGateway(
     override suspend fun scan(): List<RingDevice> = scanResults
 
     override suspend fun connect(device: RingDevice): RwFitConnectionInfo {
+        connectCalls += 1
+        lastConnectedAddress = device.address
         mutableDevice.value = device
         mutableState.value = RingConnectionState.CONNECTED
         return RwFitConnectionInfo(device, "pid:7", "2.0.0", mutableCapabilities.value)
@@ -113,7 +151,10 @@ private class FakeRwFitGateway(
         mutableState.value = RingConnectionState.DISCONNECTED
     }
 
-    override suspend fun syncSupported(): RwFitPayload = syncPayload
+    override suspend fun syncSupported(): RwFitPayload {
+        syncCalls += 1
+        return syncPayload
+    }
 
     override suspend fun measure(type: RingMetricType): RwFitPayload {
         measureCalls += 1

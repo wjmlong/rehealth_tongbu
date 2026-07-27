@@ -1,0 +1,90 @@
+package com.rehealth.genie.ring.hband
+
+import com.rehealth.genie.ring.RingConnectionState
+import com.rehealth.genie.ring.RingDevice
+import com.rehealth.genie.ring.RingMetricType
+import kotlinx.coroutines.flow.StateFlow
+
+internal data class HBandCapabilities(
+    val steps: Boolean = true,
+    val sleep: Boolean = true,
+    val heartRate: Boolean = false,
+    val bloodOxygen: Boolean = false,
+    val hrv: Boolean = false,
+) {
+    val supportedMetrics: Set<RingMetricType>
+        get() = buildSet {
+            if (steps) {
+                add(RingMetricType.STEPS)
+                add(RingMetricType.ACTIVITY)
+            }
+            if (sleep) add(RingMetricType.SLEEP)
+            if (heartRate) add(RingMetricType.HEART_RATE)
+            if (bloodOxygen) add(RingMetricType.BLOOD_OXYGEN)
+            if (hrv) add(RingMetricType.HRV)
+        }
+}
+
+internal enum class HBandSex { MALE, FEMALE }
+
+internal data class HBandUserProfile(
+    val sex: HBandSex,
+    val heightCm: Int,
+    val weightKg: Int,
+    val age: Int,
+    val stepGoal: Int,
+)
+
+internal data class HBandConnectionInfo(
+    val device: RingDevice,
+    val modelCode: String?,
+    val firmwareVersion: String?,
+    val capabilities: HBandCapabilities,
+)
+
+internal data class HBandMetricSample(
+    val type: RingMetricType,
+    val measuredAt: Long,
+    val value: Double,
+    val unit: String,
+)
+
+internal data class HBandSleepRecord(
+    val startedAt: Long,
+    val endedAt: Long,
+    val deepMinutes: Int,
+    val lightMinutes: Int,
+    val awakeMinutes: Int,
+)
+
+internal data class HBandActivityRecord(
+    val startedAt: Long,
+    val endedAt: Long,
+    val steps: Int,
+    val distanceMeters: Double,
+    val caloriesKcal: Double,
+)
+
+internal data class HBandPayload(
+    val measurements: List<HBandMetricSample> = emptyList(),
+    val sleep: List<HBandSleepRecord> = emptyList(),
+    val activities: List<HBandActivityRecord> = emptyList(),
+) {
+    operator fun plus(other: HBandPayload) = HBandPayload(
+        measurements + other.measurements,
+        sleep + other.sleep,
+        activities + other.activities,
+    )
+}
+
+internal interface HBandSdkGateway {
+    val connectionState: StateFlow<RingConnectionState>
+    val connectedDevice: StateFlow<RingDevice?>
+    val capabilities: StateFlow<HBandCapabilities>
+
+    suspend fun scan(): List<RingDevice>
+    suspend fun connect(device: RingDevice, profile: HBandUserProfile): HBandConnectionInfo?
+    suspend fun disconnect()
+    suspend fun sync(metrics: Set<RingMetricType>): HBandPayload
+    suspend fun measure(type: RingMetricType): HBandPayload
+}

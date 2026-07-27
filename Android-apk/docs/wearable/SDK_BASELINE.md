@@ -30,13 +30,35 @@ Commands run from `Android-apk`:
 | --- | --- | --- | ---: | --- | --- |
 | MRD | `app/libs/sdk_mrd2026_1.3.0.aar` | `1.3.0` from the file name | 1,012,537 bytes | `0A4D5F171C18AB0CFBCE0965704F571A1A8B33F0E87006E52B33BB5568D4D576` | Present and included by `app/build.gradle.kts` |
 | RWFit | `app/libs/blesdk-rwfit-release_v2_260724.aar` | `RW_SDK_V2.0.0_20260724` | 346,194 bytes | `C9C2CC91C5D8D7E1274B122D83546DB1362DA7CAD582F77F39D89B4D052D5333` | Present and included by `app/build.gradle.kts` |
-| HBand / Veepoo | None | Not provided | - | - | Formal authorized package blocks HBand SDK/provider work |
+| HBand / Veepoo | `app/libs/vpbluetooth-1.20.aar` | `1.20` | 383,711 bytes | `26D7037238D18A28AC373A511B7A2ABDFAC2A405E01564F90A89C926B5B48BD8` | Present and included by `app/build.gradle.kts` |
+| HBand / Veepoo | `app/libs/vpprotocol-2.3.73.15.aar` | `2.3.73.15` | 5,631,585 bytes | `A2B3B2BA6460FC69808A210867039181238A9CC08E2980B0A3AF9DFE85B5BED1` | Present and included by `app/build.gradle.kts` |
+| HBand / JieLi support | `app/libs/jl_bt_ota_V1.10.0_10931-release.aar` | `1.10.0_10931` | 264,341 bytes | `61764E43650862637C90FE7AD603A4FE948A0724BE5508C301123D0013AB8AA8` | Required by core SDK class signatures; OTA is not exposed or invoked |
+| HBand / JieLi support | `app/libs/jl_rcsp_V0.7.2_527-release.aar` | `0.7.2_527` | 584,916 bytes | `0CBB1D46BCFDA8F6D2B7A68D805C88DC4F543A4890FC2537E9AA76D0F93857B2` | Required by core SDK authentication signatures; dial APIs are not exposed or invoked |
 
 The RWFit AAR was retrieved from the official `RWFitSDK/RW_Android_SDK`
 repository at tag `RW_SDK_V2.0.0_20260724` (commit
 `5f066e65af1aca630a30ea091909d7259e0b14da`). Its MIT license is retained at
-`app/libs/RWFIT_SDK_LICENSE.txt`. No HBand AAR, JAR, ZIP, vendor demo project,
-or authorization package was found.
+`app/libs/RWFIT_SDK_LICENSE.txt`.
+
+The HBand/Veepoo core AARs were retrieved from the user-selected official
+`HBandSDK/Android_Ble_SDK` repository at commit
+`f572723a3e9476179344fee86d0d99f7ad0e6d07`. The repository license is retained
+at `app/libs/HBAND_SDK_LICENSE.txt`. The app reuses Gson 2.11.0 and adds only the
+core protocol, Bluetooth, and LocalBroadcastManager dependencies. Release R8
+proved that `VPOperateManager` and the Bluetooth authentication layer have hard
+class-signature references to two JieLi libraries, so only `jl_bt_ota` and
+`jl_rcsp` are retained to prevent model-dependent connection class-loading
+failures. ReHealth does not invoke their OTA or dial APIs. `JL_Watch`, image
+conversion, Goodix, Nordic upgrade, contacts, and audio components remain
+excluded from the health-data integration. The upstream
+README also describes use as limited to cooperative customers, so commercial
+authorization remains a release gate even though the public repository contains
+an Apache-2.0 license file.
+
+When the Provider references `VPOperateManager`, Release R8 also sees method
+signatures for optional JieLi bitmap/FAT dial helpers and Nordic MCU Manager OTA.
+The exact absent classes are suppressed in `proguard-rules.pro`; their libraries
+remain excluded and no ReHealth code invokes those feature APIs.
 
 ## Device and capability evidence
 
@@ -44,8 +66,8 @@ or authorization package was found.
 | --- | --- | --- |
 | MRD model | Existing code and QA documents refer to `MR11`; the current BLE implementation requests heart rate, HRV, blood oxygen, blood pressure, temperature, stress, steps, sleep, RRI/PPG-related packets. | Procurement record, exact production model/SKU, firmware matrix, and physical-device verification of each metric |
 | RWFit model | The official SDK exposes step/activity, sleep, heart rate, blood oxygen, and HRV capability flags and history callbacks. | Exact purchased model, firmware, per-model capability table, metric-unit confirmation, and physical-device connection/sync evidence |
-| HBand / Veepoo model | None | Exact purchased model, firmware, formal capability table, supported metrics, and demo connection result |
-| HBand password | None | Whether the purchased model requires a password and the vendor-approved default/setup flow |
+| HBand / Veepoo model | Official SDK API and AAR signatures only | Exact purchased model, firmware, formal capability table, supported metrics, and demo connection result |
+| HBand password | Official SDK demo calls `confirmDevicePwd(..., "0000", true)` | Whether the purchased model accepts that default and the vendor-approved setup/reset flow |
 | Vendor demos | None in repository | Independent scan/connect/sync evidence for each purchased physical device |
 
 The MRD metric list above describes what the current implementation attempts;
@@ -56,12 +78,13 @@ simulated values.
 ## Gate for later phases
 
 The single-active-device routing layer may be implemented without new SDKs.
-The pinned RWFit dependency permits an isolated provider implementation against
-the documented API and exact AAR signatures. Physical-device acceptance still
-requires the purchased model, firmware, capability output, unit confirmation,
-and scan/connect/sync evidence. HBand dependency/provider work remains blocked
-until its formal SDK and device evidence are available. Vendor Bean fields and
-metric mappings must not be inferred from samples or guessed.
+The pinned RWFit and HBand dependencies permit isolated Provider implementations
+against documented APIs and exact AAR signatures. Physical-device acceptance
+still requires each purchased model, firmware, capability output, unit
+confirmation, and scan/connect/sync evidence. HBand implementation may be tested
+with a fake Gateway, but real-device acceptance and release remain blocked while
+no HBand watch is available. Vendor Bean fields and metric mappings must not be
+inferred or guessed beyond the pinned SDK contract.
 
 RWFit Provider scope is limited to capabilities reported by the connected device:
 step/activity, sleep, heart rate, blood oxygen, and HRV. The SDK documentation does
@@ -69,3 +92,14 @@ not state the HRV unit, so Android persists the real integer with unit
 `rwfit_raw`; it does not claim milliseconds. Blood pressure, temperature, stress,
 blood sugar, PPG, and other SDK callbacks are not requested or persisted in this
 phase.
+
+The HBand Provider follows `connectDevice -> Notify -> confirmDevicePwd ->
+FunctionDeviceSupportData -> syncPersonInfo -> READY`. Its product intersection
+currently enables heart rate, daily steps/activity, and sleep only. The user
+profile comes from ReHealth profile data; the SDK demo's fixed sex/age/height/
+weight values are not used. HBand blood oxygen and HRV remain outside
+`RH-HB-E01` until the purchased model is known and tested. Blood pressure,
+temperature, stress, blood glucose, uric acid, blood lipids, body composition,
+TCM, and ECG are not requested or persisted.
+`SportUtil.getDistance()` divides metre-scale step distance by 1000, so the
+Provider converts the SDK kilometre value back to Room `distanceMeters`.

@@ -5,6 +5,8 @@ import com.rehealth.genie.ring.RingDevice
 import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.RingRepository
 import com.rehealth.genie.ring.RingSyncResult
+import com.rehealth.genie.ring.WearableUserProfileSink
+import com.rehealth.genie.features.BaselineHealthProfile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,8 +22,16 @@ class ActiveRingRepository(
     appScope: CoroutineScope,
     private val store: ActiveWearableBindingStore,
     private val registry: RingProviderRegistry,
-) : RingRepository {
+    initialUserProfile: BaselineHealthProfile? = null,
+    private val persistUserProfile: ((BaselineHealthProfile?) -> Unit)? = null,
+) : RingRepository, WearableUserProfileSink {
     private val operationMutex = Mutex()
+    override var wearableUserProfile: BaselineHealthProfile? = initialUserProfile
+        set(value) {
+            field = value
+            persistUserProfile?.invoke(value)
+            (provider() as? WearableUserProfileSink)?.wearableUserProfile = value
+        }
 
     override val connectionState: StateFlow<RingConnectionState> = store.activeBinding
         .flatMapLatest { binding -> provider(binding.vendor).connectionState }
@@ -67,10 +77,14 @@ class ActiveRingRepository(
         if (current.productCode == profile.productCode && current.vendor == profile.vendor) return@withLock
         provider(current.vendor).disconnect()
         store.activateProduct(profile)
+        (provider(profile.vendor) as? WearableUserProfileSink)?.wearableUserProfile = wearableUserProfile
     }
 
-    private fun provider(vendor: WearableVendor = store.activeBinding.value.vendor): RingRepository =
-        registry.repositoryOrNull(vendor) ?: UnsupportedRingRepository
+    private fun provider(vendor: WearableVendor = store.activeBinding.value.vendor): RingRepository {
+        val resolved = registry.repositoryOrNull(vendor) ?: UnsupportedRingRepository
+        (resolved as? WearableUserProfileSink)?.wearableUserProfile = wearableUserProfile
+        return resolved
+    }
 }
 
 private object UnsupportedRingRepository : RingRepository {

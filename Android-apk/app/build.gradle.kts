@@ -36,8 +36,8 @@ fun debugWearableProductCode(): String {
             ?: localProps.getProperty("rehealth.debug.wearable.product.code")
             ?: "RH-MRD-S01"
         ).trim()
-    require(normalizedProductCode in setOf("RH-MRD-S01", "RH-RW-P01")) {
-        "rehealth.debug.wearable.product.code must be RH-MRD-S01 or RH-RW-P01"
+    require(normalizedProductCode in setOf("RH-MRD-S01", "RH-RW-P01", "RH-HB-E01")) {
+        "rehealth.debug.wearable.product.code must be RH-MRD-S01, RH-RW-P01, or RH-HB-E01"
     }
     return normalizedProductCode
 }
@@ -65,12 +65,14 @@ android {
         debug {
             buildConfigField("boolean", "USE_FAKE_RING", "false")
             buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", "false")
+            buildConfigField("boolean", "ALLOW_WEARABLE_PRODUCT_SWITCH", "true")
             buildConfigField("String", "DEBUG_WEARABLE_PRODUCT_CODE", "\"${debugWearableProductCode()}\"")
             buildConfigField("String", "REHEALTH_API_BASE_URL", "\"${reHealthApiBaseUrl()}\"")
             buildConfigField("String", "JEECG_SIGN_SECRET", "\"${signSecret()}\"")
             manifestPlaceholders["usesCleartextTraffic"] = "true"
         }
         release {
+            buildConfigField("boolean", "ALLOW_WEARABLE_PRODUCT_SWITCH", "false")
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -100,6 +102,12 @@ android {
 dependencies {
     implementation(files("libs/sdk_mrd2026_1.3.0.aar"))
     implementation(files("libs/blesdk-rwfit-release_v2_260724.aar"))
+    implementation(files("libs/vpbluetooth-1.20.aar"))
+    implementation(files("libs/vpprotocol-2.3.73.15.aar"))
+    // Required by VPOperateManager/Bluetooth authentication class signatures.
+    // ReHealth does not expose or invoke the vendor OTA and dial APIs.
+    implementation(files("libs/jl_bt_ota_V1.10.0_10931-release.aar"))
+    implementation(files("libs/jl_rcsp_V0.7.2_527-release.aar"))
 
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.activity:activity-compose:1.10.1")
@@ -118,6 +126,7 @@ dependencies {
     implementation("androidx.room:room-runtime:2.7.1")
     implementation("androidx.room:room-ktx:2.7.1")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation("androidx.localbroadcastmanager:localbroadcastmanager:1.1.0")
     implementation("com.google.code.gson:gson:2.11.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     // Retrofit + Moshi: typed E1 mobile API client for /features/evaluate and risk/intervention retrieval.

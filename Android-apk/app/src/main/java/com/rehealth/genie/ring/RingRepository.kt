@@ -20,3 +20,8 @@ interface RingRepository {
 interface SimulatedRingProfileSink {
     var profile: com.rehealth.genie.features.BaselineHealthProfile?
 }
+
+/** Optional vendor-neutral hook for SDKs that require the user's real body profile. */
+interface WearableUserProfileSink {
+    var wearableUserProfile: com.rehealth.genie.features.BaselineHealthProfile?
+}

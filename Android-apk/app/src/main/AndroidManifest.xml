@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- ============================================================ -->
     <!-- 基础网络                                                        -->
@@ -144,11 +145,15 @@
         android:label="睿禾精灵"
         android:usesCleartextTraffic="${usesCleartextTraffic}"
         android:supportsRtl="true"
+        tools:replace="android:allowBackup,android:label"
         android:theme="@style/Theme.ReHealthGenie">
         <service
             android:name=".service.RingForegroundService"
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
+        <service
+            android:name="com.inuker.bluetooth.library.BluetoothService"
+            android:exported="false" />
 
         <activity
             android:name=".MainActivity"
