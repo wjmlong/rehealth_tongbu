@@ -4,7 +4,7 @@ Last updated: 2026-07-27
 
 ## Scope
 
-B1 adds a local-first foreground service for low-frequency wearable collection and a WorkManager recovery job. The service only calls the routed `RingRepository.syncAll()` path, which selects one active MRD or RWFit Provider and persists parsed measurements, sleep, activity, and signal chunks through Room. It does not call backend APIs, model-service, `/measurements/batch`, or raw PPG/RRI upload.
+B1 adds a local-first foreground service for low-frequency wearable collection and a WorkManager recovery job. The service only calls the routed `RingRepository.syncAll()` path, which selects one active MRD, RWFit, or HBand Provider and persists parsed measurements, sleep, activity, and signal chunks through Room. It does not call backend APIs, model-service, `/measurements/batch`, or raw PPG/RRI upload.
 
 The production UI toggle is not part of B1. The app-facing APIs are:
 
@@ -50,6 +50,14 @@ The production UI toggle is not part of B1. The app-facing APIs are:
 - Missing permission, unsupported Bluetooth, and Bluetooth-off states are reported in the notification instead of crashing.
 - The service uses a persistent low-importance notification with a Stop action.
 - WorkManager is recovery-only and does not collect BLE data directly.
+- `syncAll()` reconnects only an existing encrypted binding and never scans the
+  surrounding environment when no address is bound.
+- Foreground and UI operations pass through the same `ActiveRingRepository`
+  mutex. HBand additionally serializes SDK commands and disconnects on coroutine
+  cancellation because its history API has no callback-removal operation.
+- HBand process recovery reads only the four real demographics required by
+  `syncPersonInfo` from encrypted, user-hash-scoped preferences; it never waits
+  for network profile access and never substitutes Demo values.
 - Only the active Provider may collect. A missing active binding address causes
   an empty retryable cycle, not a fixed-address connection or fabricated data.
 - Android 12+ BLE platform calls re-check `BLUETOOTH_SCAN` and

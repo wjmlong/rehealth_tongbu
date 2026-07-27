@@ -22,11 +22,14 @@ class ActiveRingRepository(
     appScope: CoroutineScope,
     private val store: ActiveWearableBindingStore,
     private val registry: RingProviderRegistry,
+    initialUserProfile: BaselineHealthProfile? = null,
+    private val persistUserProfile: ((BaselineHealthProfile?) -> Unit)? = null,
 ) : RingRepository, WearableUserProfileSink {
     private val operationMutex = Mutex()
-    override var wearableUserProfile: BaselineHealthProfile? = null
+    override var wearableUserProfile: BaselineHealthProfile? = initialUserProfile
         set(value) {
             field = value
+            persistUserProfile?.invoke(value)
             (provider() as? WearableUserProfileSink)?.wearableUserProfile = value
         }
 
@@ -77,8 +80,11 @@ class ActiveRingRepository(
         (provider(profile.vendor) as? WearableUserProfileSink)?.wearableUserProfile = wearableUserProfile
     }
 
-    private fun provider(vendor: WearableVendor = store.activeBinding.value.vendor): RingRepository =
-        registry.repositoryOrNull(vendor) ?: UnsupportedRingRepository
+    private fun provider(vendor: WearableVendor = store.activeBinding.value.vendor): RingRepository {
+        val resolved = registry.repositoryOrNull(vendor) ?: UnsupportedRingRepository
+        (resolved as? WearableUserProfileSink)?.wearableUserProfile = wearableUserProfile
+        return resolved
+    }
 }
 
 private object UnsupportedRingRepository : RingRepository {

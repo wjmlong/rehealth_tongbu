@@ -37,6 +37,8 @@
   ViewModel 或 Room Entity；HBand SDK 类型同样被限制在 Gateway 文件内，未支持的指标不生成占位记录。
 - Debug 设备页可在明确确认后暂停采集、断开旧 Provider 并切换本地 `productCode`；
   Release 隐藏该入口，切换不会删除历史 `ring_*` 数据。
+- 三个真实 Provider 的后台同步只重连已绑定地址且不做环境扫描；前后台操作共享
+  路由互斥锁。HBand 恢复画像使用按用户哈希隔离的加密缓存，外部协程取消会断开 SDK。
 - MySQL 8 staging 已有迁移、用户隔离、幂等和重启回读证据；生产容量与恢复仍待验证。
 
 ## 当前仓库治理决定

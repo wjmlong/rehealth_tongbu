@@ -80,6 +80,11 @@ git diff --check
    - Confirm foreground notification appears with Stop action.
    - Put app in background and wait at least one 15 minute interval.
    - Confirm no tight loop and no duplicate collection while foreground sync is active.
+   - Kill and reopen the process, then confirm the active Provider reconnects
+     only its bound address. For HBand, verify encrypted real demographics are
+     restored without a network request or Demo fallback.
+   - Log out while collection is active and confirm the service stops and the
+     device disconnects.
 
 6. Room persistence
    - Inspect local Room tables:

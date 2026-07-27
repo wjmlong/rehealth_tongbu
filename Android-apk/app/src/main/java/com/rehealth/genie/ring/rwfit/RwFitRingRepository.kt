@@ -56,7 +56,10 @@ class RwFitRingRepository internal constructor(
 
     override suspend fun disconnect() = gateway.disconnect()
 
-    override suspend fun syncAll(): RingSyncResult = persist(gateway.syncSupported())
+    override suspend fun syncAll(): RingSyncResult {
+        if (connectionState.value != RingConnectionState.CONNECTED && !autoConnect()) return emptyResult()
+        return persist(gateway.syncSupported())
+    }
 
     override suspend fun measure(type: RingMetricType): RingSyncResult {
         if (type !in supportedMetrics || type !in MANUAL_METRICS) return emptyResult()

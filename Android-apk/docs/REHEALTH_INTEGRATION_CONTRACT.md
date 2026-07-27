@@ -16,9 +16,14 @@ failure must not stop BLE collection.
 
 Android keeps exactly one active wearable binding in encrypted preferences. The
 Release registry contains MRD, RWFit, and HBand. HBand activation is selected by
-`RH-HB-E01`; its physical-device acceptance remains pending. Switching a product disconnects the old Provider and does not
-delete historical `ring_*` rows. Vendor SDK objects do not cross the
+`RH-HB-E01`; its physical-device acceptance remains pending. Switching a product
+disconnects the old Provider and does not delete historical `ring_*` rows. Vendor SDK objects do not cross the
 `RingRepository` boundary into UI/ViewModel/Room entities.
+
+HBand's four required `syncPersonInfo` fields (sex, age, height, weight) are
+cached in encrypted preferences under a SHA-256-derived user key so process
+recovery does not depend on network availability. They are not Room telemetry,
+are not logged, and do not change backend DTOs or PIAS.
 
 This local routing change does not change endpoint paths, authentication, DTOs,
 durable acknowledgement, or backend PIAS behavior.

@@ -65,6 +65,47 @@ class HBandRingRepositoryTest {
         assertEquals(0, result.recordsWritten)
     }
 
+    @Test
+    fun backgroundSyncReconnectsOnlyBoundDeviceWhenRealProfileIsAvailable() = runTest {
+        val store = HBandBindingStore().apply {
+            recordConnectedDevice(WearableVendor.HBAND, DEVICE)
+        }
+        val gateway = FakeHBandGateway(capabilitiesValue = HBandCapabilities(heartRate = true))
+        val repository = repository(FakeHBandDao(), store, gateway).apply {
+            wearableUserProfile = BaselineHealthProfile(
+                age = 35,
+                gender = "female",
+                heightCm = 165.0,
+                weightKg = 55.0,
+            )
+        }
+
+        repository.syncAll()
+
+        assertEquals(1, gateway.connectCalls)
+        assertEquals(DEVICE.address, gateway.lastConnectedAddress)
+        assertEquals(1, gateway.syncCalls)
+    }
+
+    @Test
+    fun backgroundSyncWithoutBindingDoesNotScanOrCallSdk() = runTest {
+        val gateway = FakeHBandGateway()
+        val repository = repository(FakeHBandDao(), HBandBindingStore(), gateway).apply {
+            wearableUserProfile = BaselineHealthProfile(
+                age = 35,
+                gender = "female",
+                heightCm = 165.0,
+                weightKg = 55.0,
+            )
+        }
+
+        val result = repository.syncAll()
+
+        assertEquals(0, gateway.connectCalls)
+        assertEquals(0, gateway.syncCalls)
+        assertEquals(0, result.recordsWritten)
+    }
+
     private fun repository(dao: RingDataDao, store: ActiveWearableBindingStore, gateway: HBandSdkGateway) =
         HBandRingRepository(
             dao,
@@ -88,18 +129,24 @@ private class FakeHBandGateway(
     private val capabilityState = MutableStateFlow(capabilitiesValue)
     var connectCalls = 0
     var measureCalls = 0
+    var syncCalls = 0
+    var lastConnectedAddress: String? = null
     override val connectionState: StateFlow<RingConnectionState> = state
     override val connectedDevice: StateFlow<RingDevice?> = device
     override val capabilities: StateFlow<HBandCapabilities> = capabilityState
     override suspend fun scan() = emptyList<RingDevice>()
     override suspend fun connect(device: RingDevice, profile: HBandUserProfile): HBandConnectionInfo {
         connectCalls++
+        lastConnectedAddress = device.address
         this.device.value = device
         state.value = RingConnectionState.CONNECTED
         return HBandConnectionInfo(device, "device:1", "1.0", capabilityState.value)
     }
     override suspend fun disconnect() { device.value = null; state.value = RingConnectionState.DISCONNECTED }
-    override suspend fun sync(metrics: Set<RingMetricType>) = payload
+    override suspend fun sync(metrics: Set<RingMetricType>): HBandPayload {
+        syncCalls++
+        return payload
+    }
     override suspend fun measure(type: RingMetricType): HBandPayload { measureCalls++; return payload }
 }
 

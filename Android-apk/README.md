@@ -97,6 +97,8 @@ secret 禁止进入 `local.properties`、BuildConfig 或 APK。
 当前有效设备绑定保存在 `EncryptedSharedPreferences`，不进入 Room。设备首次
 扫描连接成功后才保存绑定地址；没有绑定地址时，后台采集不会使用固定地址或
 自动扫描连接。
+HBand 恢复连接所需的真实性别、年龄、身高和体重也只保存在该加密存储中，键按
+登录 `userId` 的 SHA-256 前缀隔离；不保存到 Room、不记录日志、不上传给新增后端。
 
 ## 构建与测试
 

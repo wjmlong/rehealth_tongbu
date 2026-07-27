@@ -156,7 +156,11 @@ fun ReHealthApp() {
                     ringViewModel.disconnect()
                     stage = AppStage.Splash
                 },
-                onGoToLogin = { stage = AppStage.Login },
+                onGoToLogin = {
+                    ringViewModel.stopBackgroundCollection(application)
+                    ringViewModel.disconnect()
+                    stage = AppStage.Login
+                },
             )
         }
     }

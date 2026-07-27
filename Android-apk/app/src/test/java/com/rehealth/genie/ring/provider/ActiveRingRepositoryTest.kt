@@ -11,6 +11,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
+import kotlin.test.assertFalse
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -106,6 +109,50 @@ class ActiveRingRepositoryTest {
         assertEquals(profile, hband.wearableUserProfile)
     }
 
+    @Test
+    fun foregroundAndBackgroundOperationsShareOneMutex() = runTest {
+        val mrdProfile = profile(DEFAULT_MRD_PRODUCT_CODE, WearableVendor.MRD)
+        val blocking = BlockingRingRepository()
+        val routed = ActiveRingRepository(
+            backgroundScope,
+            FakeBindingStore(mrdProfile),
+            RingProviderRegistry(mapOf(WearableVendor.MRD to { blocking })),
+        )
+
+        val sync = async { routed.syncAll() }
+        blocking.syncStarted.await()
+        val measurement = async { routed.measure(RingMetricType.HEART_RATE) }
+        testScheduler.runCurrent()
+        assertFalse(blocking.measureStarted.isCompleted)
+
+        blocking.allowSyncToFinish.complete(Unit)
+        sync.await()
+        measurement.await()
+        assertEquals(1, blocking.maxConcurrentOperations)
+    }
+
+    @Test
+    fun restoredProfileReachesLazyProviderAndUpdatesArePersisted() = runTest {
+        val hbandProfile = profile(HBAND_PRODUCT_CODE, WearableVendor.HBAND)
+        val restored = BaselineHealthProfile(age = 40, gender = "male", heightCm = 178.0, weightKg = 75.0)
+        val updated = restored.copy(weightKg = 74.0)
+        var persisted: BaselineHealthProfile? = null
+        val hband = FakeRingRepository("HBAND")
+        val routed = ActiveRingRepository(
+            backgroundScope,
+            FakeBindingStore(hbandProfile),
+            RingProviderRegistry(mapOf(WearableVendor.HBAND to { hband })),
+            initialUserProfile = restored,
+            persistUserProfile = { persisted = it },
+        )
+
+        routed.scan()
+        assertEquals(restored, hband.wearableUserProfile)
+        routed.wearableUserProfile = updated
+        assertEquals(updated, persisted)
+        assertEquals(updated, hband.wearableUserProfile)
+    }
+
     private fun profile(productCode: String, vendor: WearableVendor) = WearableProductProfile(
         productCode = productCode,
         vendor = vendor,
@@ -113,6 +160,42 @@ class ActiveRingRepositoryTest {
         modelNameHints = emptySet(),
         expectedMetrics = setOf(RingMetricType.HEART_RATE),
     )
+}
+
+private class BlockingRingRepository : RingRepository {
+    private val state = MutableStateFlow(RingConnectionState.CONNECTED)
+    private val device = MutableStateFlow<RingDevice?>(RingDevice("MRD", "MRD", null))
+    val syncStarted = CompletableDeferred<Unit>()
+    val measureStarted = CompletableDeferred<Unit>()
+    val allowSyncToFinish = CompletableDeferred<Unit>()
+    private var activeOperations = 0
+    var maxConcurrentOperations = 0
+        private set
+    override val connectionState: StateFlow<RingConnectionState> = state
+    override val connectedDevice: StateFlow<RingDevice?> = device
+    override val supportedMetrics: Set<RingMetricType> = setOf(RingMetricType.HEART_RATE)
+    override suspend fun scan() = emptyList<RingDevice>()
+    override suspend fun connect(device: RingDevice) = Unit
+    override suspend fun autoConnect() = true
+    override suspend fun disconnect() = Unit
+    override suspend fun syncAll(): RingSyncResult = track {
+        syncStarted.complete(Unit)
+        allowSyncToFinish.await()
+        emptyResult()
+    }
+    override suspend fun measure(type: RingMetricType): RingSyncResult = track {
+        measureStarted.complete(Unit)
+        emptyResult()
+    }
+    override suspend fun sendCommand(data: ByteArray) = false
+
+    private suspend fun <T> track(operation: suspend () -> T): T {
+        activeOperations += 1
+        maxConcurrentOperations = maxOf(maxConcurrentOperations, activeOperations)
+        return try { operation() } finally { activeOperations -= 1 }
+    }
+
+    private fun emptyResult() = RingSyncResult(emptySet(), 0, 1L)
 }
 
 private class FakeBindingStore(profile: WearableProductProfile) : ActiveWearableBindingStore {

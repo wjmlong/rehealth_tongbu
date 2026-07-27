@@ -3,7 +3,9 @@ package com.rehealth.genie.ring.provider
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.rehealth.genie.features.BaselineHealthProfile
 import com.rehealth.genie.ring.RingDevice
+import java.security.MessageDigest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -108,6 +110,45 @@ class ActiveWearableStore(
                 lastDeviceChangedAt = if (deviceChanged) changedAt else current.lastDeviceChangedAt,
             ),
         )
+    }
+
+    fun readUserProfile(userId: String?): BaselineHealthProfile? {
+        val prefix = profilePrefix(userId) ?: return null
+        val age = preferences.getInt("${prefix}_age", -1).takeIf { it > 0 } ?: return null
+        val gender = preferences.getString("${prefix}_gender", null)?.takeIf { it.isNotBlank() } ?: return null
+        val height = preferences.getString("${prefix}_height_cm", null)?.toDoubleOrNull() ?: return null
+        val weight = preferences.getString("${prefix}_weight_kg", null)?.toDoubleOrNull() ?: return null
+        return BaselineHealthProfile(age = age, gender = gender, heightCm = height, weightKg = weight)
+    }
+
+    fun saveUserProfile(userId: String?, profile: BaselineHealthProfile?) {
+        val prefix = profilePrefix(userId) ?: return
+        val editor = preferences.edit()
+        if (profile?.age == null || profile.gender.isNullOrBlank() ||
+            profile.heightCm == null || profile.weightKg == null
+        ) {
+            editor
+                .remove("${prefix}_age")
+                .remove("${prefix}_gender")
+                .remove("${prefix}_height_cm")
+                .remove("${prefix}_weight_kg")
+                .apply()
+            return
+        }
+        editor
+            .putInt("${prefix}_age", profile.age)
+            .putString("${prefix}_gender", profile.gender)
+            .putString("${prefix}_height_cm", profile.heightCm.toString())
+            .putString("${prefix}_weight_kg", profile.weightKg.toString())
+            .apply()
+    }
+
+    private fun profilePrefix(userId: String?): String? {
+        val stableUserId = userId?.takeIf { it.isNotBlank() } ?: return null
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(stableUserId.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+        return "profile_${digest.take(24)}"
     }
 
     private fun update(binding: ActiveWearableBinding) {

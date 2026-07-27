@@ -44,12 +44,15 @@ import com.veepoo.protocol.model.enums.ESex
 import java.time.Instant
 import java.time.ZoneId
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.TimeoutCancellationException
 
 /** The sole Android source file allowed to reference HBand/VeePoo SDK types. */
 internal class RealHBandSdkGateway(
@@ -94,7 +97,8 @@ internal class RealHBandSdkGateway(
                 withContext(Dispatchers.Main.immediate) { manager.startScanDevice(callback) }
                 finished.await()
             }
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            error.rethrowIfExternalCancellation()
             // A bounded scan returns candidates found before timeout.
         } finally {
             withContext(Dispatchers.Main.immediate) { manager.stopScanDevice() }
@@ -108,8 +112,9 @@ internal class RealHBandSdkGateway(
         if (!prepareBle()) return null
         return try {
             queue.execute(CONNECT_TIMEOUT_MILLIS) { connectSerial(device, profile) }
-        } catch (_: Exception) {
+        } catch (error: Exception) {
             resetAfterFailure()
+            error.rethrowIfExternalCancellation()
             null
         }
     }
@@ -165,9 +170,17 @@ internal class RealHBandSdkGateway(
     }
 
     override suspend fun disconnect() {
-        runCatching {
+        try {
             queue.execute(COMMAND_TIMEOUT_MILLIS) {
                 withContext(Dispatchers.Main.immediate) { manager.disconnectWatch(writeResponse) }
+            }
+        } catch (error: Exception) {
+            if (error.isExternalCancellation()) {
+                mutableConnectedDevice.value = null
+                mutableCapabilities.value = HBandCapabilities()
+                stateMachine.disconnect()
+                publishState()
+                throw error
             }
         }
         mutableConnectedDevice.value = null
@@ -190,7 +203,11 @@ internal class RealHBandSdkGateway(
                 publishState()
                 result
             }
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            if (error.isExternalCancellation()) {
+                resetAfterFailure()
+                throw error
+            }
             if (manager.isCurrentDeviceConnected) stateMachine.recoverReady() else stateMachine.fail()
             publishState()
             HBandPayload()
@@ -218,7 +235,11 @@ internal class RealHBandSdkGateway(
                     publishState()
                 }
             }
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            if (error.isExternalCancellation()) {
+                resetAfterFailure()
+                throw error
+            }
             if (manager.isCurrentDeviceConnected) stateMachine.recoverReady() else stateMachine.fail()
             publishState()
             HBandPayload()
@@ -363,8 +384,19 @@ internal class RealHBandSdkGateway(
 
     private fun publishState() { mutableConnectionState.value = stateMachine.ringState }
 
+    private fun Throwable.rethrowIfExternalCancellation() {
+        if (isExternalCancellation()) throw this
+    }
+
+    private fun Throwable.isExternalCancellation(): Boolean =
+        this is CancellationException && this !is TimeoutCancellationException
+
     private suspend fun resetAfterFailure() {
-        runCatching { withContext(Dispatchers.Main.immediate) { manager.disconnectWatch(writeResponse) } }
+        runCatching {
+            withContext(NonCancellable + Dispatchers.Main.immediate) {
+                manager.disconnectWatch(writeResponse)
+            }
+        }
         mutableConnectedDevice.value = null
         mutableCapabilities.value = HBandCapabilities()
         stateMachine.fail()
