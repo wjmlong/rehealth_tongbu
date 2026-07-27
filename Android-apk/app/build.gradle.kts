@@ -100,6 +100,12 @@ android {
 dependencies {
     implementation(files("libs/sdk_mrd2026_1.3.0.aar"))
     implementation(files("libs/blesdk-rwfit-release_v2_260724.aar"))
+    implementation(files("libs/vpbluetooth-1.20.aar"))
+    implementation(files("libs/vpprotocol-2.3.73.15.aar"))
+    // Required by VPOperateManager/Bluetooth authentication class signatures.
+    // ReHealth does not expose or invoke the vendor OTA and dial APIs.
+    implementation(files("libs/jl_bt_ota_V1.10.0_10931-release.aar"))
+    implementation(files("libs/jl_rcsp_V0.7.2_527-release.aar"))
 
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.activity:activity-compose:1.10.1")
@@ -118,6 +124,7 @@ dependencies {
     implementation("androidx.room:room-runtime:2.7.1")
     implementation("androidx.room:room-ktx:2.7.1")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation("androidx.localbroadcastmanager:localbroadcastmanager:1.1.0")
     implementation("com.google.code.gson:gson:2.11.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     // Retrofit + Moshi: typed E1 mobile API client for /features/evaluate and risk/intervention retrieval.

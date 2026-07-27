@@ -40,7 +40,14 @@ app/src/main/java/com/rehealth/genie/
 ```text
 app/libs/sdk_mrd2026_1.3.0.aar
 app/libs/blesdk-rwfit-release_v2_260724.aar
+app/libs/vpbluetooth-1.20.aar
+app/libs/vpprotocol-2.3.73.15.aar
+app/libs/jl_bt_ota_V1.10.0_10931-release.aar
+app/libs/jl_rcsp_V0.7.2_527-release.aar
 ```
+
+两个 JieLi AAR 仅满足 HBand 核心 SDK 的连接/认证类签名依赖；应用不提供 OTA、
+表盘或消息控制入口。
 
 ## 核心数据流
 
