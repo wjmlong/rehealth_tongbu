@@ -19,6 +19,9 @@ Thumbs.db
 /tools/apache-maven-*-bin.zip
 /tools/commandlinetools-*.zip
 
+# Local tunnel scratch dir (contains frp tokens / binaries, never commit)
+/_tunnel_test/
+
 # Local IDE, agent, runtime, and generated evidence state
 .claude/
 .codegraph/

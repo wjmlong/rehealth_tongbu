@@ -1,6 +1,6 @@
 # ReHealth 当前状态
 
-> 最后核对：2026-07-28。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
+> 最后核对：2026-07-29。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
 > `docs/archive/acceptance/`，不得作为当前实现或发布状态的依据。
 
 ## 发布结论
@@ -23,6 +23,7 @@
 | model-service | CVD 风险评分、模型制品校验、干预生成、健康助手安全边界 |
 | PIAS | 独立服务提供个体归因；Android 不执行生产归因 |
 | 部署 | Gateway、MySQL、TimescaleDB、Kafka、Redis、Nacos、Prometheus、Grafana 的 Compose 拓扑 |
+| 真机联调通道 | SSH 反向隧道 + ECS nginx 已打通公网访问开发机 `jeecg-boot:8080`（2026-07-29 端到端验证 200），仅限 Debug 联调；见 `tools/dev-tunnel/README.md` |
 
 ## 已验证边界
 
