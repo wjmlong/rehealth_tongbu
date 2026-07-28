@@ -5,3 +5,11 @@ spring:
     import: optional:classpath:config/application-liteflow.yml
   profiles:
     active: '@profile.name@'
+
+# ReHealth：跨服务聚合用户健康数据所需配置
+# base-url 指向 device-service 地址；credential 必须与 device-service 的
+# rehealth.identity.service-credential 配置值一致（建议在部署环境用环境变量注入）。
+rehealth:
+  device-service:
+    base-url: http://localhost:8082
+    credential: ${REHEALTH_DEVICE_CREDENTIAL:}

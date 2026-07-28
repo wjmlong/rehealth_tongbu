@@ -5,6 +5,7 @@ import com.rehealth.contracts.telemetry.v1.TelemetryBatchRequest;
 import com.rehealth.contracts.telemetry.v1.TelemetryBatchResponse;
 import com.rehealth.contracts.telemetry.v1.TelemetryValidationResult;
 import com.rehealth.device.application.DeviceRequestException;
+import com.rehealth.device.application.UserHealthSummary;
 import com.rehealth.device.domain.DeviceClaims;
 import com.rehealth.device.port.TelemetryReadPort;
 import com.rehealth.device.port.TelemetryWritePort;
@@ -24,6 +25,11 @@ public class UnavailableTelemetryStore implements TelemetryWritePort, TelemetryR
 
     @Override
     public RecentTelemetryResponse recent(DeviceClaims claims, int limit) {
+        throw unavailable();
+    }
+
+    @Override
+    public UserHealthSummary healthSummaryForUser(String userId) {
         throw unavailable();
     }
 
