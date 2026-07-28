@@ -109,6 +109,12 @@ HBand 恢复连接所需的真实性别、年龄、身高和体重也只保存�
 和 Kotlin 2.2.20。Kotlin/KSP/R8 版本与 HBand 固定的 Nordic MCU Manager 2.7.4
 元数据保持兼容。
 
+Gradle 会优先从 Maven 本地仓库解析插件和项目依赖，再回退到 Google Maven、
+Maven Central 和 Gradle Plugin Portal。未覆盖 Maven 配置时，本地仓库路径为
+`%USERPROFILE%\.m2\repository`；未设置 `GRADLE_USER_HOME` 时，Gradle 用户目录为
+`%USERPROFILE%\.gradle`，下载的依赖缓存位于其 `caches\modules-2\files-2.1` 子目录。
+本地仓库中与远程仓库同坐标的制品会被优先使用，发布或排查依赖问题时应确认其来源和版本。
+
 ```powershell
 .\gradlew.bat testDebugUnitTest
 .\gradlew.bat assembleDebug
