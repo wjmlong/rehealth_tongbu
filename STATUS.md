@@ -9,7 +9,7 @@
 
 主要阻塞项：
 
-1. 物理 MRD/RWFit 戒指及 HBand 手表/手环与 Android 13+ 真机的扫描、重连、锁屏长时间采集、功耗和准确性 QA 尚未完成；当前没有 HBand 测试设备。
+1. 物理 MRD/RWFit 戒指及 HBand 手表/手环与 Android 13+ 真机的扫描、重连、锁屏长时间采集、功耗和准确性 QA 尚未完成；HBand 已开始首次真机联调，完整重装后的连接验证仍待完成。
 2. Android 运行时端到端证据仍需覆盖登录、采集、离线队列、遥测上传、风险评估和反馈回传。
 3. 签名 Release APK 的运行时 logcat、权限、隐私和真实 HTTPS 环境仍需验收。
 
@@ -53,7 +53,7 @@
 
 1. Docker 引擎恢复后补跑 Device Service 的 TimescaleDB/Testcontainers 集成测试。
 2. 在发布环境挂载已审核模型制品并复核真实模型门禁。
-3. 获取 HBand 测试设备并完成 MRD/RWFit/HBand 与 Android 运行时端到端 QA。
+3. 使用包含完整 JieLi/Nordic 依赖的 APK 完成 HBand 连接复测，再完成 MRD/RWFit/HBand 与 Android 运行时端到端 QA。
 4. 完成签名 Release APK 和真实部署环境验收。
 
 ## 历史证据

@@ -52,6 +52,7 @@ import androidx.compose.material.icons.outlined.QuestionAnswer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
@@ -99,6 +100,14 @@ internal fun ProfileScreen(
             ReHealthCardBlock {
                 Text("健康档案", color = Ink, fontWeight = FontWeight.SemiBold)
                 StatusRow("诊断标签", profile?.diagnoses?.joinToString("、") ?: "待补全")
+                StatusRow(
+                    "性别",
+                    when (normalizeProfileGender(profile?.gender)) {
+                        "male" -> "男"
+                        "female" -> "女"
+                        else -> "待补全"
+                    },
+                )
                 StatusRow("家族史", if (profile?.familyHistory == true) "有" else "无")
                 StatusRow("高血压史", if (profile?.hypertensionHistory == true) "有" else "无")
                 StatusRow("糖尿病史", if (profile?.diabetesHistory == true) "有" else "无")
@@ -129,13 +138,14 @@ internal fun ProfileScreen(
     if (showEditDialog) {
         ProfileEditDialog(
             initialName = profile?.name ?: session?.username.orEmpty(),
+            initialGender = profile?.gender,
             initialAge = profile?.age?.toString().orEmpty(),
             initialHeight = profile?.heightCm?.toString().orEmpty(),
             initialWeight = profile?.weightKg?.toString().orEmpty(),
             isSaving = editState.isSaving,
             errorMessage = editState.errorMessage,
-            onSave = { name, age, height, weight ->
-                editViewModel.save(name, age, height, weight)
+            onSave = { name, gender, age, height, weight ->
+                editViewModel.save(name, gender, age, height, weight)
             },
             onDismiss = {
                 if (!editState.isSaving) {
@@ -177,15 +187,17 @@ private fun performLogout(context: Context) {
 @Composable
 private fun ProfileEditDialog(
     initialName: String,
+    initialGender: String?,
     initialAge: String,
     initialHeight: String,
     initialWeight: String,
     isSaving: Boolean,
     errorMessage: String?,
-    onSave: (name: String, age: String, height: String, weight: String) -> Unit,
+    onSave: (name: String, gender: String, age: String, height: String, weight: String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var name by remember { mutableStateOf(initialName) }
+    var gender by remember { mutableStateOf(normalizeProfileGender(initialGender)) }
     var age by remember { mutableStateOf(initialAge) }
     var height by remember { mutableStateOf(initialHeight) }
     var weight by remember { mutableStateOf(initialWeight) }
@@ -201,6 +213,24 @@ private fun ProfileEditDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                Text("性别", color = Ink, fontSize = 12.sp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    FilterChip(
+                        selected = gender == "male",
+                        onClick = { gender = "male" },
+                        label = { Text("男") },
+                        modifier = Modifier.weight(1f),
+                    )
+                    FilterChip(
+                        selected = gender == "female",
+                        onClick = { gender = "female" },
+                        label = { Text("女") },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
                 OutlinedTextField(
                     value = age,
                     onValueChange = { age = it.filter { c -> c.isDigit() }.take(3) },
@@ -229,8 +259,8 @@ private fun ProfileEditDialog(
         },
         confirmButton = {
             Button(
-                onClick = { onSave(name, age, height, weight) },
-                enabled = !isSaving && name.isNotBlank(),
+                onClick = { gender?.let { onSave(name, it, age, height, weight) } },
+                enabled = !isSaving && name.isNotBlank() && gender != null,
             ) {
                 if (isSaving) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)

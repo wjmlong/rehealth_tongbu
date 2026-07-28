@@ -19,7 +19,7 @@ data class ProfileEditUiState(
 )
 
 /**
- * Profile edit ViewModel. Saves user-editable profile fields (name/age/height/weight)
+ * Profile edit ViewModel. Saves user-editable profile fields (name/gender/age/height/weight)
  * to the backend via `PUT /rehealth/mobile/profile` ([AuthenticatedApiClient.updateProfile]).
  *
  * To avoid wiping server-side fields not shown in the edit dialog (diagnoses,
@@ -31,13 +31,13 @@ class ProfileEditViewModel(private val context: Context) : ViewModel() {
     private val _uiState = MutableStateFlow(ProfileEditUiState())
     val uiState: StateFlow<ProfileEditUiState> = _uiState.asStateFlow()
 
-    fun save(name: String, age: String, heightCm: String, weightKg: String) {
+    fun save(name: String, gender: String?, age: String, heightCm: String, weightKg: String) {
         if (_uiState.value.isSaving) return
-        val trimmedName = name.trim().take(32)
-        if (trimmedName.isBlank()) {
-            _uiState.value = ProfileEditUiState(errorMessage = "请输入姓名/昵称")
-            return
-        }
+        val input = validateProfileEditInput(name, gender, age, heightCm, weightKg)
+            .getOrElse { error ->
+                _uiState.value = ProfileEditUiState(errorMessage = error.message ?: "个人资料格式不正确")
+                return
+            }
         viewModelScope.launch {
             _uiState.value = ProfileEditUiState(isSaving = true)
             // Merge into current remote profile so unrelated fields survive the PUT.
@@ -50,10 +50,11 @@ class ProfileEditViewModel(private val context: Context) : ViewModel() {
                 else -> null
             }
             val request = (remote ?: PatientProfileDto()).copy(
-                name = trimmedName,
-                age = age.trim().toIntOrNull() ?: remote?.age,
-                heightCm = heightCm.trim().toDoubleOrNull() ?: remote?.heightCm,
-                weightKg = weightKg.trim().toDoubleOrNull() ?: remote?.weightKg,
+                name = input.name,
+                gender = input.gender,
+                age = input.age,
+                heightCm = input.heightCm,
+                weightKg = input.weightKg,
             )
             when (val result = app.authenticatedApiClient.updateProfile(request)) {
                 is ApiResult.Success -> {

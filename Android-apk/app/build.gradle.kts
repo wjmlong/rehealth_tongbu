@@ -1,4 +1,5 @@
 import java.util.Properties
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
@@ -94,8 +95,11 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
@@ -104,10 +108,16 @@ dependencies {
     implementation(files("libs/blesdk-rwfit-release_v2_260724.aar"))
     implementation(files("libs/vpbluetooth-1.20.aar"))
     implementation(files("libs/vpprotocol-2.3.73.15.aar"))
-    // Required by VPOperateManager/Bluetooth authentication class signatures.
-    // ReHealth does not expose or invoke the vendor OTA and dial APIs.
+    // Required by VPOperateManager/JLOTAManager and Bluetooth authentication class signatures.
+    // JL_Watch supplies WatchOpImpl during manager initialization; ReHealth does not expose OTA/dial APIs.
     implementation(files("libs/jl_bt_ota_V1.10.0_10931-release.aar"))
     implementation(files("libs/jl_rcsp_V0.7.2_527-release.aar"))
+    implementation(files("libs/JL_Watch_V1.13.1_11214-release.aar"))
+    // VPOperateManager initializes its Nordic OTA adapter from the BLE connection callback,
+    // even though ReHealth does not expose OTA. These are mandatory runtime dependencies.
+    implementation("no.nordicsemi.android:mcumgr-core:2.7.4")
+    implementation("no.nordicsemi.android:mcumgr-ble:2.7.4")
+    implementation("no.nordicsemi.android.support.v18:scanner:1.4.2")
 
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.activity:activity-compose:1.10.1")

@@ -67,6 +67,12 @@ git diff --check
    - For HBand, build with
      `-Prehealth.debug.wearable.product.code=RH-HB-E01`, then follow
      `Android-apk/docs/wearable/HBAND_DEVICE_QA.md`; this row remains pending while no device is available.
+   - Before HBand connection, edit the personal profile and select sex, then enter
+     age `1..120`, height `50..250 cm`, and weight `10..300 kg`. Confirm saving
+     refreshes the profile and allows the HBand Provider to consume the encrypted cache.
+   - Install the full APK after HBand dependency changes and confirm manager initialization
+     and BLE connection callbacks do not report missing `WatchOpImpl`, `OnWatchCallback`,
+     `McuMgrBleTransport`, or Nordic scanner classes.
 
 4. Manual measurement
    - Trigger only metrics advertised by the active Provider. RWFit manual measure
