@@ -34,6 +34,7 @@ Commands run from `Android-apk`:
 | HBand / Veepoo | `app/libs/vpprotocol-2.3.73.15.aar` | `2.3.73.15` | 5,631,585 bytes | `A2B3B2BA6460FC69808A210867039181238A9CC08E2980B0A3AF9DFE85B5BED1` | Present and included by `app/build.gradle.kts` |
 | HBand / JieLi support | `app/libs/jl_bt_ota_V1.10.0_10931-release.aar` | `1.10.0_10931` | 264,341 bytes | `61764E43650862637C90FE7AD603A4FE948A0724BE5508C301123D0013AB8AA8` | Required by core SDK class signatures; OTA is not exposed or invoked |
 | HBand / JieLi support | `app/libs/jl_rcsp_V0.7.2_527-release.aar` | `0.7.2_527` | 584,916 bytes | `0CBB1D46BCFDA8F6D2B7A68D805C88DC4F543A4890FC2537E9AA76D0F93857B2` | Required by core SDK authentication signatures; dial APIs are not exposed or invoked |
+| HBand / JieLi support | `app/libs/JL_Watch_V1.13.1_11214-release.aar` | `1.13.1_11214` | 1,189,801 bytes | `7B63DE70139AE92AF67E74FEFFEDC044A383CDDA31914344EB3318BF41D5DE6E` | Supplies `WatchOpImpl`, which `vpbluetooth` loads while initializing `JLOTAManager`; watch/dial APIs are not exposed |
 
 The RWFit AAR was retrieved from the official `RWFitSDK/RW_Android_SDK`
 repository at tag `RW_SDK_V2.0.0_20260724` (commit
@@ -45,10 +46,10 @@ The HBand/Veepoo core AARs were retrieved from the user-selected official
 `f572723a3e9476179344fee86d0d99f7ad0e6d07`. The repository license is retained
 at `app/libs/HBAND_SDK_LICENSE.txt`. The app reuses Gson 2.11.0 and adds only the
 core protocol, Bluetooth, and LocalBroadcastManager dependencies. Release R8
-proved that `VPOperateManager` and the Bluetooth authentication layer have hard
-class-signature references to two JieLi libraries, so only `jl_bt_ota` and
-`jl_rcsp` are retained to prevent model-dependent connection class-loading
-failures. ReHealth does not invoke their OTA or dial APIs. `JL_Watch`, image
+identified `jl_bt_ota` and `jl_rcsp` class-signature dependencies; the first
+physical-device run then proved that `vpbluetooth` also instantiates
+`JLOTAManager`, which hard-loads `WatchOpImpl`. The matching `JL_Watch` artifact
+is therefore retained while its watch/dial APIs remain unexposed. Image
 conversion, Goodix, Nordic upgrade, contacts, and audio components remain
 excluded from the health-data integration. The upstream
 README also describes use as limited to cooperative customers, so commercial
@@ -81,9 +82,9 @@ The single-active-device routing layer may be implemented without new SDKs.
 The pinned RWFit and HBand dependencies permit isolated Provider implementations
 against documented APIs and exact AAR signatures. Physical-device acceptance
 still requires each purchased model, firmware, capability output, unit
-confirmation, and scan/connect/sync evidence. HBand implementation may be tested
-with a fake Gateway, but real-device acceptance and release remain blocked while
-no HBand watch is available. Vendor Bean fields and metric mappings must not be
+confirmation, and scan/connect/sync evidence. HBand has entered initial physical-
+device integration, but real-device acceptance and release remain blocked until
+the complete matrix passes. Vendor Bean fields and metric mappings must not be
 inferred or guessed beyond the pinned SDK contract.
 
 RWFit Provider scope is limited to capabilities reported by the connected device:

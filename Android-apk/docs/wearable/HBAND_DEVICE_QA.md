@@ -1,6 +1,7 @@
 # HBand physical-device QA
 
-Status: **HARDWARE_QA_PENDING**. No HBand watch/band is currently available.
+Status: **HARDWARE_QA_PENDING**. A physical device has entered initial integration,
+but the complete connection, capability, data, and background QA matrix is not accepted.
 Automated tests and APK builds are not evidence of physical compatibility.
 
 ## Build the dedicated APK
@@ -41,6 +42,8 @@ only `RH-HB-E01`/`HBAND`; it must not scan or connect MRD/RWFit concurrently.
 5. Connect and verify the sequence is BLE connection, Notify success, password
    confirmation, capability callback, real ReHealth profile synchronization,
    then `CONNECTED`/READY.
+   Confirm logcat contains no `NoClassDefFoundError` for `WatchOpImpl` and that
+   a full APK install, rather than Apply Changes, was used after SDK dependency changes.
 6. Test wrong password/confirmation timeout and verify the app reports an error,
    writes no telemetry, and can recover after disconnect/retry.
 7. Remove one required profile field (sex, age, height, or weight) and verify

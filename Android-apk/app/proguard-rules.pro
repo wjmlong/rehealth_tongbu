@@ -59,11 +59,6 @@
 -dontwarn org.bouncycastle.**
 -dontwarn org.openjsse.**
 
-# HBand's Bluetooth AAR has optional dial/OTA references to JL_Watch classes.
-# ReHealth does not invoke those APIs and intentionally does not package JL_Watch.
--dontwarn com.jieli.jl_rcsp.impl.WatchOpImpl
--dontwarn com.jieli.jl_rcsp.interfaces.watch.OnWatchCallback
-
 # The pinned HBand manager exposes optional dial/image/FAT and Nordic OTA APIs
 # from the same class as health operations. ReHealth never calls these APIs and
 # intentionally does not package their feature libraries.

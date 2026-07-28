@@ -44,9 +44,10 @@ app/libs/vpbluetooth-1.20.aar
 app/libs/vpprotocol-2.3.73.15.aar
 app/libs/jl_bt_ota_V1.10.0_10931-release.aar
 app/libs/jl_rcsp_V0.7.2_527-release.aar
+app/libs/JL_Watch_V1.13.1_11214-release.aar
 ```
 
-两个 JieLi AAR 仅满足 HBand 核心 SDK 的连接/认证类签名依赖；应用不提供 OTA、
+三个 JieLi AAR 仅满足 HBand 核心 SDK 的连接/认证及管理器初始化依赖；应用不提供 OTA、
 表盘或消息控制入口。
 
 ## 核心数据流
@@ -130,7 +131,7 @@ Debug 的“设备绑定”页也可在确认对话框后切换本地商品目�
 切换会暂停采集、断开旧 Provider、清空旧绑定并保留全部 Room 历史，再恢复原先
 启用的采集任务。Release 不显示该入口，套餐仍由受信任的产品配置决定。
 
-HBand 无设备阶段可生成强制选择 `RH-HB-E01` 的待测 APK：
+HBand 真机联调可生成强制选择 `RH-HB-E01` 的专用 APK：
 
 ```powershell
 .\gradlew.bat "-Prehealth.debug.wearable.product.code=RH-HB-E01" testDebugUnitTest assembleDebug
@@ -148,8 +149,8 @@ app/build/outputs/apk/debug/app-debug.apk
 ## 当前限制
 
 - 已有 MRD/RWFit/HBand 单一有效设备路由；RWFit 真机型号/固件、HRV 单位、数据准确性
-  和后台稳定性仍待验证；HBand 当前仅完成 SDK/Provider/自动化构建，无设备，全部真机
-  扫描、认证、画像同步、历史读取与后台稳定性验收待办；不支持多设备同时连接或数据融合。
+  和后台稳定性仍待验证；HBand 已开始真机联调，缺失 `JL_Watch` 的初始化阻塞已修复，
+  仍需使用完整重装 APK 验证扫描、认证、画像同步、历史读取与后台稳定性；不支持多设备同时连接或数据融合。
 - 本地遥测和上传队列仍需进一步按登录用户和设备维度隔离。
 - 遥测上传仍需从“最新快照”演进到按本地游标处理全部未上传记录。
 - MRD 扫描、重连、锁屏长时间采集、功耗和测量准确性仍需物理设备 QA。
