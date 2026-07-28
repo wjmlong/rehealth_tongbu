@@ -33,17 +33,19 @@ only `RH-HB-E01`/`HBAND`; it must not scan or connect MRD/RWFit concurrently.
 ## Connection sequence
 
 1. Grant Bluetooth scan/connect and notification permissions.
-2. Scan and confirm only SDK-recognized VeePoo/HBand candidates are shown.
-3. Record the advertised device name separately from screenshots containing a
+2. Open the personal-profile editor, select sex, and enter an age in `1..120`,
+   height in `50..250 cm`, and weight in `10..300 kg`; save and refresh the profile.
+3. Scan and confirm only SDK-recognized VeePoo/HBand candidates are shown.
+4. Record the advertised device name separately from screenshots containing a
    full MAC; redact addresses before sharing evidence.
-4. Connect and verify the sequence is BLE connection, Notify success, password
+5. Connect and verify the sequence is BLE connection, Notify success, password
    confirmation, capability callback, real ReHealth profile synchronization,
    then `CONNECTED`/READY.
-5. Test wrong password/confirmation timeout and verify the app reports an error,
+6. Test wrong password/confirmation timeout and verify the app reports an error,
    writes no telemetry, and can recover after disconnect/retry.
-6. Remove one required profile field (sex, age, height, or weight) and verify
+7. Remove one required profile field (sex, age, height, or weight) and verify
    connection is blocked before the SDK receives Demo demographic values.
-7. Restart the app and verify it reconnects only the encrypted bound address.
+8. Restart the app and verify it reconnects only the encrypted bound address.
 
 ## Data acceptance
 
