@@ -45,4 +45,41 @@ class HBandDataMapperTest {
         )
         assertEquals(0, batch.size)
     }
+
+    @Test
+    fun preservesEveryAdvancedHealthValueAsAnIndependentMeasurement() {
+        val measuredAt = 1_700_000_000_000L
+        val types = listOf(
+            RingMetricType.URIC_ACID,
+            RingMetricType.TOTAL_CHOLESTEROL,
+            RingMetricType.TRIGLYCERIDES,
+            RingMetricType.HDL_CHOLESTEROL,
+            RingMetricType.LDL_CHOLESTEROL,
+            RingMetricType.BMI,
+            RingMetricType.BODY_FAT_PERCENT,
+            RingMetricType.FAT_MASS,
+            RingMetricType.FAT_FREE_MASS,
+            RingMetricType.MUSCLE_PERCENT,
+            RingMetricType.MUSCLE_MASS,
+            RingMetricType.SUBCUTANEOUS_FAT_PERCENT,
+            RingMetricType.BODY_WATER_PERCENT,
+            RingMetricType.WATER_MASS,
+            RingMetricType.SKELETAL_MUSCLE_PERCENT,
+            RingMetricType.BONE_MASS,
+            RingMetricType.PROTEIN_PERCENT,
+            RingMetricType.PROTEIN_MASS,
+            RingMetricType.BASAL_METABOLIC_RATE,
+        )
+        val payload = HBandPayload(
+            measurements = types.mapIndexed { index, type ->
+                HBandMetricSample(type, measuredAt, index + 1.0, if (type == RingMetricType.BASAL_METABOLIC_RATE) "kcal/day" else "vendor_unit")
+            },
+        )
+
+        val batch = HBandDataMapper.toEntities(payload, "AA:BB")
+
+        assertEquals(types.toSet(), batch.measurements.map { RingMetricType.valueOf(it.metricType) }.toSet())
+        assertEquals(types.size, batch.measurements.map { it.id }.distinct().size)
+        assertTrue(types.all { it in HBandDataMapper.collectedTypes(batch) })
+    }
 }

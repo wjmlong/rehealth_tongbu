@@ -64,6 +64,7 @@ class MrdProtocolAdapter(context: Context) {
         RingMetricType.RRI -> Manridy.getMrdSend().getRRI(2, 0).datas
         RingMetricType.PPG -> Manridy.getMrdSend().sportControl(1, true, true, true).datas
         RingMetricType.ECG -> error("MRD ECG is not supported")
+        else -> error("MRD metric $type is not supported")
     }
 
     fun manualTestCommand(type: RingMetricType): ByteArray? = when (type) {
@@ -101,6 +102,7 @@ class MrdProtocolAdapter(context: Context) {
         RingMetricType.RRI -> Manridy.getMrdSend().getRRI(2, 0).datas
         RingMetricType.PPG -> null
         RingMetricType.ECG -> null
+        else -> null
     }
 
     fun parse(packet: ByteArray): MrdReadRequest = Manridy.getMrdRead().read(packet)

@@ -3,6 +3,9 @@ package com.rehealth.genie.ring.hband
 import com.rehealth.genie.ring.RingConnectionState
 import com.rehealth.genie.ring.RingDevice
 import com.rehealth.genie.ring.RingMetricType
+import com.rehealth.genie.ring.BloodGlucoseCalibration
+import com.rehealth.genie.ring.MenstrualCycleConfig
+import com.rehealth.genie.ring.RingFeatureType
 import kotlinx.coroutines.flow.StateFlow
 
 internal data class HBandCapabilities(
@@ -14,6 +17,10 @@ internal data class HBandCapabilities(
     val hrv: Boolean = false,
     val bloodPressure: Boolean = false,
     val ecg: Boolean = false,
+    val bloodComponent: Boolean = false,
+    val bodyComposition: Boolean = false,
+    val bloodGlucoseCalibration: Boolean = false,
+    val womensHealth: Boolean = false,
 ) {
     val supportedMetrics: Set<RingMetricType>
         get() = buildSet {
@@ -27,6 +34,14 @@ internal data class HBandCapabilities(
             if (hrv) add(RingMetricType.HRV)
             if (bloodPressure) add(RingMetricType.BLOOD_PRESSURE)
             if (ecg) add(RingMetricType.ECG)
+            if (bloodComponent) add(RingMetricType.BLOOD_COMPONENT)
+            if (bodyComposition) add(RingMetricType.BODY_COMPOSITION)
+        }
+
+    val supportedFeatures: Set<RingFeatureType>
+        get() = buildSet {
+            if (bloodGlucoseCalibration) add(RingFeatureType.BLOOD_GLUCOSE_CALIBRATION)
+            if (womensHealth) add(RingFeatureType.WOMENS_HEALTH)
         }
 }
 
@@ -102,4 +117,6 @@ internal interface HBandSdkGateway {
     suspend fun disconnect()
     suspend fun sync(metrics: Set<RingMetricType>): HBandPayload
     suspend fun measure(type: RingMetricType): HBandPayload
+    suspend fun setBloodGlucoseCalibration(config: BloodGlucoseCalibration): Boolean = false
+    suspend fun setMenstrualCycle(config: MenstrualCycleConfig): Boolean = false
 }

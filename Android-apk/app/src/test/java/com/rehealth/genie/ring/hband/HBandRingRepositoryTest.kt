@@ -4,6 +4,9 @@ import com.rehealth.genie.features.BaselineHealthProfile
 import com.rehealth.genie.ring.RingConnectionState
 import com.rehealth.genie.ring.RingDevice
 import com.rehealth.genie.ring.RingMetricType
+import com.rehealth.genie.ring.BloodGlucoseCalibration
+import com.rehealth.genie.ring.MenstrualCycleConfig
+import com.rehealth.genie.ring.RingFeatureType
 import com.rehealth.genie.ring.data.RingActivityEntity
 import com.rehealth.genie.ring.data.RingDataDao
 import com.rehealth.genie.ring.data.RingMeasurementEntity
@@ -41,8 +44,11 @@ class HBandRingRepositoryTest {
             capabilitiesValue = HBandCapabilities(
                 heartRate = true,
                 bloodOxygen = true,
+                hrv = true,
                 bloodPressure = true,
                 ecg = true,
+                bloodComponent = true,
+                bodyComposition = true,
             ),
             payload = HBandPayload(
                 measurements = listOf(HBandMetricSample(RingMetricType.HEART_RATE, 1_700_000_000_000L, 68.0, "bpm")),
@@ -61,12 +67,15 @@ class HBandRingRepositoryTest {
                 RingMetricType.STEPS,
                 RingMetricType.ACTIVITY,
                 RingMetricType.SLEEP,
+                RingMetricType.BLOOD_OXYGEN,
+                RingMetricType.HRV,
                 RingMetricType.BLOOD_PRESSURE,
                 RingMetricType.ECG,
+                RingMetricType.BLOOD_COMPONENT,
+                RingMetricType.BODY_COMPOSITION,
             ),
             repository.supportedMetrics,
         )
-        assertTrue(RingMetricType.BLOOD_OXYGEN !in repository.supportedMetrics)
         assertEquals(WearableVendor.HBAND, store.activeBinding.value.vendor)
         assertEquals("hband_wearable", dao.measurements.single().source)
         assertEquals(1, result.recordsWritten)
@@ -74,23 +83,47 @@ class HBandRingRepositoryTest {
 
     @Test
     fun unsupportedMetricNeverReachesSdk() = runTest {
-        val gateway = FakeHBandGateway(capabilitiesValue = HBandCapabilities(bloodOxygen = true))
-        val result = repository(FakeHBandDao(), HBandBindingStore(), gateway).measure(RingMetricType.BLOOD_OXYGEN)
+        val gateway = FakeHBandGateway(capabilitiesValue = HBandCapabilities())
+        val result = repository(FakeHBandDao(), HBandBindingStore(), gateway).measure(RingMetricType.TEMPERATURE)
         assertEquals(0, gateway.measureCalls)
         assertEquals(0, result.recordsWritten)
     }
 
     @Test
-    fun supportedBloodPressureAndEcgReachSdkManualMeasurement() = runTest {
+    fun allSupportedManualMetricsReachSdkMeasurement() = runTest {
         val gateway = FakeHBandGateway(
-            capabilitiesValue = HBandCapabilities(bloodPressure = true, ecg = true),
+            capabilitiesValue = HBandCapabilities(
+                heartRate = true,
+                bloodOxygen = true,
+                hrv = true,
+                bloodPressure = true,
+                ecg = true,
+                bloodComponent = true,
+                bodyComposition = true,
+            ),
         )
         val repository = repository(FakeHBandDao(), HBandBindingStore(), gateway)
 
+        repository.measure(RingMetricType.HEART_RATE)
+        repository.measure(RingMetricType.BLOOD_OXYGEN)
+        repository.measure(RingMetricType.HRV)
         repository.measure(RingMetricType.BLOOD_PRESSURE)
         repository.measure(RingMetricType.ECG)
+        repository.measure(RingMetricType.BLOOD_COMPONENT)
+        repository.measure(RingMetricType.BODY_COMPOSITION)
 
-        assertEquals(listOf(RingMetricType.BLOOD_PRESSURE, RingMetricType.ECG), gateway.measuredTypes)
+        assertEquals(
+            listOf(
+                RingMetricType.HEART_RATE,
+                RingMetricType.BLOOD_OXYGEN,
+                RingMetricType.HRV,
+                RingMetricType.BLOOD_PRESSURE,
+                RingMetricType.ECG,
+                RingMetricType.BLOOD_COMPONENT,
+                RingMetricType.BODY_COMPOSITION,
+            ),
+            gateway.measuredTypes,
+        )
     }
 
     @Test
@@ -134,6 +167,31 @@ class HBandRingRepositoryTest {
         assertEquals(0, result.recordsWritten)
     }
 
+    @Test
+    fun featureSettingsAreCapabilityGatedBeforeReachingSdk() = runTest {
+        val gateway = FakeHBandGateway(
+            capabilitiesValue = HBandCapabilities(
+                bloodGlucoseCalibration = true,
+                womensHealth = true,
+            ),
+        )
+        val repository = repository(FakeHBandDao(), HBandBindingStore(), gateway)
+
+        assertEquals(
+            setOf(RingFeatureType.BLOOD_GLUCOSE_CALIBRATION, RingFeatureType.WOMENS_HEALTH),
+            repository.supportedFeatures,
+        )
+        assertTrue(repository.setBloodGlucoseCalibration(BloodGlucoseCalibration(true, 5.6)))
+        assertTrue(repository.setMenstrualCycle(MenstrualCycleConfig(5, 28, 1_700_000_000_000L)))
+        assertEquals(1, gateway.bloodGlucoseSettingCalls)
+        assertEquals(1, gateway.menstrualSettingCalls)
+
+        val unsupportedGateway = FakeHBandGateway()
+        val unsupportedRepository = repository(FakeHBandDao(), HBandBindingStore(), unsupportedGateway)
+        assertTrue(!unsupportedRepository.setBloodGlucoseCalibration(BloodGlucoseCalibration(true, 5.6)))
+        assertEquals(0, unsupportedGateway.bloodGlucoseSettingCalls)
+    }
+
     private fun repository(dao: RingDataDao, store: ActiveWearableBindingStore, gateway: HBandSdkGateway) =
         HBandRingRepository(
             dao,
@@ -145,8 +203,12 @@ class HBandRingRepositoryTest {
                 RingMetricType.STEPS,
                 RingMetricType.ACTIVITY,
                 RingMetricType.SLEEP,
+                RingMetricType.BLOOD_OXYGEN,
+                RingMetricType.HRV,
                 RingMetricType.BLOOD_PRESSURE,
                 RingMetricType.ECG,
+                RingMetricType.BLOOD_COMPONENT,
+                RingMetricType.BODY_COMPOSITION,
             ),
         )
 
@@ -167,6 +229,8 @@ private class FakeHBandGateway(
     val measuredTypes = mutableListOf<RingMetricType>()
     var syncCalls = 0
     var lastConnectedAddress: String? = null
+    var bloodGlucoseSettingCalls = 0
+    var menstrualSettingCalls = 0
     override val connectionState: StateFlow<RingConnectionState> = state
     override val connectedDevice: StateFlow<RingDevice?> = device
     override val capabilities: StateFlow<HBandCapabilities> = capabilityState
@@ -187,6 +251,14 @@ private class FakeHBandGateway(
         measureCalls++
         measuredTypes += type
         return payload
+    }
+    override suspend fun setBloodGlucoseCalibration(config: BloodGlucoseCalibration): Boolean {
+        bloodGlucoseSettingCalls++
+        return true
+    }
+    override suspend fun setMenstrualCycle(config: MenstrualCycleConfig): Boolean {
+        menstrualSettingCalls++
+        return true
     }
 }
 

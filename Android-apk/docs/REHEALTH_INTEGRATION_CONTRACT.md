@@ -73,6 +73,15 @@ persisted == true
 status starts with "ACCEPTED_"
 ```
 
+HBand advanced-health measurements use independent normalized `metricType` values:
+`URIC_ACID`, `TOTAL_CHOLESTEROL`, `TRIGLYCERIDES`, `HDL_CHOLESTEROL`,
+`LDL_CHOLESTEROL`, `BMI`, `BODY_FAT_PERCENT`, `FAT_MASS`, `FAT_FREE_MASS`,
+`MUSCLE_PERCENT`, `MUSCLE_MASS`, `SUBCUTANEOUS_FAT_PERCENT`,
+`BODY_WATER_PERCENT`, `WATER_MASS`, `SKELETAL_MUSCLE_PERCENT`, `BONE_MASS`,
+`PROTEIN_PERCENT`, `PROTEIN_MASS`, and `BASAL_METABOLIC_RATE`. Blood-glucose
+calibration and menstrual-cycle configuration are device settings and never enter
+the telemetry batch.
+
 Feedback and device binding completion require `persisted == true`.
 
 ## Data and Privacy Rules

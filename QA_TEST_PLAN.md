@@ -1,6 +1,6 @@
 # ReHealth MVP QA Test Plan
 
-Last reviewed: 2026-07-27
+Last reviewed: 2026-07-28
 Scope: Android MVP, backend services, model-service, contract gates, and release QA. This plan is not final release approval; see `STATUS.md` for current blockers.
 
 ## Test Environment
@@ -80,12 +80,18 @@ git diff --check
 
 4. Manual measurement
    - Open the data page before connecting a device. Confirm heart rate, SpO2, BP,
-     HRV, temperature, ECG, sleep, steps, and activity cards remain visible with `--`
-     where no real record exists; “查看全部” is text-only and opens no dialog.
+     HRV, temperature, ECG, blood/body component, sleep, steps, and activity cards remain
+     visible with `--` where no real record exists. Unsupported actions remain visible
+     but disabled; there is no “查看全部” interaction.
    - Trigger only metrics advertised by the active Provider. RWFit manual measure
      currently supports HR, SpO2 and HRV; BP/temperature/stress are not requested.
-     HBand `RH-HB-E01` manual measure supports HR, BP and ECG only when the
-     connected device capability callback advertises the corresponding metric.
+     HBand `RH-HB-E01` manual measure supports HR, SpO2, HRV, BP, ECG, blood
+     component, and body composition only when the connected-device callback
+     advertises the corresponding capability. Steps, sleep, and activity are sync-only.
+   - For HBand blood components, verify five independent values and device-selected
+     units. For body composition, verify all 14 values are independently persisted.
+   - Verify blood-glucose calibration and menstrual-cycle settings are capability
+     gated, require explicit input, and do not create `ring_measurements` rows.
    - Confirm each successful result is written to Room before any upload attempt.
    - For HBand ECG, confirm the local signal chunk is never included in the
      telemetry upload payload; only the non-diagnostic average-HR summary may sync.
