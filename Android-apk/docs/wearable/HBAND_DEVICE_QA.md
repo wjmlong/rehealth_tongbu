@@ -59,14 +59,23 @@ For `RH-HB-E01`, validate only:
 - daily steps/activity, including confirmation that SDK distance in kilometres
   is converted to Room metres and calories remain kcal;
 - sleep start/end, deep/light duration, cross-midnight handling, and the
-  documented absence of a separate REM field in the selected SDK callback.
+  documented absence of a separate REM field in the selected SDK callback;
+- blood-pressure history and manual measurement only when `getBp()` is true;
+  verify systolic/diastolic order, `mmHg` units, wear-off/charging/low-battery
+  failures, and compare repeated readings with a validated cuff without making
+  diagnostic claims;
+- manual ECG only when `getEcg()` is true; verify contact/wear guidance, start/
+  stop/cancel behavior, SDK sample rate, local waveform persistence, and the
+  average-heart-rate summary. Confirm raw ECG waveform bytes never enter a
+  telemetry upload payload or production log, and do not expose SDK diagnosis
+  output as medical advice.
 
 Compare ten repeated syncs against the vendor app. Verify deterministic IDs
 prevent duplicate Room rows. Unsupported, zero, invalid, or absent readings must
 not produce measurements. Blood oxygen/HRV are excluded by the current product
-profile even if the SDK reports those functions. Do not test or enable blood
-pressure, temperature, stress, blood glucose, uric acid, blood lipids, ECG,
-body composition, TCM, OTA, dials, messages, contacts, music, or audio.
+profile even if the SDK reports those functions. Do not enable temperature,
+stress, blood glucose, uric acid, blood lipids, body composition, TCM, OTA,
+dials, messages, contacts, music, or audio.
 
 ## Failure and background matrix
 

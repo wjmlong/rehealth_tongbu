@@ -77,7 +77,7 @@ Feedback and device binding completion require `persisted == true`.
   path for the active Provider. The upload snapshot filters out rows from other
   vendors before creating a batch.
   Synthetic software QA must use `source=synthetic_qa`.
-- `rawPayload`, PPG/RRI payload bytes, access tokens, phone numbers, and direct
+- `rawPayload`, PPG/RRI/ECG waveform bytes, access tokens, phone numbers, and direct
   identifiers must not be included in upload payloads or production logs.
 - Telemetry ingest does not trigger model scoring. Risk evaluation is a separate
   canonical request after local feature extraction.
@@ -122,4 +122,5 @@ Software-only contract, serialization, queue, repository, and APK build checks c
 run without a ring. Real BLE scanning, binding, measurement accuracy, background
 collection reliability, reconnect behavior, and battery impact are
 `HARDWARE_QA_PENDING` until the applicable MRD/RWFit ring or HBand watch/band and
-Android 13+ device have been validated. No HBand physical device is currently available.
+Android 13+ device have been validated. An Android test phone is available, but
+the HBand wearable capability and accuracy matrix remains pending.

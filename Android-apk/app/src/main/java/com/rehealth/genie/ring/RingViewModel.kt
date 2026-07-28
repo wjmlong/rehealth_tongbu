@@ -55,6 +55,7 @@ data class RingUiState(
     val sleep: RingSleepSessionEntity? = null,
     val activity: RingActivityEntity? = null,
     val signals: Map<RingMetricType, RingSignalChunkEntity> = emptyMap(),
+    val supportedMetrics: Set<RingMetricType> = emptySet(),
     val wearableProducts: List<WearableProductOption> = emptyList(),
     val activeProductCode: String? = null,
 ) {
@@ -87,7 +88,7 @@ class RingViewModel(
     private val wearableManager: ActiveWearableManager? = null,
     private val allowWearableProductSwitch: Boolean = false,
 ) : ViewModel() {
-    private val mutableUiState = MutableStateFlow(RingUiState())
+    private val mutableUiState = MutableStateFlow(RingUiState(supportedMetrics = repository.supportedMetrics))
     val uiState: StateFlow<RingUiState> = mutableUiState.asStateFlow()
     private var autoCollectionJob: Job? = null
     private var lastRingVector: CvdFeatureVector = CvdFeatureVector()
@@ -119,7 +120,12 @@ class RingViewModel(
         }
         viewModelScope.launch {
             repository.connectedDevice.collect { device ->
-                mutableUiState.update { it.copy(connectedDevice = device) }
+                mutableUiState.update {
+                    it.copy(
+                        connectedDevice = device,
+                        supportedMetrics = if (device == null) emptySet() else repository.supportedMetrics,
+                    )
+                }
             }
         }
         viewModelScope.launch {
@@ -682,4 +688,5 @@ private fun RingMetricType.displayName(): String = when (this) {
     RingMetricType.STRESS -> "压力"
     RingMetricType.RRI -> "RRI"
     RingMetricType.PPG -> "PPG"
+    RingMetricType.ECG -> "ECG"
 }

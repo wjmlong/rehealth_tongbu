@@ -38,7 +38,12 @@ class HBandRingRepositoryTest {
         val dao = FakeHBandDao()
         val store = HBandBindingStore()
         val gateway = FakeHBandGateway(
-            capabilitiesValue = HBandCapabilities(heartRate = true, bloodOxygen = true),
+            capabilitiesValue = HBandCapabilities(
+                heartRate = true,
+                bloodOxygen = true,
+                bloodPressure = true,
+                ecg = true,
+            ),
             payload = HBandPayload(
                 measurements = listOf(HBandMetricSample(RingMetricType.HEART_RATE, 1_700_000_000_000L, 68.0, "bpm")),
             ),
@@ -50,7 +55,17 @@ class HBandRingRepositoryTest {
         repository.connect(DEVICE)
         val result = repository.syncAll()
 
-        assertEquals(setOf(RingMetricType.HEART_RATE, RingMetricType.STEPS, RingMetricType.ACTIVITY, RingMetricType.SLEEP), repository.supportedMetrics)
+        assertEquals(
+            setOf(
+                RingMetricType.HEART_RATE,
+                RingMetricType.STEPS,
+                RingMetricType.ACTIVITY,
+                RingMetricType.SLEEP,
+                RingMetricType.BLOOD_PRESSURE,
+                RingMetricType.ECG,
+            ),
+            repository.supportedMetrics,
+        )
         assertTrue(RingMetricType.BLOOD_OXYGEN !in repository.supportedMetrics)
         assertEquals(WearableVendor.HBAND, store.activeBinding.value.vendor)
         assertEquals("hband_wearable", dao.measurements.single().source)
@@ -63,6 +78,19 @@ class HBandRingRepositoryTest {
         val result = repository(FakeHBandDao(), HBandBindingStore(), gateway).measure(RingMetricType.BLOOD_OXYGEN)
         assertEquals(0, gateway.measureCalls)
         assertEquals(0, result.recordsWritten)
+    }
+
+    @Test
+    fun supportedBloodPressureAndEcgReachSdkManualMeasurement() = runTest {
+        val gateway = FakeHBandGateway(
+            capabilitiesValue = HBandCapabilities(bloodPressure = true, ecg = true),
+        )
+        val repository = repository(FakeHBandDao(), HBandBindingStore(), gateway)
+
+        repository.measure(RingMetricType.BLOOD_PRESSURE)
+        repository.measure(RingMetricType.ECG)
+
+        assertEquals(listOf(RingMetricType.BLOOD_PRESSURE, RingMetricType.ECG), gateway.measuredTypes)
     }
 
     @Test
@@ -112,7 +140,14 @@ class HBandRingRepositoryTest {
             store,
             gateway,
             emptySet(),
-            setOf(RingMetricType.HEART_RATE, RingMetricType.STEPS, RingMetricType.ACTIVITY, RingMetricType.SLEEP),
+            setOf(
+                RingMetricType.HEART_RATE,
+                RingMetricType.STEPS,
+                RingMetricType.ACTIVITY,
+                RingMetricType.SLEEP,
+                RingMetricType.BLOOD_PRESSURE,
+                RingMetricType.ECG,
+            ),
         )
 
     private companion object {
@@ -129,6 +164,7 @@ private class FakeHBandGateway(
     private val capabilityState = MutableStateFlow(capabilitiesValue)
     var connectCalls = 0
     var measureCalls = 0
+    val measuredTypes = mutableListOf<RingMetricType>()
     var syncCalls = 0
     var lastConnectedAddress: String? = null
     override val connectionState: StateFlow<RingConnectionState> = state
@@ -147,7 +183,11 @@ private class FakeHBandGateway(
         syncCalls++
         return payload
     }
-    override suspend fun measure(type: RingMetricType): HBandPayload { measureCalls++; return payload }
+    override suspend fun measure(type: RingMetricType): HBandPayload {
+        measureCalls++
+        measuredTypes += type
+        return payload
+    }
 }
 
 private class HBandBindingStore : ActiveWearableBindingStore {

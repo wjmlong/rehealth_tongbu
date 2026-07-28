@@ -12,6 +12,7 @@ enum class RingMetricType {
     STRESS,
     RRI,
     PPG,
+    ECG,
 }
 
 enum class RingFeatureType {
@@ -43,7 +44,19 @@ data class RingSyncResult(
     val completedAt: Long,
 )
 
-val RequiredRingMetrics: Set<RingMetricType> = RingMetricType.entries.toSet()
+val RequiredRingMetrics: Set<RingMetricType> = setOf(
+    RingMetricType.HEART_RATE,
+    RingMetricType.HRV,
+    RingMetricType.BLOOD_OXYGEN,
+    RingMetricType.BLOOD_PRESSURE,
+    RingMetricType.SLEEP,
+    RingMetricType.TEMPERATURE,
+    RingMetricType.STEPS,
+    RingMetricType.ACTIVITY,
+    RingMetricType.STRESS,
+    RingMetricType.RRI,
+    RingMetricType.PPG,
+)
 val SupportedHardwareHealthMetrics: Set<RingMetricType> = setOf(
     RingMetricType.SLEEP,
     RingMetricType.BLOOD_PRESSURE,
@@ -51,5 +64,6 @@ val SupportedHardwareHealthMetrics: Set<RingMetricType> = setOf(
     RingMetricType.HEART_RATE,
     RingMetricType.STEPS,
     RingMetricType.BLOOD_OXYGEN,
+    RingMetricType.ECG,
 )
 val SupportedRingFeatures: Set<RingFeatureType> = RingFeatureType.entries.toSet()

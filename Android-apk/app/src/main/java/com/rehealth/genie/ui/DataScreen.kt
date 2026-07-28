@@ -107,6 +107,13 @@ internal fun DataScreen(
             record.primaryValue.toInt().toString()
         }
     }
+    fun available(type: RingMetricType): Boolean =
+        type in state.supportedMetrics ||
+            type in state.measurements ||
+            type in state.signals ||
+            (type == RingMetricType.SLEEP && state.sleep != null) ||
+            ((type == RingMetricType.STEPS || type == RingMetricType.ACTIVITY) && state.activity != null)
+
     val periodDays = listOf(0, 7, 30, 90)[selectedPeriod]
     val periodLabel = if (periodDays == 0) "今日" else "近 $periodDays 天"
     val hrText = aggregate?.avgHeartRate?.let { String.format(Locale.getDefault(), "%.0f", it) } ?: measurement(RingMetricType.HEART_RATE)
@@ -122,16 +129,21 @@ internal fun DataScreen(
         m?.let { "${it / 60}h${it % 60}m" } ?: "--"
     }
     val stepsText = aggregate?.totalSteps?.let { if (it > 0) it.toString() else null } ?: measurement(RingMetricType.STEPS)
+    val ecgText = measurement(RingMetricType.ECG)
+    val ecgStatus = state.signals[RingMetricType.ECG]?.let { "已保存 ${it.sampleCount} 点波形" } ?: periodLabel
+    val activityText = state.activity?.durationMinutes?.takeIf { it > 0 }?.toString() ?: "--"
     val vitalMetrics = listOf(
         RingMetricUi(RingMetricType.HEART_RATE, "心率", hrText, "bpm", periodLabel, Icons.Outlined.FavoriteBorder, Color(0xFFFF6078), manualMeasure = true),
         RingMetricUi(RingMetricType.BLOOD_OXYGEN, "血氧", spo2Text, "%", periodLabel, Icons.Outlined.DataUsage, Color(0xFF148BFF), manualMeasure = true),
         RingMetricUi(RingMetricType.BLOOD_PRESSURE, "血压", bpText, "mmHg", periodLabel, Icons.Outlined.FavoriteBorder, Color(0xFF8B63F6), manualMeasure = true),
         RingMetricUi(RingMetricType.TEMPERATURE, "体温", tempText, "°C", "定时采集", Icons.Outlined.Assessment, Color(0xFFFF8A32), manualMeasure = true, actionLabel = "开启", measuringLabel = "采集中"),
-    )
+        RingMetricUi(RingMetricType.ECG, "ECG", ecgText, "bpm", ecgStatus, Icons.Outlined.Assessment, Color(0xFF009688), manualMeasure = true),
+    ).filter { available(it.type) }
     val dailyMetrics = listOf(
         RingMetricUi(RingMetricType.SLEEP, "睡眠", sleepValue, "", periodLabel, Icons.Outlined.AutoAwesome, Color(0xFF9668EF)),
         RingMetricUi(RingMetricType.STEPS, "步数", stepsText, "步", periodLabel, Icons.Outlined.ShowChart, Color(0xFF20B77A)),
-    )
+        RingMetricUi(RingMetricType.ACTIVITY, "运动", activityText, "分钟", periodLabel, Icons.Outlined.Timeline, Color(0xFFFF8A32)),
+    ).filter { available(it.type) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(

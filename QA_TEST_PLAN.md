@@ -66,7 +66,8 @@ git diff --check
      firmware and capability output per `Android-apk/docs/wearable/RWFIT_DEVICE_QA.md`.
    - For HBand, build with
      `-Prehealth.debug.wearable.product.code=RH-HB-E01`, then follow
-     `Android-apk/docs/wearable/HBAND_DEVICE_QA.md`; this row remains pending while no device is available.
+     `Android-apk/docs/wearable/HBAND_DEVICE_QA.md`; this row remains pending until
+     the purchased wearable capability and accuracy matrix is completed.
    - Before HBand connection, edit the personal profile and select sex, then enter
      age `1..120`, height `50..250 cm`, and weight `10..300 kg`. Confirm saving
      refreshes the profile and allows the HBand Provider to consume the encrypted cache.
@@ -77,8 +78,11 @@ git diff --check
 4. Manual measurement
    - Trigger only metrics advertised by the active Provider. RWFit manual measure
      currently supports HR, SpO2 and HRV; BP/temperature/stress are not requested.
-     HBand `RH-HB-E01` manual measure currently supports HR only.
+     HBand `RH-HB-E01` manual measure supports HR, BP and ECG only when the
+     connected device capability callback advertises the corresponding metric.
    - Confirm each successful result is written to Room before any upload attempt.
+   - For HBand ECG, confirm the local signal chunk is never included in the
+     telemetry upload payload; only the non-diagnostic average-HR summary may sync.
    - Confirm unsupported metrics fail with safe UI text.
 
 5. Background collection

@@ -147,8 +147,10 @@ HBand 真机联调可生成强制选择 `RH-HB-E01` 的专用 APK：
 .\gradlew.bat "-Prehealth.debug.wearable.product.code=RH-HB-E01" testDebugUnitTest assembleDebug
 ```
 
-连接前必须从真实用户档案取得性别、年龄、身高和体重。当前 HBand 商品能力仅开放
-心率、步数/活动、睡眠；SDK 报告的其他能力不会越过 `expectedMetrics` 套餐交集。
+连接前必须从真实用户档案取得性别、年龄、身高和体重。当前 HBand 商品能力开放
+心率、步数/活动、睡眠、血压和 ECG；运行时仍与设备的 `FunctionDeviceSupportData`
+取交集，不支持的能力不会显示、调用或生成占位数据。ECG 波形只写入本地 Room，
+不会进入遥测上传批次；血压与 ECG 结果仅用于健康记录，不作诊断解释。
 
 Debug APK：
 
@@ -160,7 +162,9 @@ app/build/outputs/apk/debug/app-debug.apk
 
 - 已有 MRD/RWFit/HBand 单一有效设备路由；RWFit 真机型号/固件、HRV 单位、数据准确性
   和后台稳定性仍待验证；HBand 已开始真机联调，连接所需的 JieLi/Nordic 运行时依赖已补齐，
-  仍需使用完整重装 APK 验证扫描、认证、画像同步、历史读取与后台稳定性；不支持多设备同时连接或数据融合。
+  已实现能力门控的心率、步数/活动、睡眠、血压和 ECG 接入，仍需使用完整重装 APK
+  验证采购设备实际能力、测量准确性、扫描、认证、画像同步、历史读取与后台稳定性；
+  不支持多设备同时连接或数据融合。
 - 本地遥测和上传队列仍需进一步按登录用户和设备维度隔离。
 - 遥测上传仍需从“最新快照”演进到按本地游标处理全部未上传记录。
 - MRD 扫描、重连、锁屏长时间采集、功耗和测量准确性仍需物理设备 QA。

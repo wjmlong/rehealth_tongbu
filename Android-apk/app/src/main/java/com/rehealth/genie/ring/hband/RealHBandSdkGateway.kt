@@ -2,6 +2,7 @@ package com.rehealth.genie.ring.hband
 
 import android.content.Context
 import com.inuker.bluetooth.library.Code
+import com.inuker.bluetooth.library.connect.response.BleWriteResponse
 import com.inuker.bluetooth.library.model.BleGattProfile
 import com.inuker.bluetooth.library.search.SearchResult
 import com.inuker.bluetooth.library.search.response.SearchResponse
@@ -14,6 +15,8 @@ import com.veepoo.protocol.listener.base.IBleWriteResponse
 import com.veepoo.protocol.listener.base.IConnectResponse
 import com.veepoo.protocol.listener.base.INotifyResponse
 import com.veepoo.protocol.listener.data.IDeviceFuctionDataListener
+import com.veepoo.protocol.listener.data.IBPDetectDataListener
+import com.veepoo.protocol.listener.data.IECGDetectListener
 import com.veepoo.protocol.listener.data.IHeartDataListener
 import com.veepoo.protocol.listener.data.IOriginDataListener
 import com.veepoo.protocol.listener.data.IPersonInfoDataListener
@@ -26,6 +29,10 @@ import com.veepoo.protocol.model.datas.DeviceFunctionPackage2
 import com.veepoo.protocol.model.datas.DeviceFunctionPackage3
 import com.veepoo.protocol.model.datas.DeviceFunctionPackage4
 import com.veepoo.protocol.model.datas.DeviceFunctionPackage5
+import com.veepoo.protocol.model.datas.EcgDetectInfo
+import com.veepoo.protocol.model.datas.EcgDetectResult
+import com.veepoo.protocol.model.datas.EcgDetectState
+import com.veepoo.protocol.model.datas.EcgDiagnosis
 import com.veepoo.protocol.model.datas.FunctionDeviceSupportData
 import com.veepoo.protocol.model.datas.FunctionSocailMsgData
 import com.veepoo.protocol.model.datas.HeartData
@@ -37,6 +44,8 @@ import com.veepoo.protocol.model.datas.SleepData
 import com.veepoo.protocol.model.datas.SportData
 import com.veepoo.protocol.model.datas.TimeData
 import com.veepoo.protocol.model.enums.EFunctionStatus
+import com.veepoo.protocol.model.enums.EBPDetectModel
+import com.veepoo.protocol.model.enums.EBPDetectStatus
 import com.veepoo.protocol.model.enums.EHeartStatus
 import com.veepoo.protocol.model.enums.EOprateStauts
 import com.veepoo.protocol.model.enums.EPwdStatus
@@ -198,7 +207,9 @@ internal class RealHBandSdkGateway(
                 var result = HBandPayload()
                 if (RingMetricType.STEPS in metrics || RingMetricType.ACTIVITY in metrics) result += readDailySport()
                 if (RingMetricType.SLEEP in metrics) result += readSleep()
-                if (RingMetricType.HEART_RATE in metrics) result += readHeartHistory()
+                if (RingMetricType.HEART_RATE in metrics || RingMetricType.BLOOD_PRESSURE in metrics) {
+                    result += readOriginHistory(metrics)
+                }
                 stateMachine.ready()
                 publishState()
                 result
@@ -215,22 +226,19 @@ internal class RealHBandSdkGateway(
     }
 
     override suspend fun measure(type: RingMetricType): HBandPayload {
-        if (type != RingMetricType.HEART_RATE || type !in capabilities.value.supportedMetrics) return HBandPayload()
+        if (type !in MANUAL_METRICS || type !in capabilities.value.supportedMetrics) return HBandPayload()
         return try {
             queue.execute(MEASUREMENT_TIMEOUT_MILLIS) {
                 stateMachine.startSync()
                 publishState()
-                val result = CompletableDeferred<HBandMetricSample>()
-                val listener = IHeartDataListener { data: HeartData ->
-                    if (data.heartStatus == EHeartStatus.STATE_HEART_NORMAL && data.data > 0) {
-                        result.complete(HBandMetricSample(type, clock(), data.data.toDouble(), "bpm"))
-                    }
-                }
-                withContext(Dispatchers.Main.immediate) { manager.startDetectHeart(writeResponse, listener) }
                 try {
-                    HBandPayload(measurements = listOf(result.await()))
+                    when (type) {
+                        RingMetricType.HEART_RATE -> measureHeartRate()
+                        RingMetricType.BLOOD_PRESSURE -> measureBloodPressure()
+                        RingMetricType.ECG -> measureEcg()
+                        else -> HBandPayload()
+                    }
                 } finally {
-                    withContext(Dispatchers.Main.immediate) { manager.stopDetectHeart(writeResponse) }
                     stateMachine.ready()
                     publishState()
                 }
@@ -243,6 +251,143 @@ internal class RealHBandSdkGateway(
             if (manager.isCurrentDeviceConnected) stateMachine.recoverReady() else stateMachine.fail()
             publishState()
             HBandPayload()
+        }
+    }
+
+    private suspend fun measureHeartRate(): HBandPayload {
+        val result = CompletableDeferred<HBandMetricSample>()
+        val listener = IHeartDataListener { data: HeartData ->
+            if (data.heartStatus == EHeartStatus.STATE_HEART_NORMAL && data.data > 0) {
+                result.complete(HBandMetricSample(RingMetricType.HEART_RATE, clock(), data.data.toDouble(), "bpm"))
+            }
+        }
+        withContext(Dispatchers.Main.immediate) { manager.startDetectHeart(writeResponse, listener) }
+        return try {
+            HBandPayload(measurements = listOf(result.await()))
+        } finally {
+            withContext(Dispatchers.Main.immediate) { manager.stopDetectHeart(writeResponse) }
+        }
+    }
+
+    private suspend fun measureBloodPressure(): HBandPayload {
+        val result = CompletableDeferred<HBandMetricSample?>()
+        val listener = IBPDetectDataListener { data ->
+            when (data.status) {
+                EBPDetectStatus.STATE_BP_NORMAL -> {
+                    if (validBloodPressure(data.highPressure, data.lowPressure)) {
+                        result.complete(
+                            HBandMetricSample(
+                                RingMetricType.BLOOD_PRESSURE,
+                                clock(),
+                                data.highPressure.toDouble(),
+                                "mmHg",
+                                data.lowPressure.toDouble(),
+                            ),
+                        )
+                    }
+                }
+                EBPDetectStatus.STATE_BP_BUSY,
+                EBPDetectStatus.STATE_BP_LOW_BATTERY,
+                EBPDetectStatus.STATE_BP_CHARGING,
+                EBPDetectStatus.STATE_BP_WEAR_OFF,
+                -> result.complete(null)
+                null -> Unit
+            }
+        }
+        withContext(Dispatchers.Main.immediate) {
+            manager.startDetectBP(writeResponse, listener, EBPDetectModel.DETECT_MODEL_PUBLIC)
+        }
+        return try {
+            result.await()?.let { HBandPayload(measurements = listOf(it)) } ?: HBandPayload()
+        } finally {
+            withContext(Dispatchers.Main.immediate) {
+                manager.stopDetectBP(writeResponse, EBPDetectModel.DETECT_MODEL_PUBLIC)
+            }
+        }
+    }
+
+    private suspend fun measureEcg(): HBandPayload {
+        val result = CompletableDeferred<HBandEcgRecord>()
+        val callbackSamples = mutableListOf<Int>()
+        var reportedFrequency: Int? = null
+
+        fun appendSamples(values: IntArray?) {
+            val available = values?.takeIf { it.isNotEmpty() } ?: return
+            synchronized(callbackSamples) {
+                val remaining = (MAX_ECG_SAMPLES - callbackSamples.size).coerceAtLeast(0)
+                available.take(remaining).forEach(callbackSamples::add)
+            }
+        }
+
+        fun completeCapture(
+            measuredAt: Long?,
+            frequency: Int?,
+            averageHeartRate: Int?,
+            preferredSamples: IntArray?,
+            fallbackSamples: IntArray?,
+        ) {
+            if (result.isCompleted) return
+            val observed = synchronized(callbackSamples) { callbackSamples.toIntArray() }
+            val samples = preferredSamples?.takeIf { it.isNotEmpty() }
+                ?: fallbackSamples?.takeIf { it.isNotEmpty() }
+                ?: observed.takeIf { it.isNotEmpty() }
+                ?: return
+            result.complete(
+                HBandEcgRecord(
+                    measuredAt = measuredAt?.takeIf { it > 0 } ?: clock(),
+                    sampleRateHz = frequency?.takeIf { it > 0 } ?: reportedFrequency,
+                    samples = samples.copyOf(MAX_ECG_SAMPLES.coerceAtMost(samples.size)),
+                    averageHeartRate = averageHeartRate?.takeIf { it > 0 },
+                ),
+            )
+        }
+
+        val listener = object : IECGDetectListener {
+            override fun onEcgDetectInfoChange(data: EcgDetectInfo?) {
+                reportedFrequency = data?.frequency?.takeIf { it > 0 }
+            }
+
+            override fun onEcgDetectStateChange(data: EcgDetectState?) = Unit
+
+            override fun onEcgDetectResultChange(data: EcgDetectResult?) {
+                if (data?.isSuccess != true) return
+                completeCapture(
+                    data.timeBean?.toEpochMillis(),
+                    data.frequency,
+                    data.aveHeart,
+                    data.filterSignals,
+                    data.originSign,
+                )
+            }
+
+            override fun onEcgDetectDiagnosisChange(data: EcgDiagnosis?) {
+                if (data?.isSuccess != true) return
+                completeCapture(
+                    data.timeBean?.toEpochMillis(),
+                    data.frequency,
+                    data.heartRate,
+                    data.filterSignals,
+                    null,
+                )
+            }
+
+            override fun onEcgADCChange(origin: IntArray?, filtered: IntArray?) {
+                appendSamples(filtered?.takeIf { it.isNotEmpty() } ?: origin)
+            }
+        }
+
+        withContext(Dispatchers.Main.immediate) { manager.startDetectECG(ecgWriteResponse, true, listener) }
+        return try {
+            val capture = result.await()
+            val summary = capture.averageHeartRate?.let {
+                HBandMetricSample(RingMetricType.ECG, capture.measuredAt, it.toDouble(), "bpm")
+            }
+            HBandPayload(
+                measurements = summary?.let(::listOf).orEmpty(),
+                ecgRecords = listOf(capture),
+            )
+        } finally {
+            withContext(Dispatchers.Main.immediate) { manager.stopDetectECG(ecgWriteResponse, true, listener) }
         }
     }
 
@@ -278,18 +423,51 @@ internal class RealHBandSdkGateway(
         return HBandPayload(sleep = records)
     }
 
-    private suspend fun readHeartHistory(): HBandPayload {
+    private suspend fun readOriginHistory(metrics: Set<RingMetricType>): HBandPayload {
         val records = mutableListOf<HBandMetricSample>()
         val complete = CompletableDeferred<Unit>()
         val listener = object : IOriginDataListener {
             override fun onOringinFiveMinuteDataChange(data: OriginData?) {
-                if (data != null && data.rateValue > 0) {
-                    data.getmTime()?.toEpochMillis()?.let {
-                        records += HBandMetricSample(RingMetricType.HEART_RATE, it, data.rateValue.toDouble(), "bpm")
+                if (data == null) return
+                val measuredAt = data.getmTime()?.toEpochMillis() ?: return
+                if (RingMetricType.HEART_RATE in metrics && data.rateValue > 0) {
+                    records += HBandMetricSample(RingMetricType.HEART_RATE, measuredAt, data.rateValue.toDouble(), "bpm")
+                }
+                if (RingMetricType.BLOOD_PRESSURE in metrics && validBloodPressure(data.highValue, data.lowValue)) {
+                    records += HBandMetricSample(
+                        RingMetricType.BLOOD_PRESSURE,
+                        measuredAt,
+                        data.highValue.toDouble(),
+                        "mmHg",
+                        data.lowValue.toDouble(),
+                    )
+                }
+            }
+            override fun onOringinHalfHourDataChange(data: OriginHalfHourData?) {
+                if (data == null) return
+                if (RingMetricType.HEART_RATE in metrics) {
+                    data.halfHourRateDatas.orEmpty().forEach { item ->
+                        val measuredAt = item.time?.toEpochMillis() ?: return@forEach
+                        if (item.rateValue > 0) {
+                            records += HBandMetricSample(RingMetricType.HEART_RATE, measuredAt, item.rateValue.toDouble(), "bpm")
+                        }
+                    }
+                }
+                if (RingMetricType.BLOOD_PRESSURE in metrics) {
+                    data.halfHourBps.orEmpty().forEach { item ->
+                        val measuredAt = item.time?.toEpochMillis() ?: return@forEach
+                        if (validBloodPressure(item.highValue, item.lowValue)) {
+                            records += HBandMetricSample(
+                                RingMetricType.BLOOD_PRESSURE,
+                                measuredAt,
+                                item.highValue.toDouble(),
+                                "mmHg",
+                                item.lowValue.toDouble(),
+                            )
+                        }
                     }
                 }
             }
-            override fun onOringinHalfHourDataChange(data: OriginHalfHourData?) = Unit
             override fun onReadOriginProgressDetail(day: Int, date: String?, progress: Int, total: Int) = Unit
             override fun onReadOriginProgress(progress: Float) = Unit
             override fun onReadOriginComplete() { complete.complete(Unit) }
@@ -341,6 +519,8 @@ internal class RealHBandSdkGateway(
                         heartRate = data.heartDetect.hasFunction(),
                         bloodOxygen = data.spo2H.hasFunction(),
                         hrv = data.hrvFunction.hasFunction(),
+                        bloodPressure = data.bp.hasFunction(),
+                        ecg = data.ecg.hasFunction(),
                     ),
                 )
             }
@@ -358,6 +538,9 @@ internal class RealHBandSdkGateway(
     }
 
     private fun EFunctionStatus?.hasFunction(): Boolean = this?.isHaveFunction == true
+
+    private fun validBloodPressure(systolic: Int, diastolic: Int): Boolean =
+        systolic in 70..250 && diastolic in 40..150 && systolic > diastolic
 
     private fun SleepData.toDomainSleep(): HBandSleepRecord? {
         val start = sleepDown?.toEpochMillis() ?: return null
@@ -417,8 +600,15 @@ internal class RealHBandSdkGateway(
         const val MEASUREMENT_TIMEOUT_MILLIS = 45_000L
         const val ONE_DAY_MILLIS = 86_400_000L
         const val METRES_PER_KILOMETRE = 1_000.0
+        const val MAX_ECG_SAMPLES = 120_000
         val PASSWORD_SUCCESS_STATES = setOf(EPwdStatus.CHECK_SUCCESS, EPwdStatus.CHECK_AND_TIME_SUCCESS)
         val PASSWORD_TERMINAL_STATES = PASSWORD_SUCCESS_STATES + setOf(EPwdStatus.CHECK_FAIL, EPwdStatus.UNKNOW)
+        val MANUAL_METRICS = setOf(
+            RingMetricType.HEART_RATE,
+            RingMetricType.BLOOD_PRESSURE,
+            RingMetricType.ECG,
+        )
         val writeResponse = IBleWriteResponse { }
+        val ecgWriteResponse = BleWriteResponse { }
     }
 }

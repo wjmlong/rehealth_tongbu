@@ -37,6 +37,6 @@
     "vendor": "HBAND",
     "displayName": "ReHealth 基础手环",
     "modelNameHints": [],
-    "expectedMetrics": ["HEART_RATE", "STEPS", "ACTIVITY", "SLEEP"]
+    "expectedMetrics": ["HEART_RATE", "STEPS", "ACTIVITY", "SLEEP", "BLOOD_PRESSURE", "ECG"]
   }
 ]

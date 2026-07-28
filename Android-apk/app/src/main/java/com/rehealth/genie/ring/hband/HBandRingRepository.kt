@@ -110,6 +110,10 @@ class HBandRingRepository internal constructor(
     private companion object {
         // A product control setting required by PersonInfoData, not generated health telemetry.
         const val DEFAULT_STEP_GOAL = 10_000
-        val MANUAL_METRICS = setOf(RingMetricType.HEART_RATE)
+        val MANUAL_METRICS = setOf(
+            RingMetricType.HEART_RATE,
+            RingMetricType.BLOOD_PRESSURE,
+            RingMetricType.ECG,
+        )
     }
 }
