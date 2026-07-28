@@ -26,10 +26,11 @@ fun reHealthReleaseApiBaseUrl(): String {
     return normalized
 }
 // JeecgBoot request-signing secret for endpoints that require the `X-Sign` header
-// (e.g. /sys/sms). It must be supplied by local.properties or the environment.
+// (e.g. /sys/sms). Debug falls back to JeecgBoot's checked-in development default;
+// release builds always override this field with an empty value below.
 fun signSecret(): String =
     (localProps.getProperty("JEECG_SIGNATURE_SECRET") ?: System.getenv("JEECG_SIGNATURE_SECRET")
-        ?: "").trim()
+        ?: "dd05f1c54d63749eda95f9fa6d49v442a").trim()
 fun debugWearableProductCode(): String {
     val normalizedProductCode = (
         providers.gradleProperty("rehealth.debug.wearable.product.code")
@@ -60,6 +61,7 @@ android {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
         // Provider credentials and request-signing secrets must never enter a release APK.
         buildConfigField("String", "JEECG_SIGN_SECRET", "\"\"")
+        buildConfigField("String", "SMS_TEST_CODE", "\"\"")
     }
 
     buildTypes {
@@ -70,6 +72,7 @@ android {
             buildConfigField("String", "DEBUG_WEARABLE_PRODUCT_CODE", "\"${debugWearableProductCode()}\"")
             buildConfigField("String", "REHEALTH_API_BASE_URL", "\"${reHealthApiBaseUrl()}\"")
             buildConfigField("String", "JEECG_SIGN_SECRET", "\"${signSecret()}\"")
+            buildConfigField("String", "SMS_TEST_CODE", "\"123456\"")
             manifestPlaceholders["usesCleartextTraffic"] = "true"
         }
         release {
@@ -151,6 +154,7 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.10.0")
     testImplementation(kotlin("test"))
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    testImplementation("org.json:json:20250107")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     ksp("androidx.room:room-compiler:2.7.1")

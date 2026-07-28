@@ -144,6 +144,11 @@ powershell -ExecutionPolicy Bypass -File backend/deploy/rehealth/start-local-app
 powershell -ExecutionPolicy Bypass -File backend/deploy/rehealth/stop-local-apps.ps1
 ```
 
+`start-local-apps.ps1` 为本地 JeecgBoot 设置 `JEECG_SMS_DEV_MODE=true`。此模式下
+`POST /jeecg-boot/sys/sms` 仍要求正常请求签名，但不会调用短信网关，而是在 Redis 中
+保存固定测试验证码 `123456`。未启用该变量时保留随机验证码和真实短信 Provider 链路；
+staging/production 禁止启用该测试开关。
+
 The scripts run applications as hidden Windows processes. PID files and
 separate stdout/stderr logs are written to the ignored
 `backend/deploy/rehealth/.local-runtime/` directory. The model service loads

@@ -92,7 +92,7 @@ internal fun DataScreen(
     var selectedPeriod by remember { mutableIntStateOf(1) }
     // 真实周期聚合：切换 今日/7天/30天/90天 时从本地 Room 历史重新计算
     var aggregate by remember { mutableStateOf<PeriodAggregate?>(null) }
-    LaunchedEffect(selectedPeriod) {
+    LaunchedEffect(selectedPeriod, state.lastSyncAt, state.activity?.id, state.sleep?.id) {
         val windowDays = when (selectedPeriod) { 0 -> 0; 1 -> 7; 2 -> 30; 3 -> 90; else -> 7 }
         aggregate = ringViewModel.loadPeriodAggregate(windowDays)
     }
@@ -107,13 +107,6 @@ internal fun DataScreen(
             record.primaryValue.toInt().toString()
         }
     }
-    fun available(type: RingMetricType): Boolean =
-        type in state.supportedMetrics ||
-            type in state.measurements ||
-            type in state.signals ||
-            (type == RingMetricType.SLEEP && state.sleep != null) ||
-            ((type == RingMetricType.STEPS || type == RingMetricType.ACTIVITY) && state.activity != null)
-
     val periodDays = listOf(0, 7, 30, 90)[selectedPeriod]
     val periodLabel = if (periodDays == 0) "今日" else "近 $periodDays 天"
     val hrText = aggregate?.avgHeartRate?.let { String.format(Locale.getDefault(), "%.0f", it) } ?: measurement(RingMetricType.HEART_RATE)
@@ -124,26 +117,37 @@ internal fun DataScreen(
         if (s != null && d != null) "$s/$d" else null
     } ?: measurement(RingMetricType.BLOOD_PRESSURE)
     val tempText = aggregate?.avgTemp?.let { String.format(Locale.getDefault(), "%.1f", it) } ?: measurement(RingMetricType.TEMPERATURE)
+    val hrvText = measurement(RingMetricType.HRV)
     val sleepValue = aggregate?.avgSleepMinutes?.toInt()?.let { "${it / 60}h${it % 60}m" } ?: run {
         val m = state.sleep?.let { (it.endedAt - it.startedAt) / 60_000 }
         m?.let { "${it / 60}h${it % 60}m" } ?: "--"
     }
-    val stepsText = aggregate?.totalSteps?.let { if (it > 0) it.toString() else null } ?: measurement(RingMetricType.STEPS)
+    val stepsText = aggregate?.totalSteps?.let { if (it > 0) it.toString() else null }
+        ?: state.activity?.steps?.takeIf { it > 0 }?.toString()
+        ?: measurement(RingMetricType.STEPS)
     val ecgText = measurement(RingMetricType.ECG)
     val ecgStatus = state.signals[RingMetricType.ECG]?.let { "已保存 ${it.sampleCount} 点波形" } ?: periodLabel
-    val activityText = state.activity?.durationMinutes?.takeIf { it > 0 }?.toString() ?: "--"
+    val activity = state.activity
+    val (activityText, activityUnit) = when {
+        activity == null -> "--" to "kcal"
+        activity.caloriesKcal > 0.0 -> String.format(Locale.getDefault(), "%.0f", activity.caloriesKcal) to "kcal"
+        activity.distanceMeters > 0.0 -> String.format(Locale.getDefault(), "%.0f", activity.distanceMeters) to "米"
+        activity.steps > 0 -> activity.steps.toString() to "步"
+        else -> "--" to "kcal"
+    }
     val vitalMetrics = listOf(
-        RingMetricUi(RingMetricType.HEART_RATE, "心率", hrText, "bpm", periodLabel, Icons.Outlined.FavoriteBorder, Color(0xFFFF6078), manualMeasure = true),
-        RingMetricUi(RingMetricType.BLOOD_OXYGEN, "血氧", spo2Text, "%", periodLabel, Icons.Outlined.DataUsage, Color(0xFF148BFF), manualMeasure = true),
-        RingMetricUi(RingMetricType.BLOOD_PRESSURE, "血压", bpText, "mmHg", periodLabel, Icons.Outlined.FavoriteBorder, Color(0xFF8B63F6), manualMeasure = true),
-        RingMetricUi(RingMetricType.TEMPERATURE, "体温", tempText, "°C", "定时采集", Icons.Outlined.Assessment, Color(0xFFFF8A32), manualMeasure = true, actionLabel = "开启", measuringLabel = "采集中"),
-        RingMetricUi(RingMetricType.ECG, "ECG", ecgText, "bpm", ecgStatus, Icons.Outlined.Assessment, Color(0xFF009688), manualMeasure = true),
-    ).filter { available(it.type) }
+        RingMetricUi(RingMetricType.HEART_RATE, "心率", hrText, "bpm", periodLabel, Icons.Outlined.FavoriteBorder, Color(0xFFFF6078), manualMeasure = RingMetricType.HEART_RATE in state.supportedMetrics),
+        RingMetricUi(RingMetricType.BLOOD_OXYGEN, "血氧", spo2Text, "%", periodLabel, Icons.Outlined.DataUsage, Color(0xFF148BFF), manualMeasure = RingMetricType.BLOOD_OXYGEN in state.supportedMetrics),
+        RingMetricUi(RingMetricType.BLOOD_PRESSURE, "血压", bpText, "mmHg", periodLabel, Icons.Outlined.FavoriteBorder, Color(0xFF8B63F6), manualMeasure = RingMetricType.BLOOD_PRESSURE in state.supportedMetrics),
+        RingMetricUi(RingMetricType.HRV, "HRV", hrvText, "ms", periodLabel, Icons.Outlined.Timeline, Color(0xFF00A6A6), manualMeasure = RingMetricType.HRV in state.supportedMetrics),
+        RingMetricUi(RingMetricType.TEMPERATURE, "体温", tempText, "°C", "定时采集", Icons.Outlined.Assessment, Color(0xFFFF8A32), manualMeasure = RingMetricType.TEMPERATURE in state.supportedMetrics, actionLabel = "开启", measuringLabel = "采集中"),
+        RingMetricUi(RingMetricType.ECG, "ECG", ecgText, "bpm", ecgStatus, Icons.Outlined.Assessment, Color(0xFF009688), manualMeasure = RingMetricType.ECG in state.supportedMetrics),
+    )
     val dailyMetrics = listOf(
         RingMetricUi(RingMetricType.SLEEP, "睡眠", sleepValue, "", periodLabel, Icons.Outlined.AutoAwesome, Color(0xFF9668EF)),
         RingMetricUi(RingMetricType.STEPS, "步数", stepsText, "步", periodLabel, Icons.Outlined.ShowChart, Color(0xFF20B77A)),
-        RingMetricUi(RingMetricType.ACTIVITY, "运动", activityText, "分钟", periodLabel, Icons.Outlined.Timeline, Color(0xFFFF8A32)),
-    ).filter { available(it.type) }
+        RingMetricUi(RingMetricType.ACTIVITY, "运动/活动", activityText, activityUnit, periodLabel, Icons.Outlined.Timeline, Color(0xFFFF8A32)),
+    )
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(
@@ -249,6 +253,7 @@ internal fun DataScreen(
             }
         }
     }
+
 }
 
 @Composable

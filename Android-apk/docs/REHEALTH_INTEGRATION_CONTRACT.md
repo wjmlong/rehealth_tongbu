@@ -1,6 +1,6 @@
 # ReHealth Android / Backend MVP Integration Contract
 
-Status: canonical Android contract, updated 2026-07-27.
+Status: canonical Android contract, updated 2026-07-28.
 
 ## Runtime Boundary
 
@@ -42,6 +42,8 @@ queue until the user logs in again; the app does not invent a refresh-token flow
 
 | Function | Method and path | Android behavior |
 | --- | --- | --- |
+| Registration SMS | `POST /sys/sms` | Pre-auth request with `X-Sign` and `X-Timestamp`. Local `JEECG_SMS_DEV_MODE=true` stores fixed code `123456` without calling the SMS Provider. |
+| Account registration | `POST /sys/user/register` | Submit phone, six-digit SMS code and password, then perform mobile login on success. |
 | Mobile login | `POST /sys/mLogin` | Save the Jeecg token in encrypted session storage. |
 | Health/config | `GET /rehealth/mobile/health`, `GET /rehealth/mobile/config` | Environment and contract diagnostics. |
 | Profile | `GET/PUT /rehealth/mobile/profile` | Authenticated, user-scoped health profile. |
@@ -57,6 +59,11 @@ queue until the user logs in again; the app does not invent a refresh-token flow
 Every durable business endpoint returns a retryable `503` envelope when the
 required database is disabled or unavailable. Android must not interpret an
 HTTP/Jeecg success envelope without a durable acknowledgement as completed.
+
+The fixed registration code and Jeecg development signature default are Debug/local
+behavior only. Release does not contain either value. Production keeps random codes
+and the real SMS Provider, and must use a reviewed mobile-safe signing/attestation
+strategy rather than embedding a production shared secret in the APK.
 
 Telemetry completion requires all of:
 

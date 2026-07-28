@@ -10,11 +10,14 @@
 - [ ] 签名 `assembleRelease` 通过。
 - [ ] Release 使用真实 HTTPS API 地址，禁止 cleartext 和调试配置。
 - [ ] Release APK 不包含 Provider secret、内部 token、数据库凭据或本地配置文件。
+- [ ] Release APK 的 `JEECG_SIGN_SECRET` 与 `SMS_TEST_CODE` 为空；生产 `/sys/sms` 使用已评审的移动端安全签名/证明方案和真实短信 Provider，不接受固定测试码或 APK 内共享密钥。
 - [ ] Release 不会静默使用 Mock 戒指、Mock 风险或 Mock 归因。
 
 ## Android 运行时
 
 - [ ] 登录、退出、401 重新登录和队列恢复通过。
+- [ ] Debug 注册 `/sys/sms` 签名通过；仅在 `JEECG_SMS_DEV_MODE=true` 时请求成功后自动填入测试码 `123456`。
+- [ ] 数据页固定展示心率、血氧、血压、HRV、体温、ECG、睡眠、步数和活动；无数据为 `--`，“查看全部”不可点击。
 - [ ] MRD 扫描、绑定、重连和解绑通过。
 - [ ] RWFit 扫描、绑定、重连、能力读取和首批指标同步通过。
 - [ ] HBand 扫描、Notify、密码验证、真实画像同步、能力读取和首批指标同步通过。

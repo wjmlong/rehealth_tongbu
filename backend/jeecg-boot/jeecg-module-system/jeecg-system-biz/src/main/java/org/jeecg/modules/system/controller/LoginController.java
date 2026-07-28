@@ -314,6 +314,7 @@ public class LoginController {
 	 * @return
 	 */
 	private boolean smsDevMode = "true".equalsIgnoreCase(System.getenv("JEECG_SMS_DEV_MODE"));
+	private static final String SMS_DEV_CODE = "123456";
 
 	@PostMapping(value = "/sms")
 	public Result<String> sms(@RequestBody JSONObject jsonObject,HttpServletRequest request) {
@@ -351,8 +352,8 @@ public class LoginController {
 		}
 		//-------------------------------------------------------------------------------------
 
-		//随机数
-		String captcha = RandomUtil.randomNumbers(6);
+		// 测试环境使用固定验证码；生产环境继续生成随机验证码并调用真实短信接口。
+		String captcha = smsDevMode ? SMS_DEV_CODE : RandomUtil.randomNumbers(6);
 		JSONObject obj = new JSONObject();
     	obj.put("code", captcha);
 
@@ -362,7 +363,7 @@ public class LoginController {
 			redisUtil.set(redisKey, captcha, 600);
 			log.warn("【DEV短信验证码】手机号 {} 的注册验证码 = {}（开发模式，未真实下发短信）", mobile, captcha);
 			result.setSuccess(true);
-			result.setMessage("验证码已生成（开发模式，请在服务端日志或 Redis(phone_msg+手机号) 中查看）");
+			result.setMessage("测试验证码已生成");
 			return result;
 		}
 

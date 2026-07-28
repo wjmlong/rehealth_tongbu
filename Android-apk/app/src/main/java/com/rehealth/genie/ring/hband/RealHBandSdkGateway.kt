@@ -418,7 +418,11 @@ internal class RealHBandSdkGateway(
             override fun onSleepProgressDetail(day: String?, progress: Int) = Unit
             override fun onReadSleepComplete() { complete.complete(Unit) }
         }
-        withContext(Dispatchers.Main.immediate) { manager.readSleepData(writeResponse, listener, TODAY) }
+        val watchDataDays = capabilities.value.watchDataDays
+            .takeIf { it > 0 }
+            ?.coerceAtMost(MAX_WATCH_DATA_DAYS)
+            ?: DEFAULT_WATCH_DATA_DAYS
+        withContext(Dispatchers.Main.immediate) { manager.readSleepData(writeResponse, listener, watchDataDays) }
         complete.await()
         return HBandPayload(sleep = records)
     }
@@ -516,6 +520,7 @@ internal class RealHBandSdkGateway(
                     HBandCapabilities(
                         steps = true,
                         sleep = true,
+                        watchDataDays = data.wathcDay,
                         heartRate = data.heartDetect.hasFunction(),
                         bloodOxygen = data.spo2H.hasFunction(),
                         hrv = data.hrvFunction.hasFunction(),
@@ -590,8 +595,9 @@ internal class RealHBandSdkGateway(
 
     private companion object {
         const val DEFAULT_DEVICE_PASSWORD = "0000" // Official SDK demo default; physical-device QA is still required.
-        const val TODAY = 0
         const val ORIGIN_PROTOCOL_TYPE = 3
+        const val DEFAULT_WATCH_DATA_DAYS = 3
+        const val MAX_WATCH_DATA_DAYS = 30
         const val MAX_SCAN_RESULTS = 30
         const val SCAN_TIMEOUT_MILLIS = 10_000L
         const val CONNECT_TIMEOUT_MILLIS = 35_000L

@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 internal data class HBandCapabilities(
     val steps: Boolean = true,
     val sleep: Boolean = true,
+    val watchDataDays: Int = 0,
     val heartRate: Boolean = false,
     val bloodOxygen: Boolean = false,
     val hrv: Boolean = false,

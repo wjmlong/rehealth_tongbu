@@ -12,7 +12,7 @@
 - MRD SDK/协议适配，以及固定版本 RWFit、HBand 官方 SDK Provider。
 - 基于 `productCode` 的单一有效设备路由；Release 注册 MRD/RWFit/HBand，Debug 另可
   注册 Mock 或通过 Gradle 属性生成指定厂商真机测试 APK。
-- 心率、血氧、血压、体温、睡眠、步数和活动等本地记录。
+- 心率、HRV、血氧、血压、体温、ECG、睡眠、步数和活动等本地记录与数据卡片。
 - Room 本地优先持久化及显式数据库迁移。
 - Foreground Service 后台低频采集与 WorkManager 恢复任务。
 - 认证感知的 durable upload queue；401 时暂停，重新登录后恢复。
@@ -93,6 +93,12 @@ rehealth.release.api.base.url=https://api.example.com/jeecg-boot/
 Release 的后端地址必须使用 HTTPS。模型 Provider 凭据、内部服务 token 和生产
 secret 禁止进入 `local.properties`、BuildConfig 或 APK。
 
+Debug 注册请求会使用 JeecgBoot 的开发签名默认值为 `/sys/sms` 增加 `X-Sign` 和
+`X-Timestamp`；可通过 `local.properties` 的 `JEECG_SIGNATURE_SECRET` 或同名环境变量
+覆盖。仅当后端使用 `JEECG_SMS_DEV_MODE=true` 时，验证码接口保存固定测试码 `123456`，
+Android 在请求成功后自动填入该值。Release 的签名字段和测试码均为空，生产环境继续
+由后端随机生成验证码并调用真实短信 Provider。
+
 模拟戒指只存在于 `app/src/debug`，由 Debug 专用工厂和
 `USE_FAKE_RING`/`SEED_FAKE_HEALTH_DATA` 控制。`app/src/release` 的工厂只构造
 真实 MRD/RWFit/HBand Provider；远程风险评估失败时显示不可用，不生成本地模拟风险。
@@ -149,7 +155,9 @@ HBand 真机联调可生成强制选择 `RH-HB-E01` 的专用 APK：
 
 连接前必须从真实用户档案取得性别、年龄、身高和体重。当前 HBand 商品能力开放
 心率、步数/活动、睡眠、血压和 ECG；运行时仍与设备的 `FunctionDeviceSupportData`
-取交集，不支持的能力不会显示、调用或生成占位数据。ECG 波形只写入本地 Room，
+取交集。不支持的能力在数据页保留静态空卡片，但不会触发测量、写入 0 或生成模拟数据。
+生命体征及睡眠/活动卡片始终可见，无记录时显示 `--`；“查看全部”当前只显示静态文字。
+ECG 波形只写入本地 Room，
 不会进入遥测上传批次；血压与 ECG 结果仅用于健康记录，不作诊断解释。
 
 Debug APK：

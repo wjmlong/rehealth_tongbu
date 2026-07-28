@@ -41,7 +41,10 @@ git diff --check
 
 1. Android install/onboarding
    - Install `app/build/outputs/apk/debug/app-debug.apk`.
-   - Launch app and complete onboarding/login demo flow.
+   - Launch app, request a registration SMS code, and confirm `/sys/sms` receives
+     `X-Sign` plus `X-Timestamp` without returning “请求参数不完整”.
+   - With local `JEECG_SMS_DEV_MODE=true`, confirm the successful response auto-fills
+     `123456`; a failed request must not fill any code. Complete registration and auto-login.
    - Confirm no crash on first run and no production medical diagnosis wording.
 
 2. Ring permission
@@ -76,6 +79,9 @@ git diff --check
      `McuMgrBleTransport`, or Nordic scanner classes.
 
 4. Manual measurement
+   - Open the data page before connecting a device. Confirm heart rate, SpO2, BP,
+     HRV, temperature, ECG, sleep, steps, and activity cards remain visible with `--`
+     where no real record exists; “查看全部” is text-only and opens no dialog.
    - Trigger only metrics advertised by the active Provider. RWFit manual measure
      currently supports HR, SpO2 and HRV; BP/temperature/stress are not requested.
      HBand `RH-HB-E01` manual measure supports HR, BP and ECG only when the

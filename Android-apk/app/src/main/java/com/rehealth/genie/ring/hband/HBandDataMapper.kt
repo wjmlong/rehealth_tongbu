@@ -56,7 +56,8 @@ internal object HBandDataMapper {
                     steps = record.steps,
                     distanceMeters = record.distanceMeters,
                     caloriesKcal = record.caloriesKcal,
-                    durationMinutes = ((record.endedAt - record.startedAt) / 60_000L).toInt(),
+                    // Daily SportData has no workout-duration field; do not report elapsed wall-clock time as exercise.
+                    durationMinutes = 0,
                     averageHeartRate = null,
                     source = SOURCE,
                     rawPayload = null,

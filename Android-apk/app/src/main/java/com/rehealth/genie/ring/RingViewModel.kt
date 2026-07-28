@@ -463,6 +463,9 @@ class RingViewModel(
         )
     }
 
+    suspend fun loadHealthHistory(limitPerType: Int = 50): RingHealthHistory =
+        dao.loadRingHealthHistory(limitPerType)
+
     private data class RingDatabaseSnapshot(
         val measurements: List<RingMeasurementEntity>,
         val sleep: RingSleepSessionEntity?,
