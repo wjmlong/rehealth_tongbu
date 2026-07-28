@@ -42,8 +42,9 @@ only `RH-HB-E01`/`HBAND`; it must not scan or connect MRD/RWFit concurrently.
 5. Connect and verify the sequence is BLE connection, Notify success, password
    confirmation, capability callback, real ReHealth profile synchronization,
    then `CONNECTED`/READY.
-   Confirm logcat contains no `NoClassDefFoundError` for `WatchOpImpl` and that
-   a full APK install, rather than Apply Changes, was used after SDK dependency changes.
+   Confirm logcat contains no `NoClassDefFoundError` for `WatchOpImpl`,
+   `McuMgrBleTransport`, or Nordic scanner classes, and that a full APK install,
+   rather than Apply Changes, was used after SDK dependency changes.
 6. Test wrong password/confirmation timeout and verify the app reports an error,
    writes no telemetry, and can recover after disconnect/retry.
 7. Remove one required profile field (sex, age, height, or weight) and verify

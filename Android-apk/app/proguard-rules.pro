@@ -59,12 +59,8 @@
 -dontwarn org.bouncycastle.**
 -dontwarn org.openjsse.**
 
-# The pinned HBand manager exposes optional dial/image/FAT and Nordic OTA APIs
+# The pinned HBand manager exposes optional dial/image/FAT APIs
 # from the same class as health operations. ReHealth never calls these APIs and
 # intentionally does not package their feature libraries.
 -dontwarn com.jieli.bmp_convert.BmpConvert
 -dontwarn com.jieli.jl_fatfs.model.FatFile
--dontwarn io.runtime.mcumgr.McuMgrTransport
--dontwarn io.runtime.mcumgr.ble.McuMgrBleTransport
--dontwarn io.runtime.mcumgr.dfu.FirmwareUpgradeCallback
--dontwarn io.runtime.mcumgr.dfu.mcuboot.FirmwareUpgradeManager

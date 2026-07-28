@@ -49,6 +49,8 @@ app/libs/JL_Watch_V1.13.1_11214-release.aar
 
 三个 JieLi AAR 仅满足 HBand 核心 SDK 的连接/认证及管理器初始化依赖；应用不提供 OTA、
 表盘或消息控制入口。
+HBand SDK 还会在 BLE 连接回调中初始化 Nordic OTA 适配器，因此固定引入官方要求的
+`mcumgr-core:2.7.4`、`mcumgr-ble:2.7.4` 和 `scanner:1.4.2`；应用仍不提供 OTA 入口。
 
 ## 核心数据流
 
@@ -103,7 +105,9 @@ HBand 恢复连接所需的真实性别、年龄、身高和体重也只保存�
 
 ## 构建与测试
 
-需要 JDK 17、Android SDK 36 和 Build Tools 36.0.0。
+需要 JDK 17、Android SDK 36、Build Tools 36.0.0、Gradle 8.11.1、AGP 8.10.1
+和 Kotlin 2.2.20。Kotlin/KSP/R8 版本与 HBand 固定的 Nordic MCU Manager 2.7.4
+元数据保持兼容。
 
 ```powershell
 .\gradlew.bat testDebugUnitTest
@@ -149,7 +153,7 @@ app/build/outputs/apk/debug/app-debug.apk
 ## 当前限制
 
 - 已有 MRD/RWFit/HBand 单一有效设备路由；RWFit 真机型号/固件、HRV 单位、数据准确性
-  和后台稳定性仍待验证；HBand 已开始真机联调，缺失 `JL_Watch` 的初始化阻塞已修复，
+  和后台稳定性仍待验证；HBand 已开始真机联调，连接所需的 JieLi/Nordic 运行时依赖已补齐，
   仍需使用完整重装 APK 验证扫描、认证、画像同步、历史读取与后台稳定性；不支持多设备同时连接或数据融合。
 - 本地遥测和上传队列仍需进一步按登录用户和设备维度隔离。
 - 遥测上传仍需从“最新快照”演进到按本地游标处理全部未上传记录。

@@ -53,7 +53,7 @@
 
 1. Docker 引擎恢复后补跑 Device Service 的 TimescaleDB/Testcontainers 集成测试。
 2. 在发布环境挂载已审核模型制品并复核真实模型门禁。
-3. 使用包含完整 JieLi 依赖的 APK 完成 HBand 连接复测，再完成 MRD/RWFit/HBand 与 Android 运行时端到端 QA。
+3. 使用包含完整 JieLi/Nordic 依赖的 APK 完成 HBand 连接复测，再完成 MRD/RWFit/HBand 与 Android 运行时端到端 QA。
 4. 完成签名 Release APK 和真实部署环境验收。
 
 ## 历史证据

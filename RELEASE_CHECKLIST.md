@@ -48,7 +48,7 @@
 ## 物理 HBand QA
 
 - [ ] 已取得采购型号、固件、厂商合作授权及正式能力表。
-- [ ] HBand/JieLi 固定版本依赖完整，完整安装后无 `WatchOpImpl`/`OnWatchCallback` 类加载错误。
+- [ ] HBand/JieLi/Nordic 固定版本依赖完整，完整安装后无 `WatchOpImpl`、`OnWatchCallback`、`McuMgrBleTransport` 或 Nordic scanner 类加载错误。
 - [ ] 使用 `RH-HB-E01` Debug APK 在 Android 13+ 完成扫描、Notify、密码验证和重启重连。
 - [ ] 验证个人资料页可选择性别并校验年龄/身高/体重范围；缺少真实画像时连接安全失败，完整画像可成功同步。
 - [ ] 验证心率、步数/活动和睡眠；所有不支持项无 0/模拟行。
