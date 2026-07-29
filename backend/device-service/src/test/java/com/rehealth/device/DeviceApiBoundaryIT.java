@@ -6,6 +6,7 @@ import com.rehealth.contracts.telemetry.v1.TelemetryBatchRequest;
 import com.rehealth.contracts.telemetry.v1.TelemetryBatchResponse;
 import com.rehealth.contracts.telemetry.v1.TelemetryValidationResult;
 import com.rehealth.device.application.DeviceRequestException;
+import com.rehealth.device.application.UserHealthSummary;
 import com.rehealth.device.domain.DeviceClaims;
 import com.rehealth.device.port.IdentityAuthorizationPort;
 import com.rehealth.device.port.TelemetryReadPort;
@@ -22,6 +23,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -232,6 +234,11 @@ class DeviceApiBoundaryIT {
                 response.activities.addAll(latest.activitySessions);
             }
             return response;
+        }
+
+        @Override
+        public UserHealthSummary healthSummaryForUser(String userId) {
+            return new UserHealthSummary(userId, List.of(), null, null, 0, 0, 0, List.of());
         }
 
         @Override

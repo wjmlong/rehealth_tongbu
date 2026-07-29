@@ -16,6 +16,7 @@ import com.rehealth.device.api.ApiExceptionHandler;
 import com.rehealth.device.api.DeviceTelemetryController;
 import com.rehealth.device.application.DeviceRequestException;
 import com.rehealth.device.application.DeviceTelemetryService;
+import com.rehealth.device.application.UserHealthSummary;
 import com.rehealth.device.domain.DeviceClaims;
 import com.rehealth.device.port.IdentityAuthorizationPort;
 import com.rehealth.device.port.TelemetryReadPort;
@@ -240,8 +241,16 @@ class TelemetryIngestionIT {
                 new TelemetryContractValidator(TelemetryValidationPolicy.productionDefault());
         IdentityAuthorizationPort identity =
                 (token, tenant, device) -> owner(tenant, "user-a", device);
-        TelemetryReadPort reader = (claims, limit) -> {
-            throw new AssertionError("reader must not be called");
+        TelemetryReadPort reader = new TelemetryReadPort() {
+            @Override
+            public RecentTelemetryResponse recent(DeviceClaims claims, int limit) {
+                throw new AssertionError("reader must not be called");
+            }
+
+            @Override
+            public UserHealthSummary healthSummaryForUser(String userId) {
+                throw new AssertionError("reader must not be called");
+            }
         };
         DeviceTelemetryService service = new DeviceTelemetryService(validator, identity, store, reader);
         MockMvc mvc = MockMvcBuilders

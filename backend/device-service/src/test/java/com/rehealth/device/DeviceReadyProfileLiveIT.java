@@ -4,6 +4,7 @@ import com.rehealth.contracts.telemetry.v1.RecentTelemetryResponse;
 import com.rehealth.contracts.telemetry.v1.TelemetryBatchRequest;
 import com.rehealth.contracts.telemetry.v1.TelemetryBatchResponse;
 import com.rehealth.contracts.telemetry.v1.TelemetryValidationResult;
+import com.rehealth.device.application.UserHealthSummary;
 import com.rehealth.device.domain.DeviceClaims;
 import com.rehealth.device.port.IdentityAuthorizationPort;
 import com.rehealth.device.port.TelemetryReadPort;
@@ -18,6 +19,8 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -74,6 +77,11 @@ class DeviceReadyProfileLiveIT {
                 TelemetryValidationResult validation
         ) {
             return new TelemetryBatchResponse();
+        }
+
+        @Override
+        public UserHealthSummary healthSummaryForUser(String userId) {
+            return new UserHealthSummary(userId, List.of(), null, null, 0, 0, 0, List.of());
         }
 
         @Override
