@@ -1,6 +1,6 @@
 # ReHealth Android / Backend MVP Integration Contract
 
-Status: canonical Android contract, updated 2026-07-27.
+Status: canonical Android contract, updated 2026-07-28.
 
 ## Runtime Boundary
 
@@ -42,6 +42,8 @@ queue until the user logs in again; the app does not invent a refresh-token flow
 
 | Function | Method and path | Android behavior |
 | --- | --- | --- |
+| Registration SMS | `POST /sys/sms` | Pre-auth request with `X-Sign` and `X-Timestamp`. Local `JEECG_SMS_DEV_MODE=true` stores fixed code `123456` without calling the SMS Provider. |
+| Account registration | `POST /sys/user/register` | Submit phone, six-digit SMS code and password, then perform mobile login on success. |
 | Mobile login | `POST /sys/mLogin` | Save the Jeecg token in encrypted session storage. |
 | Health/config | `GET /rehealth/mobile/health`, `GET /rehealth/mobile/config` | Environment and contract diagnostics. |
 | Profile | `GET/PUT /rehealth/mobile/profile` | Authenticated, user-scoped health profile. |
@@ -58,6 +60,11 @@ Every durable business endpoint returns a retryable `503` envelope when the
 required database is disabled or unavailable. Android must not interpret an
 HTTP/Jeecg success envelope without a durable acknowledgement as completed.
 
+The fixed registration code and Jeecg development signature default are Debug/local
+behavior only. Release does not contain either value. Production keeps random codes
+and the real SMS Provider, and must use a reviewed mobile-safe signing/attestation
+strategy rather than embedding a production shared secret in the APK.
+
 Telemetry completion requires all of:
 
 ```text
@@ -65,6 +72,15 @@ accepted == true
 persisted == true
 status starts with "ACCEPTED_"
 ```
+
+HBand advanced-health measurements use independent normalized `metricType` values:
+`URIC_ACID`, `TOTAL_CHOLESTEROL`, `TRIGLYCERIDES`, `HDL_CHOLESTEROL`,
+`LDL_CHOLESTEROL`, `BMI`, `BODY_FAT_PERCENT`, `FAT_MASS`, `FAT_FREE_MASS`,
+`MUSCLE_PERCENT`, `MUSCLE_MASS`, `SUBCUTANEOUS_FAT_PERCENT`,
+`BODY_WATER_PERCENT`, `WATER_MASS`, `SKELETAL_MUSCLE_PERCENT`, `BONE_MASS`,
+`PROTEIN_PERCENT`, `PROTEIN_MASS`, and `BASAL_METABOLIC_RATE`. Blood-glucose
+calibration and menstrual-cycle configuration are device settings and never enter
+the telemetry batch.
 
 Feedback and device binding completion require `persisted == true`.
 
@@ -77,7 +93,7 @@ Feedback and device binding completion require `persisted == true`.
   path for the active Provider. The upload snapshot filters out rows from other
   vendors before creating a batch.
   Synthetic software QA must use `source=synthetic_qa`.
-- `rawPayload`, PPG/RRI payload bytes, access tokens, phone numbers, and direct
+- `rawPayload`, PPG/RRI/ECG waveform bytes, access tokens, phone numbers, and direct
   identifiers must not be included in upload payloads or production logs.
 - Telemetry ingest does not trigger model scoring. Risk evaluation is a separate
   canonical request after local feature extraction.
@@ -122,4 +138,5 @@ Software-only contract, serialization, queue, repository, and APK build checks c
 run without a ring. Real BLE scanning, binding, measurement accuracy, background
 collection reliability, reconnect behavior, and battery impact are
 `HARDWARE_QA_PENDING` until the applicable MRD/RWFit ring or HBand watch/band and
-Android 13+ device have been validated. No HBand physical device is currently available.
+Android 13+ device have been validated. An Android test phone is available, but
+the HBand wearable capability and accuracy matrix remains pending.

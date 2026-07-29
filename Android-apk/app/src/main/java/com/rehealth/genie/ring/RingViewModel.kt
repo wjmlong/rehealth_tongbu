@@ -41,6 +41,7 @@ data class RingUiState(
     val isScanning: Boolean = false,
     val isSyncing: Boolean = false,
     val measuringMetric: RingMetricType? = null,
+    val configuringFeature: RingFeatureType? = null,
     val syncProgress: Int = 0,
     val lastSyncAt: Long? = null,
     val message: String? = null,
@@ -55,6 +56,8 @@ data class RingUiState(
     val sleep: RingSleepSessionEntity? = null,
     val activity: RingActivityEntity? = null,
     val signals: Map<RingMetricType, RingSignalChunkEntity> = emptyMap(),
+    val supportedMetrics: Set<RingMetricType> = emptySet(),
+    val supportedFeatures: Set<RingFeatureType> = emptySet(),
     val wearableProducts: List<WearableProductOption> = emptyList(),
     val activeProductCode: String? = null,
 ) {
@@ -87,7 +90,7 @@ class RingViewModel(
     private val wearableManager: ActiveWearableManager? = null,
     private val allowWearableProductSwitch: Boolean = false,
 ) : ViewModel() {
-    private val mutableUiState = MutableStateFlow(RingUiState())
+    private val mutableUiState = MutableStateFlow(RingUiState(supportedMetrics = repository.supportedMetrics))
     val uiState: StateFlow<RingUiState> = mutableUiState.asStateFlow()
     private var autoCollectionJob: Job? = null
     private var lastRingVector: CvdFeatureVector = CvdFeatureVector()
@@ -119,7 +122,17 @@ class RingViewModel(
         }
         viewModelScope.launch {
             repository.connectedDevice.collect { device ->
-                mutableUiState.update { it.copy(connectedDevice = device) }
+                mutableUiState.update {
+                    it.copy(
+                        connectedDevice = device,
+                        supportedMetrics = if (device == null) emptySet() else repository.supportedMetrics,
+                        supportedFeatures = if (device == null) {
+                            emptySet()
+                        } else {
+                            (repository as? RingFeatureRepository)?.supportedFeatures.orEmpty()
+                        },
+                    )
+                }
             }
         }
         viewModelScope.launch {
@@ -457,6 +470,75 @@ class RingViewModel(
         )
     }
 
+    fun setBloodGlucoseCalibration(enabled: Boolean, referenceValue: Double) {
+        configureFeature(
+            feature = RingFeatureType.BLOOD_GLUCOSE_CALIBRATION,
+            workingMessage = "正在写入血糖校准设置",
+            successMessage = if (enabled) "血糖校准已启用" else "血糖校准已关闭",
+        ) { repository ->
+            repository.setBloodGlucoseCalibration(BloodGlucoseCalibration(enabled, referenceValue))
+        }
+    }
+
+    fun setMenstrualCycle(periodLengthDays: Int, cycleLengthDays: Int, lastPeriodStartAt: Long) {
+        configureFeature(
+            feature = RingFeatureType.WOMENS_HEALTH,
+            workingMessage = "正在写入女性健康设置",
+            successMessage = "女性健康周期已保存到设备",
+        ) { repository ->
+            repository.setMenstrualCycle(
+                MenstrualCycleConfig(periodLengthDays, cycleLengthDays, lastPeriodStartAt),
+            )
+        }
+    }
+
+    private fun configureFeature(
+        feature: RingFeatureType,
+        workingMessage: String,
+        successMessage: String,
+        operation: suspend (RingFeatureRepository) -> Boolean,
+    ) {
+        val featureRepository = repository as? RingFeatureRepository
+        if (featureRepository == null || feature !in featureRepository.supportedFeatures) {
+            mutableUiState.update { it.copy(message = "当前设备不支持此功能") }
+            return
+        }
+        viewModelScope.launch {
+            mutableUiState.update {
+                it.copy(
+                    isSyncing = true,
+                    configuringFeature = feature,
+                    syncProgress = 30,
+                    message = workingMessage,
+                )
+            }
+            runCatching { operation(featureRepository) }
+                .onSuccess { success ->
+                    mutableUiState.update {
+                        it.copy(
+                            isSyncing = false,
+                            configuringFeature = null,
+                            syncProgress = if (success) 100 else 0,
+                            message = if (success) successMessage else "设备未接受设置，请检查佩戴与连接状态",
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    mutableUiState.update {
+                        it.copy(
+                            isSyncing = false,
+                            configuringFeature = null,
+                            syncProgress = 0,
+                            message = error.message ?: "设备设置失败",
+                        )
+                    }
+                }
+        }
+    }
+
+    suspend fun loadHealthHistory(limitPerType: Int = 50): RingHealthHistory =
+        dao.loadRingHealthHistory(limitPerType)
+
     private data class RingDatabaseSnapshot(
         val measurements: List<RingMeasurementEntity>,
         val sleep: RingSleepSessionEntity?,
@@ -682,4 +764,26 @@ private fun RingMetricType.displayName(): String = when (this) {
     RingMetricType.STRESS -> "压力"
     RingMetricType.RRI -> "RRI"
     RingMetricType.PPG -> "PPG"
+    RingMetricType.ECG -> "ECG"
+    RingMetricType.BLOOD_COMPONENT -> "血液成分"
+    RingMetricType.URIC_ACID -> "尿酸"
+    RingMetricType.TOTAL_CHOLESTEROL -> "总胆固醇"
+    RingMetricType.TRIGLYCERIDES -> "甘油三酯"
+    RingMetricType.HDL_CHOLESTEROL -> "HDL"
+    RingMetricType.LDL_CHOLESTEROL -> "LDL"
+    RingMetricType.BODY_COMPOSITION -> "身体成分"
+    RingMetricType.BMI -> "BMI"
+    RingMetricType.BODY_FAT_PERCENT -> "体脂率"
+    RingMetricType.FAT_MASS -> "脂肪量"
+    RingMetricType.FAT_FREE_MASS -> "去脂体重"
+    RingMetricType.MUSCLE_PERCENT -> "肌肉率"
+    RingMetricType.MUSCLE_MASS -> "肌肉量"
+    RingMetricType.SUBCUTANEOUS_FAT_PERCENT -> "皮下脂肪率"
+    RingMetricType.BODY_WATER_PERCENT -> "体水分率"
+    RingMetricType.WATER_MASS -> "水分量"
+    RingMetricType.SKELETAL_MUSCLE_PERCENT -> "骨骼肌率"
+    RingMetricType.BONE_MASS -> "骨量"
+    RingMetricType.PROTEIN_PERCENT -> "蛋白质率"
+    RingMetricType.PROTEIN_MASS -> "蛋白质量"
+    RingMetricType.BASAL_METABOLIC_RATE -> "基础代谢"
 }

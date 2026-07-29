@@ -26,7 +26,9 @@ ReHealth 是面向可穿戴设备和健康干预场景的软硬件一体化系�
 
 Android 按 `productCode` 选择单一有效 Provider，Release 已注册 MRD、RWFit 和 HBand。
 RWFit 使用固定版本官方 SDK，当前仍需采购型号的真机能力和单位验证；HBand 已完成
-隔离 Provider 并进入真机联调，完整连接与数据验收仍待完成。当前不支持多设备同时连接或数据融合。
+隔离 Provider 并进入真机联调，已按设备能力接入心率、步数/活动、睡眠、血氧、HRV、血压、
+ECG、血液成分和身体成分，并接入血糖校准与经期设置；
+采购设备的完整连接、能力与数据验收仍待完成。当前不支持多设备同时连接或数据融合。
 Debug 设备页可验证套餐切换顺序；Release 不允许用户在客户端自行改变套餐。
 后台恢复只重连加密保存的当前绑定；HBand 所需四项真实画像使用按用户哈希隔离的
 加密缓存，不使 BLE 采集依赖网络。
@@ -234,7 +236,10 @@ python backend/qa/rehealth_stack_gate.py topology `
 ## 8. 当前已知边界
 
 - 真实 MRD 扫描、长时间重连、锁屏采集、功耗和测量准确性仍需要物理设备 QA。
-- HBand 已开始首次真机联调；管理器和连接回调所需的 JieLi/Nordic 运行时依赖已补齐，完整重装后的连接、认证、画像与数据 QA 仍待完成。
+- HBand 已开始真机联调；管理器和连接回调所需的 JieLi/Nordic 运行时依赖已补齐，
+  心率、步数/活动、睡眠、血氧、HRV、血压、ECG、血液/身体成分及设备设置均受能力门控；
+  ECG 波形只保存在本地，
+  完整重装后的连接、认证、画像、能力、准确性与后台数据 QA 仍待完成。
 - Android 已有 MRD/RWFit/HBand 单一有效 Provider 路由；RWFit 的具体型号、固件、HRV
   单位和长时间采集仍待真机确认；HBand 的扫描、认证、画像同步、数据准确性和后台
   稳定性仍待完整真机验证；不支持多设备同时连接或数据融合。
@@ -259,6 +264,7 @@ python backend/qa/rehealth_stack_gate.py topology `
 | `backend/contracts/adrs/` | 跨服务架构决策 | 权威边界、消息系统、数据库或信任模型变化时 |
 | `backend/deploy/rehealth/README.md` | 部署拓扑和运行方式 | 服务、端口、环境变量、secret、容器变化时 |
 | `model-service/docs/API_CONTRACT.md` | 模型服务接口 | 模型请求/响应、版本或就绪语义变化时 |
+| `tools/dev-tunnel/README.md` | 真机联调公网通道（SSH 反向隧道 + ECS nginx） | 隧道链路、域名、ECS 侧配置或自启方式变化时 |
 | `QA_TEST_PLAN.md` | QA 范围 | 用户行为、硬件能力和发布门禁变化时 |
 | `RELEASE_CHECKLIST.md` | 发布条件 | 新权限、新数据类型、新依赖或新运行时风险出现时 |
 | `docs/archive/acceptance/` | 历史阶段验收快照 | 仅归档已失效快照；当前结论写入 `STATUS.md` |

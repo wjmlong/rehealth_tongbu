@@ -103,11 +103,21 @@ phase.
 
 The HBand Provider follows `connectDevice -> Notify -> confirmDevicePwd ->
 FunctionDeviceSupportData -> syncPersonInfo -> READY`. Its product intersection
-currently enables heart rate, daily steps/activity, and sleep only. The user
-profile comes from ReHealth profile data; the SDK demo's fixed sex/age/height/
-weight values are not used. HBand blood oxygen and HRV remain outside
-`RH-HB-E01` until the purchased model is known and tested. Blood pressure,
-temperature, stress, blood glucose, uric acid, blood lipids, body composition,
-TCM, and ECG are not requested or persisted.
+allows heart rate, daily steps/activity, sleep, blood oxygen, app HRV, blood pressure,
+ECG, blood component, and body composition operations. Blood-glucose calibration
+and menstrual-cycle settings use separate feature operations. The runtime capability
+callback remains authoritative: unsupported actions remain disabled and are not
+requested or persisted. The user profile comes from ReHealth profile
+data; the SDK demo's fixed sex/age/height/weight values are not used. Blood
+pressure history and manual detection persist systolic/diastolic mmHg values.
+Manual ECG persists the SDK waveform as a local Room signal chunk and an average
+heart-rate summary; the waveform is explicitly excluded from cloud upload and
+is not interpreted as a diagnosis. Blood oxygen and HRV manual results use `%` and
+`ms`. Blood components are stored as five independent measurements; uric-acid and
+blood-fat units are read from `CustomSettingData` before measurement. Body composition
+is stored as 14 independent measurements with the SDK-documented units. Blood-glucose
+calibration and menstrual-cycle settings do not create measurement rows. Temperature,
+stress, direct blood-glucose measurement, pregnancy/preparation/mother modes, TCM,
+OTA, dials, and messaging remain outside `RH-HB-E01`.
 `SportUtil.getDistance()` divides metre-scale step distance by 1000, so the
 Provider converts the SDK kilometre value back to Room `distanceMeters`.

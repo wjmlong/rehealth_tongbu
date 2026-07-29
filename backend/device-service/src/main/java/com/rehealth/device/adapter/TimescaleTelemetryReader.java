@@ -5,6 +5,8 @@ import com.rehealth.contracts.telemetry.v1.MeasurementRecord;
 import com.rehealth.contracts.telemetry.v1.RecentTelemetryResponse;
 import com.rehealth.contracts.telemetry.v1.SleepSessionRecord;
 import com.rehealth.device.application.DeviceRequestException;
+import com.rehealth.device.application.MetricSummary;
+import com.rehealth.device.application.UserHealthSummary;
 import com.rehealth.device.domain.DeviceClaims;
 import com.rehealth.device.port.TelemetryReadPort;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -18,6 +20,7 @@ import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.List;
 
 @Component
 @Primary
@@ -81,6 +84,50 @@ public class TimescaleTelemetryReader implements TelemetryReadPort {
             return result != null && result == 1;
         } catch (DataAccessException exception) {
             return false;
+        }
+    }
+
+    @Override
+    public UserHealthSummary healthSummaryForUser(String userId) {
+        try {
+            List<String> devices = jdbc.queryForList(
+                    "SELECT DISTINCT device_id FROM hardware_measurement WHERE user_id = ? ORDER BY device_id",
+                    String.class,
+                    userId
+            );
+            Long measurementCount = jdbc.queryForObject(
+                    "SELECT count(*) FROM hardware_measurement WHERE user_id = ?", Long.class, userId);
+            Long sleepSessionCount = jdbc.queryForObject(
+                    "SELECT count(*) FROM hardware_sleep_session WHERE user_id = ?", Long.class, userId);
+            Long activityCount = jdbc.queryForObject(
+                    "SELECT count(*) FROM hardware_activity WHERE user_id = ?", Long.class, userId);
+            Timestamp firstSeen = jdbc.queryForObject(
+                    "SELECT min(observed_at) FROM hardware_measurement WHERE user_id = ?", Timestamp.class, userId);
+            Timestamp lastSeen = jdbc.queryForObject(
+                    "SELECT max(observed_at) FROM hardware_measurement WHERE user_id = ?", Timestamp.class, userId);
+            List<MetricSummary> latestMetrics = jdbc.query(
+                    "SELECT DISTINCT ON (metric_type) metric_type, primary_value, unit, observed_at "
+                            + "FROM hardware_measurement WHERE user_id = ? ORDER BY metric_type, observed_at DESC",
+                    (result, rowNumber) -> new MetricSummary(
+                            result.getString("metric_type"),
+                            decimal(result, "primary_value"),
+                            result.getString("unit"),
+                            epochMillis(result.getTimestamp("observed_at"))
+                    ),
+                    userId
+            );
+            return new UserHealthSummary(
+                    userId,
+                    devices,
+                    epochMillis(firstSeen),
+                    epochMillis(lastSeen),
+                    measurementCount == null ? 0L : measurementCount,
+                    sleepSessionCount == null ? 0L : sleepSessionCount,
+                    activityCount == null ? 0L : activityCount,
+                    latestMetrics
+            );
+        } catch (DataAccessException exception) {
+            throw unavailable(exception);
         }
     }
 

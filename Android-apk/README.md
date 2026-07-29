@@ -12,7 +12,7 @@
 - MRD SDK/协议适配，以及固定版本 RWFit、HBand 官方 SDK Provider。
 - 基于 `productCode` 的单一有效设备路由；Release 注册 MRD/RWFit/HBand，Debug 另可
   注册 Mock 或通过 Gradle 属性生成指定厂商真机测试 APK。
-- 心率、血氧、血压、体温、睡眠、步数和活动等本地记录。
+- 心率、HRV、血氧、血压、体温、ECG、睡眠、步数、活动、血液成分和身体成分等本地记录与数据卡片；能力门控的血糖校准与经期设置。
 - Room 本地优先持久化及显式数据库迁移。
 - Foreground Service 后台低频采集与 WorkManager 恢复任务。
 - 认证感知的 durable upload queue；401 时暂停，重新登录后恢复。
@@ -93,6 +93,12 @@ rehealth.release.api.base.url=https://api.example.com/jeecg-boot/
 Release 的后端地址必须使用 HTTPS。模型 Provider 凭据、内部服务 token 和生产
 secret 禁止进入 `local.properties`、BuildConfig 或 APK。
 
+Debug 注册请求会使用 JeecgBoot 的开发签名默认值为 `/sys/sms` 增加 `X-Sign` 和
+`X-Timestamp`；可通过 `local.properties` 的 `JEECG_SIGNATURE_SECRET` 或同名环境变量
+覆盖。仅当后端使用 `JEECG_SMS_DEV_MODE=true` 时，验证码接口保存固定测试码 `123456`，
+Android 在请求成功后自动填入该值。Release 的签名字段和测试码均为空，生产环境继续
+由后端随机生成验证码并调用真实短信 Provider。
+
 模拟戒指只存在于 `app/src/debug`，由 Debug 专用工厂和
 `USE_FAKE_RING`/`SEED_FAKE_HEALTH_DATA` 控制。`app/src/release` 的工厂只构造
 真实 MRD/RWFit/HBand Provider；远程风险评估失败时显示不可用，不生成本地模拟风险。
@@ -108,6 +114,12 @@ HBand 恢复连接所需的真实性别、年龄、身高和体重也只保存�
 需要 JDK 17、Android SDK 36、Build Tools 36.0.0、Gradle 8.11.1、AGP 8.10.1
 和 Kotlin 2.2.20。Kotlin/KSP/R8 版本与 HBand 固定的 Nordic MCU Manager 2.7.4
 元数据保持兼容。
+
+Gradle 会优先从 Maven 本地仓库解析插件和项目依赖，再回退到 Google Maven、
+Maven Central 和 Gradle Plugin Portal。未覆盖 Maven 配置时，本地仓库路径为
+`%USERPROFILE%\.m2\repository`；未设置 `GRADLE_USER_HOME` 时，Gradle 用户目录为
+`%USERPROFILE%\.gradle`，下载的依赖缓存位于其 `caches\modules-2\files-2.1` 子目录。
+本地仓库中与远程仓库同坐标的制品会被优先使用，发布或排查依赖问题时应确认其来源和版本。
 
 ```powershell
 .\gradlew.bat testDebugUnitTest
@@ -141,8 +153,16 @@ HBand 真机联调可生成强制选择 `RH-HB-E01` 的专用 APK：
 .\gradlew.bat "-Prehealth.debug.wearable.product.code=RH-HB-E01" testDebugUnitTest assembleDebug
 ```
 
-连接前必须从真实用户档案取得性别、年龄、身高和体重。当前 HBand 商品能力仅开放
-心率、步数/活动、睡眠；SDK 报告的其他能力不会越过 `expectedMetrics` 套餐交集。
+连接前必须从真实用户档案取得性别、年龄、身高和体重。当前 HBand 商品能力开放
+心率、步数/活动、睡眠、血氧、HRV、血压、ECG、血液成分和身体成分；运行时仍与设备的
+`FunctionDeviceSupportData` 取交集。血糖校准和经期设置也只在设备报告相应能力时启用。
+不支持的能力在数据页保留禁用入口或静态空卡片，但不会触发测量、写入 0 或生成模拟数据。
+计步、睡眠、活动属于同步数据，不提供即时测量按钮；生命体征和高级指标无记录时显示 `--`。
+血液成分拆分为尿酸、总胆固醇、甘油三酯、HDL、LDL 独立记录，单位读取设备个性化设置；
+身体成分拆分为 14 项独立记录。血糖校准与女性功能是设备设置，不写入测量表；当前女性功能
+只接入经期模式，备孕、孕期和妈妈模式尚未开放。
+ECG 波形只写入本地 Room，
+不会进入遥测上传批次；血压与 ECG 结果仅用于健康记录，不作诊断解释。
 
 Debug APK：
 
@@ -154,7 +174,10 @@ app/build/outputs/apk/debug/app-debug.apk
 
 - 已有 MRD/RWFit/HBand 单一有效设备路由；RWFit 真机型号/固件、HRV 单位、数据准确性
   和后台稳定性仍待验证；HBand 已开始真机联调，连接所需的 JieLi/Nordic 运行时依赖已补齐，
-  仍需使用完整重装 APK 验证扫描、认证、画像同步、历史读取与后台稳定性；不支持多设备同时连接或数据融合。
+  已实现能力门控的心率、步数/活动、睡眠、血氧、HRV、血压、ECG、血液/身体成分、
+  血糖校准和经期设置，仍需使用完整重装 APK
+  验证采购设备实际能力、测量准确性、扫描、认证、画像同步、历史读取与后台稳定性；
+  不支持多设备同时连接或数据融合。
 - 本地遥测和上传队列仍需进一步按登录用户和设备维度隔离。
 - 遥测上传仍需从“最新快照”演进到按本地游标处理全部未上传记录。
 - MRD 扫描、重连、锁屏长时间采集、功耗和测量准确性仍需物理设备 QA。

@@ -1,6 +1,6 @@
 # ReHealth MVP QA Test Plan
 
-Last reviewed: 2026-07-27
+Last reviewed: 2026-07-28
 Scope: Android MVP, backend services, model-service, contract gates, and release QA. This plan is not final release approval; see `STATUS.md` for current blockers.
 
 ## Test Environment
@@ -41,7 +41,10 @@ git diff --check
 
 1. Android install/onboarding
    - Install `app/build/outputs/apk/debug/app-debug.apk`.
-   - Launch app and complete onboarding/login demo flow.
+   - Launch app, request a registration SMS code, and confirm `/sys/sms` receives
+     `X-Sign` plus `X-Timestamp` without returning “请求参数不完整”.
+   - With local `JEECG_SMS_DEV_MODE=true`, confirm the successful response auto-fills
+     `123456`; a failed request must not fill any code. Complete registration and auto-login.
    - Confirm no crash on first run and no production medical diagnosis wording.
 
 2. Ring permission
@@ -66,7 +69,8 @@ git diff --check
      firmware and capability output per `Android-apk/docs/wearable/RWFIT_DEVICE_QA.md`.
    - For HBand, build with
      `-Prehealth.debug.wearable.product.code=RH-HB-E01`, then follow
-     `Android-apk/docs/wearable/HBAND_DEVICE_QA.md`; this row remains pending while no device is available.
+     `Android-apk/docs/wearable/HBAND_DEVICE_QA.md`; this row remains pending until
+     the purchased wearable capability and accuracy matrix is completed.
    - Before HBand connection, edit the personal profile and select sex, then enter
      age `1..120`, height `50..250 cm`, and weight `10..300 kg`. Confirm saving
      refreshes the profile and allows the HBand Provider to consume the encrypted cache.
@@ -75,10 +79,22 @@ git diff --check
      `McuMgrBleTransport`, or Nordic scanner classes.
 
 4. Manual measurement
+   - Open the data page before connecting a device. Confirm heart rate, SpO2, BP,
+     HRV, temperature, ECG, blood/body component, sleep, steps, and activity cards remain
+     visible with `--` where no real record exists. Unsupported actions remain visible
+     but disabled; there is no “查看全部” interaction.
    - Trigger only metrics advertised by the active Provider. RWFit manual measure
      currently supports HR, SpO2 and HRV; BP/temperature/stress are not requested.
-     HBand `RH-HB-E01` manual measure currently supports HR only.
+     HBand `RH-HB-E01` manual measure supports HR, SpO2, HRV, BP, ECG, blood
+     component, and body composition only when the connected-device callback
+     advertises the corresponding capability. Steps, sleep, and activity are sync-only.
+   - For HBand blood components, verify five independent values and device-selected
+     units. For body composition, verify all 14 values are independently persisted.
+   - Verify blood-glucose calibration and menstrual-cycle settings are capability
+     gated, require explicit input, and do not create `ring_measurements` rows.
    - Confirm each successful result is written to Room before any upload attempt.
+   - For HBand ECG, confirm the local signal chunk is never included in the
+     telemetry upload payload; only the non-diagnostic average-HR summary may sync.
    - Confirm unsupported metrics fail with safe UI text.
 
 5. Background collection

@@ -152,6 +152,7 @@ $env:REHEALTH_ATTRIBUTION_MODE = 'pias'
 $env:REHEALTH_ATTRIBUTION_PROVENANCE = 'pias'
 $env:REHEALTH_KAFKA_CONSUMER_ENABLED = 'true'
 $env:SPRING_KAFKA_BOOTSTRAP_SERVERS = '127.0.0.1:29092'
+$env:JEECG_SMS_DEV_MODE = 'true'
 
 $jeecgJar = Join-Path $repoRoot 'backend\jeecg-boot\jeecg-server-cloud\jeecg-system-cloud-start\target\jeecg-system-cloud-start-3.9.2.jar'
 $jeecgConfig = (Join-Path $repoRoot 'backend\jeecg-boot\jeecg-module-system\jeecg-system-start\src\main\resources\application-dev.yml').Replace('\', '/')

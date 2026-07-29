@@ -84,9 +84,12 @@ fun RegisterScreen(
     var showAgreementHint by remember { mutableStateOf(false) }
     var showHint by remember { mutableStateOf(false) }
 
+    LaunchedEffect(uiState.smsCodeSuggestion) {
+        uiState.smsCodeSuggestion?.let { smscode = it }
+    }
+
     val phoneValid = viewModel.isPhoneValid(phone)
-    // 短信验证码在开发模式下可留空（后端跳过校验），生产环境仍要求填写。
-    val canRegister = phoneValid && password.length >= 6 &&
+    val canRegister = phoneValid && smscode.length == 6 && password.length >= 6 &&
         password == confirm && agreed && !uiState.isLoading
 
     val brandGreen = Color(0xFF08A97B)
@@ -172,7 +175,7 @@ fun RegisterScreen(
                 OutlinedTextField(
                     value = smscode,
                     onValueChange = { smscode = it.filter { c -> c.isDigit() }.take(6) },
-                    placeholder = { Text("验证码（选填）", fontSize = 14.sp, maxLines = 1) },
+                    placeholder = { Text("请输入验证码", fontSize = 14.sp, maxLines = 1) },
                     leadingIcon = { Icon(Icons.Outlined.Lock, null) },
                     trailingIcon = {
                         Text(
@@ -284,9 +287,17 @@ fun RegisterScreen(
                         modifier = Modifier.fillMaxWidth().padding(start = 12.dp, top = 6.dp),
                     )
                 }
-                if (showHint && (!phoneValid || password.length < 6 || password != confirm)) {
+                uiState.infoMessage?.let { info ->
                     Text(
-                        "请填写正确的手机号和密码（两次密码需一致）",
+                        text = info,
+                        color = brandGreen,
+                        fontSize = 11.sp,
+                        modifier = Modifier.fillMaxWidth().padding(start = 12.dp, top = 6.dp),
+                    )
+                }
+                if (showHint && (!phoneValid || smscode.length != 6 || password.length < 6 || password != confirm)) {
+                    Text(
+                        "请填写正确的手机号、6 位验证码和密码（两次密码需一致）",
                         color = Color(0xFFD94C4C),
                         fontSize = 11.sp,
                         modifier = Modifier.padding(start = 12.dp, top = 6.dp),

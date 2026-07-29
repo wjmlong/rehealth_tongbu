@@ -3,6 +3,10 @@ package com.rehealth.genie.ring.provider
 import com.rehealth.genie.ring.RingConnectionState
 import com.rehealth.genie.ring.RingDevice
 import com.rehealth.genie.ring.RingMetricType
+import com.rehealth.genie.ring.BloodGlucoseCalibration
+import com.rehealth.genie.ring.MenstrualCycleConfig
+import com.rehealth.genie.ring.RingFeatureRepository
+import com.rehealth.genie.ring.RingFeatureType
 import com.rehealth.genie.ring.RingRepository
 import com.rehealth.genie.ring.RingSyncResult
 import com.rehealth.genie.ring.WearableUserProfileSink
@@ -24,7 +28,7 @@ class ActiveRingRepository(
     private val registry: RingProviderRegistry,
     initialUserProfile: BaselineHealthProfile? = null,
     private val persistUserProfile: ((BaselineHealthProfile?) -> Unit)? = null,
-) : RingRepository, WearableUserProfileSink {
+) : RingRepository, WearableUserProfileSink, RingFeatureRepository {
     private val operationMutex = Mutex()
     override var wearableUserProfile: BaselineHealthProfile? = initialUserProfile
         set(value) {
@@ -52,6 +56,9 @@ class ActiveRingRepository(
     override val supportedMetrics: Set<RingMetricType>
         get() = provider().supportedMetrics
 
+    override val supportedFeatures: Set<RingFeatureType>
+        get() = (provider() as? RingFeatureRepository)?.supportedFeatures.orEmpty()
+
     override suspend fun scan(): List<RingDevice> = operationMutex.withLock { provider().scan() }
 
     override suspend fun connect(device: RingDevice) = operationMutex.withLock {
@@ -70,6 +77,15 @@ class ActiveRingRepository(
 
     override suspend fun sendCommand(data: ByteArray): Boolean = operationMutex.withLock {
         provider().sendCommand(data)
+    }
+
+    override suspend fun setBloodGlucoseCalibration(config: BloodGlucoseCalibration): Boolean =
+        operationMutex.withLock {
+            (provider() as? RingFeatureRepository)?.setBloodGlucoseCalibration(config) ?: false
+        }
+
+    override suspend fun setMenstrualCycle(config: MenstrualCycleConfig): Boolean = operationMutex.withLock {
+        (provider() as? RingFeatureRepository)?.setMenstrualCycle(config) ?: false
     }
 
     suspend fun switchProduct(profile: WearableProductProfile) = operationMutex.withLock {

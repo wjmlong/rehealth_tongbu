@@ -7,6 +7,10 @@ import com.rehealth.genie.ring.RingDevice
 import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.RingRepository
 import com.rehealth.genie.ring.RingSyncResult
+import com.rehealth.genie.ring.BloodGlucoseCalibration
+import com.rehealth.genie.ring.MenstrualCycleConfig
+import com.rehealth.genie.ring.RingFeatureRepository
+import com.rehealth.genie.ring.RingFeatureType
 import com.rehealth.genie.ring.WearableUserProfileSink
 import com.rehealth.genie.ring.data.RingDataBatch
 import com.rehealth.genie.ring.data.RingDataDao
@@ -21,12 +25,14 @@ class HBandRingRepository internal constructor(
     private val gateway: HBandSdkGateway,
     private val modelNameHints: Set<String>,
     private val expectedMetrics: Set<RingMetricType>,
-) : RingRepository, WearableUserProfileSink {
+) : RingRepository, WearableUserProfileSink, RingFeatureRepository {
     override var wearableUserProfile: BaselineHealthProfile? = null
     override val connectionState: StateFlow<RingConnectionState> = gateway.connectionState
     override val connectedDevice: StateFlow<RingDevice?> = gateway.connectedDevice
     override val supportedMetrics: Set<RingMetricType>
         get() = gateway.capabilities.value.supportedMetrics intersect expectedMetrics
+    override val supportedFeatures: Set<RingFeatureType>
+        get() = gateway.capabilities.value.supportedFeatures
 
     override suspend fun scan(): List<RingDevice> {
         val boundAddress = activeBindingAddress()
@@ -74,6 +80,16 @@ class HBandRingRepository internal constructor(
 
     override suspend fun sendCommand(data: ByteArray): Boolean = false
 
+    override suspend fun setBloodGlucoseCalibration(config: BloodGlucoseCalibration): Boolean {
+        if (RingFeatureType.BLOOD_GLUCOSE_CALIBRATION !in supportedFeatures) return false
+        return gateway.setBloodGlucoseCalibration(config)
+    }
+
+    override suspend fun setMenstrualCycle(config: MenstrualCycleConfig): Boolean {
+        if (RingFeatureType.WOMENS_HEALTH !in supportedFeatures) return false
+        return gateway.setMenstrualCycle(config)
+    }
+
     private suspend fun persist(payload: HBandPayload): RingSyncResult {
         val deviceKey = connectedDevice.value?.address ?: activeBindingAddress()
         if (deviceKey.isNullOrBlank()) return emptyResult()
@@ -110,6 +126,14 @@ class HBandRingRepository internal constructor(
     private companion object {
         // A product control setting required by PersonInfoData, not generated health telemetry.
         const val DEFAULT_STEP_GOAL = 10_000
-        val MANUAL_METRICS = setOf(RingMetricType.HEART_RATE)
+        val MANUAL_METRICS = setOf(
+            RingMetricType.HEART_RATE,
+            RingMetricType.BLOOD_OXYGEN,
+            RingMetricType.HRV,
+            RingMetricType.BLOOD_PRESSURE,
+            RingMetricType.ECG,
+            RingMetricType.BLOOD_COMPONENT,
+            RingMetricType.BODY_COMPOSITION,
+        )
     }
 }

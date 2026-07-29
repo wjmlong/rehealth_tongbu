@@ -1,28 +1,36 @@
 package com.rehealth.genie.ring.hband
 
 import com.rehealth.genie.ring.RingMetricType
+import com.rehealth.genie.ring.SignalEncoding
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class HBandDataMapperTest {
     @Test
     fun createsStableVendorNeutralRecordsInExistingTables() {
         val payload = HBandPayload(
-            measurements = listOf(HBandMetricSample(RingMetricType.HEART_RATE, 1_700_000_000_000L, 72.0, "bpm")),
+            measurements = listOf(
+                HBandMetricSample(RingMetricType.HEART_RATE, 1_700_000_000_000L, 72.0, "bpm"),
+                HBandMetricSample(RingMetricType.BLOOD_PRESSURE, 1_700_000_000_100L, 120.0, "mmHg", 80.0),
+                HBandMetricSample(RingMetricType.ECG, 1_700_000_000_200L, 70.0, "bpm"),
+            ),
             sleep = listOf(HBandSleepRecord(1_700_000_000_000L, 1_700_020_000_000L, 100, 180, 20)),
             activities = listOf(HBandActivityRecord(1_700_000_000_000L, 1_700_010_000_000L, 1234, 800.0, 40.0)),
+            ecgRecords = listOf(HBandEcgRecord(1_700_000_000_200L, 250, intArrayOf(10, -20, 30), 70)),
         )
         val first = HBandDataMapper.toEntities(payload, "AA:BB")
         val second = HBandDataMapper.toEntities(payload, "aa:bb")
 
-        assertEquals(first.measurements.single().id, second.measurements.single().id)
-        assertEquals("hband_wearable", first.measurements.single().source)
+        assertEquals(first.measurements.map { it.id }, second.measurements.map { it.id })
+        assertTrue(first.measurements.all { it.source == "hband_wearable" })
+        assertEquals(80.0, first.measurements.single { it.metricType == RingMetricType.BLOOD_PRESSURE.name }.secondaryValue)
         assertEquals("hband_wearable", first.sleepSessions.single().source)
         assertEquals("hband_wearable", first.activities.single().source)
-        assertNull(first.measurements.single().rawPayload)
-        assertTrue(setOf(RingMetricType.HEART_RATE, RingMetricType.SLEEP, RingMetricType.STEPS, RingMetricType.ACTIVITY)
+        assertTrue(first.measurements.all { it.rawPayload == null })
+        assertEquals(250, first.signalChunks.single().sampleRateHz)
+        assertEquals(intArrayOf(10, -20, 30).toList(), SignalEncoding.decodeInt32LittleEndian(first.signalChunks.single().payload).toList())
+        assertTrue(setOf(RingMetricType.HEART_RATE, RingMetricType.BLOOD_PRESSURE, RingMetricType.ECG, RingMetricType.SLEEP, RingMetricType.STEPS, RingMetricType.ACTIVITY)
             .all { it in HBandDataMapper.collectedTypes(first) })
     }
 
@@ -36,5 +44,42 @@ class HBandDataMapperTest {
             "device",
         )
         assertEquals(0, batch.size)
+    }
+
+    @Test
+    fun preservesEveryAdvancedHealthValueAsAnIndependentMeasurement() {
+        val measuredAt = 1_700_000_000_000L
+        val types = listOf(
+            RingMetricType.URIC_ACID,
+            RingMetricType.TOTAL_CHOLESTEROL,
+            RingMetricType.TRIGLYCERIDES,
+            RingMetricType.HDL_CHOLESTEROL,
+            RingMetricType.LDL_CHOLESTEROL,
+            RingMetricType.BMI,
+            RingMetricType.BODY_FAT_PERCENT,
+            RingMetricType.FAT_MASS,
+            RingMetricType.FAT_FREE_MASS,
+            RingMetricType.MUSCLE_PERCENT,
+            RingMetricType.MUSCLE_MASS,
+            RingMetricType.SUBCUTANEOUS_FAT_PERCENT,
+            RingMetricType.BODY_WATER_PERCENT,
+            RingMetricType.WATER_MASS,
+            RingMetricType.SKELETAL_MUSCLE_PERCENT,
+            RingMetricType.BONE_MASS,
+            RingMetricType.PROTEIN_PERCENT,
+            RingMetricType.PROTEIN_MASS,
+            RingMetricType.BASAL_METABOLIC_RATE,
+        )
+        val payload = HBandPayload(
+            measurements = types.mapIndexed { index, type ->
+                HBandMetricSample(type, measuredAt, index + 1.0, if (type == RingMetricType.BASAL_METABOLIC_RATE) "kcal/day" else "vendor_unit")
+            },
+        )
+
+        val batch = HBandDataMapper.toEntities(payload, "AA:BB")
+
+        assertEquals(types.toSet(), batch.measurements.map { RingMetricType.valueOf(it.metricType) }.toSet())
+        assertEquals(types.size, batch.measurements.map { it.id }.distinct().size)
+        assertTrue(types.all { it in HBandDataMapper.collectedTypes(batch) })
     }
 }
