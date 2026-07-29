@@ -104,20 +104,24 @@ phase.
 The HBand Provider follows `connectDevice -> Notify -> confirmDevicePwd ->
 FunctionDeviceSupportData -> syncPersonInfo -> READY`. Its product intersection
 allows heart rate, daily steps/activity, sleep, blood oxygen, app HRV, blood pressure,
-ECG, blood component, and body composition operations. Blood-glucose calibration
+temperature, blood glucose, stress, MET, ECG, blood component, and body composition
+operations. Blood-glucose calibration
 and menstrual-cycle settings use separate feature operations. The runtime capability
 callback remains authoritative: unsupported actions remain disabled and are not
 requested or persisted. The user profile comes from ReHealth profile
 data; the SDK demo's fixed sex/age/height/weight values are not used. Blood
 pressure history and manual detection persist systolic/diastolic mmHg values.
 Manual ECG persists the SDK waveform as a local Room signal chunk and an average
-heart-rate summary; the waveform is explicitly excluded from cloud upload and
+heart-rate summary; historical ECG and body-composition callbacks are also normalized
+into the same Room entities. The waveform is explicitly excluded from cloud upload and
 is not interpreted as a diagnosis. Blood oxygen and HRV manual results use `%` and
 `ms`. Blood components are stored as five independent measurements; uric-acid and
 blood-fat units are read from `CustomSettingData` before measurement. Body composition
-is stored as 14 independent measurements with the SDK-documented units. Blood-glucose
-calibration and menstrual-cycle settings do not create measurement rows. Temperature,
-stress, direct blood-glucose measurement, pregnancy/preparation/mother modes, TCM,
-OTA, dials, and messaging remain outside `RH-HB-E01`.
+is stored as 14 independent measurements with the SDK-documented units. Capability-
+gated manual-history reads normalize body temperature to `°C`, preserve the device
+blood-glucose unit, store stress as a `0..100` score, and store metabolic equivalent
+as `MET`; direct measurement uses the corresponding pinned SDK operations. Blood-glucose
+calibration and menstrual-cycle settings do not create measurement rows. Pregnancy/
+preparation/mother modes, TCM, OTA, dials, and messaging remain outside `RH-HB-E01`.
 `SportUtil.getDistance()` divides metre-scale step distance by 1000, so the
 Provider converts the SDK kilometre value back to Room `distanceMeters`.

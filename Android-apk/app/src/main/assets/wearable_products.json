@@ -45,6 +45,10 @@
       "BLOOD_OXYGEN",
       "HRV",
       "BLOOD_PRESSURE",
+      "BLOOD_GLUCOSE",
+      "TEMPERATURE",
+      "STRESS",
+      "MET",
       "ECG",
       "BLOOD_COMPONENT",
       "BODY_COMPOSITION"

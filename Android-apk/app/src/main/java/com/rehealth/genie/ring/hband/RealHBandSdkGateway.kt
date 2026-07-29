@@ -21,21 +21,39 @@ import com.veepoo.protocol.listener.data.IBPDetectDataListener
 import com.veepoo.protocol.listener.data.IBloodComponentDetectListener
 import com.veepoo.protocol.listener.data.IBloodGlucoseChangeListener
 import com.veepoo.protocol.listener.data.IBodyComponentDetectListener
+import com.veepoo.protocol.listener.data.IBodyComponentReadDataListener
 import com.veepoo.protocol.listener.data.ICustomSettingDataListener
 import com.veepoo.protocol.listener.data.IECGDetectListener
+import com.veepoo.protocol.listener.data.IECGReadDataListener
+import com.veepoo.protocol.listener.data.IDeviceManualDetectDataListener
 import com.veepoo.protocol.listener.data.IHeartDataListener
 import com.veepoo.protocol.listener.data.IHrvDetectListener
+import com.veepoo.protocol.listener.data.IMetDetectListener
 import com.veepoo.protocol.listener.data.IOriginDataListener
 import com.veepoo.protocol.listener.data.IPersonInfoDataListener
+import com.veepoo.protocol.listener.data.IPressureDetectListener
 import com.veepoo.protocol.listener.data.IPwdDataListener
 import com.veepoo.protocol.listener.data.ISleepDataListener
 import com.veepoo.protocol.listener.data.ISocialMsgDataListener
 import com.veepoo.protocol.listener.data.ISpo2hDataListener
 import com.veepoo.protocol.listener.data.ISportDataListener
+import com.veepoo.protocol.listener.data.ITemptureDataListener
+import com.veepoo.protocol.listener.data.ITemptureDetectDataListener
 import com.veepoo.protocol.listener.data.IWomenDataListener
 import com.veepoo.protocol.model.datas.BloodComponent
+import com.veepoo.protocol.model.datas.BloodComponentManualData
+import com.veepoo.protocol.model.datas.BloodGlucoseManualData
+import com.veepoo.protocol.model.datas.BloodOxygenManualData
+import com.veepoo.protocol.model.datas.BloodPressureManualData
+import com.veepoo.protocol.model.datas.BodyTemperatureManualData
 import com.veepoo.protocol.model.datas.BodyComponent
+import com.veepoo.protocol.model.datas.EmotionManualData
+import com.veepoo.protocol.model.datas.FatigueManualData
+import com.veepoo.protocol.model.datas.HeartRateManualData
+import com.veepoo.protocol.model.datas.HrvManualData
 import com.veepoo.protocol.model.datas.MealInfo
+import com.veepoo.protocol.model.datas.MetoManualData
+import com.veepoo.protocol.model.datas.MiniCheckupManualData
 import com.veepoo.protocol.model.datas.DeviceFunctionPackage1
 import com.veepoo.protocol.model.datas.DeviceFunctionPackage2
 import com.veepoo.protocol.model.datas.DeviceFunctionPackage3
@@ -51,22 +69,30 @@ import com.veepoo.protocol.model.datas.HeartData
 import com.veepoo.protocol.model.datas.OriginData
 import com.veepoo.protocol.model.datas.OriginHalfHourData
 import com.veepoo.protocol.model.datas.PersonInfoData
+import com.veepoo.protocol.model.datas.PressureManualData
 import com.veepoo.protocol.model.datas.PwdData
+import com.veepoo.protocol.model.datas.SkinConductanceManualData
 import com.veepoo.protocol.model.datas.SleepData
 import com.veepoo.protocol.model.datas.SportData
+import com.veepoo.protocol.model.datas.TemptureData
 import com.veepoo.protocol.model.datas.TimeData
+import com.veepoo.protocol.model.enums.DeviceManualDataType
 import com.veepoo.protocol.model.enums.EFunctionStatus
 import com.veepoo.protocol.model.enums.EBPDetectModel
 import com.veepoo.protocol.model.enums.EBPDetectStatus
+import com.veepoo.protocol.model.enums.EBloodGlucoseUnit
 import com.veepoo.protocol.model.enums.EHeartStatus
 import com.veepoo.protocol.model.enums.EBloodFatUnit
 import com.veepoo.protocol.model.enums.EBloodGlucoseRiskLevel
 import com.veepoo.protocol.model.enums.EBloodGlucoseStatus
+import com.veepoo.protocol.model.enums.EEcgDataType
+import com.veepoo.protocol.model.enums.ETemperatureUnit
 import com.veepoo.protocol.model.enums.EUricAcidUnit
 import com.veepoo.protocol.model.enums.HrvDetectState
 import com.veepoo.protocol.model.enums.EWomenOprateStatus
 import com.veepoo.protocol.model.enums.EWomenStatus
 import com.veepoo.protocol.model.settings.CustomSettingData
+import com.veepoo.protocol.model.settings.ReadOriginSetting
 import com.veepoo.protocol.model.settings.WomenSetting
 import com.veepoo.protocol.model.enums.EOprateStauts
 import com.veepoo.protocol.model.enums.EPwdStatus
@@ -229,8 +255,22 @@ internal class RealHBandSdkGateway(
                 var result = HBandPayload()
                 if (RingMetricType.STEPS in metrics || RingMetricType.ACTIVITY in metrics) result += readDailySport()
                 if (RingMetricType.SLEEP in metrics) result += readSleep()
-                if (RingMetricType.HEART_RATE in metrics || RingMetricType.BLOOD_PRESSURE in metrics) {
+                if (
+                    RingMetricType.HEART_RATE in metrics ||
+                    RingMetricType.BLOOD_PRESSURE in metrics ||
+                    (RingMetricType.TEMPERATURE in metrics && capabilities.value.temperatureType == ORIGIN_TEMPERATURE_TYPE)
+                ) {
                     result += readOriginHistory(metrics)
+                }
+                if (RingMetricType.TEMPERATURE in metrics && capabilities.value.temperatureType != ORIGIN_TEMPERATURE_TYPE) {
+                    result += optionalHistory { readTemperatureHistory() }
+                }
+                if (metrics.any { it in DEVICE_MANUAL_HISTORY_METRICS }) {
+                    result += optionalHistory { readManualMeasurementHistory(metrics) }
+                }
+                if (RingMetricType.ECG in metrics) result += optionalHistory { readEcgHistory() }
+                if (RingMetricType.BODY_COMPOSITION in metrics) {
+                    result += optionalHistory { readBodyCompositionHistory() }
                 }
                 stateMachine.ready()
                 publishState()
@@ -259,6 +299,10 @@ internal class RealHBandSdkGateway(
                         RingMetricType.BLOOD_OXYGEN -> measureBloodOxygen()
                         RingMetricType.HRV -> measureHrv()
                         RingMetricType.BLOOD_PRESSURE -> measureBloodPressure()
+                        RingMetricType.BLOOD_GLUCOSE -> measureBloodGlucose()
+                        RingMetricType.TEMPERATURE -> measureTemperature()
+                        RingMetricType.STRESS -> measureStress()
+                        RingMetricType.MET -> measureMet()
                         RingMetricType.ECG -> measureEcg()
                         RingMetricType.BLOOD_COMPONENT -> measureBloodComponent()
                         RingMetricType.BODY_COMPOSITION -> measureBodyComposition()
@@ -440,6 +484,125 @@ internal class RealHBandSdkGateway(
         }
     }
 
+    private suspend fun measureBloodGlucose(): HBandPayload {
+        val unit = readBloodGlucoseUnit()
+        val result = CompletableDeferred<HBandMetricSample?>()
+        val listener = object : IBloodGlucoseChangeListener {
+            override fun onDetectError(operation: Int, status: EBloodGlucoseStatus) {
+                result.complete(null)
+            }
+
+            override fun onBloodGlucoseDetect(
+                progress: Int,
+                value: Float,
+                risk: EBloodGlucoseRiskLevel,
+            ) {
+                if (progress >= MEASUREMENT_COMPLETE_PROGRESS && value.isFinite() && value > 0f) {
+                    result.complete(
+                        HBandMetricSample(
+                            RingMetricType.BLOOD_GLUCOSE,
+                            clock(),
+                            value.toDouble(),
+                            unit,
+                        ),
+                    )
+                }
+            }
+
+            override fun onBloodGlucoseStopDetect() { result.complete(null) }
+            override fun onBloodGlucoseAdjustingSettingSuccess(enabled: Boolean, value: Float) = Unit
+            override fun onBloodGlucoseAdjustingSettingFailed() = Unit
+            override fun onBloodGlucoseAdjustingReadSuccess(enabled: Boolean, value: Float) = Unit
+            override fun onBloodGlucoseAdjustingReadFailed() = Unit
+            override fun onBGMultipleAdjustingReadSuccess(
+                enabled: Boolean,
+                breakfast: MealInfo,
+                lunch: MealInfo,
+                dinner: MealInfo,
+            ) = Unit
+            override fun onBGMultipleAdjustingReadFailed() = Unit
+            override fun onBGMultipleAdjustingSettingSuccess() = Unit
+            override fun onBGMultipleAdjustingSettingFailed() = Unit
+        }
+        withContext(Dispatchers.Main.immediate) { manager.startBloodGlucoseDetect(writeResponse, listener) }
+        return try {
+            result.await()?.let { HBandPayload(measurements = listOf(it)) } ?: HBandPayload()
+        } finally {
+            withContext(Dispatchers.Main.immediate) { manager.stopBloodGlucoseDetect(writeResponse, listener) }
+        }
+    }
+
+    private suspend fun measureTemperature(): HBandPayload {
+        val reportsFahrenheit = readTemperatureUnit() == ETemperatureUnit.FAHRENHEIT
+        val result = CompletableDeferred<HBandMetricSample?>()
+        val listener = ITemptureDetectDataListener { data ->
+            val celsius = data?.tempture?.takeIf(Float::isFinite)?.let { value ->
+                if (reportsFahrenheit) (value - 32f) * 5f / 9f else value
+            }
+            if (
+                data?.deviceState == TEMPERATURE_DEVICE_READY &&
+                data.progress >= MEASUREMENT_COMPLETE_PROGRESS &&
+                celsius != null &&
+                celsius in MIN_BODY_TEMPERATURE_C..MAX_BODY_TEMPERATURE_C
+            ) {
+                result.complete(HBandMetricSample(RingMetricType.TEMPERATURE, clock(), celsius.toDouble(), "°C"))
+            } else if (data?.deviceState != null && data.deviceState != TEMPERATURE_DEVICE_READY) {
+                result.complete(null)
+            }
+        }
+        withContext(Dispatchers.Main.immediate) { manager.startDetectTempture(writeResponse, listener) }
+        return try {
+            result.await()?.let { HBandPayload(measurements = listOf(it)) } ?: HBandPayload()
+        } finally {
+            withContext(Dispatchers.Main.immediate) { manager.stopDetectTempture(writeResponse, listener) }
+        }
+    }
+
+    private suspend fun measureStress(): HBandPayload {
+        val result = CompletableDeferred<HBandMetricSample?>()
+        val listener = object : IPressureDetectListener {
+            override fun onDetecting(progress: Int) = Unit
+            override fun onDetectSuccess(pressure: Int) {
+                result.complete(
+                    pressure.takeIf { it in MIN_STRESS_SCORE..MAX_STRESS_SCORE }?.let {
+                        HBandMetricSample(RingMetricType.STRESS, clock(), it.toDouble(), "score")
+                    },
+                )
+            }
+            override fun onDetectFailed(detectState: com.veepoo.protocol.model.enums.PressureDetectState) {
+                result.complete(null)
+            }
+            override fun onDetectStop() { result.complete(null) }
+        }
+        withContext(Dispatchers.Main.immediate) { manager.startDetectPressure(sdkWriteResponse, listener) }
+        return try {
+            result.await()?.let { HBandPayload(measurements = listOf(it)) } ?: HBandPayload()
+        } finally {
+            withContext(Dispatchers.Main.immediate) { manager.stopDetectPressure(sdkWriteResponse) }
+        }
+    }
+
+    private suspend fun measureMet(): HBandPayload {
+        val result = CompletableDeferred<HBandMetricSample?>()
+        val listener = object : IMetDetectListener {
+            override fun onMetDetect(progress: Int, met: Float) {
+                if (progress >= MEASUREMENT_COMPLETE_PROGRESS && met.isFinite() && met > 0f) {
+                    result.complete(HBandMetricSample(RingMetricType.MET, clock(), met.toDouble(), "MET"))
+                }
+            }
+            override fun onDetectFailed(detectState: com.veepoo.protocol.model.enums.MetDetectState) {
+                result.complete(null)
+            }
+            override fun onDetectStop() { result.complete(null) }
+        }
+        withContext(Dispatchers.Main.immediate) { manager.startDetectMet(sdkWriteResponse, listener) }
+        return try {
+            result.await()?.let { HBandPayload(measurements = listOf(it)) } ?: HBandPayload()
+        } finally {
+            withContext(Dispatchers.Main.immediate) { manager.stopDetectMet(sdkWriteResponse) }
+        }
+    }
+
     private suspend fun measureEcg(): HBandPayload {
         val result = CompletableDeferred<HBandEcgRecord>()
         val callbackSamples = mutableListOf<Int>()
@@ -606,6 +769,29 @@ internal class RealHBandSdkGateway(
         )
     }
 
+    private suspend fun readBloodGlucoseUnit(): String {
+        val result = CompletableDeferred<CustomSettingData>()
+        withContext(Dispatchers.Main.immediate) {
+            manager.readCustomSetting(writeResponse, ICustomSettingDataListener { data -> result.complete(data) })
+        }
+        val setting = withTimeoutOrNull(UNIT_READ_TIMEOUT_MILLIS) { result.await() }
+        return when (setting?.bloodGlucoseUnit) {
+            EBloodGlucoseUnit.mmol_L -> "mmol/L"
+            EBloodGlucoseUnit.mg_dl -> "mg/dL"
+            else -> ""
+        }
+    }
+
+    private suspend fun readTemperatureUnit(): ETemperatureUnit {
+        val result = CompletableDeferred<CustomSettingData>()
+        withContext(Dispatchers.Main.immediate) {
+            manager.readCustomSetting(writeResponse, ICustomSettingDataListener { data -> result.complete(data) })
+        }
+        return withTimeoutOrNull(UNIT_READ_TIMEOUT_MILLIS) { result.await() }
+            ?.temperatureUnit
+            ?: ETemperatureUnit.CELSIUS
+    }
+
     private fun BloodComponent.toPayload(measuredAt: Long, units: BloodComponentUnits): HBandPayload = HBandPayload(
         measurements = listOfNotNull(
             positiveSample(RingMetricType.URIC_ACID, measuredAt, uricAcid, units.uricAcid),
@@ -640,6 +826,263 @@ internal class RealHBandSdkGateway(
             HBandMetricSample(type, measuredAt, it.toDouble(), unit)
         }
 
+    private suspend fun optionalHistory(read: suspend () -> HBandPayload): HBandPayload =
+        withTimeoutOrNull(HISTORY_OPERATION_TIMEOUT_MILLIS) { read() } ?: HBandPayload()
+
+    private suspend fun readTemperatureHistory(): HBandPayload {
+        val records = mutableListOf<HBandMetricSample>()
+        val complete = CompletableDeferred<Unit>()
+        val reportsFahrenheit = readTemperatureUnit() == ETemperatureUnit.FAHRENHEIT
+        val listener = object : ITemptureDataListener {
+            override fun onTemptureDataListDataChange(data: List<TemptureData>?) {
+                data.orEmpty().forEach { item ->
+                    val measuredAt = item.getmTime()?.toEpochMillis() ?: return@forEach
+                    val raw = item.tempture.takeIf { it.isFinite() && it > 0f } ?: return@forEach
+                    val celsius = if (reportsFahrenheit) (raw - 32f) * 5f / 9f else raw
+                    if (celsius in MIN_BODY_TEMPERATURE_C..MAX_BODY_TEMPERATURE_C) {
+                        records += HBandMetricSample(
+                            RingMetricType.TEMPERATURE,
+                            measuredAt,
+                            celsius.toDouble(),
+                            "°C",
+                        )
+                    }
+                }
+            }
+            override fun onReadOriginProgressDetail(day: Int, date: String?, total: Int, current: Int) = Unit
+            override fun onReadOriginProgress(progress: Float) = Unit
+            override fun onReadOriginComplete() { complete.complete(Unit) }
+        }
+        val watchDataDays = watchDataDays()
+        withContext(Dispatchers.Main.immediate) {
+            manager.readTemptureDataBySetting(
+                writeResponse,
+                listener,
+                ReadOriginSetting(watchDataDays, 0, false, 0),
+            )
+        }
+        complete.await()
+        return HBandPayload(measurements = records)
+    }
+
+    private suspend fun readManualMeasurementHistory(metrics: Set<RingMetricType>): HBandPayload {
+        val requested = buildList {
+            if (RingMetricType.BLOOD_PRESSURE in metrics) add(DeviceManualDataType.BLOOD_PRESSURE)
+            if (RingMetricType.HEART_RATE in metrics) add(DeviceManualDataType.HEART_RATE)
+            if (RingMetricType.BLOOD_GLUCOSE in metrics) add(DeviceManualDataType.BLOOD_GLUCOSE)
+            if (RingMetricType.STRESS in metrics) add(DeviceManualDataType.STRESS)
+            if (RingMetricType.BLOOD_OXYGEN in metrics) add(DeviceManualDataType.BLOOD_OXYGEN)
+            if (RingMetricType.TEMPERATURE in metrics) add(DeviceManualDataType.BODY_TEMPERATURE)
+            if (RingMetricType.MET in metrics) add(DeviceManualDataType.MET)
+            if (RingMetricType.HRV in metrics) add(DeviceManualDataType.HRV)
+            if (RingMetricType.BLOOD_COMPONENT in metrics) add(DeviceManualDataType.BLOOD_COMPOSITION)
+        }
+        if (requested.isEmpty()) return HBandPayload()
+
+        val records = mutableListOf<HBandMetricSample>()
+        val complete = CompletableDeferred<Boolean>()
+        val bloodGlucoseUnit = if (RingMetricType.BLOOD_GLUCOSE in metrics) readBloodGlucoseUnit() else ""
+        val bloodComponentUnits = if (RingMetricType.BLOOD_COMPONENT in metrics) {
+            readBloodComponentUnits()
+        } else {
+            BloodComponentUnits()
+        }
+        val reportsFahrenheit = RingMetricType.TEMPERATURE in metrics &&
+            readTemperatureUnit() == ETemperatureUnit.FAHRENHEIT
+
+        val listener = object : IDeviceManualDetectDataListener {
+            override fun onBloodPressureDataChange(data: List<BloodPressureManualData>?) {
+                data.orEmpty().forEach { item ->
+                    val measuredAt = item.timeStamp.toEpochMillisFromSeconds() ?: return@forEach
+                    if (validBloodPressure(item.systolic, item.diastolic)) {
+                        records += HBandMetricSample(
+                            RingMetricType.BLOOD_PRESSURE,
+                            measuredAt,
+                            item.systolic.toDouble(),
+                            "mmHg",
+                            item.diastolic.toDouble(),
+                        )
+                    }
+                }
+            }
+
+            override fun onHeartRateDataChange(data: List<HeartRateManualData>?) {
+                data.orEmpty().forEach { item ->
+                    val measuredAt = item.timeStamp.toEpochMillisFromSeconds() ?: return@forEach
+                    item.rate?.lastOrNull { it > 0 }?.let { value ->
+                        records += HBandMetricSample(RingMetricType.HEART_RATE, measuredAt, value.toDouble(), "bpm")
+                    }
+                }
+            }
+
+            override fun onBloodGlucoseDataChange(data: List<BloodGlucoseManualData>?) {
+                data.orEmpty().forEach { item ->
+                    val measuredAt = item.timeStamp.toEpochMillisFromSeconds() ?: return@forEach
+                    positiveSample(
+                        RingMetricType.BLOOD_GLUCOSE,
+                        measuredAt,
+                        item.bloodGlucoseValue,
+                        bloodGlucoseUnit,
+                    )?.let(records::add)
+                }
+            }
+
+            override fun onPressureManualDataChange(data: List<PressureManualData>?) {
+                data.orEmpty().forEach { item ->
+                    val measuredAt = item.timeStamp.toEpochMillisFromSeconds() ?: return@forEach
+                    if (item.pressure in MIN_STRESS_SCORE..MAX_STRESS_SCORE) {
+                        records += HBandMetricSample(RingMetricType.STRESS, measuredAt, item.pressure.toDouble(), "score")
+                    }
+                }
+            }
+
+            override fun onBloodOxygenDataChange(data: List<BloodOxygenManualData>?) {
+                data.orEmpty().forEach { item ->
+                    val measuredAt = item.timeStamp.toEpochMillisFromSeconds() ?: return@forEach
+                    item.oxygen?.lastOrNull { it in MIN_VALID_SPO2..MAX_VALID_SPO2 }?.let { value ->
+                        records += HBandMetricSample(RingMetricType.BLOOD_OXYGEN, measuredAt, value.toDouble(), "%")
+                    }
+                }
+            }
+
+            override fun onBodyTemperatureDataChange(data: List<BodyTemperatureManualData>?) {
+                data.orEmpty().forEach { item ->
+                    val measuredAt = item.timeStamp.toEpochMillisFromSeconds() ?: return@forEach
+                    val raw = item.temperature.takeIf { it.isFinite() && it > 0f } ?: return@forEach
+                    val celsius = if (reportsFahrenheit) (raw - 32f) * 5f / 9f else raw
+                    if (celsius in MIN_BODY_TEMPERATURE_C..MAX_BODY_TEMPERATURE_C) {
+                        records += HBandMetricSample(RingMetricType.TEMPERATURE, measuredAt, celsius.toDouble(), "°C")
+                    }
+                }
+            }
+
+            override fun onMetoManualDataChange(data: List<MetoManualData>?) {
+                data.orEmpty().forEach { item ->
+                    val measuredAt = item.timeStamp.toEpochMillisFromSeconds() ?: return@forEach
+                    if (item.meto > 0) {
+                        records += HBandMetricSample(RingMetricType.MET, measuredAt, item.meto.toDouble(), "MET")
+                    }
+                }
+            }
+
+            override fun onHrvManualDataChange(data: List<HrvManualData>?) {
+                data.orEmpty().forEach { item ->
+                    val measuredAt = item.timeStamp.toEpochMillisFromSeconds() ?: return@forEach
+                    item.hrv?.lastOrNull { it > 0 }?.let { value ->
+                        records += HBandMetricSample(RingMetricType.HRV, measuredAt, value.toDouble(), "ms")
+                    }
+                }
+            }
+
+            override fun onBloodComponentManualDataChange(data: List<BloodComponentManualData>?) {
+                data.orEmpty().forEach { item ->
+                    val measuredAt = item.timeStamp.toEpochMillisFromSeconds() ?: return@forEach
+                    records += item.toPayload(measuredAt, bloodComponentUnits).measurements
+                }
+            }
+
+            override fun onMiniCheckupManualDataChange(data: List<MiniCheckupManualData>?) = Unit
+            override fun onEmotionManualDataChange(data: List<EmotionManualData>?) = Unit
+            override fun onFatigueManualDataChange(data: List<FatigueManualData>?) = Unit
+            override fun onSkinConductanceManualDataChange(data: List<SkinConductanceManualData>?) = Unit
+            override fun onReadProgress(progress: Float) = Unit
+            override fun onReadComplete() { complete.complete(true) }
+            override fun onReadFail() { complete.complete(false) }
+        }
+        withContext(Dispatchers.Main.immediate) {
+            manager.readDeviceManualData(writeResponse, 0L, requested, emptyList(), listener)
+        }
+        return if (complete.await()) HBandPayload(measurements = records) else HBandPayload()
+    }
+
+    private suspend fun readEcgHistory(): HBandPayload {
+        val result = CompletableDeferred<HBandPayload>()
+        val listener = object : IECGReadDataListener {
+            override fun readDataFinish(data: List<EcgDetectResult>?) {
+                result.complete(ecgHistoryPayload(data.orEmpty().mapNotNull { it.toDomainEcgRecord() }))
+            }
+
+            override fun readDiagnosisDataFinish(data: List<EcgDiagnosis>?) {
+                result.complete(ecgHistoryPayload(data.orEmpty().mapNotNull { it.toDomainEcgRecord() }))
+            }
+        }
+        withContext(Dispatchers.Main.immediate) {
+            manager.readECGData(
+                sdkWriteResponse,
+                TimeData(0, 0, 0, 0, 0, 0, 0),
+                EEcgDataType.ALL,
+                listener,
+            )
+        }
+        return result.await()
+    }
+
+    private suspend fun readBodyCompositionHistory(): HBandPayload {
+        val result = CompletableDeferred<HBandPayload>()
+        withContext(Dispatchers.Main.immediate) {
+            manager.readBodyComponentData(
+                sdkWriteResponse,
+                object : IBodyComponentReadDataListener {
+                    override fun readBodyComponentDataFinish(bodyComponentList: List<BodyComponent>?) {
+                        result.complete(
+                            bodyComponentList.orEmpty().fold(HBandPayload()) { payload, item ->
+                                val measuredAt = item.timeBean?.toEpochMillis() ?: return@fold payload
+                                payload + item.toPayload(measuredAt)
+                            },
+                        )
+                    }
+                },
+            )
+        }
+        return result.await()
+    }
+
+    private fun BloodComponentManualData.toPayload(
+        measuredAt: Long,
+        units: BloodComponentUnits,
+    ): HBandPayload = HBandPayload(
+        measurements = listOfNotNull(
+            positiveSample(RingMetricType.URIC_ACID, measuredAt, uricAcid, units.uricAcid),
+            positiveSample(RingMetricType.TOTAL_CHOLESTEROL, measuredAt, gettCHO(), units.bloodFat),
+            positiveSample(RingMetricType.TRIGLYCERIDES, measuredAt, gettAG(), units.bloodFat),
+            positiveSample(RingMetricType.HDL_CHOLESTEROL, measuredAt, gethDL(), units.bloodFat),
+            positiveSample(RingMetricType.LDL_CHOLESTEROL, measuredAt, getlDL(), units.bloodFat),
+        ),
+    )
+
+    private fun EcgDetectResult.toDomainEcgRecord(): HBandEcgRecord? {
+        if (!isSuccess) return null
+        val samples = filterSignals?.takeIf { it.isNotEmpty() }
+            ?: originSign?.takeIf { it.isNotEmpty() }
+            ?: return null
+        return HBandEcgRecord(
+            measuredAt = timeBean?.toEpochMillis() ?: return null,
+            sampleRateHz = frequency.takeIf { it > 0 },
+            samples = samples.copyOf(minOf(samples.size, MAX_ECG_SAMPLES)),
+            averageHeartRate = aveHeart.takeIf { it > 0 },
+        )
+    }
+
+    private fun EcgDiagnosis.toDomainEcgRecord(): HBandEcgRecord? {
+        if (!isSuccess) return null
+        val samples = filterSignals?.takeIf { it.isNotEmpty() } ?: return null
+        return HBandEcgRecord(
+            measuredAt = timeBean?.toEpochMillis() ?: return null,
+            sampleRateHz = frequency.takeIf { it > 0 },
+            samples = samples.copyOf(minOf(samples.size, MAX_ECG_SAMPLES)),
+            averageHeartRate = heartRate.takeIf { it > 0 },
+        )
+    }
+
+    private fun ecgHistoryPayload(records: List<HBandEcgRecord>): HBandPayload = HBandPayload(
+        measurements = records.mapNotNull { record ->
+            record.averageHeartRate?.let { heartRate ->
+                HBandMetricSample(RingMetricType.ECG, record.measuredAt, heartRate.toDouble(), "bpm")
+            }
+        },
+        ecgRecords = records,
+    )
+
     private suspend fun readDailySport(): HBandPayload {
         val deferred = CompletableDeferred<SportData>()
         withContext(Dispatchers.Main.immediate) {
@@ -667,10 +1110,7 @@ internal class RealHBandSdkGateway(
             override fun onSleepProgressDetail(day: String?, progress: Int) = Unit
             override fun onReadSleepComplete() { complete.complete(Unit) }
         }
-        val watchDataDays = capabilities.value.watchDataDays
-            .takeIf { it > 0 }
-            ?.coerceAtMost(MAX_WATCH_DATA_DAYS)
-            ?: DEFAULT_WATCH_DATA_DAYS
+        val watchDataDays = watchDataDays()
         withContext(Dispatchers.Main.immediate) { manager.readSleepData(writeResponse, listener, watchDataDays) }
         complete.await()
         return HBandPayload(sleep = records)
@@ -679,6 +1119,8 @@ internal class RealHBandSdkGateway(
     private suspend fun readOriginHistory(metrics: Set<RingMetricType>): HBandPayload {
         val records = mutableListOf<HBandMetricSample>()
         val complete = CompletableDeferred<Unit>()
+        val reportsFahrenheit = RingMetricType.TEMPERATURE in metrics &&
+            readTemperatureUnit() == ETemperatureUnit.FAHRENHEIT
         val listener = object : IOriginDataListener {
             override fun onOringinFiveMinuteDataChange(data: OriginData?) {
                 if (data == null) return
@@ -694,6 +1136,13 @@ internal class RealHBandSdkGateway(
                         "mmHg",
                         data.lowValue.toDouble(),
                     )
+                }
+                if (RingMetricType.TEMPERATURE in metrics) {
+                    val raw = data.temperature.takeIf { it.isFinite() && it > 0.0 }
+                    val celsius = raw?.let { if (reportsFahrenheit) (it - 32.0) * 5.0 / 9.0 else it }
+                    if (celsius != null && celsius in MIN_BODY_TEMPERATURE_C.toDouble()..MAX_BODY_TEMPERATURE_C.toDouble()) {
+                        records += HBandMetricSample(RingMetricType.TEMPERATURE, measuredAt, celsius, "°C")
+                    }
                 }
             }
             override fun onOringinHalfHourDataChange(data: OriginHalfHourData?) {
@@ -770,10 +1219,15 @@ internal class RealHBandSdkGateway(
                         steps = true,
                         sleep = true,
                         watchDataDays = data.wathcDay,
+                        temperatureType = data.temptureType,
                         heartRate = data.heartDetect.hasFunction(),
                         bloodOxygen = data.spo2H.hasFunction(),
                         hrv = data.hrvAppDetectFunction.hasFunction(),
                         bloodPressure = data.bp.hasFunction(),
+                        bloodGlucose = data.bloodGlucose.hasFunction(),
+                        temperature = data.temperatureFunction.hasFunction(),
+                        stress = data.stress.hasFunction(),
+                        met = data.met.hasFunction(),
                         ecg = data.ecg.hasFunction(),
                         bloodComponent = data.bloodComponent.hasFunction(),
                         bodyComposition = data.bodyComponent.hasFunction(),
@@ -814,6 +1268,14 @@ internal class RealHBandSdkGateway(
 
     private fun TimeData.toEpochMillis(): Long? = runCatching { toCalendar().timeInMillis }.getOrNull()?.takeIf { it > 0 }
 
+    private fun Int.toEpochMillisFromSeconds(): Long? =
+        takeIf { it > 0 }?.toLong()?.times(MILLIS_PER_SECOND)
+
+    private fun watchDataDays(): Int = capabilities.value.watchDataDays
+        .takeIf { it > 0 }
+        ?.coerceAtMost(MAX_WATCH_DATA_DAYS)
+        ?: DEFAULT_WATCH_DATA_DAYS
+
     private fun prepareBle(): Boolean {
         mutableConnectionState.value = when {
             !RingBleGuards.isBluetoothAvailable(appContext) -> RingConnectionState.UNSUPPORTED
@@ -851,20 +1313,29 @@ internal class RealHBandSdkGateway(
     private companion object {
         const val DEFAULT_DEVICE_PASSWORD = "0000" // Official SDK demo default; physical-device QA is still required.
         const val ORIGIN_PROTOCOL_TYPE = 3
+        const val ORIGIN_TEMPERATURE_TYPE = 5
         const val DEFAULT_WATCH_DATA_DAYS = 3
         const val MAX_WATCH_DATA_DAYS = 30
         const val MAX_SCAN_RESULTS = 30
         const val SCAN_TIMEOUT_MILLIS = 10_000L
         const val CONNECT_TIMEOUT_MILLIS = 35_000L
         const val COMMAND_TIMEOUT_MILLIS = 8_000L
-        const val HISTORY_TIMEOUT_MILLIS = 60_000L
+        const val HISTORY_TIMEOUT_MILLIS = 180_000L
+        const val HISTORY_OPERATION_TIMEOUT_MILLIS = 25_000L
         const val MEASUREMENT_TIMEOUT_MILLIS = 45_000L
         const val UNIT_READ_TIMEOUT_MILLIS = 5_000L
         const val ONE_DAY_MILLIS = 86_400_000L
+        const val MILLIS_PER_SECOND = 1_000L
         const val METRES_PER_KILOMETRE = 1_000.0
         const val MAX_ECG_SAMPLES = 120_000
         const val MIN_VALID_SPO2 = 1
         const val MAX_VALID_SPO2 = 100
+        const val MIN_BODY_TEMPERATURE_C = 25f
+        const val MAX_BODY_TEMPERATURE_C = 45f
+        const val TEMPERATURE_DEVICE_READY = 0
+        const val MIN_STRESS_SCORE = 0
+        const val MAX_STRESS_SCORE = 100
+        const val MEASUREMENT_COMPLETE_PROGRESS = 100
         const val BODY_LEAD_DROPPED = 1
         const val MAX_CONSECUTIVE_LEAD_DROPS = 4
         val PASSWORD_SUCCESS_STATES = setOf(EPwdStatus.CHECK_SUCCESS, EPwdStatus.CHECK_AND_TIME_SUCCESS)
@@ -874,9 +1345,24 @@ internal class RealHBandSdkGateway(
             RingMetricType.BLOOD_OXYGEN,
             RingMetricType.HRV,
             RingMetricType.BLOOD_PRESSURE,
+            RingMetricType.BLOOD_GLUCOSE,
+            RingMetricType.TEMPERATURE,
+            RingMetricType.STRESS,
+            RingMetricType.MET,
             RingMetricType.ECG,
             RingMetricType.BLOOD_COMPONENT,
             RingMetricType.BODY_COMPOSITION,
+        )
+        val DEVICE_MANUAL_HISTORY_METRICS = setOf(
+            RingMetricType.HEART_RATE,
+            RingMetricType.BLOOD_OXYGEN,
+            RingMetricType.HRV,
+            RingMetricType.BLOOD_PRESSURE,
+            RingMetricType.BLOOD_GLUCOSE,
+            RingMetricType.TEMPERATURE,
+            RingMetricType.STRESS,
+            RingMetricType.MET,
+            RingMetricType.BLOOD_COMPONENT,
         )
         val writeResponse = IBleWriteResponse { }
         val sdkWriteResponse = BleWriteResponse { }

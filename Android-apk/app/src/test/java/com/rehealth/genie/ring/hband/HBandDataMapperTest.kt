@@ -50,6 +50,10 @@ class HBandDataMapperTest {
     fun preservesEveryAdvancedHealthValueAsAnIndependentMeasurement() {
         val measuredAt = 1_700_000_000_000L
         val types = listOf(
+            RingMetricType.BLOOD_GLUCOSE,
+            RingMetricType.TEMPERATURE,
+            RingMetricType.STRESS,
+            RingMetricType.MET,
             RingMetricType.URIC_ACID,
             RingMetricType.TOTAL_CHOLESTEROL,
             RingMetricType.TRIGLYCERIDES,

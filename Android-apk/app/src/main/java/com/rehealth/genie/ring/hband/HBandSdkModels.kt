@@ -12,10 +12,15 @@ internal data class HBandCapabilities(
     val steps: Boolean = true,
     val sleep: Boolean = true,
     val watchDataDays: Int = 0,
+    val temperatureType: Int = 0,
     val heartRate: Boolean = false,
     val bloodOxygen: Boolean = false,
     val hrv: Boolean = false,
     val bloodPressure: Boolean = false,
+    val bloodGlucose: Boolean = false,
+    val temperature: Boolean = false,
+    val stress: Boolean = false,
+    val met: Boolean = false,
     val ecg: Boolean = false,
     val bloodComponent: Boolean = false,
     val bodyComposition: Boolean = false,
@@ -33,6 +38,10 @@ internal data class HBandCapabilities(
             if (bloodOxygen) add(RingMetricType.BLOOD_OXYGEN)
             if (hrv) add(RingMetricType.HRV)
             if (bloodPressure) add(RingMetricType.BLOOD_PRESSURE)
+            if (bloodGlucose) add(RingMetricType.BLOOD_GLUCOSE)
+            if (temperature) add(RingMetricType.TEMPERATURE)
+            if (stress) add(RingMetricType.STRESS)
+            if (met) add(RingMetricType.MET)
             if (ecg) add(RingMetricType.ECG)
             if (bloodComponent) add(RingMetricType.BLOOD_COMPONENT)
             if (bodyComposition) add(RingMetricType.BODY_COMPOSITION)

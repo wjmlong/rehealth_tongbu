@@ -11,6 +11,35 @@ import kotlin.test.assertTrue
 
 class RingCloudRepositoryTest {
     @Test
+    fun `preserves hband advanced metric types in telemetry payload`() {
+        val metricTypes = listOf("BLOOD_GLUCOSE", "TEMPERATURE", "STRESS", "MET")
+        val measurements = metricTypes.mapIndexed { index, metricType ->
+            RingMeasurementEntity(
+                id = "hband-advanced-$index",
+                metricType = metricType,
+                measuredAt = 1_720_000_000_000L + index,
+                primaryValue = index + 1.0,
+                unit = "vendor_unit",
+                source = "hband_wearable",
+            )
+        }
+
+        val payload = RingCloudRepository.telemetryBatchPayload(
+            device = RingDevice("11:22:33:44:55:77", "HBand", -40),
+            collectedAt = 1_720_000_000_100L,
+            trigger = "manual_sync",
+            measurements = measurements,
+            sleep = null,
+            activity = null,
+            vendor = WearableVendor.HBAND,
+        )
+
+        assertTrue(payload.deviceId.orEmpty().startsWith("hband-"))
+        assertEquals("hband_room", payload.source)
+        assertEquals(metricTypes, payload.measurements.orEmpty().map { it["metricType"] })
+    }
+
+    @Test
     fun `uses rwfit identity and provenance for rwfit telemetry`() {
         val measurement = RingMeasurementEntity(
             id = "rwfit-heart-1",

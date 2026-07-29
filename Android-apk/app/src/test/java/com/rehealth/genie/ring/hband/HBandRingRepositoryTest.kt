@@ -46,6 +46,10 @@ class HBandRingRepositoryTest {
                 bloodOxygen = true,
                 hrv = true,
                 bloodPressure = true,
+                bloodGlucose = true,
+                temperature = true,
+                stress = true,
+                met = true,
                 ecg = true,
                 bloodComponent = true,
                 bodyComposition = true,
@@ -70,6 +74,10 @@ class HBandRingRepositoryTest {
                 RingMetricType.BLOOD_OXYGEN,
                 RingMetricType.HRV,
                 RingMetricType.BLOOD_PRESSURE,
+                RingMetricType.BLOOD_GLUCOSE,
+                RingMetricType.TEMPERATURE,
+                RingMetricType.STRESS,
+                RingMetricType.MET,
                 RingMetricType.ECG,
                 RingMetricType.BLOOD_COMPONENT,
                 RingMetricType.BODY_COMPOSITION,
@@ -97,6 +105,10 @@ class HBandRingRepositoryTest {
                 bloodOxygen = true,
                 hrv = true,
                 bloodPressure = true,
+                bloodGlucose = true,
+                temperature = true,
+                stress = true,
+                met = true,
                 ecg = true,
                 bloodComponent = true,
                 bodyComposition = true,
@@ -108,6 +120,10 @@ class HBandRingRepositoryTest {
         repository.measure(RingMetricType.BLOOD_OXYGEN)
         repository.measure(RingMetricType.HRV)
         repository.measure(RingMetricType.BLOOD_PRESSURE)
+        repository.measure(RingMetricType.BLOOD_GLUCOSE)
+        repository.measure(RingMetricType.TEMPERATURE)
+        repository.measure(RingMetricType.STRESS)
+        repository.measure(RingMetricType.MET)
         repository.measure(RingMetricType.ECG)
         repository.measure(RingMetricType.BLOOD_COMPONENT)
         repository.measure(RingMetricType.BODY_COMPOSITION)
@@ -118,6 +134,10 @@ class HBandRingRepositoryTest {
                 RingMetricType.BLOOD_OXYGEN,
                 RingMetricType.HRV,
                 RingMetricType.BLOOD_PRESSURE,
+                RingMetricType.BLOOD_GLUCOSE,
+                RingMetricType.TEMPERATURE,
+                RingMetricType.STRESS,
+                RingMetricType.MET,
                 RingMetricType.ECG,
                 RingMetricType.BLOOD_COMPONENT,
                 RingMetricType.BODY_COMPOSITION,
@@ -206,6 +226,10 @@ class HBandRingRepositoryTest {
                 RingMetricType.BLOOD_OXYGEN,
                 RingMetricType.HRV,
                 RingMetricType.BLOOD_PRESSURE,
+                RingMetricType.BLOOD_GLUCOSE,
+                RingMetricType.TEMPERATURE,
+                RingMetricType.STRESS,
+                RingMetricType.MET,
                 RingMetricType.ECG,
                 RingMetricType.BLOOD_COMPONENT,
                 RingMetricType.BODY_COMPOSITION,

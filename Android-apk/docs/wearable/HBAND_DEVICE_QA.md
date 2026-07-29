@@ -78,6 +78,15 @@ For `RH-HB-E01`, validate only device-advertised capabilities:
   match the current device `CustomSettingData` units;
 - body composition only when `getBodyComponent()` is true; verify all 14 fields,
   units, lead-off handling, local persistence, and non-diagnostic UI text;
+- body temperature only when `getTemperatureFunction()` is true; verify direct
+  measurement and history, Fahrenheit-device conversion to stored `°C`, wear-off
+  behavior, and comparison with the vendor app/reference thermometer;
+- direct blood glucose only when `getBloodGlucose()` is true; verify the device unit,
+  manual-history sync, failure behavior, and non-diagnostic/estimated-value wording;
+- stress only when `getStress()` is true; verify direct measurement and manual-history
+  sync stay in `0..100 score` and are not interpreted as a mental-health diagnosis;
+- metabolic equivalent only when `getMet()` is true; verify direct measurement and
+  manual-history sync use `MET` and compare activity-time values with the vendor app;
 - blood-glucose calibration only when the adjusting capability is true. Use a
   same-time external meter reference value, verify the setting callback, and do
   not treat calibration as a measurement or medical result;
@@ -87,8 +96,7 @@ For `RH-HB-E01`, validate only device-advertised capabilities:
 Compare ten repeated syncs against the vendor app. Verify deterministic IDs
 prevent duplicate Room rows. Unsupported, zero, invalid, or absent readings must
 not produce measurements. A visible disabled card is not evidence that the device
-supports the operation. Do not enable temperature, stress, direct blood-glucose
-measurement, pregnancy/preparation/mother modes, TCM, OTA, dials, messages,
+supports the operation. Do not enable pregnancy/preparation/mother modes, TCM, OTA, dials, messages,
 contacts, music, or audio.
 
 ## Failure and background matrix

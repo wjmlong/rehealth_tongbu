@@ -1,10 +1,10 @@
 # D2 Telemetry Sync Status and Remaining QA
 
-Status: implemented software path; updated 2026-07-27.
+Status: implemented software path; updated 2026-07-29.
 
 ## Implemented
 
-- MRD/RWFit collection writes to Room before any network operation.
+- MRD/RWFit/HBand collection writes to Room before any network operation.
 - Successful manual/automatic sync creates a durable `telemetry_batch` queue item.
 - WorkManager uploads through the authenticated Jeecg mobile client.
 - `401` pauses the queue for re-login; transient failures retry the same batch.
@@ -13,13 +13,17 @@ Status: implemented software path; updated 2026-07-27.
 - Device addresses are SHA-256 hashed before cloud binding/upload.
 - Synthetic QA provenance is labelled `synthetic_qa`.
 - Collection is routed through one `productCode`-selected Provider. The Release
-  registry contains MRD/RWFit and both keep the existing Room batch path.
+  registry contains MRD/RWFit/HBand and all keep the existing Room batch path.
 - Cloud binding and batch provenance derive from the active domain vendor:
-  `mrd-*`/`mrd_room` or `rwfit-*`/`rwfit_room`. The latest snapshot excludes
+  `mrd-*`/`mrd_room`, `rwfit-*`/`rwfit_room`, or `hband-*`/`hband_room`. The latest snapshot excludes
   records whose entity source belongs to another vendor.
 - MRD background reconnect uses only the encrypted active binding address. With
   no successful foreground binding, it writes no record and retries later; it
   does not use a fixed address or synthesize missing metrics.
+- HBand synchronization reads capability-gated daily sport/sleep, origin data,
+  manual measurement history, temperature history, ECG history, and body-composition
+  history into Room before the existing telemetry queue is created. Unsupported,
+  zero, and invalid readings remain absent; raw ECG samples remain local only.
 
 ## Software-Only Validation
 
@@ -30,13 +34,13 @@ Status: implemented software path; updated 2026-07-27.
 
 ## HARDWARE_QA_PENDING
 
-The following cannot be accepted without the applicable physical MRD/RWFit ring
+The following cannot be accepted without the applicable physical MRD/RWFit ring or HBand wearable
 and Android 13+ test device:
 
 - BLE scan/connect/reconnect and permission behavior.
 - First-bind address persistence and restart/background reconnect using that
   binding, including the no-binding no-connect case.
-- MR11/RWFit SDK commands, timestamp/unit mapping, and measurement accuracy.
+- MR11/RWFit/HBand SDK commands, timestamp/unit mapping, and measurement accuracy.
 - Foreground collection across screen-off, process restart, and network loss.
 - Long-duration duplicate/loss rate and upload latency.
 - Battery consumption and thermal behavior.
