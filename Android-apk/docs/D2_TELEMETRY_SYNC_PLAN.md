@@ -20,9 +20,11 @@ Status: implemented software path; updated 2026-07-29.
 - MRD background reconnect uses only the encrypted active binding address. With
   no successful foreground binding, it writes no record and retries later; it
   does not use a fixed address or synthesize missing metrics.
-- HBand synchronization reads capability-gated daily sport/sleep, origin data,
-  manual measurement history, temperature history, ECG history, and body-composition
-  history into Room before the existing telemetry queue is created. Unsupported,
+- HBand synchronization attempts ECG history first, then reads live daily sport and
+  uses `readAllHealthData` for the vendor-defined sleep-to-origin sequence. Five-minute
+  step, distance, and calorie records are aggregated per day before Room persistence;
+  capability-gated manual measurement and body-composition history follow. Completed
+  reads are retained if a later optional SDK operation fails. Unsupported,
   zero, and invalid readings remain absent; raw ECG samples remain local only.
 
 ## Software-Only Validation

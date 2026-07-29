@@ -30,6 +30,7 @@ only `RH-HB-E01`/`HBAND`; it must not scan or connect MRD/RWFit concurrently.
   `0000`, but this has not been confirmed on a purchased device);
 - complete `FunctionDeviceSupportData` result without logging raw health values
   or the BLE MAC in release logs.
+- confirm `getEcg()` reports support; `RH-HB-E01` must reject the device otherwise.
 
 ## Connection sequence
 
@@ -57,9 +58,11 @@ For `RH-HB-E01`, validate only device-advertised capabilities:
 
 - heart-rate history and manual heart-rate measurement (`bpm`);
 - daily steps/activity, including confirmation that SDK distance in kilometres
-  is converted to Room metres and calories remain kcal;
+  is converted to Room metres and calories remain kcal. Confirm live daily sport
+  and the per-day sum of five-minute origin records agree with the vendor app;
 - sleep start/end, deep/light duration, cross-midnight handling, and the
-  documented absence of a separate REM field in the selected SDK callback;
+  documented absence of a separate REM field in the selected SDK callback. Confirm
+  the combined read runs in the SDK-defined sleep-then-origin order;
 - manual blood oxygen only when `getSpo2H()` is true; verify a real `%` value and
   wear-off/failure behavior;
 - manual HRV only when `getHrvAppDetectFunction()` is true; verify the SDK integer
@@ -70,7 +73,9 @@ For `RH-HB-E01`, validate only device-advertised capabilities:
   diagnostic claims;
 - manual ECG only when `getEcg()` is true; verify contact/wear guidance, start/
   stop/cancel behavior, SDK sample rate, local waveform persistence, and the
-  average-heart-rate summary. Confirm raw ECG waveform bytes never enter a
+  average-heart-rate summary for both normal completion and abnormal-result callbacks.
+  A summary may exist without a curve when the device returns only average heart rate.
+  Confirm raw ECG waveform bytes never enter a
   telemetry upload payload or production log, and do not expose SDK diagnosis
   output as medical advice.
 - blood components only when `getBloodComponent()` is true; verify uric acid,
@@ -78,9 +83,6 @@ For `RH-HB-E01`, validate only device-advertised capabilities:
   match the current device `CustomSettingData` units;
 - body composition only when `getBodyComponent()` is true; verify all 14 fields,
   units, lead-off handling, local persistence, and non-diagnostic UI text;
-- body temperature only when `getTemperatureFunction()` is true; verify direct
-  measurement and history, Fahrenheit-device conversion to stored `°C`, wear-off
-  behavior, and comparison with the vendor app/reference thermometer;
 - direct blood glucose only when `getBloodGlucose()` is true; verify the device unit,
   manual-history sync, failure behavior, and non-diagnostic/estimated-value wording;
 - stress only when `getStress()` is true; verify direct measurement and manual-history
@@ -98,6 +100,8 @@ prevent duplicate Room rows. Unsupported, zero, invalid, or absent readings must
 not produce measurements. A visible disabled card is not evidence that the device
 supports the operation. Do not enable pregnancy/preparation/mother modes, TCM, OTA, dials, messages,
 contacts, music, or audio.
+Do not enable HBand temperature for `RH-HB-E01`; it failed the current physical-device
+test and has been removed from the product capability and data page.
 
 ## Failure and background matrix
 

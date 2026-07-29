@@ -127,7 +127,6 @@ internal fun DataScreen(
         val d = agg.avgDbp?.toInt()
         if (s != null && d != null) "$s/$d" else null
     } ?: measurement(RingMetricType.BLOOD_PRESSURE)
-    val tempText = aggregate?.avgTemp?.let { String.format(Locale.getDefault(), "%.1f", it) } ?: measurement(RingMetricType.TEMPERATURE)
     val hrvText = measurement(RingMetricType.HRV)
     val sleepValue = aggregate?.avgSleepMinutes?.toInt()?.let { "${it / 60}h${it % 60}m" } ?: run {
         val m = state.sleep?.let { (it.endedAt - it.startedAt) / 60_000 }
@@ -162,7 +161,6 @@ internal fun DataScreen(
         RingMetricUi(RingMetricType.BLOOD_OXYGEN, "血氧", spo2Text, "%", capabilityStatus(RingMetricType.BLOOD_OXYGEN, periodLabel), Icons.Outlined.DataUsage, Color(0xFF148BFF), manualMeasure = RingMetricType.BLOOD_OXYGEN in state.supportedMetrics, showAction = true),
         RingMetricUi(RingMetricType.BLOOD_PRESSURE, "血压", bpText, "mmHg", capabilityStatus(RingMetricType.BLOOD_PRESSURE, periodLabel), Icons.Outlined.FavoriteBorder, Color(0xFF8B63F6), manualMeasure = RingMetricType.BLOOD_PRESSURE in state.supportedMetrics, showAction = true),
         RingMetricUi(RingMetricType.HRV, "HRV", hrvText, "ms", capabilityStatus(RingMetricType.HRV, periodLabel), Icons.Outlined.Timeline, Color(0xFF00A6A6), manualMeasure = RingMetricType.HRV in state.supportedMetrics, showAction = true),
-        RingMetricUi(RingMetricType.TEMPERATURE, "体温", tempText, measurementUnit(RingMetricType.TEMPERATURE, "°C"), capabilityStatus(RingMetricType.TEMPERATURE, periodLabel), Icons.Outlined.Assessment, Color(0xFFFF8A32), manualMeasure = RingMetricType.TEMPERATURE in state.supportedMetrics, showAction = true),
         RingMetricUi(RingMetricType.BLOOD_GLUCOSE, "血糖", decimalMeasurement(RingMetricType.BLOOD_GLUCOSE), measurementUnit(RingMetricType.BLOOD_GLUCOSE, "设备单位"), capabilityStatus(RingMetricType.BLOOD_GLUCOSE, "设备估算，仅供健康参考"), Icons.Outlined.DataUsage, Color(0xFFE06B57), manualMeasure = RingMetricType.BLOOD_GLUCOSE in state.supportedMetrics, showAction = true),
         RingMetricUi(RingMetricType.STRESS, "压力", measurement(RingMetricType.STRESS), "分", capabilityStatus(RingMetricType.STRESS, periodLabel), Icons.Outlined.Timeline, Color(0xFF7B61B8), manualMeasure = RingMetricType.STRESS in state.supportedMetrics, showAction = true),
         RingMetricUi(RingMetricType.MET, "MET", decimalMeasurement(RingMetricType.MET), "MET", capabilityStatus(RingMetricType.MET, "代谢当量"), Icons.Outlined.ShowChart, Color(0xFF2E8B72), manualMeasure = RingMetricType.MET in state.supportedMetrics, showAction = true),

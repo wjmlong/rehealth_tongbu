@@ -25,6 +25,10 @@ cached in encrypted preferences under a SHA-256-derived user key so process
 recovery does not depend on network availability. They are not Room telemetry,
 are not logged, and do not change backend DTOs or PIAS.
 
+`RH-HB-E01` does not advertise `TEMPERATURE` after the current physical-device
+measurement failed acceptance. The domain/telemetry string remains backward-compatible
+for other Providers and existing rows; this changes no endpoint or DTO schema.
+
 This local routing change does not change endpoint paths, authentication, DTOs,
 durable acknowledgement, or backend PIAS behavior.
 

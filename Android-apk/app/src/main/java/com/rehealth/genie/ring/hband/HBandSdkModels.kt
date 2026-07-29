@@ -6,6 +6,8 @@ import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.BloodGlucoseCalibration
 import com.rehealth.genie.ring.MenstrualCycleConfig
 import com.rehealth.genie.ring.RingFeatureType
+import java.time.Instant
+import java.time.ZoneId
 import kotlinx.coroutines.flow.StateFlow
 
 internal data class HBandCapabilities(
@@ -101,6 +103,37 @@ internal data class HBandActivityRecord(
     val distanceMeters: Double,
     val caloriesKcal: Double,
 )
+
+internal class HBandDailyActivityAccumulator(
+    private val zoneId: ZoneId = ZoneId.systemDefault(),
+) {
+    private val totalsByDay = linkedMapOf<Long, HBandActivityRecord>()
+
+    fun add(measuredAt: Long, steps: Int, distanceMeters: Double, caloriesKcal: Double) {
+        if (measuredAt <= 0) return
+        val validSteps = steps.coerceAtLeast(0)
+        val validDistance = distanceMeters.takeIf { it.isFinite() && it > 0.0 } ?: 0.0
+        val validCalories = caloriesKcal.takeIf { it.isFinite() && it > 0.0 } ?: 0.0
+        if (validSteps == 0 && validDistance == 0.0 && validCalories == 0.0) return
+
+        val dayStart = Instant.ofEpochMilli(measuredAt).atZone(zoneId).toLocalDate()
+            .atStartOfDay(zoneId).toInstant().toEpochMilli()
+        val previous = totalsByDay[dayStart]
+        totalsByDay[dayStart] = HBandActivityRecord(
+            startedAt = dayStart,
+            endedAt = maxOf(previous?.endedAt ?: dayStart, measuredAt + FIVE_MINUTE_MILLIS),
+            steps = ((previous?.steps ?: 0).toLong() + validSteps).coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+            distanceMeters = (previous?.distanceMeters ?: 0.0) + validDistance,
+            caloriesKcal = (previous?.caloriesKcal ?: 0.0) + validCalories,
+        )
+    }
+
+    fun records(): List<HBandActivityRecord> = totalsByDay.values.sortedBy(HBandActivityRecord::startedAt)
+
+    private companion object {
+        const val FIVE_MINUTE_MILLIS = 5 * 60 * 1_000L
+    }
+}
 
 internal data class HBandPayload(
     val measurements: List<HBandMetricSample> = emptyList(),

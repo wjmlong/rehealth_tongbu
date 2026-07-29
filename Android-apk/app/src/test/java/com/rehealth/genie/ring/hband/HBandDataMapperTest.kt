@@ -2,11 +2,44 @@ package com.rehealth.genie.ring.hband
 
 import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.SignalEncoding
+import java.time.ZoneId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class HBandDataMapperTest {
+    @Test
+    fun aggregatesFiveMinuteActivityIntoDailyStepRecords() {
+        val accumulator = HBandDailyActivityAccumulator(ZoneId.of("UTC"))
+        accumulator.add(1_700_000_000_000L, 120, 80.0, 4.0)
+        accumulator.add(1_700_000_300_000L, 180, 120.0, 6.0)
+        accumulator.add(1_700_086_400_000L, 50, 30.0, 2.0)
+
+        val records = accumulator.records()
+
+        assertEquals(2, records.size)
+        assertEquals(300, records.first().steps)
+        assertEquals(200.0, records.first().distanceMeters)
+        assertEquals(10.0, records.first().caloriesKcal)
+        assertEquals(50, records.last().steps)
+    }
+
+    @Test
+    fun keepsEcgSummaryWhenDeviceReturnsNoCurve() {
+        val measuredAt = 1_700_000_000_000L
+        val batch = HBandDataMapper.toEntities(
+            HBandPayload(
+                measurements = listOf(HBandMetricSample(RingMetricType.ECG, measuredAt, 72.0, "bpm")),
+                ecgRecords = listOf(HBandEcgRecord(measuredAt, 250, IntArray(0), 72)),
+            ),
+            "device",
+        )
+
+        assertEquals(1, batch.measurements.size)
+        assertTrue(batch.signalChunks.isEmpty())
+        assertTrue(RingMetricType.ECG in HBandDataMapper.collectedTypes(batch))
+    }
+
     @Test
     fun createsStableVendorNeutralRecordsInExistingTables() {
         val payload = HBandPayload(

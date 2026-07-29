@@ -80,18 +80,20 @@ git diff --check
 
 4. Manual measurement
    - Open the data page before connecting a device. Confirm heart rate, SpO2, BP,
-     HRV, temperature, blood glucose, stress, MET, ECG, blood/body component, sleep, steps, and activity cards remain
+     HRV, blood glucose, stress, MET, ECG, blood/body component, sleep, steps, and activity cards remain
      visible with `--` where no real record exists. Unsupported actions remain visible
      but disabled; there is no “查看全部” interaction.
    - Trigger only metrics advertised by the active Provider. RWFit manual measure
      currently supports HR, SpO2 and HRV; BP/temperature/stress are not requested.
-     HBand `RH-HB-E01` manual measure supports HR, SpO2, HRV, BP, temperature,
+     HBand `RH-HB-E01` manual measure supports HR, SpO2, HRV, BP,
      blood glucose, stress, MET, ECG, blood component, and body composition only when the connected-device callback
      advertises the corresponding capability. Steps, sleep, and activity are sync-only.
    - For HBand blood components, verify five independent values and device-selected
      units. For body composition, verify all 14 values are independently persisted.
-   - For HBand full sync, verify capability-gated manual measurement, temperature,
-     ECG, and body-composition history is persisted before upload; raw ECG samples stay local.
+   - For HBand full sync, verify sleep is returned before origin history, five-minute
+     steps are aggregated per day, and ECG history is attempted before other long reads.
+     Capability-gated manual measurement and body-composition history are persisted;
+     raw ECG samples stay local. HBand temperature must not appear or be requested.
    - Verify blood-glucose calibration and menstrual-cycle settings are capability
      gated, require explicit input, and do not create `ring_measurements` rows.
    - Confirm each successful result is written to Room before any upload attempt.

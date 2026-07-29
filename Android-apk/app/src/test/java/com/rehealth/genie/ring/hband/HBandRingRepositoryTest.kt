@@ -75,7 +75,6 @@ class HBandRingRepositoryTest {
                 RingMetricType.HRV,
                 RingMetricType.BLOOD_PRESSURE,
                 RingMetricType.BLOOD_GLUCOSE,
-                RingMetricType.TEMPERATURE,
                 RingMetricType.STRESS,
                 RingMetricType.MET,
                 RingMetricType.ECG,
@@ -91,10 +90,30 @@ class HBandRingRepositoryTest {
 
     @Test
     fun unsupportedMetricNeverReachesSdk() = runTest {
-        val gateway = FakeHBandGateway(capabilitiesValue = HBandCapabilities())
+        val gateway = FakeHBandGateway(capabilitiesValue = HBandCapabilities(temperature = true))
         val result = repository(FakeHBandDao(), HBandBindingStore(), gateway).measure(RingMetricType.TEMPERATURE)
         assertEquals(0, gateway.measureCalls)
         assertEquals(0, result.recordsWritten)
+    }
+
+    @Test
+    fun rejectsHBandDeviceThatDoesNotReportRequiredEcgCapability() = runTest {
+        val repository = repository(
+            FakeHBandDao(),
+            HBandBindingStore(),
+            FakeHBandGateway(capabilitiesValue = HBandCapabilities(heartRate = true)),
+        ).apply {
+            wearableUserProfile = BaselineHealthProfile(
+                age = 35,
+                gender = "female",
+                heightCm = 165.0,
+                weightKg = 55.0,
+            )
+        }
+
+        val error = assertFailsWith<IllegalStateException> { repository.connect(DEVICE) }
+
+        assertTrue(error.message.orEmpty().contains("ECG"))
     }
 
     @Test
@@ -121,7 +140,6 @@ class HBandRingRepositoryTest {
         repository.measure(RingMetricType.HRV)
         repository.measure(RingMetricType.BLOOD_PRESSURE)
         repository.measure(RingMetricType.BLOOD_GLUCOSE)
-        repository.measure(RingMetricType.TEMPERATURE)
         repository.measure(RingMetricType.STRESS)
         repository.measure(RingMetricType.MET)
         repository.measure(RingMetricType.ECG)
@@ -135,7 +153,6 @@ class HBandRingRepositoryTest {
                 RingMetricType.HRV,
                 RingMetricType.BLOOD_PRESSURE,
                 RingMetricType.BLOOD_GLUCOSE,
-                RingMetricType.TEMPERATURE,
                 RingMetricType.STRESS,
                 RingMetricType.MET,
                 RingMetricType.ECG,
@@ -151,7 +168,7 @@ class HBandRingRepositoryTest {
         val store = HBandBindingStore().apply {
             recordConnectedDevice(WearableVendor.HBAND, DEVICE)
         }
-        val gateway = FakeHBandGateway(capabilitiesValue = HBandCapabilities(heartRate = true))
+        val gateway = FakeHBandGateway(capabilitiesValue = HBandCapabilities(heartRate = true, ecg = true))
         val repository = repository(FakeHBandDao(), store, gateway).apply {
             wearableUserProfile = BaselineHealthProfile(
                 age = 35,
@@ -227,7 +244,6 @@ class HBandRingRepositoryTest {
                 RingMetricType.HRV,
                 RingMetricType.BLOOD_PRESSURE,
                 RingMetricType.BLOOD_GLUCOSE,
-                RingMetricType.TEMPERATURE,
                 RingMetricType.STRESS,
                 RingMetricType.MET,
                 RingMetricType.ECG,
