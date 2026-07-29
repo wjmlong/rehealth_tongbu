@@ -253,7 +253,13 @@ private fun MainShell(
                 Box(Modifier.weight(1f).fillMaxWidth()) {
                     when (selected) {
                         Tab.Home -> HomeScreen(onStartInterview = { showInterview = true })
-                        Tab.Data -> DataScreen(ringState, ringViewModel, canonicalRiskStatus, onMeasure)
+                        Tab.Data -> DataScreen(
+                            state = ringState,
+                            ringViewModel = ringViewModel,
+                            canonicalRiskStatus = canonicalRiskStatus,
+                            onMeasure = onMeasure,
+                            onSync = onSync,
+                        )
                         Tab.Attribution -> AttributionScreen(
                             ringState = ringState,
                             evaluation = canonicalRiskStatus.value?.toAttributionRiskEvaluation(),

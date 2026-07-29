@@ -28,11 +28,14 @@ import androidx.compose.material.icons.outlined.DataUsage
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.ShowChart
+import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Timeline
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
@@ -97,6 +100,7 @@ internal fun DataScreen(
     ringViewModel: RingViewModel,
     canonicalRiskStatus: androidx.compose.runtime.State<RemoteFeatureEvaluateStatus?>,
     onMeasure: (RingMetricType) -> Unit,
+    onSync: () -> Unit,
 ) {
     var selectedPeriod by remember { mutableIntStateOf(1) }
     var showBloodGlucoseCalibration by remember { mutableStateOf(false) }
@@ -335,6 +339,34 @@ internal fun DataScreen(
         }
         item {
             DashboardSectionHeader(Icons.Outlined.Timeline, "睡眠与活动")
+        }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Button(
+                    onClick = onSync,
+                    enabled = !state.isSyncing,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Mint),
+                ) {
+                    Icon(
+                        Icons.Outlined.Sync,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        if (state.isSyncing) "正在同步 ${state.syncProgress}%" else "同步睡眠、步数与活动",
+                        modifier = Modifier.padding(start = 8.dp),
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                Text(
+                    "从设备读取历史数据，保存到本机后加入云端同步队列",
+                    color = Muted,
+                    fontSize = 10.sp,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+            }
         }
         item {
             MetricGrid(dailyMetrics)
