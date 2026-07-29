@@ -10,5 +10,5 @@ health-agent:
     base-url: https://api.deepseek.com
     model: deepseek-v4-flash
     # Filling this value automatically enables the external provider.
-    api-key: ""
+    api-key: "sk-2b5a87cf4fdf4aa082b253de4133935a"
     timeout-seconds: 20
