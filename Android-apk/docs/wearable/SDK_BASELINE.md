@@ -126,7 +126,8 @@ as `MET`; direct measurement uses the corresponding pinned SDK operations. Blood
 calibration and menstrual-cycle settings do not create measurement rows. Pregnancy/
 preparation/mother modes, TCM, OTA, dials, and messaging remain outside `RH-HB-E01`.
 Temperature also remains outside `RH-HB-E01` after the current purchased device failed
-physical measurement verification. Sleep and origin history use the SDK's serialized
-`readAllHealthData` sequence; five-minute step records are aggregated per local day.
+physical measurement verification. Sleep and origin history are serialized as dedicated
+`readSleepData` then `readOriginData` commands because the purchased device returned origin
+records but omitted sleep from `readAllHealthData`; five-minute step records are aggregated per local day.
 `SportUtil.getDistance()` divides metre-scale step distance by 1000, so the
 Provider converts the SDK kilometre value back to Room `distanceMeters`.

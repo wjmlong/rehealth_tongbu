@@ -92,7 +92,8 @@ git diff --check
      the button is disabled while progress is active, and the sleep/steps/activity cards refresh from Room after completion.
    - For HBand blood components, verify five independent values and device-selected
      units. For body composition, verify all 14 values are independently persisted.
-   - For HBand full sync, verify sleep is returned before origin history, five-minute
+   - For HBand full sync, verify the dedicated sleep command completes before origin history, total-only
+     sleep displays its duration without invented stages, and five-minute
      steps are aggregated per day, and ECG history is attempted before other long reads.
      Capability-gated manual measurement and body-composition history are persisted;
      raw ECG samples stay local. HBand temperature must not appear or be requested.

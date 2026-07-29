@@ -80,6 +80,33 @@ class HBandDataMapperTest {
     }
 
     @Test
+    fun keepsTotalOnlySleepWithoutInventingSleepStages() {
+        val startedAt = 1_700_000_000_000L
+        val batch = HBandDataMapper.toEntities(
+            HBandPayload(
+                sleep = listOf(
+                    HBandSleepRecord(
+                        startedAt = startedAt,
+                        endedAt = startedAt + 8 * 60 * 60 * 1_000L,
+                        deepMinutes = 0,
+                        lightMinutes = 0,
+                        awakeMinutes = 0,
+                        totalMinutes = 420,
+                    ),
+                ),
+            ),
+            "device",
+        )
+
+        val sleep = batch.sleepSessions.single()
+        assertEquals(startedAt + 420 * 60_000L, sleep.endedAt)
+        assertEquals(0, sleep.deepMinutes)
+        assertEquals(0, sleep.lightMinutes)
+        assertEquals(0, sleep.awakeMinutes)
+        assertTrue(RingMetricType.SLEEP in HBandDataMapper.collectedTypes(batch))
+    }
+
+    @Test
     fun preservesEveryAdvancedHealthValueAsAnIndependentMeasurement() {
         val measuredAt = 1_700_000_000_000L
         val types = listOf(

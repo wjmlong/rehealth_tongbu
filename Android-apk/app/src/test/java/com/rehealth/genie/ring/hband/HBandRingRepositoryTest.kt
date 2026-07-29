@@ -89,6 +89,41 @@ class HBandRingRepositoryTest {
     }
 
     @Test
+    fun fullSyncPersistsSleepBeforeItCanBeDisplayed() = runTest {
+        val dao = FakeHBandDao()
+        val gateway = FakeHBandGateway(
+            capabilitiesValue = HBandCapabilities(ecg = true),
+            payload = HBandPayload(
+                sleep = listOf(
+                    HBandSleepRecord(
+                        startedAt = 1_700_000_000_000L,
+                        endedAt = 1_700_025_200_000L,
+                        deepMinutes = 120,
+                        lightMinutes = 270,
+                        awakeMinutes = 30,
+                    ),
+                ),
+            ),
+        )
+        val repository = repository(dao, HBandBindingStore(), gateway).apply {
+            wearableUserProfile = BaselineHealthProfile(
+                age = 35,
+                gender = "female",
+                heightCm = 165.0,
+                weightKg = 55.0,
+            )
+        }
+
+        repository.connect(DEVICE)
+        val result = repository.syncAll()
+
+        assertEquals(1, result.recordsWritten)
+        assertEquals(1, dao.sleep.size)
+        assertEquals(120, dao.sleep.single().deepMinutes)
+        assertTrue(RingMetricType.SLEEP in result.collectedTypes)
+    }
+
+    @Test
     fun unsupportedMetricNeverReachesSdk() = runTest {
         val gateway = FakeHBandGateway(capabilitiesValue = HBandCapabilities(temperature = true))
         val result = repository(FakeHBandDao(), HBandBindingStore(), gateway).measure(RingMetricType.TEMPERATURE)
@@ -315,8 +350,9 @@ private class HBandBindingStore : ActiveWearableBindingStore {
 
 private class FakeHBandDao : RingDataDao {
     val measurements = mutableListOf<RingMeasurementEntity>()
+    val sleep = mutableListOf<RingSleepSessionEntity>()
     override suspend fun insertMeasurements(records: List<RingMeasurementEntity>) { measurements += records }
-    override suspend fun insertSleepSessions(records: List<RingSleepSessionEntity>) = Unit
+    override suspend fun insertSleepSessions(records: List<RingSleepSessionEntity>) { sleep += records }
     override suspend fun insertActivities(records: List<RingActivityEntity>) = Unit
     override suspend fun insertSignalChunks(records: List<RingSignalChunkEntity>) = Unit
     override fun observeMeasurements(metricType: String, limit: Int): Flow<List<RingMeasurementEntity>> = emptyFlow()

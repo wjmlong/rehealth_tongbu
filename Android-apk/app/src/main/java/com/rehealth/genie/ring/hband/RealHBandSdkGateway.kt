@@ -26,13 +26,14 @@ import com.veepoo.protocol.listener.data.ICustomSettingDataListener
 import com.veepoo.protocol.listener.data.IECGDetectListener
 import com.veepoo.protocol.listener.data.IECGReadDataListener
 import com.veepoo.protocol.listener.data.IDeviceManualDetectDataListener
-import com.veepoo.protocol.listener.data.IAllHealthDataListener
 import com.veepoo.protocol.listener.data.IHeartDataListener
 import com.veepoo.protocol.listener.data.IHrvDetectListener
 import com.veepoo.protocol.listener.data.IMetDetectListener
+import com.veepoo.protocol.listener.data.IOriginDataListener
 import com.veepoo.protocol.listener.data.IPersonInfoDataListener
 import com.veepoo.protocol.listener.data.IPressureDetectListener
 import com.veepoo.protocol.listener.data.IPwdDataListener
+import com.veepoo.protocol.listener.data.ISleepDataListener
 import com.veepoo.protocol.listener.data.ISocialMsgDataListener
 import com.veepoo.protocol.listener.data.ISpo2hDataListener
 import com.veepoo.protocol.listener.data.ISportDataListener
@@ -258,9 +259,13 @@ internal class RealHBandSdkGateway(
                 if (RingMetricType.STEPS in metrics || RingMetricType.ACTIVITY in metrics) {
                     accumulated += readDailySport()
                 }
-                if (metrics.any { it in CORE_HEALTH_HISTORY_METRICS }) {
-                    // The SDK serializes sleep followed by origin data in this single operation.
-                    accumulated += readCoreHealthHistory(metrics)
+                if (RingMetricType.SLEEP in metrics) {
+                    // Some HBand firmware returns origin data but omits sleep from readAllHealthData.
+                    // Use the vendor's dedicated command and await completion before the next long read.
+                    accumulated += readSleepHistory()
+                }
+                if (metrics.any { it in ORIGIN_HISTORY_METRICS }) {
+                    accumulated += readOriginHistory(metrics)
                 }
                 if (metrics.any { it in DEVICE_MANUAL_HISTORY_METRICS }) {
                     accumulated += optionalHistory { readManualMeasurementHistory(metrics) }
@@ -1119,22 +1124,31 @@ internal class RealHBandSdkGateway(
         )
     }
 
-    private suspend fun readCoreHealthHistory(metrics: Set<RingMetricType>): HBandPayload {
-        val records = mutableListOf<HBandMetricSample>()
+    private suspend fun readSleepHistory(): HBandPayload {
         val sleep = mutableListOf<HBandSleepRecord>()
+        val complete = CompletableDeferred<Unit>()
+        val listener = object : ISleepDataListener {
+            override fun onSleepDataChange(day: String?, data: SleepData?) {
+                data?.toDomainSleep()?.let(sleep::add)
+            }
+            override fun onSleepProgress(progress: Float) = Unit
+            override fun onSleepProgressDetail(day: String?, progress: Int) = Unit
+            override fun onReadSleepComplete() { complete.complete(Unit) }
+        }
+        withContext(Dispatchers.Main.immediate) {
+            manager.readSleepData(writeResponse, listener, watchDataDays())
+        }
+        complete.await()
+        return HBandPayload(sleep = sleep)
+    }
+
+    private suspend fun readOriginHistory(metrics: Set<RingMetricType>): HBandPayload {
+        val records = mutableListOf<HBandMetricSample>()
         val activities = HBandDailyActivityAccumulator()
         val complete = CompletableDeferred<Unit>()
         val reportsFahrenheit = RingMetricType.TEMPERATURE in metrics &&
             readTemperatureUnit() == ETemperatureUnit.FAHRENHEIT
-        val listener = object : IAllHealthDataListener {
-            override fun onProgress(progress: Float) = Unit
-
-            override fun onSleepDataChange(day: String?, data: SleepData?) {
-                if (RingMetricType.SLEEP in metrics) data?.toDomainSleep()?.let(sleep::add)
-            }
-
-            override fun onReadSleepComplete() = Unit
-
+        val listener = object : IOriginDataListener {
             override fun onOringinFiveMinuteDataChange(data: OriginData?) {
                 if (data == null) return
                 val measuredAt = data.getmTime()?.toEpochMillis() ?: return
@@ -1191,13 +1205,16 @@ internal class RealHBandSdkGateway(
                     }
                 }
             }
+            override fun onReadOriginProgressDetail(day: Int, date: String?, total: Int, current: Int) = Unit
+            override fun onReadOriginProgress(progress: Float) = Unit
             override fun onReadOriginComplete() { complete.complete(Unit) }
         }
-        withContext(Dispatchers.Main.immediate) { manager.readAllHealthData(listener, watchDataDays()) }
+        withContext(Dispatchers.Main.immediate) {
+            manager.readOriginData(writeResponse, listener, watchDataDays())
+        }
         complete.await()
         return HBandPayload(
             measurements = records,
-            sleep = sleep,
             activities = activities.records(),
         )
     }
@@ -1285,8 +1302,9 @@ internal class RealHBandSdkGateway(
         val deep = deepSleepTime.coerceAtLeast(0)
         val light = lowSleepTime.coerceAtLeast(0)
         val total = allSleepTime.coerceAtLeast(deep + light)
-        if (deep + light <= 0) return null
-        return HBandSleepRecord(start, end, deep, light, (total - deep - light).coerceAtLeast(0))
+        if (total <= 0) return null
+        val awake = if (deep + light > 0) (total - deep - light).coerceAtLeast(0) else 0
+        return HBandSleepRecord(start, end, deep, light, awake, total)
     }
 
     private fun TimeData.toEpochMillis(): Long? = runCatching { toCalendar().timeInMillis }.getOrNull()?.takeIf { it > 0 }
@@ -1394,8 +1412,7 @@ internal class RealHBandSdkGateway(
             RingMetricType.MET,
             RingMetricType.BLOOD_COMPONENT,
         )
-        val CORE_HEALTH_HISTORY_METRICS = setOf(
-            RingMetricType.SLEEP,
+        val ORIGIN_HISTORY_METRICS = setOf(
             RingMetricType.STEPS,
             RingMetricType.ACTIVITY,
             RingMetricType.HEART_RATE,

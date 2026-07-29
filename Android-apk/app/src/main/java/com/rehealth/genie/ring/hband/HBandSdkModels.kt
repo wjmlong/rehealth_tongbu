@@ -94,6 +94,7 @@ internal data class HBandSleepRecord(
     val deepMinutes: Int,
     val lightMinutes: Int,
     val awakeMinutes: Int,
+    val totalMinutes: Int = deepMinutes + lightMinutes + awakeMinutes,
 )
 
 internal data class HBandActivityRecord(

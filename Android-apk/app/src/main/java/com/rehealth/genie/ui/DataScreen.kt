@@ -133,7 +133,7 @@ internal fun DataScreen(
     } ?: measurement(RingMetricType.BLOOD_PRESSURE)
     val hrvText = measurement(RingMetricType.HRV)
     val sleepValue = aggregate?.avgSleepMinutes?.toInt()?.let { "${it / 60}h${it % 60}m" } ?: run {
-        val m = state.sleep?.let { (it.endedAt - it.startedAt) / 60_000 }
+        val m = sleepDurationMinutes(state.sleep)
         m?.let { "${it / 60}h${it % 60}m" } ?: "--"
     }
     val stepsText = aggregate?.totalSteps?.let { if (it > 0) it.toString() else null }

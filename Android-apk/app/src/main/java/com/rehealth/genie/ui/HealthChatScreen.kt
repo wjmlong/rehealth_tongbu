@@ -112,7 +112,7 @@ fun HealthChatScreen(
                             val hr = ringState.measurements[RingMetricType.HEART_RATE]?.primaryValue ?: agg?.avgHeartRate
                             val spo2 = ringState.measurements[RingMetricType.BLOOD_OXYGEN]?.primaryValue ?: agg?.avgSpo2
                             val stepsVal = ringState.measurements[RingMetricType.STEPS]?.primaryValue ?: agg?.totalSteps?.toDouble()
-                            val sleepMin = ringState.sleep?.let { (it.deepMinutes + it.lightMinutes + it.remMinutes + it.awakeMinutes).toDouble() } ?: agg?.avgSleepMinutes
+                            val sleepMin = sleepDurationMinutes(ringState.sleep)?.toDouble() ?: agg?.avgSleepMinutes
                             val healthData = buildMap<String, String> {
                                 put("心率", hr?.let { "%.0f bpm".format(it) } ?: "—")
                                 put("血氧", spo2?.let { "%.0f%%".format(it) } ?: "—")

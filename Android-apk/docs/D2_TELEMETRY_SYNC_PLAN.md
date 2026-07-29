@@ -21,7 +21,8 @@ Status: implemented software path; updated 2026-07-29.
   no successful foreground binding, it writes no record and retries later; it
   does not use a fixed address or synthesize missing metrics.
 - HBand synchronization attempts ECG history first, then reads live daily sport and
-  uses `readAllHealthData` for the vendor-defined sleep-to-origin sequence. Five-minute
+  explicitly awaits `readSleepData` before starting `readOriginData`, because physical-device
+  validation found firmware that returned origin records but omitted sleep from `readAllHealthData`. Five-minute
   step, distance, and calorie records are aggregated per day before Room persistence;
   capability-gated manual measurement and body-composition history follow. Completed
   reads are retained if a later optional SDK operation fails. Unsupported,

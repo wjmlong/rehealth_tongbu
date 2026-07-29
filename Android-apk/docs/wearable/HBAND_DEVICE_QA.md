@@ -62,7 +62,8 @@ For `RH-HB-E01`, validate only device-advertised capabilities:
   and the per-day sum of five-minute origin records agree with the vendor app;
 - sleep start/end, deep/light duration, cross-midnight handling, and the
   documented absence of a separate REM field in the selected SDK callback. Confirm
-  the combined read runs in the SDK-defined sleep-then-origin order;
+  the dedicated sleep read completes before the origin-history command starts. For
+  total-only sleep, verify duration is displayed while deep/light/REM remain unknown;
 - manual blood oxygen only when `getSpo2H()` is true; verify a real `%` value and
   wear-off/failure behavior;
 - manual HRV only when `getHrvAppDetectFunction()` is true; verify the SDK integer
