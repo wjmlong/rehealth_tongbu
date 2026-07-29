@@ -69,10 +69,14 @@ import kotlin.math.max
 @Composable
 internal fun EcgDetailScreen(
     state: RingUiState,
+    showMeasurementInstructionsOnOpen: Boolean = false,
     onBack: () -> Unit,
     onMeasure: (RingMetricType) -> Unit,
 ) {
     var selectedId by remember { mutableStateOf<String?>(null) }
+    var showMeasurementInstructions by remember {
+        mutableStateOf(showMeasurementInstructionsOnOpen)
+    }
     LaunchedEffect(state.ecgHistory.firstOrNull()?.id) {
         if (selectedId == null || state.ecgHistory.none { it.id == selectedId }) {
             selectedId = state.ecgHistory.firstOrNull()?.id
@@ -190,7 +194,7 @@ internal fun EcgDetailScreen(
 
         item {
             Button(
-                onClick = { onMeasure(RingMetricType.ECG) },
+                onClick = { showMeasurementInstructions = true },
                 enabled = RingMetricType.ECG in state.supportedMetrics && !state.isSyncing,
                 modifier = Modifier.fillMaxWidth().height(48.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Mint),
@@ -232,6 +236,17 @@ internal fun EcgDetailScreen(
                 EcgHistoryRow(record, selected = record.id == selected?.id) { selectedId = record.id }
             }
         }
+    }
+
+    if (showMeasurementInstructions) {
+        MeasurementInstructionDialog(
+            metricType = RingMetricType.ECG,
+            onDismiss = { showMeasurementInstructions = false },
+            onConfirm = {
+                showMeasurementInstructions = false
+                onMeasure(RingMetricType.ECG)
+            },
+        )
     }
 }
 

@@ -92,6 +92,10 @@ git diff --check
      HBand `RH-HB-E01` manual measure supports HR, SpO2, HRV, BP,
      blood glucose, stress, MET, ECG, blood component, and body composition only when the connected-device callback
      advertises the corresponding capability. Steps, sleep, and activity are sync-only.
+   - Start ECG from both the data card and the single-lead detail page, and start body composition
+     from its data card. Confirm each flow shows the matching instructions before any SDK command,
+     requires continuous opposite-hand contact with the metal electrode and a stable posture,
+     starts only after confirmation, and sends no command when cancelled.
    - On the Data tab, tap `同步睡眠、步数与活动`; verify the full device-history sync starts,
      the button is disabled while progress is active, and the sleep/steps/activity cards refresh from Room after completion.
    - For HBand blood components, verify five independent values and device-selected

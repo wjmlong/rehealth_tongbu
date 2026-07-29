@@ -106,10 +106,16 @@ internal fun DataScreen(
     var showBloodGlucoseCalibration by remember { mutableStateOf(false) }
     var showWomensHealthSetting by remember { mutableStateOf(false) }
     var showEcgDetail by remember { mutableStateOf(false) }
+    var showEcgInstructionsOnOpen by remember { mutableStateOf(false) }
+    var pendingMeasurementInstruction by remember { mutableStateOf<RingMetricType?>(null) }
     if (showEcgDetail) {
         EcgDetailScreen(
             state = state,
-            onBack = { showEcgDetail = false },
+            showMeasurementInstructionsOnOpen = showEcgInstructionsOnOpen,
+            onBack = {
+                showEcgDetail = false
+                showEcgInstructionsOnOpen = false
+            },
             onMeasure = onMeasure,
         )
         return
@@ -300,8 +306,12 @@ internal fun DataScreen(
                 metrics = vitalMetrics,
                 measuringMetric = state.measuringMetric,
                 onMeasure = { type ->
-                    if (type == RingMetricType.ECG) showEcgDetail = true
-                    onMeasure(type)
+                    if (type == RingMetricType.ECG) {
+                        showEcgInstructionsOnOpen = true
+                        showEcgDetail = true
+                    } else {
+                        onMeasure(type)
+                    }
                 },
                 measureEnabled = !state.isSyncing,
             )
@@ -331,7 +341,10 @@ internal fun DataScreen(
             MetricGrid(
                 metrics = bodyComponentMetrics,
                 measuringMetric = state.measuringMetric,
-                onMeasure = onMeasure,
+                onMeasure = { type ->
+                    pendingMeasurementInstruction = measurementInstructionFor(type)?.let { type }
+                    if (pendingMeasurementInstruction == null) onMeasure(type)
+                },
                 measureEnabled = !state.isSyncing,
             )
         }
@@ -434,6 +447,16 @@ internal fun DataScreen(
             onConfirm = { periodLength, cycleLength, lastStart ->
                 showWomensHealthSetting = false
                 ringViewModel.setMenstrualCycle(periodLength, cycleLength, lastStart)
+            },
+        )
+    }
+    pendingMeasurementInstruction?.let { metricType ->
+        MeasurementInstructionDialog(
+            metricType = metricType,
+            onDismiss = { pendingMeasurementInstruction = null },
+            onConfirm = {
+                pendingMeasurementInstruction = null
+                onMeasure(metricType)
             },
         )
     }

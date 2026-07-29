@@ -85,6 +85,9 @@ For `RH-HB-E01`, validate only device-advertised capabilities:
   `getEcg()` when package 2 is absent) reports support; verify contact/wear guidance, start/
   stop/cancel behavior, SDK sample/draw frequency, local waveform persistence, and the
   average-heart-rate summary for both normal completion and abnormal-result callbacks.
+  Before the SDK start command, verify both the data-card entry and detail-page button show
+  instructions requiring continuous opposite-hand contact with the metal electrode and a
+  stable posture. Cancelling the dialog must not start measurement.
   Open the single-lead detail page before measurement, confirm ADC callbacks update the
   live chart and progress, and verify every valid ADC point is paired with the callback's
   corresponding gain before `EcgUtil.convertToMvWithValue(..., ecgType, false, gain)`.
@@ -103,7 +106,9 @@ For `RH-HB-E01`, validate only device-advertised capabilities:
   TCHO, TAG, HDL, and LDL are five distinct Room records and that displayed units
   match the current device `CustomSettingData` units;
 - body composition only when `getBodyComponent()` is true; verify all 14 fields,
-  units, lead-off handling, local persistence, and non-diagnostic UI text;
+  units, lead-off handling, local persistence, and non-diagnostic UI text. Before the SDK
+  command, verify the instructions require a complete electrode circuit, separated relaxed
+  arms, and still posture; cancelling the dialog must not start measurement;
 - direct blood glucose only when `getBloodGlucose()` is true; verify the device unit,
   manual-history sync, failure behavior, and non-diagnostic/estimated-value wording;
 - stress only when `getStress()` is true; verify direct measurement and manual-history
