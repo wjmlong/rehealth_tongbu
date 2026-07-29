@@ -102,6 +102,15 @@ Debug 注册请求会使用 JeecgBoot 的开发签名默认值为 `/sys/sms` 增
 Android 在请求成功后自动填入该值。Release 的签名字段和测试码均为空，生产环境继续
 由后端随机生成验证码并调用真实短信 Provider。
 
+进入主界面和打开“我的”页时，客户端会按当前登录用户重新读取
+`GET /rehealth/mobile/profile` 与 `GET /rehealth/mobile/interviews/latest`。个人资料、
+最近健康问答画像和关注方向的读取不依赖风险模型或干预接口可用；退出登录会立即清除
+内存中的上一位用户资料。健康问答点击完成后，必须先成功写入 Room durable queue 才能离开页面，
+再由 WorkManager 写入 `software_db` 的类型化访谈表；不再另存一份无人读取的偏好摘要。
+
+健康问答语音入口声明并按需申请 `RECORD_AUDIO`。点击麦克风时先解释用途和“不保存录音”，
+用户确认后才显示系统授权；拒绝后可转到应用设置，也可继续使用文字回答。
+
 模拟戒指只存在于 `app/src/debug`，由 Debug 专用工厂和
 `USE_FAKE_RING`/`SEED_FAKE_HEALTH_DATA` 控制。`app/src/release` 的工厂只构造
 真实 MRD/RWFit/HBand Provider；远程风险评估失败时显示不可用，不生成本地模拟风险。

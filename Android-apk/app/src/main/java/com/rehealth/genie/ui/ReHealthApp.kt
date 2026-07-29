@@ -89,6 +89,7 @@ fun ReHealthApp() {
     val ringState by ringViewModel.uiState.collectAsState()
     LaunchedEffect(stage) {
         if (stage == AppStage.Main) {
+            ringViewModel.refreshPatientMvp()
             ringViewModel.startAutoCollection()
         } else {
             ringViewModel.stopAutoCollection()
@@ -159,6 +160,7 @@ fun ReHealthApp() {
                 onGoToLogin = {
                     ringViewModel.stopBackgroundCollection(application)
                     ringViewModel.disconnect()
+                    ringViewModel.clearPatientSession()
                     stage = AppStage.Login
                 },
             )
@@ -205,7 +207,10 @@ private fun MainShell(
     if (showInterview) {
         HealthInterviewFlow(
             onBack = { showInterview = false },
-            onComplete = { showInterview = false },
+            onComplete = {
+                showInterview = false
+                ringViewModel.refreshPatientMvp()
+            },
         )
         return
     }
@@ -272,6 +277,7 @@ private fun MainShell(
                             onGoToLogin = onGoToLogin,
                             onStartInterview = { showInterview = true },
                             onProfileUpdated = ringViewModel::refreshPatientMvp,
+                            onRefreshProfile = ringViewModel::refreshPatientMvp,
                         )
                     }
                 }

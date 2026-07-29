@@ -45,14 +45,27 @@ git diff --check
      `X-Sign` plus `X-Timestamp` without returning “请求参数不完整”.
    - With local `JEECG_SMS_DEV_MODE=true`, confirm the successful response auto-fills
      `123456`; a failed request must not fill any code. Complete registration and auto-login.
+   - Save a personal profile and complete a health interview, log out, then log in again.
+     Confirm the profile, typed health-history fields, latest interview baseline and focus areas
+     are queried and displayed without requiring another edit. Make the risk/model endpoint
+     unavailable and confirm profile/history reading still succeeds.
    - Confirm no crash on first run and no production medical diagnosis wording.
 
-2. Ring permission
+2. Voice permission
+   - Remove microphone permission, open the health interview, and tap the microphone.
+     Confirm the app explains the purpose and that recordings are not stored before launching
+     the Android permission request. Deny it and verify the app offers system settings while
+     text input remains usable; grant it and verify speech recognition starts.
+   - Confirm completing an interview cannot leave the result page until its Room queue insert
+     succeeds. After upload, verify the latest interview is stored in the normalized
+     `software_db` interview/answer/baseline/focus tables and can be queried after re-login.
+
+3. Ring permission
    - On Android 12+, deny and then grant `BLUETOOTH_SCAN` and `BLUETOOTH_CONNECT`.
    - On Android 13+, verify notification permission behavior before enabling background collection.
    - Confirm denial pauses collection safely.
 
-3. Ring scan/connect
+4. Ring scan/connect
    - Turn Bluetooth on.
    - Scan from device binding screen.
    - Connect the wearable selected by the current `productCode` (MRD, RWFit, or HBand).
@@ -82,7 +95,7 @@ git diff --check
      and BLE connection callbacks do not report missing `WatchOpImpl`, `OnWatchCallback`,
      `McuMgrBleTransport`, Nordic scanner classes, or `libnative-lib.so`.
 
-4. Manual measurement
+5. Manual measurement
    - Open the data page before connecting a device. Confirm heart rate, SpO2, BP,
      HRV, blood glucose, stress, MET, ECG, blood/body component, sleep, steps, and activity cards remain
      visible with `--` where no real record exists. Unsupported actions remain visible
@@ -118,7 +131,7 @@ git diff --check
      “仅供健康参考，不能替代医疗诊断” warning.
    - Confirm unsupported metrics fail with safe UI text.
 
-5. Background collection
+6. Background collection
    - Start B1 background collection through service/ViewModel API or approved debug path.
    - Confirm foreground notification appears with Stop action.
    - Put app in background and wait at least one 15 minute interval.
@@ -129,7 +142,7 @@ git diff --check
    - Log out while collection is active and confirm the service stops and the
      device disconnects.
 
-6. Room persistence
+7. Room persistence
    - Inspect local Room tables:
      - `ring_measurements`
      - `ring_sleep_sessions`
@@ -138,69 +151,69 @@ git diff --check
    - Confirm collected data persists across app restart.
    - Confirm Room is the first persistence layer.
 
-7. Feature extraction
+8. Feature extraction
    - Generate a CVD vector from local profile plus Room data.
    - Confirm all 16 fields are present in the contract.
    - Confirm nullable labs remain null and are marked `MISSING`.
    - Confirm `featureQuality` is keyed by snake_case field names.
 
-8. Backend feature evaluation
+9. Backend feature evaluation
    - Run backend E1 and model-service F1.
    - Configure Android base URL for emulator or physical device LAN.
    - Submit feature evaluation through `POST /rehealth/mobile/features/evaluate`.
    - Confirm model-service errors surface an unavailable state without synthetic risk output and do not block BLE collection.
 
-9. Model-service risk result
+10. Model-service risk result
    - Confirm response includes `risk_score`, `risk_level`, `feature_contributions`, `model_version`, `is_mock`, `missing_fields`, `quality_warnings`, and `summary`.
    - Confirm Android/backend map snake_case response fields to camelCase DTO properties where needed.
    - Confirm `is_mock=true` is visible and not described as production model output.
 
-10. Intervention retrieval
+11. Intervention retrieval
     - Call `POST /v1/cvd/intervention/generate` through backend support endpoint or model-service directly.
     - Confirm intervention text is conservative wellness support only.
     - Confirm `medical_disclaimer` is present.
 
-11. Feedback submission
+12. Feedback submission
     - Submit `POST /rehealth/mobile/interventions/{id}/feedback`.
     - Confirm E1 returns explicit software persistence-pending status.
     - Confirm no raw health data, phone number, token, or identifier is logged.
 
-12. Offline, no backend, no model-service
+13. Offline, no backend, no model-service
     - Disable network.
     - Stop backend.
     - Stop model-service.
     - Confirm BLE/manual/background collection continues locally.
     - Confirm feature evaluation reports fallback mode and no data loss.
 
-13. Bluetooth off
+14. Bluetooth off
     - Turn Bluetooth off while background collection is active.
     - Confirm notification reports paused/off state.
     - Confirm collection retries later and does not crash.
 
-14. Permission denied
+15. Permission denied
     - Deny BLE permission and start collection.
     - Confirm service reports permission required and does not attempt BLE operations.
 
-15. App killed
+16. App killed
     - Kill app process while background collection is active.
     - Reopen app.
     - Confirm WorkManager recovery is scheduled and no duplicate aggressive loops appear.
 
-16. Lock screen
+17. Lock screen
     - Lock device during active background collection.
     - Wait at least one collection interval.
     - Confirm records are persisted locally after unlock.
 
-17. Reboot
+18. Reboot
     - Reboot device after enabling background collection.
     - Confirm current B1 limitation: no boot receiver is documented, so collection is not release-approved across reboot until explicitly implemented or product accepts manual restart.
 
-18. Duplicate collection prevention
+19. Duplicate collection prevention
     - Start foreground/manual sync while background service interval is due.
     - Confirm background cycle skips when `RingConnectionState.SYNCING`.
     - Confirm Room primary keys/on-conflict behavior avoid duplicate latest rows.
 
-19. Authenticated AI health chat
+20. Authenticated AI health chat
    - Put the DeepSeek key only in ignored `model-service/config/ai-chat.local.yml`.
    - Confirm provider `https://api.deepseek.com` and configured model `deepseek-v4-flash`.
    - Log in through `/sys/mLogin`, then send a message through `POST /rehealth/mobile/agent/messages`.

@@ -86,6 +86,21 @@ class ReHealthMobileApiRouteContractTest {
     }
 
     @Test
+    fun `reads latest health interview from authenticated Jeecg route`() = runTest {
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200).setBody(INTERVIEW_ENVELOPE))
+        val api = ReHealthMobileApi(
+            baseUrl = server.url("/jeecg-boot/").toString(),
+            httpClient = OkHttpClient(),
+            apiToken = "synthetic-test-token",
+        )
+
+        assertIs<RemotePhmOutcome.Success<*>>(api.getLatestHealthInterview())
+
+        assertRequest("/jeecg-boot/rehealth/mobile/interviews/latest", "GET")
+    }
+
+    @Test
     fun `uses authenticated software loop routes and parses persistence acknowledgements`() = runTest {
         server.start()
         listOf(

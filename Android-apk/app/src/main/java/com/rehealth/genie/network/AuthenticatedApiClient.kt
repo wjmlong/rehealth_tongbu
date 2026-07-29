@@ -83,6 +83,10 @@ class AuthenticatedApiClient(
         mobileApi.submitHealthInterview(request)
     }
 
+    suspend fun getLatestHealthInterview(): ApiResult<HealthInterviewSubmitRequestDto?> = executeWithAuth {
+        mobileApi.getLatestHealthInterview()
+    }
+
     suspend fun attributeIndividual(
         request: IndividualAttributionRequestDto,
     ): ApiResult<IndividualAttributionResponseDto> = executeWithAuth {

@@ -4,6 +4,8 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -41,16 +43,20 @@ import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -95,11 +101,14 @@ fun HealthInterviewFlow(
     val syncViewModel: HealthInterviewSyncViewModel = viewModel(
         factory = remember(application) { HealthInterviewSyncViewModel.Factory(application) },
     )
+    val syncState by syncViewModel.uiState.collectAsState()
     val model = remember { MockHealthInterviewModel() }
     val answers = remember { mutableStateListOf<InterviewAnswer>() }
     var input by remember { mutableStateOf("") }
     var baseline by remember { mutableStateOf<HealthBaseline?>(null) }
     var voiceMessage by remember { mutableStateOf<String?>(null) }
+    var showMicrophonePermissionDialog by remember { mutableStateOf(false) }
+    var showMicrophoneSettingsDialog by remember { mutableStateOf(false) }
     val question = model.questions.getOrNull(answers.size)
     val listState = rememberLazyListState()
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
@@ -152,7 +161,10 @@ fun HealthInterviewFlow(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
         if (granted) startVoiceAnswer()
-        else voiceMessage = "需要麦克风权限才能使用实时语音"
+        else {
+            voiceMessage = "麦克风权限未授权，你仍可以使用文字回答"
+            showMicrophoneSettingsDialog = true
+        }
     }
     fun requestVoiceAnswer() {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
@@ -160,7 +172,7 @@ fun HealthInterviewFlow(
         ) {
             startVoiceAnswer()
         } else {
-            microphonePermission.launch(Manifest.permission.RECORD_AUDIO)
+            showMicrophonePermissionDialog = true
         }
     }
 
@@ -178,6 +190,8 @@ fun HealthInterviewFlow(
             completionLabel = completionLabel,
             onComplete = onComplete,
             onSync = syncViewModel::enqueue,
+            isSaving = syncState.isSaving,
+            saveError = syncState.errorMessage,
         )
         return
     }
@@ -315,6 +329,61 @@ fun HealthInterviewFlow(
             }
         }
     }
+
+    if (showMicrophonePermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { showMicrophonePermissionDialog = false },
+            title = { Text("需要麦克风权限") },
+            text = {
+                Text("授权后可将本次语音回答转换为文字。应用不会保存录音，你也可以继续使用文字回答。")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showMicrophonePermissionDialog = false
+                        microphonePermission.launch(Manifest.permission.RECORD_AUDIO)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Mint),
+                ) {
+                    Text("授权")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMicrophonePermissionDialog = false }) {
+                    Text("暂不授权")
+                }
+            },
+        )
+    }
+
+    if (showMicrophoneSettingsDialog) {
+        AlertDialog(
+            onDismissRequest = { showMicrophoneSettingsDialog = false },
+            title = { Text("麦克风权限未开启") },
+            text = { Text("如需使用语音回答，请在系统设置中允许睿禾精灵使用麦克风。") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showMicrophoneSettingsDialog = false
+                        context.startActivity(
+                            Intent(
+                                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                Uri.parse("package:${context.packageName}"),
+                            ),
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Mint),
+                ) {
+                    Text("去设置")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMicrophoneSettingsDialog = false }) {
+                    Text("使用文字回答")
+                }
+            },
+        )
+    }
 }
 
 @Composable
@@ -348,9 +417,10 @@ private fun BaselineResultScreen(
     answers: List<InterviewAnswer>,
     completionLabel: String,
     onComplete: () -> Unit,
-    onSync: (List<InterviewAnswer>, HealthBaseline) -> Unit,
+    onSync: (List<InterviewAnswer>, HealthBaseline, () -> Unit) -> Unit,
+    isSaving: Boolean,
+    saveError: String?,
 ) {
-    val context = LocalContext.current
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(Canvas).statusBarsPadding(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp),
@@ -404,7 +474,7 @@ private fun BaselineResultScreen(
             ) {
                 Icon(Icons.Outlined.Shield, null, tint = Mint, modifier = Modifier.size(18.dp))
                 Text(
-                    "本次交流内容默认保存在本机，不替代医生诊断。",
+                    "本次交流先保存到本机数据库并安全同步到健康档案，不替代医生诊断。",
                     color = Muted,
                     fontSize = 11.sp,
                     modifier = Modifier.padding(start = 8.dp),
@@ -414,20 +484,28 @@ private fun BaselineResultScreen(
         item {
             Button(
                 onClick = {
-                    val summary = baseline.items.joinToString("\n") { "${it.label}:${it.value}" }
-                    context.getSharedPreferences("rehealth_profile", 0)
-                        .edit()
-                        .putString("health_baseline", summary)
-                        .putLong("health_baseline_updated_at", baseline.generatedAt)
-                        .apply()
-                    onSync(answers, baseline)
-                    onComplete()
+                    onSync(answers, baseline, onComplete)
                 },
+                enabled = !isSaving,
                 modifier = Modifier.fillMaxWidth().height(54.dp),
                 shape = RoundedCornerShape(18.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Mint),
             ) {
-                Text(completionLabel, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                if (isSaving) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                    Text("正在保存到本机", modifier = Modifier.padding(start = 8.dp))
+                } else {
+                    Text(completionLabel, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            saveError?.let {
+                Text(
+                    it,
+                    color = Color(0xFFD94C4C),
+                    fontSize = 11.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                )
             }
             Text(
                 "你可以在“我的”中重新进行健康初识",

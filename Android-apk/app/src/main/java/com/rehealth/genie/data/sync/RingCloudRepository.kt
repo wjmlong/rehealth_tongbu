@@ -87,15 +87,16 @@ class RingCloudRepository(
 
     suspend fun fetchPatientMvp(): Result<PatientMvpPayload> = runCatching {
         val profile = apiClient.getProfile().successOrThrow("健康档案读取失败。")
-        val risk = apiClient.getRiskLatest().successOrThrow("风险结果读取失败。")
-        var intervention = apiClient.getInterventionsToday().successOrThrow("今日干预读取失败。")
+        val latestHealthInterview = apiClient.getLatestHealthInterview().successOrNull()
+        val risk = apiClient.getRiskLatest().successOrNull()
+        var intervention = apiClient.getInterventionsToday().successOrNull()
         if (intervention == null && risk?.normalizedRiskScore != null) {
             intervention = apiClient.generateIntervention(
                 InterventionGenerateRequestDto(
                     riskResult = risk.toGenerateRiskDto(),
                     patientContext = profile?.toPatientContext().orEmpty(),
                 ),
-            ).successOrThrow("今日干预生成失败。")
+            ).successOrNull()
         }
         PatientMvpPayload(
             profile = profile?.toPayload(),
@@ -103,6 +104,7 @@ class RingCloudRepository(
             interventionPlan = intervention?.let { listOf(it.toPayload()) }.orEmpty(),
             recentCheckins = emptyList(),
             updatedAt = nowProvider(),
+            latestHealthInterview = latestHealthInterview,
         )
     }
 
@@ -214,6 +216,8 @@ private fun <T> ApiResult<T>.successOrThrow(fallback: String): T = when (this) {
     is ApiResult.Success -> data
     else -> error(safeMessage(this, fallback))
 }
+
+private fun <T> ApiResult<T>.successOrNull(): T? = (this as? ApiResult.Success)?.data
 
 private fun safeMessage(result: ApiResult<*>, fallback: String): String = when (result) {
     is ApiResult.Unauthorized -> "登录已失效，请重新登录。"

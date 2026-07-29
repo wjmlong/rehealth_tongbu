@@ -23,6 +23,7 @@ import com.rehealth.genie.ring.data.RingSleepSessionEntity
 import com.rehealth.genie.ring.provider.ActiveWearableManager
 import com.rehealth.genie.service.RingForegroundService
 import java.util.Calendar
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -95,6 +96,7 @@ class RingViewModel(
     private val mutableUiState = MutableStateFlow(RingUiState(supportedMetrics = repository.supportedMetrics))
     val uiState: StateFlow<RingUiState> = mutableUiState.asStateFlow()
     private var autoCollectionJob: Job? = null
+    private var patientRefreshJob: Job? = null
     private var lastRingVector: CvdFeatureVector = CvdFeatureVector()
 
     init {
@@ -176,9 +178,6 @@ class RingViewModel(
                     mutableUiState.update { it.copy(liveEcg = live) }
                 }
             }
-        }
-        viewModelScope.launch {
-            refreshPatientMvp(silent = true)
         }
     }
 
@@ -394,8 +393,26 @@ class RingViewModel(
     }
 
     fun refreshPatientMvp() {
-        viewModelScope.launch {
+        patientRefreshJob?.cancel()
+        patientRefreshJob = viewModelScope.launch {
             refreshPatientMvp(silent = false)
+        }
+    }
+
+    fun clearPatientSession() {
+        patientRefreshJob?.cancel()
+        patientRefreshJob = null
+        pushProfileToRepository(repository, null)
+        mutableUiState.update {
+            it.copy(
+                patientMvp = null,
+                isPatientMvpLoading = false,
+                cloudRiskLevel = null,
+                cloudRiskScore = null,
+                cloudRiskMode = null,
+                cloudRiskSummary = null,
+                message = null,
+            )
         }
     }
 
@@ -576,7 +593,7 @@ class RingViewModel(
     private suspend fun refreshPatientMvp(silent: Boolean) {
         val client = cloudRepository ?: return
         if (!silent) {
-            mutableUiState.update { it.copy(isPatientMvpLoading = true, message = "正在刷新患者健康计划") }
+            mutableUiState.update { it.copy(isPatientMvpLoading = true, message = "正在读取个人资料与健康档案") }
         }
         client.fetchPatientMvp()
             .onSuccess { mvp ->
@@ -590,17 +607,18 @@ class RingViewModel(
                         cloudRiskScore = risk?.riskScore ?: it.cloudRiskScore,
                         cloudRiskMode = risk?.mode ?: it.cloudRiskMode,
                         cloudRiskSummary = risk?.summary ?: it.cloudRiskSummary,
-                        message = if (silent) it.message else "患者健康计划已更新",
+                        message = if (silent) it.message else "个人资料与健康档案已更新",
                     )
                 }
             }
             .onFailure { error ->
+                if (error is CancellationException) return@onFailure
                 Log.w(TAG, "patient mvp refresh failed", error)
                 mutableUiState.update {
                     it.copy(
                         isPatientMvpLoading = false,
                         patientMvp = it.patientMvp ?: buildFallbackPatientMvp(lastRingVector),
-                        message = if (silent) it.message else "已使用本地模拟健康计划",
+                        message = if (silent) it.message else "资料读取失败，请检查网络后重试",
                     )
                 }
             }
