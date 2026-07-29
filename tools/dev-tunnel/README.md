@@ -20,14 +20,12 @@
 - 曾尝试 frp（frps 容器 + frpc）。后经临时监听测试确认安全组 7000/8081/8443
   实际已放行，但 SSH 反向隧道已稳定工作、攻击面更小（frp 需在 ECS 常驻服务端
   并管理 token），故维持 SSH 隧道方案，frps 容器保持移除状态。
-- 域名用 `sslip.io` 通配（`rehealth.47.80.30.228.sslip.io` 自动解析到该 IP），
-  Let's Encrypt 对其正常签发证书，无需任何 DNS 控制台操作。
-- nginx vhost 与证书均已预留 `rehealth.youngjimmy.store`。截至 2026-07-29，
-  权威 NS（ns1/ns2.myhostadmin.net）上该子域**仍无 A 记录**（已直接向权威
-  服务器查询确认，非缓存问题）。在 myhostadmin 控制台正确添加方式：
-  主机记录填 `rehealth`（不是完整域名），类型 `A`，值 `47.80.30.228`。
-  生效后需为该域名补签证书：
-  `acme.sh --issue -d rehealth.youngjimmy.store -w /www/wwwroot/rehealth_acme --server letsencrypt`
+- **正式联调域名：`rehealth.youngjimmy.store`**（2026-07-29 在西部数码
+  west.cn 添加 A 记录 -> 47.80.30.228，权威 NS 为 ns1/ns2.myhostadmin.net，
+  已验证生效）。`rehealth.47.80.30.228.sslip.io` 作为备用（sslip.io 通配
+  解析，无 DNS 依赖）。
+- 证书为**单张多域名（SAN）证书**，同时覆盖上述两个域名，acme.sh 主域名
+  记录为 `rehealth.47.80.30.228.sslip.io`（续期时两个域名一起续）。
 - ECS 上的 sub2api/nginx/postgres 等既有服务不受影响（仅新增独立 vhost 与
   loopback 端口 18080）。
 
@@ -53,13 +51,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/dev-tunnel/start_tunne
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/dev-tunnel/install_startup.ps1
 
 # 端到端自检（期望 200）
-curl.exe -s -L -o NUL -w "%{http_code}" https://rehealth.47.80.30.228.sslip.io/jeecg-boot/
+curl.exe -s -L -o NUL -w "%{http_code}" https://rehealth.youngjimmy.store/jeecg-boot/
 ```
 
 Android 真机配置（`Android-apk/local.properties`，不入库）：
 
 ```properties
-rehealth.api.base.url=https\://rehealth.47.80.30.228.sslip.io/jeecg-boot/
+rehealth.api.base.url=https\://rehealth.youngjimmy.store/jeecg-boot/
 ```
 
 通道已升级为 HTTPS（受信 Let's Encrypt 证书），Debug 与 Release 构建均可
@@ -89,6 +87,17 @@ rehealth.api.base.url=https\://rehealth.47.80.30.228.sslip.io/jeecg-boot/
 | `https://.../jeecg-boot/` | 200（doc.html），SSL_VERIFY=0（证书受信），1.35s |
 | HTTPS 业务 API `GET /jeecg-boot/sys/randomImage/{ts}` | `{"success":true,...}` |
 | nginx 443 监听 + 18080 隧道 | 均正常 |
+
+2026-07-29（正式域名切换）：
+
+| 检查项 | 结果 |
+| --- | --- |
+| 权威 NS（ns1/ns2.myhostadmin.net）A 记录 | `rehealth.youngjimmy.store -> 47.80.30.228`，8.8.8.8/223.5.5.5 同步生效 |
+| SAN 证书重签（两域名合一） | 成功，`DNS:rehealth.47.80.30.228.sslip.io, DNS:rehealth.youngjimmy.store` |
+| `http://rehealth.youngjimmy.store/jeecg-boot/` | 301 -> `https://` |
+| `https://rehealth.youngjimmy.store/jeecg-boot/` | 200（doc.html），SSL_VERIFY=0，1.23s |
+| HTTPS 业务 API（正式域名） | `{"success":true,...}` |
+| 备用域名 sslip.io 回归 | 200，仍可用 |
 
 ## 5. 故障排查
 
