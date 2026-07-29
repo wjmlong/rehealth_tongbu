@@ -177,7 +177,7 @@ internal fun DeviceBindingScreen(
                 ReHealthCardBlock {
                     Text("4G 手表 IMEI 绑定", color = Ink, fontWeight = FontWeight.SemiBold)
                     Text(
-                        "S8 手表通过自带 4G 网络上传数据，无需蓝牙配对。\n请输入手表背面或包装盒上的 IMEI 完成绑定。",
+                        "S8 手表通过自带 4G 网络把健康数据上传到厂商云，睿禾后端会定时从厂商云拉取并写入你的健康档案；App 仅需完成 IMEI 绑定即可查看，无需手机蓝牙配对。",
                         color = Muted,
                         fontSize = 11.sp,
                         lineHeight = 17.sp,
@@ -208,7 +208,7 @@ internal fun DeviceBindingScreen(
                         Text(if (state.connectedDevice != null) "重新绑定" else "绑定 4G 手表")
                     }
                     Text(
-                        "绑定后，手表数据将经厂商云推送至睿禾后台，按 IMEI 归属到你的账号。",
+                        "绑定后，后端会定时从厂商云拉取该手表的心率、血氧、血压、步数、睡眠等数据并同步到你的账号，数据来源标记为「4G 云同步」。",
                         color = Muted,
                         fontSize = 10.sp,
                         modifier = Modifier.padding(top = 8.dp),

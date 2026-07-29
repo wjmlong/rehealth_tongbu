@@ -21,9 +21,10 @@ import java.util.Map;
 /**
  * Minimal client for the Miwi (云米) OpenAPI.
  *
- * Token contract per vendor doc: {@code password = MD5(AppKey + AppId + Timestamp)},
- * exchanged through the get_token endpoint for an AccessToken. The vendor OpenAPI
- * uses {@code Code == 0} for success (unlike the push channel where code == 1).
+ * Token contract per vendor OpenAPI doc V1.6.5: {@code password = MD5(AppKey + AppId + Timestamp)},
+ * exchanged through {@code /api/token/get_token} for an AccessToken. Every subsequent OpenAPI
+ * call sends the token in the {@code Authorization} request header and uses {@code POST [json]}.
+ * The OpenAPI uses {@code Code == 0} for success (unlike the vendor push channel where code == 1).
  *
  * MD5 here is a vendor protocol requirement, not our security choice; see
  * REHEALTH_MIWI_4G_WATCH.md for the hardening asks we sent back to the vendor.
@@ -31,7 +32,8 @@ import java.util.Map;
 @Component
 public class MiwiOpenApiClient {
     private static final Logger log = LoggerFactory.getLogger(MiwiOpenApiClient.class);
-    private static final String TOKEN_PATH = "/api/open/get_token";
+    private static final String TOKEN_PATH = "/api/token/get_token";
+    private static final String AUTHORIZATION_HEADER = "Authorization";
 
     private final MiwiProperties properties;
     private final ObjectMapper objectMapper;
@@ -60,7 +62,7 @@ public class MiwiOpenApiClient {
         request.put("Timestamp", timestamp);
         request.put("Password", md5Hex(properties.getAppKey() + properties.getAppId() + timestamp));
 
-        Map<String, Object> response = postJson(properties.getApiBaseUrl() + TOKEN_PATH, request, null);
+        Map<String, Object> response = postJson(properties.getApiBaseUrl() + TOKEN_PATH, request, null, AUTHORIZATION_HEADER);
         Object code = response.get("Code");
         if (!(code instanceof Number numberValue) || numberValue.intValue() != 0) {
             throw new IllegalStateException("miwi get_token failed with Code=" + code);
@@ -80,10 +82,10 @@ public class MiwiOpenApiClient {
      */
     public Map<String, Object> post(String path, Map<String, Object> body) {
         requireConfigured();
-        return postJson(properties.getApiBaseUrl() + path, body, getAccessToken());
+        return postJson(properties.getApiBaseUrl() + path, body, getAccessToken(), AUTHORIZATION_HEADER);
     }
 
-    private Map<String, Object> postJson(String url, Map<String, Object> body, String accessToken) {
+    private Map<String, Object> postJson(String url, Map<String, Object> body, String accessToken, String authHeaderName) {
         try {
             HttpRequest.Builder builder = HttpRequest.newBuilder()
                     .uri(URI.create(url))
@@ -93,8 +95,8 @@ public class MiwiOpenApiClient {
                             objectMapper.writeValueAsString(body == null ? Map.of() : body),
                             StandardCharsets.UTF_8
                     ));
-            if (accessToken != null) {
-                builder.header("AccessToken", accessToken);
+            if (accessToken != null && authHeaderName != null) {
+                builder.header(authHeaderName, accessToken);
             }
             HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {

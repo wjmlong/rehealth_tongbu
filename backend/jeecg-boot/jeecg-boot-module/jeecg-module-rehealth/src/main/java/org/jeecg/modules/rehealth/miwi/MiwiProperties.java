@@ -44,8 +44,40 @@ public class MiwiProperties {
     @Value("${rehealth.miwi.token-ttl-seconds:6000}")
     private long tokenTtlSeconds = 6000L;
 
+    /**
+     * Master switch for the periodic PULL connector (backend -> vendor OpenAPI -> our DB).
+     * Distinct from {@code enabled}, which gates the vendor push callback. Recommended
+     * primary path for 8 月初; keep push as a supplementary realtime channel.
+     */
+    @Value("${rehealth.miwi.pull.enabled:false}")
+    private boolean pullEnabled;
+
+    /**
+     * How the vendor bytime endpoints expect {@code startTime}/{endTime}.
+     * One of {@code epoch_millis}, {@code epoch_seconds}, or a java DateTimeFormatter
+     * pattern such as {@code yyyy-MM-dd HH:mm:ss}. MUST be confirmed against vendor doc V1.6.5.
+     */
+    @Value("${rehealth.miwi.pull.time-format:epoch_seconds}")
+    private String pullTimeFormat = "epoch_seconds";
+
+    /** Extra backfill window (minutes) subtracted from the cursor to catch late vendor uploads. */
+    @Value("${rehealth.miwi.pull.backfill-minutes:10}")
+    private int pullBackfillMinutes = 10;
+
     public boolean isEnabled() {
         return enabled;
+    }
+
+    public boolean isPullEnabled() {
+        return pullEnabled;
+    }
+
+    public String getPullTimeFormat() {
+        return pullTimeFormat;
+    }
+
+    public int getPullBackfillMinutes() {
+        return pullBackfillMinutes;
     }
 
     public String getAppId() {

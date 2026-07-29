@@ -23,7 +23,7 @@
 | model-service | CVD 风险评分、模型制品校验、干预生成、健康助手安全边界 |
 | PIAS | 独立服务提供个体归因；Android 不执行生产归因 |
 | 部署 | Gateway、MySQL、TimescaleDB、Kafka、Redis、Nacos、Prometheus、Grafana 的 Compose 拓扑 |
-| Miwi 4G 手表（分支 `4Gwatch`） | 云米 S8 云回调接入骨架：后端 `/rehealth/miwi/push`（token 校验 + 双层 JSON 解包 + IMEI→用户匹配 + 标准遥测管线入库）、`get_token` OpenAPI 客户端、App `MIWI4G` 产品与 IMEI 绑定 UI；厂商测试环境/样机联调与后端 Maven 编译验证待完成 |
+| Miwi 4G 手表（分支 `4Gwatch`） | 云米 S8 双通道接入：①**拉取主路径**（推荐首发）`org.jeecg.modules.rehealth.miwi.pull` 包——`S8PollingService` 定时按 (device,metric) 游标轮询厂商 OpenAPI V1.6.5 bytime 端点（`Authorization: <AccessToken>`，base `openapi.miwitracker.com`），归一后走 `HardwareIngestionPort` 入库，确定性 `client_record_id` + 唯一索引保证幂等；`S8DeviceRegistry` 运营商导入、`MiwiAdminController` 导入接口、两个 SQL 迁移。②**推送补充通道**既有 `/rehealth/miwi/push` 回调。App 端 `MIWI4G` 产品 + IMEI 绑定 UI（文案已说明后端拉取）。L16 直连列为二期独立网关，不在本分支。 |
 | 真机联调通道 | `https://rehealth.youngjimmy.store`（SSH 反向隧道 + ECS nginx，Let's Encrypt SAN 证书，2026-07-29 端到端 200；备用 `rehealth.47.80.30.228.sslip.io`），Debug/Release 均可联调；见 `tools/dev-tunnel/README.md` |
 
 ## 已验证边界

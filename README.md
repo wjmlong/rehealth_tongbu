@@ -243,9 +243,12 @@ python backend/qa/rehealth_stack_gate.py topology `
 - Android 已有 MRD/RWFit/HBand 单一有效 Provider 路由；RWFit 的具体型号、固件、HRV
   单位和长时间采集仍待真机确认；HBand 的扫描、认证、画像同步、数据准确性和后台
   稳定性仍待完整真机验证；不支持多设备同时连接或数据融合。
-- 云米 4G 手表（S8）已在 `4Gwatch` 分支落地云回调接入骨架（后端 `/rehealth/miwi/push` +
-  App IMEI 绑定），但厂商测试环境、样机推送与 S8 固件是否接入云平台均未确认，
-  且该 API 不提供 ECG 波形与血糖接口；详见 `Android-apk/docs/wearable/MIWI_4G_WATCH.md`。
+- 云米 4G 手表（S8）已在 `4Gwatch` 分支落地**双通道接入**：拉取主路径
+  （`org.jeccg.modules.rehealth.miwi.pull` 定时轮询厂商 OpenAPI V1.6.5 bytime 端点，
+  走统一遥测入库管线，按 deviceId/source 区分、不融合）+ 推送补充通道
+  （`/rehealth/miwi/push`）。App 仅负责 IMEI 绑定与展示，不持有厂商密钥。
+  厂商测试环境、样机联调与 S8 固件是否接入云平台均未确认，且该 API 不提供 ECG 波形与
+  血糖接口；L16 直连为二期独立网关。详见 `Android-apk/docs/wearable/MIWI_4G_WATCH.md`。
 - 本地遥测与上传队列仍需进一步按用户和设备隔离，并改成完整增量同步。
 - Kafka 当前主要承载持久化/质量事件和运营投影，云端连续 Feature Pipeline 尚未实现。
 - 独立 IoT 设备直连所需的 MQTT、mTLS、设备证书、激活和吊销体系尚未实现。
@@ -263,7 +266,7 @@ python backend/qa/rehealth_stack_gate.py topology `
 | `Android-apk/docs/wearable/SDK_BASELINE.md` | 厂商 SDK、采购型号与能力证据基线 | SDK、型号、能力或厂商 Demo 证据变化时 |
 | `Android-apk/docs/wearable/RWFIT_DEVICE_QA.md` | RWFit 真机安装、采集与证据清单 | RWFit 构建开关、指标映射或真机结果变化时 |
 | `Android-apk/docs/wearable/HBAND_DEVICE_QA.md` | HBand 真机安装、认证、采集与证据清单 | HBand 构建开关、指标映射或真机结果变化时 |
-| `Android-apk/docs/wearable/MIWI_4G_WATCH.md` | 云米 4G 手表（S8）云回调接入、限制与厂商确认清单 | Miwi 回调、映射、配置或厂商确认结果变化时 |
+| `Android-apk/docs/wearable/MIWI_4G_WATCH.md` | 云米 4G 手表（S8）拉取/推送双通道接入、L16 决策、限制与厂商确认清单 | Miwi 拉取/回调、映射、配置或厂商确认结果变化时 |
 | `backend/contracts/openapi/rehealth-mobile-v1.openapi.json` | 公共移动 API 机器可读契约 | 公共 API 字段或路径变化时 |
 | `backend/contracts/adrs/` | 跨服务架构决策 | 权威边界、消息系统、数据库或信任模型变化时 |
 | `backend/deploy/rehealth/README.md` | 部署拓扑和运行方式 | 服务、端口、环境变量、secret、容器变化时 |

@@ -93,34 +93,42 @@ Feedback and device binding completion require `persisted == true`.
 ## Miwi 4G Cloud Watch (S8)
 
 The Miwi/云米 4G watch family (S8/S9/GS20/GS17/A67/K9L) does not use phone BLE.
-The watch uploads through its own SIM to the vendor cloud, which pushes to our
-backend callback. The app only registers the IMEI binding and reads results.
+It is a **second transport (vendor-cloud pull / push), not a second business
+system**: all S8 data enters the *same* `HardwareIngestionPort` pipeline as the
+mobile BLE batch, distinguished only by `source`/`deviceId`. App vendor enum is
+`MIWI4G`, product code `RH-S8-4G01`.
 
 ```text
-Watch --4G--> Miwi cloud --HTTP push--> POST /rehealth/miwi/push?token=<secret>
-                                          -> resolve user by deviceId
-                                          -> HardwareIngestionPort (same pipeline as mobile batch)
+Watch --4G--> Miwi cloud
+            ├─ OpenAPI pull (PRIMARY, 8 月初): backend polls bytime endpoints on a
+            │   per-(device,metric) cursor; auth via Authorization: <AccessToken>.
+            └─ HTTP push (realtime supplement): POST /rehealth/miwi/push?token=<secret>
+Both paths -> resolve user by deviceId -> HardwareIngestionPort (same pipeline)
 ```
 
 Contract points:
 
-- App vendor enum is `MIWI4G`, product code `RH-S8-4G01`. Binding uses the
-  standard `POST /rehealth/mobile/devices/bind` with
+- Binding uses the standard `POST /rehealth/mobile/devices/bind` with
   `deviceId = "miwi4g-" + first 24 SHA-256 hex chars of the IMEI`; the raw IMEI
-  itself is never uploaded (address hash rule identical to BLE vendors).
-- The backend callback recomputes the same deviceId from the pushed IMEI to find
-  the bound user. Unbound-device pushes are acked (`code=1`) and skipped.
-- Vendor push body is `{"DataType":"Health","ResultData":"<escaped JSON>"}`;
-  `ResultData` is parsed as a second JSON document. Mapped metric types:
-  `HEART_RATE`, `BLOOD_PRESSURE` (systolic=primary, diastolic=secondary),
-  `BLOOD_OXYGEN`, `BODY_TEMPERATURE`, `STEPS`, `CALORIES`, `DISTANCE`, `HRV`,
-  `RESPIRATORY_RATE`, `FATIGUE`, `STRESS`, `DEVICE_BATTERY`, with
-  `source=MIWI_4G_CLOUD` and timestamps normalized to UTC epoch millis.
-- The vendor protocol has no signature; the callback therefore requires the
+  itself is never uploaded (address hash rule identical to BLE vendors). The pull
+  path recomputes the same deviceId from the IMEI used to query the vendor API.
+- Pull (`rehealth.miwi.pull.enabled=true`) queries
+  `/api/heartrate|bloodpressure|bloodoxygen|temperature/get_*_bytime` and
+  `/api/steps/get_steps_bytime` on `https://openapi.miwitracker.com`, token from
+  `/api/token/get_token` (MD5). Mapped metric types: `HEART_RATE`, `BLOOD_PRESSURE`
+  (systolic=primary, diastolic=secondary), `BLOOD_OXYGEN`, `BODY_TEMPERATURE`,
+  `STEPS`, with `source=S8_CLOUD_PULL` (transport=VENDOR_CLOUD_PULL) and UTC epoch
+  millis timestamps. Each (device, metric) owns an independent sync cursor; a
+  deterministic `client_record_id` makes overlapping-window re-pulls idempotent.
+- Push body is `{"DataType":"Health","ResultData":"<escaped JSON>"}`;
+  `ResultData` is parsed as a second JSON document, `source=MIWI_4G_CLOUD`. The
+  vendor protocol has no signature; the callback therefore requires the
   pre-shared `?token=` matching `rehealth.miwi.callback-token` and returns 401
-  otherwise. ECG waveform, blood glucose, and raw-PPG interfaces are not
-  provided by the current vendor API version (V1.6.x); see
-  `Android-apk/docs/wearable/MIWI_4G_WATCH.md` for the vendor confirmation list.
+  otherwise. Unbound-device pushes are acked (`code=1`) and skipped.
+- ECG waveform, blood glucose, and raw-PPG interfaces are not provided by the
+  current vendor API version (V1.6.x). L16 direct-TCP is a phase-2 gateway, not
+  wired into JeecgBoot. See `Android-apk/docs/wearable/MIWI_4G_WATCH.md` for the
+  vendor confirmation list and the S8/L16 decision.
 
 ## Data and Privacy Rules
 

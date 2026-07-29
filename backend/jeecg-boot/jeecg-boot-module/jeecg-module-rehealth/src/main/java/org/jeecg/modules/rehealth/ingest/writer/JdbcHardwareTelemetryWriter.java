@@ -129,6 +129,7 @@ public class JdbcHardwareTelemetryWriter implements HardwareTelemetryWriter {
                         metric_type, measured_at, primary_value, secondary_value,
                         unit, quality_code, source, created_at
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE id = id
                     """,
                     UUID.randomUUID().toString(), uploadBatchId,
                     TelemetryRecordReader.optionalString(record, "id"), request.userId, request.deviceId,

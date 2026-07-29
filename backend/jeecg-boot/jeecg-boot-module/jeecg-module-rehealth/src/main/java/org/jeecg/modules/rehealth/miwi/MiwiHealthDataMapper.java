@@ -187,18 +187,29 @@ public class MiwiHealthDataMapper {
     }
 
     private Double number(Map<String, Object> payload, String... keys) {
+        return number(payload, 25, 1e9, keys);
+    }
+
+    /**
+     * Public numeric extractor with explicit plausible bounds, reused by the S8 pull
+     * normalizer so bytime responses produce the same measurement maps as push payloads.
+     */
+    public Double number(Map<String, Object> payload, double min, double max, String... keys) {
         Object raw = firstNonNull(payload, keys);
         if (raw == null) {
             return null;
         }
+        Double value;
         if (raw instanceof Number numberValue) {
-            return numberValue.doubleValue();
+            value = numberValue.doubleValue();
+        } else {
+            try {
+                value = Double.parseDouble(String.valueOf(raw).trim());
+            } catch (NumberFormatException e) {
+                return null;
+            }
         }
-        try {
-            return Double.parseDouble(String.valueOf(raw).trim());
-        } catch (NumberFormatException e) {
-            return null;
-        }
+        return (value >= min && value <= max) ? value : null;
     }
 
     private Object firstNonNull(Map<String, Object> payload, String... keys) {
