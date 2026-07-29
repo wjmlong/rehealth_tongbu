@@ -49,5 +49,20 @@
       "BLOOD_COMPONENT",
       "BODY_COMPOSITION"
     ]
+  },
+  {
+    "productCode": "RH-S8-4G01",
+    "vendor": "MIWI4G",
+    "displayName": "ReHealth 4G 健康手表 S8",
+    "modelNameHints": ["S8"],
+    "expectedMetrics": [
+      "HEART_RATE",
+      "BLOOD_PRESSURE",
+      "BLOOD_OXYGEN",
+      "TEMPERATURE",
+      "STEPS",
+      "SLEEP",
+      "HRV"
+    ]
   }
 ]

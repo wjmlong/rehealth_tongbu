@@ -6,6 +6,7 @@ import com.rehealth.genie.BuildConfig
 import com.rehealth.genie.ring.data.RingDataDao
 import com.rehealth.genie.ring.hband.HBandRingRepository
 import com.rehealth.genie.ring.hband.RealHBandSdkGateway
+import com.rehealth.genie.ring.miwi.Miwi4gCloudRingRepository
 import com.rehealth.genie.ring.mrd.MrdBleRingRepository
 import com.rehealth.genie.ring.mrd.MrdProtocolAdapter
 import com.rehealth.genie.ring.provider.ActiveWearableBindingStore
@@ -46,6 +47,9 @@ internal fun createRuntimeRingProviderFactories(
             modelNameHints = product.modelNameHints,
             expectedMetrics = product.expectedMetrics,
         )
+    },
+    WearableVendor.MIWI4G to {
+        Miwi4gCloudRingRepository(activeWearableStore = activeWearableStore)
     },
 )
 

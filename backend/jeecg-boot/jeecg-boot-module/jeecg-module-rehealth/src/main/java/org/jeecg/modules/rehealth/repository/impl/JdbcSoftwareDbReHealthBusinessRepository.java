@@ -189,6 +189,20 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
     }
 
     @Override
+    public Optional<String> findActiveUserIdByDeviceId(String deviceId) {
+        if (deviceId == null || deviceId.isBlank()) {
+            return Optional.empty();
+        }
+        List<String> userIds = jdbcTemplate.query("""
+                SELECT user_id
+                FROM rehealth_device_binding
+                WHERE device_id = ? AND status = 'BOUND'
+                ORDER BY updated_at DESC
+                """, (rs, rowNum) -> rs.getString(1), deviceId);
+        return userIds.isEmpty() ? Optional.empty() : Optional.ofNullable(userIds.get(0));
+    }
+
+    @Override
     @Transactional
     public void saveRiskResult(
             String userId,

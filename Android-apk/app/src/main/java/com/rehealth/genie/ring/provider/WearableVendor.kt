@@ -6,4 +6,7 @@ enum class WearableVendor {
     MRD,
     RWFIT,
     HBAND,
+
+    /** 云米/MiwiTracker 4G 云平台手表（S8 等）：数据经厂商云回调进入后端，App 通过 IMEI 绑定。 */
+    MIWI4G,
 }

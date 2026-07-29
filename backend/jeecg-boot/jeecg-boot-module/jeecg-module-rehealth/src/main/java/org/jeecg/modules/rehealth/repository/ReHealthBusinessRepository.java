@@ -31,6 +31,15 @@ public interface ReHealthBusinessRepository {
 
     boolean hasActiveDeviceBinding(String userId, String deviceId);
 
+    /**
+     * Reverse lookup used by vendor-cloud ingestion (for example the Miwi 4G watch callback)
+     * to resolve which ReHealth user owns a bound device id. Implementations without
+     * persistent binding storage keep the default empty result.
+     */
+    default Optional<String> findActiveUserIdByDeviceId(String deviceId) {
+        return Optional.empty();
+    }
+
     void saveRiskResult(String userId, String requestId, RiskEvaluateRequestDto request, RiskEvaluateResponseDto response);
 
     Optional<RiskEvaluateResponseDto> findLatestRiskResult(String userId);

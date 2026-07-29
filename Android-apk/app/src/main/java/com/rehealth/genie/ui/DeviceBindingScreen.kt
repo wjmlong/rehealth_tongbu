@@ -39,6 +39,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -59,6 +60,8 @@ import androidx.core.content.ContextCompat
 import com.rehealth.genie.ring.RingConnectionState
 import com.rehealth.genie.ring.RingDevice
 import com.rehealth.genie.ring.RingUiState
+import com.rehealth.genie.ring.miwi.Miwi4gCloudRingRepository
+import com.rehealth.genie.ring.provider.MIWI4G_PRODUCT_CODE
 import com.rehealth.genie.ui.theme.Canvas
 import com.rehealth.genie.ui.theme.Ink
 import com.rehealth.genie.ui.theme.Mint
@@ -110,6 +113,8 @@ internal fun DeviceBindingScreen(
     ) { results ->
         permissionGranted = results.values.all { it }
     }
+    val isCloud4gWatch = state.activeProductCode == MIWI4G_PRODUCT_CODE
+    var imeiInput by remember { mutableStateOf("") }
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(Canvas).statusBarsPadding(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp),
@@ -167,7 +172,52 @@ internal fun DeviceBindingScreen(
                 }
             }
         }
-        item {
+        if (isCloud4gWatch) {
+            item {
+                ReHealthCardBlock {
+                    Text("4G 手表 IMEI 绑定", color = Ink, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "S8 手表通过自带 4G 网络上传数据，无需蓝牙配对。\n请输入手表背面或包装盒上的 IMEI 完成绑定。",
+                        color = Muted,
+                        fontSize = 11.sp,
+                        lineHeight = 17.sp,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                    OutlinedTextField(
+                        value = imeiInput,
+                        onValueChange = { input -> imeiInput = input.filter(Char::isDigit).take(17) },
+                        label = { Text("IMEI（10-17 位数字）", fontSize = 12.sp) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                    )
+                    Button(
+                        onClick = {
+                            onConnect(
+                                RingDevice(
+                                    address = imeiInput.trim(),
+                                    name = Miwi4gCloudRingRepository.DEFAULT_DEVICE_NAME,
+                                    rssi = null,
+                                ),
+                            )
+                        },
+                        enabled = imeiInput.trim().length >= 10 && !state.isSyncing,
+                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp).height(48.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Mint),
+                    ) {
+                        Text(if (state.connectedDevice != null) "重新绑定" else "绑定 4G 手表")
+                    }
+                    Text(
+                        "绑定后，手表数据将经厂商云推送至睿禾后台，按 IMEI 归属到你的账号。",
+                        color = Muted,
+                        fontSize = 10.sp,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+            }
+        }
+        if (!isCloud4gWatch) {
+            item {
             ReHealthCardBlock {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(44.dp).clip(CircleShape).background(MintSoft), contentAlignment = Alignment.Center) {
@@ -198,6 +248,7 @@ internal fun DeviceBindingScreen(
                     fontSize = 10.sp,
                     modifier = Modifier.padding(top = 10.dp),
                 )
+            }
             }
         }
         item {
@@ -232,14 +283,16 @@ internal fun DeviceBindingScreen(
                     modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Button(
-                        onClick = onScan,
-                        enabled = !state.isScanning && !state.isSyncing,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MintSoft, contentColor = Mint),
-                    ) {
-                        Text(if (state.isScanning) "搜索中" else "搜索智能戒指")
+                    if (!isCloud4gWatch) {
+                        Button(
+                            onClick = onScan,
+                            enabled = !state.isScanning && !state.isSyncing,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MintSoft, contentColor = Mint),
+                        ) {
+                            Text(if (state.isScanning) "搜索中" else "搜索智能戒指")
+                        }
                     }
                     if (state.connectedDevice != null) {
                         Button(

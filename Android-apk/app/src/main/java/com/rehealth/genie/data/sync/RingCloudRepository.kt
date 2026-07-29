@@ -208,6 +208,7 @@ private fun String.matchesVendor(vendor: WearableVendor): Boolean = when (vendor
     WearableVendor.MRD -> startsWith("mrd", ignoreCase = true)
     WearableVendor.MOCK -> contains("mock", ignoreCase = true) || contains("synthetic", ignoreCase = true)
     WearableVendor.HBAND -> startsWith("hband", ignoreCase = true)
+    WearableVendor.MIWI4G -> startsWith("miwi4g", ignoreCase = true)
 }
 
 private fun <T> ApiResult<T>.successOrThrow(fallback: String): T = when (this) {
