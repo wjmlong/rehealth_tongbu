@@ -32,6 +32,10 @@ Commands run from `Android-apk`:
 | RWFit | `app/libs/blesdk-rwfit-release_v2_260724.aar` | `RW_SDK_V2.0.0_20260724` | 346,194 bytes | `C9C2CC91C5D8D7E1274B122D83546DB1362DA7CAD582F77F39D89B4D052D5333` | Present and included by `app/build.gradle.kts` |
 | HBand / Veepoo | `app/libs/vpbluetooth-1.20.aar` | `1.20` | 383,711 bytes | `26D7037238D18A28AC373A511B7A2ABDFAC2A405E01564F90A89C926B5B48BD8` | Present and included by `app/build.gradle.kts` |
 | HBand / Veepoo | `app/libs/vpprotocol-2.3.73.15.aar` | `2.3.73.15` | 5,631,585 bytes | `A2B3B2BA6460FC69808A210867039181238A9CC08E2980B0A3AF9DFE85B5BED1` | Present and included by `app/build.gradle.kts` |
+| HBand / ECG JNI | `app/src/main/jniLibs/arm64-v8a/libnative-lib.so` | pinned with `2.3.73.15` | 2,011,512 bytes | `8E084901E2F911DA5BFECC64CD73248A81C3CC463ABB2B9B726C9B9123399273` | Required by `startDetectECG`; packaged for physical Android devices |
+| HBand / ECG JNI | `app/src/main/jniLibs/armeabi-v7a/libnative-lib.so` | pinned with `2.3.73.15` | 1,224,620 bytes | `F1C3EEAF8CBB87E005038C7A981CD16EB9B5E5E50D6E3B06EA8EF93A1624C52A` | Required by `startDetectECG`; packaged for 32-bit ARM devices |
+| HBand / ECG JNI | `app/src/main/jniLibs/x86/libnative-lib.so` | pinned with `2.3.73.15` | 1,642,544 bytes | `1640BDA208DFD452541B3E348404CC48425B4E2456C6A7E02ADE4831BF2D532A` | Required by `startDetectECG`; packaged for x86 test environments |
+| HBand / ECG JNI | `app/src/main/jniLibs/x86_64/libnative-lib.so` | pinned with `2.3.73.15` | 1,889,552 bytes | `EAC89514653A8134A1A7BA976E6F029B66735054CA70D1EF348E5B3846464816` | Required by `startDetectECG`; packaged for x86_64 test environments |
 | HBand / JieLi support | `app/libs/jl_bt_ota_V1.10.0_10931-release.aar` | `1.10.0_10931` | 264,341 bytes | `61764E43650862637C90FE7AD603A4FE948A0724BE5508C301123D0013AB8AA8` | Required by core SDK class signatures; OTA is not exposed or invoked |
 | HBand / JieLi support | `app/libs/jl_rcsp_V0.7.2_527-release.aar` | `0.7.2_527` | 584,916 bytes | `0CBB1D46BCFDA8F6D2B7A68D805C88DC4F543A4890FC2537E9AA76D0F93857B2` | Required by core SDK authentication signatures; dial APIs are not exposed or invoked |
 | HBand / JieLi support | `app/libs/JL_Watch_V1.13.1_11214-release.aar` | `1.13.1_11214` | 1,189,801 bytes | `7B63DE70139AE92AF67E74FEFFEDC044A383CDDA31914344EB3318BF41D5DE6E` | Supplies `WatchOpImpl`, which `vpbluetooth` loads while initializing `JLOTAManager`; watch/dial APIs are not exposed |
@@ -56,7 +60,11 @@ physical-device run then proved that `vpbluetooth` also instantiates
 is therefore retained while its watch/dial APIs remain unexposed. The next
 physical-device connection proved that `VPOperateManager` eagerly initializes
 `McuMgrOtaManager`, so MCU Manager and scanner dependencies are packaged even
-though ReHealth exposes no OTA workflow. Image conversion, Goodix, contacts,
+though ReHealth exposes no OTA workflow. The same pinned commit supplies the four
+`libnative-lib.so` ABI variants. The
+`vpprotocol` AAR does not embed them, while `startDetectECG` loads the JNI library;
+they are therefore version-locked to the AAR and must be replaced together on any SDK upgrade.
+Image conversion, Goodix, contacts,
 and audio components remain excluded from the health-data integration. The upstream
 README also describes use as limited to cooperative customers, so commercial
 authorization remains a release gate even though the public repository contains

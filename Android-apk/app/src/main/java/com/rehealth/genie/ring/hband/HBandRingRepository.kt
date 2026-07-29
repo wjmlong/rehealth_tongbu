@@ -11,6 +11,8 @@ import com.rehealth.genie.ring.BloodGlucoseCalibration
 import com.rehealth.genie.ring.MenstrualCycleConfig
 import com.rehealth.genie.ring.RingFeatureRepository
 import com.rehealth.genie.ring.RingFeatureType
+import com.rehealth.genie.ring.RingEcgRepository
+import com.rehealth.genie.ring.RingEcgLiveState
 import com.rehealth.genie.ring.WearableUserProfileSink
 import com.rehealth.genie.ring.data.RingDataBatch
 import com.rehealth.genie.ring.data.RingDataDao
@@ -25,10 +27,11 @@ class HBandRingRepository internal constructor(
     private val gateway: HBandSdkGateway,
     private val modelNameHints: Set<String>,
     private val expectedMetrics: Set<RingMetricType>,
-) : RingRepository, WearableUserProfileSink, RingFeatureRepository {
+) : RingRepository, WearableUserProfileSink, RingFeatureRepository, RingEcgRepository {
     override var wearableUserProfile: BaselineHealthProfile? = null
     override val connectionState: StateFlow<RingConnectionState> = gateway.connectionState
     override val connectedDevice: StateFlow<RingDevice?> = gateway.connectedDevice
+    override val liveEcg: StateFlow<RingEcgLiveState> = gateway.liveEcg
     override val supportedMetrics: Set<RingMetricType>
         get() = gateway.capabilities.value.supportedMetrics intersect expectedMetrics
     override val supportedFeatures: Set<RingFeatureType>

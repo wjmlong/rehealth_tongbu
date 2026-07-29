@@ -27,6 +27,10 @@ Status: implemented software path; updated 2026-07-29.
   capability-gated manual measurement and body-composition history follow. Completed
   reads are retained if a later optional SDK operation fails. Unsupported,
   zero, and invalid readings remain absent; raw ECG samples remain local only.
+  HBand ECG uses the matching four-ABI JNI runtime and Room v5: new records store
+  calibrated `FLOAT32_LE` mV plus structured lead/sample/duration/contact metadata,
+  while migrated legacy `INT32_LE` rows remain relative-only. Neither representation
+  is included in telemetry uploads.
 
 ## Software-Only Validation
 

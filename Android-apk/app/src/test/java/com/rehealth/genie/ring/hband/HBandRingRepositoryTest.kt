@@ -7,6 +7,7 @@ import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.BloodGlucoseCalibration
 import com.rehealth.genie.ring.MenstrualCycleConfig
 import com.rehealth.genie.ring.RingFeatureType
+import com.rehealth.genie.ring.RingEcgLiveState
 import com.rehealth.genie.ring.data.RingActivityEntity
 import com.rehealth.genie.ring.data.RingDataDao
 import com.rehealth.genie.ring.data.RingMeasurementEntity
@@ -299,6 +300,7 @@ private class FakeHBandGateway(
     private val state = MutableStateFlow(RingConnectionState.DISCONNECTED)
     private val device = MutableStateFlow<RingDevice?>(null)
     private val capabilityState = MutableStateFlow(capabilitiesValue)
+    private val liveEcgState = MutableStateFlow(RingEcgLiveState())
     var connectCalls = 0
     var measureCalls = 0
     val measuredTypes = mutableListOf<RingMetricType>()
@@ -309,6 +311,7 @@ private class FakeHBandGateway(
     override val connectionState: StateFlow<RingConnectionState> = state
     override val connectedDevice: StateFlow<RingDevice?> = device
     override val capabilities: StateFlow<HBandCapabilities> = capabilityState
+    override val liveEcg: StateFlow<RingEcgLiveState> = liveEcgState
     override suspend fun scan() = emptyList<RingDevice>()
     override suspend fun connect(device: RingDevice, profile: HBandUserProfile): HBandConnectionInfo {
         connectCalls++

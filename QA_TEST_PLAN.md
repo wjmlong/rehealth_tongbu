@@ -80,7 +80,7 @@ git diff --check
      pre-migration JSON values after `V20260729_1__normalize_business_records.sql`.
    - Install the full APK after HBand dependency changes and confirm manager initialization
      and BLE connection callbacks do not report missing `WatchOpImpl`, `OnWatchCallback`,
-     `McuMgrBleTransport`, or Nordic scanner classes.
+     `McuMgrBleTransport`, Nordic scanner classes, or `libnative-lib.so`.
 
 4. Manual measurement
    - Open the data page before connecting a device. Confirm heart rate, SpO2, BP,
@@ -106,6 +106,12 @@ git diff --check
    - Confirm each successful result is written to Room before any upload attempt.
    - For HBand ECG, confirm the local signal chunk is never included in the
      telemetry upload payload; only the non-diagnostic average-HR summary may sync.
+     Open the single-lead detail page and verify live waveform/progress/contact guidance,
+     then select recent history records. New rows must be calibrated `FLOAT32_LE` mV
+     with gain/lead/sample metadata; migrated `INT32_LE` rows must remain relative-only.
+     Label I/V1 only when returned by the device, identify the view as portable single-lead
+     rather than 12-lead ECG, suppress SDK disease-risk diagnosis, and show the mandatory
+     “仅供健康参考，不能替代医疗诊断” warning.
    - Confirm unsupported metrics fail with safe UI text.
 
 5. Background collection

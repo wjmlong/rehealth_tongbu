@@ -17,7 +17,7 @@
 
 | 范围 | 当前实现 |
 | --- | --- |
-| Android | 单一有效设备 Provider 路由（Release 注册 MRD/RWFit/HBand）、真实 SDK/BLE、Room、本地优先、Foreground Service、WorkManager、CVD 16 特征、认证感知上传队列、风险/干预/反馈 UI；HBand 心率、步数/活动、睡眠、血氧、HRV、血压、血糖、压力、MET、ECG、血液/身体成分以及血糖校准、经期设置按设备能力接入；MT116 能力判定已改为合并新版分包报告，ECG 以 2 号能力包优先；体温因真机验证不通过已从 HBand 商品能力和数据页移除，其他指标仍待真机验收 |
+| Android | 单一有效设备 Provider 路由（Release 注册 MRD/RWFit/HBand）、真实 SDK/BLE、Room、本地优先、Foreground Service、WorkManager、CVD 16 特征、认证感知上传队列、风险/干预/反馈 UI；HBand 心率、步数/活动、睡眠、血氧、HRV、血压、血糖、压力、MET、ECG、血液/身体成分以及血糖校准、经期设置按设备能力接入；MT116 能力判定已改为合并新版分包报告，ECG 以 2 号能力包优先，固定 SDK 对应四 ABI JNI 已打包，Room v5 保存校准 mV/导联/采样元数据并提供实时及历史单导联波形详情；体温因真机验证不通过已从 HBand 商品能力和数据页移除，其他指标及 ECG 真机准确性仍待验收 |
 | Device Service | 遥测校验、TimescaleDB 持久化、幂等批次、Transactional Outbox、Kafka 发布 |
 | JeecgBoot | 登录与权限、用户/设备绑定、结构化档案/访谈/干预业务数据、风险/干预/反馈编排、software_db；模型证据继续保留版本化 JSON 快照 |
 | model-service | CVD 风险评分、模型制品校验、干预生成、健康助手安全边界 |
@@ -36,7 +36,8 @@
 - `productCode` 只选择一个懒加载 Provider；绑定存于加密偏好且不迁移 Room，
   未绑定地址时后台采集不会使用固定 MAC 自动连接；RWFit SDK 类型不进入 UI、
   ViewModel 或 Room Entity；HBand SDK 类型同样被限制在 Gateway 文件内，未支持的指标不生成占位记录，
-  ECG 波形只写本地 Room 且不进入云端上传。
+  ECG 波形只写本地 Room 且不进入云端上传；HBand SDK 疾病风险不作为诊断展示，
+  新记录保存校准 mV 和结构化导联/采样元数据，旧整数记录保留并仅按相对幅值展示。
 - Debug 设备页可在明确确认后暂停采集、断开旧 Provider 并切换本地 `productCode`；
   Release 隐藏该入口，切换不会删除历史 `ring_*` 数据。
 - 三个真实 Provider 的后台同步只重连已绑定地址且不做环境扫描；前后台操作共享
@@ -55,7 +56,7 @@
 
 1. Docker 引擎恢复后补跑 Device Service 的 TimescaleDB/Testcontainers 集成测试。
 2. 在发布环境挂载已审核模型制品并复核真实模型门禁。
-3. 使用包含完整 JieLi/Nordic 依赖的 APK 完成 HBand 连接复测，再完成 MRD/RWFit/HBand 与 Android 运行时端到端 QA。
+3. 使用包含完整 JieLi/Nordic/JNI 依赖的 APK 完成 HBand 连接与 ECG 实时/历史波形复测，再完成 MRD/RWFit/HBand 与 Android 运行时端到端 QA。
 4. 完成签名 Release APK 和真实部署环境验收。
 
 ## 历史证据

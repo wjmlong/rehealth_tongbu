@@ -105,6 +105,15 @@ internal fun DataScreen(
     var selectedPeriod by remember { mutableIntStateOf(1) }
     var showBloodGlucoseCalibration by remember { mutableStateOf(false) }
     var showWomensHealthSetting by remember { mutableStateOf(false) }
+    var showEcgDetail by remember { mutableStateOf(false) }
+    if (showEcgDetail) {
+        EcgDetailScreen(
+            state = state,
+            onBack = { showEcgDetail = false },
+            onMeasure = onMeasure,
+        )
+        return
+    }
     // 真实周期聚合：切换 今日/7天/30天/90天 时从本地 Room 历史重新计算
     var aggregate by remember { mutableStateOf<PeriodAggregate?>(null) }
     LaunchedEffect(selectedPeriod, state.lastSyncAt, state.activity?.id, state.sleep?.id) {
@@ -290,8 +299,18 @@ internal fun DataScreen(
             MetricGrid(
                 metrics = vitalMetrics,
                 measuringMetric = state.measuringMetric,
-                onMeasure = onMeasure,
+                onMeasure = { type ->
+                    if (type == RingMetricType.ECG) showEcgDetail = true
+                    onMeasure(type)
+                },
                 measureEnabled = !state.isSyncing,
+            )
+        }
+        item {
+            EcgDetailEntryCard(
+                latest = state.ecgHistory.firstOrNull(),
+                isMeasuring = state.measuringMetric == RingMetricType.ECG,
+                onClick = { showEcgDetail = true },
             )
         }
         item {

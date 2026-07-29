@@ -70,16 +70,24 @@ internal object HBandDataMapper {
                 )
             }.distinctBy { it.id },
         signalChunks = payload.ecgRecords
-            .filter { it.measuredAt > 0 && it.samples.isNotEmpty() }
+            .filter { it.measuredAt > 0 && it.samplesMv.isNotEmpty() }
             .map { record ->
                 RingSignalChunkEntity(
                     id = stableId(deviceKey, "signal", RingMetricType.ECG.name, record.measuredAt),
                     signalType = RingMetricType.ECG.name,
                     startedAt = record.measuredAt,
                     sampleRateHz = record.sampleRateHz?.takeIf { it > 0 },
-                    sampleCount = record.samples.size,
-                    payload = SignalEncoding.int32LittleEndian(record.samples),
+                    sampleCount = record.samplesMv.size,
+                    encoding = "FLOAT32_LE",
+                    payload = SignalEncoding.float32LittleEndian(record.samplesMv),
                     source = SOURCE,
+                    drawFrequencyHz = record.drawFrequencyHz,
+                    durationSeconds = record.durationSeconds,
+                    leadType = record.lead.takeUnless { it == com.rehealth.genie.ring.RingEcgLead.UNKNOWN }?.name,
+                    ecgType = record.ecgType,
+                    calibrationType = record.calibrationType,
+                    averageHeartRate = record.averageHeartRate,
+                    contactQuality = record.contactStatus.name,
                 )
             }.distinctBy { it.id },
     )

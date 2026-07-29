@@ -49,7 +49,7 @@ data class AttributionLogEntity(
         InterventionFeedbackEntity::class,
         RiskHistoryEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -59,6 +59,18 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun riskHistoryDao(): RiskHistoryDao
 
     companion object {
+        private val Migration4To5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE ring_signal_chunks ADD COLUMN draw_frequency_hz INTEGER")
+                db.execSQL("ALTER TABLE ring_signal_chunks ADD COLUMN duration_seconds INTEGER")
+                db.execSQL("ALTER TABLE ring_signal_chunks ADD COLUMN lead_type TEXT")
+                db.execSQL("ALTER TABLE ring_signal_chunks ADD COLUMN ecg_type INTEGER")
+                db.execSQL("ALTER TABLE ring_signal_chunks ADD COLUMN calibration_type TEXT")
+                db.execSQL("ALTER TABLE ring_signal_chunks ADD COLUMN average_heart_rate INTEGER")
+                db.execSQL("ALTER TABLE ring_signal_chunks ADD COLUMN contact_quality TEXT")
+            }
+        }
+
         private val Migration3To4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 val tables = buildSet {
@@ -204,7 +216,7 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun create(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, "rehealth-local.db")
-                .addMigrations(Migration1To2, Migration2To3, Migration3To4)
+                .addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5)
                 .fallbackToDestructiveMigration()
                 .build()
     }

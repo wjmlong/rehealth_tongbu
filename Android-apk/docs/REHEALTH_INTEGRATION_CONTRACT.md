@@ -93,6 +93,13 @@ HBand advanced-health measurements use independent normalized `metricType` value
 calibration and menstrual-cycle configuration are device settings and never enter
 the telemetry batch.
 
+Android Room schema v5 extends local `ring_signal_chunks` for ECG with nullable
+draw frequency, duration, lead type, vendor ECG type, calibration type, average
+heart rate, and contact quality. Newly calibrated HBand curves use `FLOAT32_LE`
+millivolts with `calibration_type=HBAND_ECG_UTIL_MV_V1`; v4 `INT32_LE` rows migrate
+without deletion and remain relative-amplitude data. These fields and waveform bytes
+are local UI/history data only and do not change the public telemetry DTO.
+
 Feedback and device binding completion require `persisted == true`.
 
 ## Data and Privacy Rules

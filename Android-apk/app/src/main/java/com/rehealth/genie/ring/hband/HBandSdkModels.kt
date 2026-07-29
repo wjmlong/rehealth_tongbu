@@ -6,6 +6,9 @@ import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.BloodGlucoseCalibration
 import com.rehealth.genie.ring.MenstrualCycleConfig
 import com.rehealth.genie.ring.RingFeatureType
+import com.rehealth.genie.ring.RingEcgContactStatus
+import com.rehealth.genie.ring.RingEcgLead
+import com.rehealth.genie.ring.RingEcgLiveState
 import java.time.Instant
 import java.time.ZoneId
 import kotlinx.coroutines.CompletableDeferred
@@ -175,8 +178,14 @@ internal data class HBandMetricSample(
 internal data class HBandEcgRecord(
     val measuredAt: Long,
     val sampleRateHz: Int?,
-    val samples: IntArray,
+    val drawFrequencyHz: Int?,
+    val durationSeconds: Int?,
+    val lead: RingEcgLead,
+    val ecgType: Int?,
+    val samplesMv: FloatArray,
     val averageHeartRate: Int?,
+    val contactStatus: RingEcgContactStatus,
+    val calibrationType: String?,
 )
 
 internal data class HBandSleepRecord(
@@ -245,6 +254,7 @@ internal interface HBandSdkGateway {
     val connectionState: StateFlow<RingConnectionState>
     val connectedDevice: StateFlow<RingDevice?>
     val capabilities: StateFlow<HBandCapabilities>
+    val liveEcg: StateFlow<RingEcgLiveState>
 
     suspend fun scan(): List<RingDevice>
     suspend fun connect(device: RingDevice, profile: HBandUserProfile): HBandConnectionInfo?

@@ -10,6 +10,10 @@ import com.rehealth.genie.ring.RingBleGuards
 import com.rehealth.genie.ring.RingConnectionState
 import com.rehealth.genie.ring.RingDevice
 import com.rehealth.genie.ring.RingMetricType
+import com.rehealth.genie.ring.RingEcgContactStatus
+import com.rehealth.genie.ring.RingEcgLead
+import com.rehealth.genie.ring.RingEcgLiveState
+import com.rehealth.genie.ring.RingEcgMeasurementPhase
 import com.rehealth.genie.ring.BloodGlucoseCalibration
 import com.rehealth.genie.ring.MenstrualCycleConfig
 import com.veepoo.protocol.VPOperateManager
@@ -95,6 +99,8 @@ import com.veepoo.protocol.model.enums.EWomenStatus
 import com.veepoo.protocol.model.settings.CustomSettingData
 import com.veepoo.protocol.model.settings.ReadOriginSetting
 import com.veepoo.protocol.model.settings.WomenSetting
+import com.veepoo.protocol.shareprence.VpSpGetUtil
+import com.veepoo.protocol.util.EcgUtil
 import com.veepoo.protocol.model.enums.EOprateStauts
 import com.veepoo.protocol.model.enums.EPwdStatus
 import com.veepoo.protocol.model.enums.ESex
@@ -125,10 +131,12 @@ internal class RealHBandSdkGateway(
     private val mutableConnectionState = MutableStateFlow(RingConnectionState.DISCONNECTED)
     private val mutableConnectedDevice = MutableStateFlow<RingDevice?>(null)
     private val mutableCapabilities = MutableStateFlow(HBandCapabilities())
+    private val mutableLiveEcg = MutableStateFlow(RingEcgLiveState())
 
     override val connectionState: StateFlow<RingConnectionState> = mutableConnectionState.asStateFlow()
     override val connectedDevice: StateFlow<RingDevice?> = mutableConnectedDevice.asStateFlow()
     override val capabilities: StateFlow<HBandCapabilities> = mutableCapabilities.asStateFlow()
+    override val liveEcg: StateFlow<RingEcgLiveState> = mutableLiveEcg.asStateFlow()
 
     init {
         manager.init(appContext)
@@ -236,6 +244,7 @@ internal class RealHBandSdkGateway(
             if (error.isExternalCancellation()) {
                 mutableConnectedDevice.value = null
                 mutableCapabilities.value = HBandCapabilities()
+                mutableLiveEcg.value = RingEcgLiveState()
                 stateMachine.disconnect()
                 publishState()
                 throw error
@@ -243,6 +252,7 @@ internal class RealHBandSdkGateway(
         }
         mutableConnectedDevice.value = null
         mutableCapabilities.value = HBandCapabilities()
+        mutableLiveEcg.value = RingEcgLiveState()
         stateMachine.disconnect()
         publishState()
     }
@@ -607,61 +617,146 @@ internal class RealHBandSdkGateway(
 
     private suspend fun measureEcg(): HBandPayload {
         val result = CompletableDeferred<HBandEcgRecord?>()
-        val callbackSamples = mutableListOf<Int>()
+        val callbackSamples = mutableListOf<Float>()
         var reportedFrequency: Int? = null
+        var reportedDrawFrequency: Int? = null
+        var observedHasSamples = false
+        var observedCalibrated = false
+        var contactStatus = RingEcgContactStatus.UNKNOWN
         val measurementStartedAt = clock()
+        val ecgType = runCatching { VpSpGetUtil.getVpSpVariInstance(appContext).ecgType }
+            .getOrDefault(UNKNOWN_ECG_TYPE)
 
-        fun appendSamples(values: IntArray?) {
-            val available = values?.takeIf { it.isNotEmpty() } ?: return
+        fun appendSamples(values: IntArray?, powers: IntArray?) {
+            val converted = convertEcgSamples(values, powers, ecgType)
+            if (converted.samples.isEmpty()) return
+            observedCalibrated = if (observedHasSamples) {
+                observedCalibrated && converted.isCalibrated
+            } else {
+                converted.isCalibrated
+            }
+            observedHasSamples = true
             synchronized(callbackSamples) {
                 val remaining = (MAX_ECG_SAMPLES - callbackSamples.size).coerceAtLeast(0)
-                available.take(remaining).forEach(callbackSamples::add)
+                converted.samples.take(remaining).forEach(callbackSamples::add)
+                mutableLiveEcg.value = mutableLiveEcg.value.copy(
+                    phase = RingEcgMeasurementPhase.MEASURING,
+                    samplesMv = callbackSamples.takeLast(MAX_LIVE_ECG_SAMPLES).toFloatArray(),
+                    isCalibrated = observedCalibrated,
+                )
             }
         }
 
         fun completeCapture(
             measuredAt: Long?,
             frequency: Int?,
+            drawFrequency: Int?,
+            durationSeconds: Int?,
+            lead: RingEcgLead,
             averageHeartRate: Int?,
             preferredSamples: IntArray?,
+            preferredPowers: IntArray?,
             fallbackSamples: IntArray?,
         ) {
             if (result.isCompleted) return
-            val observed = synchronized(callbackSamples) { callbackSamples.toIntArray() }
-            val samples = preferredSamples?.takeIf { it.isNotEmpty() }
-                ?: fallbackSamples?.takeIf { it.isNotEmpty() }
-                ?: observed.takeIf { it.isNotEmpty() }
-                ?: IntArray(0)
+            val preferred = convertEcgSamples(preferredSamples, preferredPowers, ecgType)
+            val fallback = convertEcgSamples(fallbackSamples, preferredPowers, ecgType)
+            val observed = synchronized(callbackSamples) { callbackSamples.toFloatArray() }
+            val samples = preferred.samples.takeIf { it.isNotEmpty() }
+                ?: fallback.samples.takeIf { it.isNotEmpty() }
+                ?: observed
+            val isCalibrated = when {
+                preferred.samples.isNotEmpty() -> preferred.isCalibrated
+                fallback.samples.isNotEmpty() -> fallback.isCalibrated
+                else -> observedCalibrated
+            }
             val validAverageHeartRate = averageHeartRate?.takeIf { it > 0 }
             if (samples.isEmpty() && validAverageHeartRate == null) return
+            val validFrequency = frequency?.takeIf { it > 0 } ?: reportedFrequency
+            val computedDuration = durationSeconds?.takeIf { it > 0 }
+                ?: validFrequency?.takeIf { it > 0 }?.let { samples.size / it }?.takeIf { it > 0 }
             result.complete(
                 HBandEcgRecord(
                     measuredAt = measuredAt?.takeIf { it > 0 } ?: clock(),
-                    sampleRateHz = frequency?.takeIf { it > 0 } ?: reportedFrequency,
-                    samples = samples.copyOf(MAX_ECG_SAMPLES.coerceAtMost(samples.size)),
+                    sampleRateHz = validFrequency,
+                    drawFrequencyHz = drawFrequency?.takeIf { it > 0 } ?: reportedDrawFrequency,
+                    durationSeconds = computedDuration,
+                    lead = lead,
+                    ecgType = ecgType.takeIf { it >= 0 },
+                    samplesMv = samples.copyOf(MAX_ECG_SAMPLES.coerceAtMost(samples.size)),
                     averageHeartRate = validAverageHeartRate,
+                    contactStatus = contactStatus,
+                    calibrationType = HBAND_MV_CALIBRATION.takeIf { isCalibrated },
                 ),
+            )
+            mutableLiveEcg.value = mutableLiveEcg.value.copy(
+                phase = RingEcgMeasurementPhase.COMPLETE,
+                sampleRateHz = validFrequency,
+                drawFrequencyHz = drawFrequency?.takeIf { it > 0 } ?: reportedDrawFrequency,
+                lead = lead,
+                samplesMv = samples.takeLast(MAX_LIVE_ECG_SAMPLES).toFloatArray(),
+                averageHeartRate = validAverageHeartRate,
+                progress = MEASUREMENT_COMPLETE_PROGRESS,
+                contactStatus = contactStatus,
+                isCalibrated = isCalibrated,
+                message = "ECG 测量完成，波形已保存到本机",
             )
         }
 
         val listener = object : IECGDetectListener {
             override fun onEcgDetectInfoChange(data: EcgDetectInfo?) {
                 reportedFrequency = data?.frequency?.takeIf { it > 0 }
+                reportedDrawFrequency = data?.drawFrequency?.takeIf { it > 0 }
+                mutableLiveEcg.value = mutableLiveEcg.value.copy(
+                    phase = RingEcgMeasurementPhase.MEASURING,
+                    sampleRateHz = reportedFrequency,
+                    drawFrequencyHz = reportedDrawFrequency,
+                )
             }
 
             override fun onEcgDetectStateChange(data: EcgDetectState?) {
                 if (data == null) return
+                contactStatus = when (data.wear) {
+                    ECG_WEAR_PASSED -> RingEcgContactStatus.GOOD
+                    ECG_WEAR_FAILED -> RingEcgContactStatus.POOR
+                    else -> contactStatus
+                }
+                mutableLiveEcg.value = mutableLiveEcg.value.copy(
+                    phase = RingEcgMeasurementPhase.MEASURING,
+                    currentHeartRate = data.hr1.takeIf { it > 0 },
+                    averageHeartRate = data.hr2.takeIf { it > 0 },
+                    progress = data.progress.coerceIn(0, MEASUREMENT_COMPLETE_PROGRESS),
+                    contactStatus = contactStatus,
+                    message = if (contactStatus == RingEcgContactStatus.POOR) {
+                        "电极接触不良，请保持佩戴稳定并按设备提示触摸电极"
+                    } else {
+                        "正在采集单导联 ECG"
+                    },
+                )
                 when {
                     data.dataType == ECG_NORMAL_END_DATA_TYPE || data.deviceState == EDeviceStatus.FINISH -> {
                         completeCapture(
                             measurementStartedAt,
                             reportedFrequency,
+                            reportedDrawFrequency,
+                            null,
+                            RingEcgLead.UNKNOWN,
                             data.hr2,
+                            null,
                             null,
                             null,
                         )
                     }
                     data.dataType == ECG_FAILURE_DATA_TYPE || data.deviceState in ECG_TERMINAL_FAILURE_STATES -> {
+                        mutableLiveEcg.value = mutableLiveEcg.value.copy(
+                            phase = RingEcgMeasurementPhase.FAILED,
+                            contactStatus = contactStatus,
+                            message = if (contactStatus == RingEcgContactStatus.POOR) {
+                                "电极接触不良，ECG 测量已停止"
+                            } else {
+                                "ECG 测量未完成，请确认设备空闲且佩戴稳定"
+                            },
+                        )
                         result.complete(null)
                     }
                 }
@@ -672,8 +767,12 @@ internal class RealHBandSdkGateway(
                 completeCapture(
                     data.timeBean?.toEpochMillis(),
                     data.frequency,
+                    data.drawfrequency,
+                    data.duration,
+                    RingEcgLead.UNKNOWN,
                     data.aveHeart,
                     data.filterSignals,
+                    data.powers,
                     data.originSign,
                 )
             }
@@ -683,19 +782,30 @@ internal class RealHBandSdkGateway(
                 completeCapture(
                     data.timeBean?.toEpochMillis(),
                     data.frequency,
+                    data.drawfrequency,
+                    data.duration,
+                    data.leadOffType.toRingEcgLead(),
                     data.heartRate,
                     data.filterSignals,
+                    data.powers,
                     null,
                 )
             }
 
-            override fun onEcgADCChange(origin: IntArray?, filtered: IntArray?) {
-                appendSamples(filtered?.takeIf { it.isNotEmpty() } ?: origin)
+            override fun onEcgADCChange(data: IntArray?, powers: IntArray?) {
+                appendSamples(data, powers)
             }
         }
 
-        withContext(Dispatchers.Main.immediate) { manager.startDetectECG(sdkWriteResponse, true, listener) }
+        mutableLiveEcg.value = RingEcgLiveState(
+            phase = RingEcgMeasurementPhase.PREPARING,
+            startedAt = measurementStartedAt,
+            message = "请保持设备佩戴稳定并按设备提示触摸电极",
+        )
+        var started = false
         return try {
+            withContext(Dispatchers.Main.immediate) { manager.startDetectECG(sdkWriteResponse, true, listener) }
+            started = true
             val capture = result.await() ?: return HBandPayload()
             val summary = capture.averageHeartRate?.let {
                 HBandMetricSample(RingMetricType.ECG, capture.measuredAt, it.toDouble(), "bpm")
@@ -704,8 +814,18 @@ internal class RealHBandSdkGateway(
                 measurements = summary?.let(::listOf).orEmpty(),
                 ecgRecords = listOf(capture),
             )
+        } catch (error: Throwable) {
+            mutableLiveEcg.value = mutableLiveEcg.value.copy(
+                phase = RingEcgMeasurementPhase.FAILED,
+                message = "ECG 测量启动失败，请重新连接设备后重试",
+            )
+            throw error
         } finally {
-            withContext(Dispatchers.Main.immediate) { manager.stopDetectECG(sdkWriteResponse, true, listener) }
+            if (started) {
+                withContext(Dispatchers.Main.immediate) {
+                    manager.stopDetectECG(sdkWriteResponse, true, listener)
+                }
+            }
         }
     }
 
@@ -1073,30 +1193,88 @@ internal class RealHBandSdkGateway(
 
     private fun EcgDetectResult.toDomainEcgRecord(): HBandEcgRecord? {
         if (!isSuccess) return null
-        val samples = filterSignals?.takeIf { it.isNotEmpty() }
+        val rawSamples = filterSignals?.takeIf { it.isNotEmpty() }
             ?: originSign?.takeIf { it.isNotEmpty() }
             ?: IntArray(0)
+        val ecgType = currentEcgType()
+        val converted = convertEcgSamples(rawSamples, powers, ecgType)
         val averageHeartRate = aveHeart.takeIf { it > 0 }
-        if (samples.isEmpty() && averageHeartRate == null) return null
+        if (converted.samples.isEmpty() && averageHeartRate == null) return null
         return HBandEcgRecord(
             measuredAt = timeBean?.toEpochMillis() ?: return null,
             sampleRateHz = frequency.takeIf { it > 0 },
-            samples = samples.copyOf(minOf(samples.size, MAX_ECG_SAMPLES)),
+            drawFrequencyHz = drawfrequency.takeIf { it > 0 },
+            durationSeconds = duration.takeIf { it > 0 },
+            lead = RingEcgLead.UNKNOWN,
+            ecgType = ecgType.takeIf { it >= 0 },
+            samplesMv = converted.samples.copyOf(minOf(converted.samples.size, MAX_ECG_SAMPLES)),
             averageHeartRate = averageHeartRate,
+            contactStatus = RingEcgContactStatus.UNKNOWN,
+            calibrationType = HBAND_MV_CALIBRATION.takeIf { converted.isCalibrated },
         )
     }
 
     private fun EcgDiagnosis.toDomainEcgRecord(): HBandEcgRecord? {
         if (!isSuccess) return null
-        val samples = filterSignals?.takeIf { it.isNotEmpty() } ?: IntArray(0)
+        val ecgType = currentEcgType()
+        val converted = convertEcgSamples(filterSignals, powers, ecgType)
         val averageHeartRate = heartRate.takeIf { it > 0 }
-        if (samples.isEmpty() && averageHeartRate == null) return null
+        if (converted.samples.isEmpty() && averageHeartRate == null) return null
         return HBandEcgRecord(
             measuredAt = timeBean?.toEpochMillis() ?: return null,
             sampleRateHz = frequency.takeIf { it > 0 },
-            samples = samples.copyOf(minOf(samples.size, MAX_ECG_SAMPLES)),
+            drawFrequencyHz = drawfrequency.takeIf { it > 0 },
+            durationSeconds = duration.takeIf { it > 0 },
+            lead = leadOffType.toRingEcgLead(),
+            ecgType = ecgType.takeIf { it >= 0 },
+            samplesMv = converted.samples.copyOf(minOf(converted.samples.size, MAX_ECG_SAMPLES)),
             averageHeartRate = averageHeartRate,
+            contactStatus = RingEcgContactStatus.UNKNOWN,
+            calibrationType = HBAND_MV_CALIBRATION.takeIf { converted.isCalibrated },
         )
+    }
+
+    private fun currentEcgType(): Int = runCatching {
+        VpSpGetUtil.getVpSpVariInstance(appContext).ecgType
+    }.getOrDefault(UNKNOWN_ECG_TYPE)
+
+    private fun Int.toRingEcgLead(): RingEcgLead = when (this) {
+        ECG_LEAD_I -> RingEcgLead.LEAD_I
+        ECG_LEAD_V1 -> RingEcgLead.LEAD_V1
+        else -> RingEcgLead.UNKNOWN
+    }
+
+    private fun convertEcgSamples(values: IntArray?, powers: IntArray?, ecgType: Int): ConvertedEcgSamples {
+        val source = values?.takeIf { it.isNotEmpty() } ?: return ConvertedEcgSamples()
+        val raw = ArrayList<Int>(source.size)
+        val converted = ArrayList<Float>(source.size)
+        var conversionFailed = ecgType < 0
+        source.forEachIndexed { index, value ->
+            if (value == Int.MAX_VALUE) return@forEachIndexed
+            raw += value
+            if (!conversionFailed) {
+                val gain = powers?.getOrNull(index)?.takeIf { it > 0 } ?: DEFAULT_ECG_GAIN
+                val millivolts = runCatching {
+                    EcgUtil.convertToMvWithValue(value, ecgType, false, gain)
+                }.getOrNull()
+                if (millivolts == null || !millivolts.isFinite()) {
+                    conversionFailed = true
+                } else {
+                    converted += millivolts
+                }
+            }
+        }
+        if (raw.isEmpty()) return ConvertedEcgSamples()
+        val rawHasSignal = raw.any { it != 0 }
+        val conversionHasSignal = converted.any { kotlin.math.abs(it) > MIN_CALIBRATED_ECG_MAGNITUDE }
+        if (!conversionFailed && converted.size == raw.size && (!rawHasSignal || conversionHasSignal)) {
+            return ConvertedEcgSamples(converted.toFloatArray(), true)
+        }
+        val min = raw.minOrNull()?.toFloat() ?: 0f
+        val max = raw.maxOrNull()?.toFloat() ?: 0f
+        val center = (min + max) / 2f
+        val scale = ((max - min) / 2f).takeIf { it > 0f } ?: 1f
+        return ConvertedEcgSamples(FloatArray(raw.size) { index -> (raw[index] - center) / scale }, false)
     }
 
     private fun ecgHistoryPayload(records: List<HBandEcgRecord>): HBandPayload = HBandPayload(
@@ -1395,6 +1573,10 @@ internal class RealHBandSdkGateway(
 
     private data class PwdSnapshot(val success: Boolean, val deviceNumber: Int?, val firmwareVersion: String?)
     private data class BloodComponentUnits(val uricAcid: String = "", val bloodFat: String = "")
+    private data class ConvertedEcgSamples(
+        val samples: FloatArray = FloatArray(0),
+        val isCalibrated: Boolean = false,
+    )
 
     private companion object {
         const val DEFAULT_DEVICE_PASSWORD = "0000" // Official SDK demo default; physical-device QA is still required.
@@ -1412,6 +1594,15 @@ internal class RealHBandSdkGateway(
         const val MILLIS_PER_SECOND = 1_000L
         const val METRES_PER_KILOMETRE = 1_000.0
         const val MAX_ECG_SAMPLES = 120_000
+        const val MAX_LIVE_ECG_SAMPLES = 2_500
+        const val DEFAULT_ECG_GAIN = 20
+        const val UNKNOWN_ECG_TYPE = -1
+        const val ECG_LEAD_I = 0
+        const val ECG_LEAD_V1 = 1
+        const val ECG_WEAR_PASSED = 0
+        const val ECG_WEAR_FAILED = 1
+        const val MIN_CALIBRATED_ECG_MAGNITUDE = 0.000_001f
+        const val HBAND_MV_CALIBRATION = "HBAND_ECG_UTIL_MV_V1"
         const val MIN_VALID_SPO2 = 1
         const val MAX_VALID_SPO2 = 100
         const val MIN_BODY_TEMPERATURE_C = 25f

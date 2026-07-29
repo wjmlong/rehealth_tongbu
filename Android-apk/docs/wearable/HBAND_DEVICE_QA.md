@@ -52,7 +52,8 @@ only `RH-HB-E01`/`HBAND`; it must not scan or connect MRD/RWFit concurrently.
    then `CONNECTED`/READY. MT116 should no longer be rejected from an early,
    partially initialized aggregate callback when package 2 reports ECG support.
    Confirm logcat contains no `NoClassDefFoundError` for `WatchOpImpl`,
-   `McuMgrBleTransport`, or Nordic scanner classes, and that a full APK install,
+   `McuMgrBleTransport`, or Nordic scanner classes and no `UnsatisfiedLinkError`
+   for `libnative-lib.so`, and that a full APK install,
    rather than Apply Changes, was used after SDK dependency changes.
 6. Test wrong password/confirmation timeout and verify the app reports an error,
    writes no telemetry, and can recover after disconnect/retry.
@@ -82,12 +83,22 @@ For `RH-HB-E01`, validate only device-advertised capabilities:
   diagnostic claims;
 - manual ECG only when package 2 `getEcgFunction()` (or the legacy fallback
   `getEcg()` when package 2 is absent) reports support; verify contact/wear guidance, start/
-  stop/cancel behavior, SDK sample rate, local waveform persistence, and the
+  stop/cancel behavior, SDK sample/draw frequency, local waveform persistence, and the
   average-heart-rate summary for both normal completion and abnormal-result callbacks.
+  Open the single-lead detail page before measurement, confirm ADC callbacks update the
+  live chart and progress, and verify every valid ADC point is paired with the callback's
+  corresponding gain before `EcgUtil.convertToMvWithValue(..., ecgType, false, gain)`.
+  After completion, inspect the Room v5 row: new HBand records use `FLOAT32_LE`, identify
+  `HBAND_ECG_UTIL_MV_V1`, retain duration/ECG type/contact quality, and label I or V1 only
+  when `EcgDiagnosis.leadOffType` explicitly supplies it. A normal result without that field
+  must remain “导联待设备确认”. Upgrade from v4 and confirm old `INT32_LE` rows remain visible
+  as relative amplitude rather than being deleted or mislabeled mV. Confirm the latest ten
+  local records can be selected and replayed without UI stalls.
   A summary may exist without a curve when the device returns only average heart rate.
   Confirm raw ECG waveform bytes never enter a
-  telemetry upload payload or production log, and do not expose SDK diagnosis
-  output as medical advice.
+  telemetry upload payload or production log. The page must say this is portable single-lead
+  ECG rather than a clinical 12-lead examination, must not list SDK disease-risk output as a
+  diagnosis, and must show “仅供健康参考，不能替代医疗诊断”.
 - blood components only when `getBloodComponent()` is true; verify uric acid,
   TCHO, TAG, HDL, and LDL are five distinct Room records and that displayed units
   match the current device `CustomSettingData` units;

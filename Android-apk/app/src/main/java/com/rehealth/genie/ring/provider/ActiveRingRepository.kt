@@ -9,6 +9,8 @@ import com.rehealth.genie.ring.RingFeatureRepository
 import com.rehealth.genie.ring.RingFeatureType
 import com.rehealth.genie.ring.RingRepository
 import com.rehealth.genie.ring.RingSyncResult
+import com.rehealth.genie.ring.RingEcgLiveState
+import com.rehealth.genie.ring.RingEcgRepository
 import com.rehealth.genie.ring.WearableUserProfileSink
 import com.rehealth.genie.features.BaselineHealthProfile
 import kotlinx.coroutines.CoroutineScope
@@ -28,7 +30,7 @@ class ActiveRingRepository(
     private val registry: RingProviderRegistry,
     initialUserProfile: BaselineHealthProfile? = null,
     private val persistUserProfile: ((BaselineHealthProfile?) -> Unit)? = null,
-) : RingRepository, WearableUserProfileSink, RingFeatureRepository {
+) : RingRepository, WearableUserProfileSink, RingFeatureRepository, RingEcgRepository {
     private val operationMutex = Mutex()
     override var wearableUserProfile: BaselineHealthProfile? = initialUserProfile
         set(value) {
@@ -51,6 +53,16 @@ class ActiveRingRepository(
             scope = appScope,
             started = SharingStarted.Eagerly,
             initialValue = provider().connectedDevice.value,
+        )
+
+    override val liveEcg: StateFlow<RingEcgLiveState> = store.activeBinding
+        .flatMapLatest { binding ->
+            (provider(binding.vendor) as? RingEcgRepository)?.liveEcg ?: unsupportedLiveEcg
+        }
+        .stateIn(
+            scope = appScope,
+            started = SharingStarted.Eagerly,
+            initialValue = (provider() as? RingEcgRepository)?.liveEcg?.value ?: RingEcgLiveState(),
         )
 
     override val supportedMetrics: Set<RingMetricType>
@@ -102,6 +114,8 @@ class ActiveRingRepository(
         return resolved
     }
 }
+
+private val unsupportedLiveEcg = MutableStateFlow(RingEcgLiveState())
 
 private object UnsupportedRingRepository : RingRepository {
     private val unsupportedState = MutableStateFlow(RingConnectionState.UNSUPPORTED)

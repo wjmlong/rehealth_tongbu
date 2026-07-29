@@ -2,6 +2,8 @@ package com.rehealth.genie.ring.hband
 
 import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.SignalEncoding
+import com.rehealth.genie.ring.RingEcgContactStatus
+import com.rehealth.genie.ring.RingEcgLead
 import java.time.ZoneId
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -30,7 +32,20 @@ class HBandDataMapperTest {
         val batch = HBandDataMapper.toEntities(
             HBandPayload(
                 measurements = listOf(HBandMetricSample(RingMetricType.ECG, measuredAt, 72.0, "bpm")),
-                ecgRecords = listOf(HBandEcgRecord(measuredAt, 250, IntArray(0), 72)),
+                ecgRecords = listOf(
+                    HBandEcgRecord(
+                        measuredAt = measuredAt,
+                        sampleRateHz = 250,
+                        drawFrequencyHz = 250,
+                        durationSeconds = 0,
+                        lead = RingEcgLead.UNKNOWN,
+                        ecgType = 1,
+                        samplesMv = FloatArray(0),
+                        averageHeartRate = 72,
+                        contactStatus = RingEcgContactStatus.UNKNOWN,
+                        calibrationType = null,
+                    ),
+                ),
             ),
             "device",
         )
@@ -50,7 +65,20 @@ class HBandDataMapperTest {
             ),
             sleep = listOf(HBandSleepRecord(1_700_000_000_000L, 1_700_020_000_000L, 100, 180, 20)),
             activities = listOf(HBandActivityRecord(1_700_000_000_000L, 1_700_010_000_000L, 1234, 800.0, 40.0)),
-            ecgRecords = listOf(HBandEcgRecord(1_700_000_000_200L, 250, intArrayOf(10, -20, 30), 70)),
+            ecgRecords = listOf(
+                HBandEcgRecord(
+                    measuredAt = 1_700_000_000_200L,
+                    sampleRateHz = 250,
+                    drawFrequencyHz = 125,
+                    durationSeconds = 3,
+                    lead = RingEcgLead.LEAD_I,
+                    ecgType = 1,
+                    samplesMv = floatArrayOf(0.1f, -0.2f, 0.3f),
+                    averageHeartRate = 70,
+                    contactStatus = RingEcgContactStatus.GOOD,
+                    calibrationType = "HBAND_ECG_UTIL_MV_V1",
+                ),
+            ),
         )
         val first = HBandDataMapper.toEntities(payload, "AA:BB")
         val second = HBandDataMapper.toEntities(payload, "aa:bb")
@@ -62,7 +90,13 @@ class HBandDataMapperTest {
         assertEquals("hband_wearable", first.activities.single().source)
         assertTrue(first.measurements.all { it.rawPayload == null })
         assertEquals(250, first.signalChunks.single().sampleRateHz)
-        assertEquals(intArrayOf(10, -20, 30).toList(), SignalEncoding.decodeInt32LittleEndian(first.signalChunks.single().payload).toList())
+        assertEquals("FLOAT32_LE", first.signalChunks.single().encoding)
+        assertEquals(floatArrayOf(0.1f, -0.2f, 0.3f).toList(), SignalEncoding.decodeFloat32LittleEndian(first.signalChunks.single().payload).toList())
+        assertEquals(125, first.signalChunks.single().drawFrequencyHz)
+        assertEquals(3, first.signalChunks.single().durationSeconds)
+        assertEquals(RingEcgLead.LEAD_I.name, first.signalChunks.single().leadType)
+        assertEquals("HBAND_ECG_UTIL_MV_V1", first.signalChunks.single().calibrationType)
+        assertEquals(70, first.signalChunks.single().averageHeartRate)
         assertTrue(setOf(RingMetricType.HEART_RATE, RingMetricType.BLOOD_PRESSURE, RingMetricType.ECG, RingMetricType.SLEEP, RingMetricType.STEPS, RingMetricType.ACTIVITY)
             .all { it in HBandDataMapper.collectedTypes(first) })
     }

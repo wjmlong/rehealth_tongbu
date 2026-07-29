@@ -45,12 +45,15 @@ app/libs/vpprotocol-2.3.73.15.aar
 app/libs/jl_bt_ota_V1.10.0_10931-release.aar
 app/libs/jl_rcsp_V0.7.2_527-release.aar
 app/libs/JL_Watch_V1.13.1_11214-release.aar
+app/src/main/jniLibs/{arm64-v8a,armeabi-v7a,x86,x86_64}/libnative-lib.so
 ```
 
 三个 JieLi AAR 仅满足 HBand 核心 SDK 的连接/认证及管理器初始化依赖；应用不提供 OTA、
 表盘或消息控制入口。
 HBand SDK 还会在 BLE 连接回调中初始化 Nordic OTA 适配器，因此固定引入官方要求的
 `mcumgr-core:2.7.4`、`mcumgr-ble:2.7.4` 和 `scanner:1.4.2`；应用仍不提供 OTA 入口。
+HBand ECG 算法还会通过 JNI 加载 `libnative-lib.so`；四个 ABI 的文件均来自与
+`vpprotocol-2.3.73.15.aar` 相同的官方固定提交，不能与其他 SDK 版本混用。
 
 ## 核心数据流
 
@@ -170,7 +173,13 @@ SDK 能力报告取交集。新版 `DeviceFunctionPackage1..5` 对相应字段�
 并用实时计步补齐当天结果；同时读取设备声明支持的手动测量、ECG 和身体成分历史。ECG 测量同时处理
 正常结束状态和异常诊断结果，即使设备不返回曲线但返回平均心率也会保存摘要。血糖保留设备单位，
 压力保存为 `0..100 score`，代谢当量保存为 `MET`。ECG 波形只写入本地 Room，
-不会进入遥测上传批次；血压与 ECG 结果仅用于健康记录，不作诊断解释。
+不会进入遥测上传批次；实时回调的 ADC 采样按对应增益通过官方 `EcgUtil` 换算为 mV，
+Room v5 同时保存采样率、绘制频率、时长、导联、ECG 类型、校准方式、平均心率和接触质量。
+旧版 `INT32_LE` 记录通过 v4→v5 非破坏迁移保留，在详情页只按相对幅值展示；新记录使用
+`FLOAT32_LE` 保存校准后的 mV。数据页可进入单导联 ECG 详情查看实时和最近 10 条本机历史波形；
+导联仅在 SDK 明确返回 `leadOffType` 时标记为 I 或 V1，否则显示待设备确认。
+血压与 ECG 结果仅用于健康记录，SDK 疾病风险不作为诊断展示，页面固定提示
+“仅供健康参考，不能替代医疗诊断”。
 HBand 体温在当前采购设备上验证不通过，已从 `RH-HB-E01` 商品能力和数据页移除。
 若 HBand 只返回总睡眠时长而没有深睡/浅睡拆分，应用会保存阶段未知的睡眠会话并展示总时长，
 不会把未知时长伪造为深睡、浅睡或 REM。
@@ -184,7 +193,7 @@ app/build/outputs/apk/debug/app-debug.apk
 ## 当前限制
 
 - 已有 MRD/RWFit/HBand 单一有效设备路由；RWFit 真机型号/固件、HRV 单位、数据准确性
-  和后台稳定性仍待验证；HBand 已开始真机联调，连接所需的 JieLi/Nordic 运行时依赖已补齐，
+  和后台稳定性仍待验证；HBand 已开始真机联调，连接及 ECG 所需的 JieLi/Nordic/JNI 运行时依赖已补齐，
   已实现能力门控的心率、步数/活动、睡眠、血氧、HRV、血压、血糖、压力、MET、ECG、血液/身体成分、
   血糖校准和经期设置，仍需使用完整重装 APK
   验证采购设备实际能力、测量准确性、扫描、认证、画像同步、历史读取与后台稳定性；

@@ -56,6 +56,8 @@ data class RingUiState(
     val sleep: RingSleepSessionEntity? = null,
     val activity: RingActivityEntity? = null,
     val signals: Map<RingMetricType, RingSignalChunkEntity> = emptyMap(),
+    val ecgHistory: List<RingSignalChunkEntity> = emptyList(),
+    val liveEcg: RingEcgLiveState = RingEcgLiveState(),
     val supportedMetrics: Set<RingMetricType> = emptySet(),
     val supportedFeatures: Set<RingFeatureType> = emptySet(),
     val wearableProducts: List<WearableProductOption> = emptyList(),
@@ -160,6 +162,18 @@ class RingViewModel(
                                 ?.let { it to record }
                         }.toMap(),
                     )
+                }
+            }
+        }
+        viewModelScope.launch {
+            dao.observeSignalChunks(RingMetricType.ECG.name, ECG_HISTORY_LIMIT).collect { records ->
+                mutableUiState.update { it.copy(ecgHistory = records) }
+            }
+        }
+        (repository as? RingEcgRepository)?.let { ecgRepository ->
+            viewModelScope.launch {
+                ecgRepository.liveEcg.collect { live ->
+                    mutableUiState.update { it.copy(liveEcg = live) }
                 }
             }
         }
@@ -618,6 +632,7 @@ private data class CloudUploadUiStatus(
 
 private const val TAG = "RingViewModel"
 private const val AUTO_COLLECTION_INTERVAL_MS = 15 * 60 * 1000L
+private const val ECG_HISTORY_LIMIT = 10
 private const val DAY_MS = 24L * 60 * 60 * 1000
 
 private fun periodStartMillis(windowDays: Int): Long {
