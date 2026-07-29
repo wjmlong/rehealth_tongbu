@@ -12,9 +12,13 @@ val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) f.inputStream().use { load(it) }
 }
-fun reHealthApiBaseUrl(): String =
-    (localProps.getProperty("rehealth.api.base.url") ?: System.getenv("REHEALTH_API_BASE_URL")
-        ?: "http://10.0.2.2:8080/jeecg-boot/").trim().trimEnd('/') + "/"
+fun reHealthApiBaseUrl(): String {
+    val configured = localProps.getProperty("rehealth.api.base.url")
+        ?: System.getenv("REHEALTH_API_BASE_URL")
+        ?: providers.gradleProperty("rehealth.api.base.url").orNull
+        ?: "http://10.0.2.2:8080/jeecg-boot/"
+    return configured.trim().trimEnd('/') + "/"
+}
 fun reHealthReleaseApiBaseUrl(): String {
     val configured = localProps.getProperty("rehealth.release.api.base.url")
         ?: System.getenv("REHEALTH_RELEASE_API_BASE_URL")

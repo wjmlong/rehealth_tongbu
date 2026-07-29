@@ -28,7 +28,13 @@ are not logged, and do not change backend DTOs or PIAS.
 This local routing change does not change endpoint paths, authentication, DTOs,
 durable acknowledgement, or backend PIAS behavior.
 
-Debug emulator base URL:
+Debug default base URL (committed `gradle.properties` for internal testing):
+
+```text
+https://rehealth.youngjimmy.store/jeecg-boot/
+```
+
+Local emulator dev (no tunnel) override:
 
 ```text
 http://10.0.2.2:8080/jeecg-boot/

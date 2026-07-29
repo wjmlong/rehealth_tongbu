@@ -25,10 +25,11 @@ model-service risk evaluation.
 
 - `POST /rehealth/mobile/features/evaluate`: canonical risk evaluation path.
 
-The Retrofit base URL is configured by `REHEALTH_API_BASE_URL`, defaulting in debug to:
+The Retrofit base URL is configured by `REHEALTH_API_BASE_URL`, defaulting in debug to
+(the committed `gradle.properties` value for internal testing):
 
 ```text
-http://10.0.2.2:8080/jeecg-boot
+https://rehealth.youngjimmy.store/jeecg-boot
 ```
 
 ## Endpoints Explicitly Not Used In P0b

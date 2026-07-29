@@ -77,16 +77,16 @@ CVD 评估通过独立的 feature-evaluate 路径完成。
 
 ## 配置
 
-Debug 默认后端：
+Debug 默认后端（已提交到 `gradle.properties`，内测环境）：
 
 ```text
-http://10.0.2.2:8080/jeecg-boot/
+https://rehealth.youngjimmy.store/jeecg-boot/
 ```
 
-可在未跟踪的 `local.properties` 中配置：
+可在未跟踪的 `local.properties` 中覆盖（优先级高于 `gradle.properties` 与环境变量）：
 
 ```properties
-rehealth.api.base.url=http://10.0.2.2:8080/jeecg-boot/
+rehealth.api.base.url=https://rehealth.youngjimmy.store/jeecg-boot/
 rehealth.release.api.base.url=https://api.example.com/jeecg-boot/
 ```
 
