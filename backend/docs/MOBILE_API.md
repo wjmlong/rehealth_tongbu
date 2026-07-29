@@ -49,7 +49,7 @@ Only `GET /rehealth/mobile/health` is marked `@IgnoreAuth`. All production-style
 | --- | --- | --- |
 | `GET` | `/rehealth/mobile/config` | Returns API version, endpoint list, model contract, and E1 limitations. |
 | `GET` | `/rehealth/mobile/profile` | Reads the current authenticated user's persisted health profile. |
-| `PUT` | `/rehealth/mobile/profile` | Upserts the current authenticated user's health profile; returns retryable `503` envelope when software_db is disabled. |
+| `PUT` | `/rehealth/mobile/profile` | Upserts typed profile fields, calculates BMI server-side, and returns `version`; stale versions return `409`, while disabled software_db returns retryable `503`. |
 | `POST` | `/rehealth/mobile/interviews` | Persists typed answers and baseline summary under the current authenticated user. |
 | `GET` | `/rehealth/mobile/interviews/latest` | Reads the current authenticated user's latest persisted interview. |
 | `POST` | `/rehealth/mobile/devices/bind` | Persists the current authenticated user's binding when software_db is enabled. |
@@ -130,6 +130,11 @@ rehealth:
 ```
 
 Profiles, interviews, device bindings, feature/risk results, interventions, feedback, and attribution results are scoped using the authenticated `LoginUser.id`. Android stores a completed interview locally first, enqueues the typed payload, and retries it through WorkManager; a disabled software_db never produces a false durable success.
+
+`PatientProfileDto.version` is an optimistic-lock token. Clients should GET the profile, preserve the returned
+version while editing, and send it with PUT. The server ignores request `patientId`, derives ownership from the
+authenticated principal, validates ranges, and derives BMI from height and weight. Operational profile and
+interview fields are stored in typed columns/child rows; model evidence snapshots remain JSON by design.
 
 All software-db-backed reads and writes return a failed Jeecg envelope with
 `code=503` when persistence is disabled. Risk, intervention, and attribution

@@ -18,12 +18,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
+import org.springframework.dao.OptimisticLockingFailureException;
 
 import java.util.UUID;
 import java.util.List;
 import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JdbcSoftwareDbReHealthBusinessRepositoryTest {
@@ -158,9 +160,19 @@ class JdbcSoftwareDbReHealthBusinessRepositoryTest {
     void profileUpsertAndLatestInterviewAreIsolatedByAuthenticatedUser() {
         PatientProfileDto firstProfile = new PatientProfileDto();
         firstProfile.name = "first";
+        firstProfile.heightCm = 170.0;
+        firstProfile.weightKg = 68.0;
+        firstProfile.diagnoses = List.of("hypertension");
+        firstProfile.medications = List.of("medication-a");
+        firstProfile.allergies = List.of("penicillin");
         repository.savePatientProfile("user-a", firstProfile);
         PatientProfileDto updatedProfile = new PatientProfileDto();
         updatedProfile.name = "updated";
+        updatedProfile.heightCm = 170.0;
+        updatedProfile.weightKg = 68.0;
+        updatedProfile.diagnoses = firstProfile.diagnoses;
+        updatedProfile.medications = firstProfile.medications;
+        updatedProfile.allergies = firstProfile.allergies;
         repository.savePatientProfile("user-a", updatedProfile);
 
         HealthInterviewSubmitRequestDto interview = new HealthInterviewSubmitRequestDto();
@@ -169,15 +181,75 @@ class JdbcSoftwareDbReHealthBusinessRepositoryTest {
         answer.topic = "PROFILE";
         answer.content = "32 岁";
         interview.answers = List.of(answer);
+        interview.focusAreas = List.of("sleep");
         interview.generatedAt = 1_726_000_000_000L;
         repository.saveHealthInterview("user-a", interview);
 
         assertEquals(1, count("rehealth_patient_profile"));
-        assertEquals("updated", repository.findPatientProfile("user-a").orElseThrow().name);
+        PatientProfileDto restored = repository.findPatientProfile("user-a").orElseThrow();
+        assertEquals("updated", restored.name);
+        assertEquals(23.53, restored.bmi);
+        assertEquals(2L, restored.version);
+        assertEquals(List.of("hypertension"), restored.diagnoses);
+        assertEquals(List.of("medication-a"), restored.medications);
+        assertEquals(List.of("penicillin"), restored.allergies);
+        assertEquals(0, jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_NAME = 'REHEALTH_PATIENT_PROFILE' AND COLUMN_NAME = 'PROFILE_JSON'
+                """, Integer.class));
         assertTrue(repository.findPatientProfile("user-b").isEmpty());
         assertEquals(1_726_000_000_000L,
                 repository.findLatestHealthInterview("user-a").orElseThrow().generatedAt);
+        assertEquals(List.of("sleep"),
+                repository.findLatestHealthInterview("user-a").orElseThrow().focusAreas);
         assertTrue(repository.findLatestHealthInterview("user-b").isEmpty());
+    }
+
+    @Test
+    void rejectsStaleProfileUpdates() {
+        PatientProfileDto initial = new PatientProfileDto();
+        initial.name = "initial";
+        repository.savePatientProfile("user-a", initial);
+
+        PatientProfileDto current = repository.findPatientProfile("user-a").orElseThrow();
+        PatientProfileDto stale = repository.findPatientProfile("user-a").orElseThrow();
+        current.name = "current";
+        repository.savePatientProfile("user-a", current);
+        stale.name = "stale";
+
+        assertThrows(
+                OptimisticLockingFailureException.class,
+                () -> repository.savePatientProfile("user-a", stale)
+        );
+        assertEquals("current", repository.findPatientProfile("user-a").orElseThrow().name);
+    }
+
+    @Test
+    void structuredRiskAndInterventionRemainReadableWhenSnapshotsAreMalformed() {
+        saveRisk("user-a", "request-a", 0.42);
+        jdbcTemplate.update(
+                "UPDATE rehealth_cvd_risk_result SET response_json = 'invalid' WHERE user_id = ?",
+                "user-a"
+        );
+        assertEquals(0.42, repository.findLatestRiskResult("user-a").orElseThrow().riskScore);
+
+        InterventionGenerateResponseDto plan = new InterventionGenerateResponseDto();
+        plan.planId = "plan-structured";
+        plan.modelVersion = "model-v1";
+        plan.priorityIntervention = "walk";
+        plan.expectedImpact = "lower risk";
+        plan.contraindications = List.of("stop if unwell");
+        repository.saveInterventionPlan("user-a", plan);
+        jdbcTemplate.update(
+                "UPDATE rehealth_intervention_plan SET response_json = 'invalid' WHERE user_id = ?",
+                "user-a"
+        );
+
+        InterventionGenerateResponseDto restoredPlan =
+                repository.findLatestInterventionPlan("user-a").orElseThrow();
+        assertEquals("walk", restoredPlan.priorityIntervention);
+        assertEquals("lower risk", restoredPlan.expectedImpact);
+        assertEquals(List.of("stop if unwell"), restoredPlan.contraindications);
     }
 
     @Test
@@ -257,6 +329,16 @@ class JdbcSoftwareDbReHealthBusinessRepositoryTest {
         assertTrue(responseJson.contains("\"attribution_mode\":\"pias\""));
         assertTrue(responseJson.contains("\"is_mock\":false"));
         assertTrue(responseJson.contains("\"provider\":\"pias\""));
+        assertEquals("pias", jdbcTemplate.queryForObject(
+                "SELECT attribution_mode FROM rehealth_attribution_result WHERE user_id = ?",
+                String.class,
+                "user-a"
+        ));
+        assertEquals(false, jdbcTemplate.queryForObject(
+                "SELECT is_mock FROM rehealth_attribution_result WHERE user_id = ?",
+                Boolean.class,
+                "user-a"
+        ));
         assertTrue(repository.findAttributionHistory("missing-user").isEmpty());
     }
 

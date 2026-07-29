@@ -19,7 +19,7 @@
 | --- | --- |
 | Android | 单一有效设备 Provider 路由（Release 注册 MRD/RWFit/HBand）、真实 SDK/BLE、Room、本地优先、Foreground Service、WorkManager、CVD 16 特征、认证感知上传队列、风险/干预/反馈 UI；HBand 心率、步数/活动、睡眠、血氧、HRV、血压、血糖、压力、MET、ECG、血液/身体成分以及血糖校准、经期设置按设备能力接入；体温因真机验证不通过已从 HBand 商品能力和数据页移除，其他指标仍待真机验收 |
 | Device Service | 遥测校验、TimescaleDB 持久化、幂等批次、Transactional Outbox、Kafka 发布 |
-| JeecgBoot | 登录与权限、用户/设备绑定、业务数据、风险/干预/反馈编排、software_db |
+| JeecgBoot | 登录与权限、用户/设备绑定、结构化档案/访谈/干预业务数据、风险/干预/反馈编排、software_db；模型证据继续保留版本化 JSON 快照 |
 | model-service | CVD 风险评分、模型制品校验、干预生成、健康助手安全边界 |
 | PIAS | 独立服务提供个体归因；Android 不执行生产归因 |
 | 部署 | Gateway、MySQL、TimescaleDB、Kafka、Redis、Nacos、Prometheus、Grafana 的 Compose 拓扑 |

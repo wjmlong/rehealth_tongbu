@@ -28,11 +28,11 @@ Planned tables:
 | Table | Purpose | E1 status |
 | --- | --- | --- |
 | `rehealth_device_binding` | User-to-device binding. | Implemented. |
-| `rehealth_patient_profile` | ReHealth profile reference. | Implemented via authenticated `GET/PUT /profile`. |
-| `rehealth_health_interview` | Health interview/business profile fields. | Implemented via authenticated `POST /interviews` and `GET /interviews/latest`. |
+| `rehealth_patient_profile` plus diagnosis/medication/allergy tables | Typed ReHealth profile fields and ordered medical-history items. | Implemented via authenticated `GET/PUT /profile`; BMI is server-derived and `profile_version` provides optimistic locking. |
+| `rehealth_health_interview` plus answer/baseline/focus tables | Typed interview header and ordered answer/business-profile rows. | Implemented via authenticated `POST /interviews` and `GET /interviews/latest`. |
 | `rehealth_cvd_feature_vector` | CVD 16 vector and feature quality metadata. | Implemented via `/features/evaluate`. |
 | `rehealth_cvd_risk_result` | Risk score, level, contributions, model version, missing fields, warnings, summary. | Implemented with per-user latest read. |
-| `rehealth_intervention_plan` | Conservative model-service intervention response. | Implemented with per-user latest read. |
+| `rehealth_intervention_plan` plus contraindication rows | Queryable conservative intervention fields plus the original model evidence snapshot. | Implemented with per-user latest read. |
 | `rehealth_intervention_feedback` | User feedback/adherence/check-in. | Implemented via `/interventions/{id}/feedback`. |
 | `rehealth_attribution_result` | PIAS request and result snapshot. | Implemented via `/attribution/events`. |
 | `rehealth_model_request_log` | Minimal request metadata without raw PII or raw telemetry payloads. | Implemented for risk, intervention, and attribution model calls. |
@@ -43,6 +43,11 @@ Transaction strategy:
 - Strong consistency only inside one software aggregate.
 - No cross-database transaction with `hardware_db`.
 - Do not log raw health data, tokens, phone numbers, or identifiers.
+
+Structured operational fields are columns or ordered child rows. JSON is retained only where the complete
+versioned payload is needed for model replay, audit evidence, vendor extension metadata, or durable queue retry.
+Application reads of profile, interview, risk summary, and intervention fields do not depend on a whole-object
+JSON document. Model feature vectors and original request/response evidence intentionally remain JSON snapshots.
 
 ## hardware_db Boundary
 
@@ -82,7 +87,13 @@ with unresolved reconciliation or outbox work are retained.
 
 ## Provisioning
 
-Apply `db/software/mysql/V1__create_rehealth_software_tables.sql` to the Jeecg primary software datasource, then set `rehealth.software-db.enabled=true`. Every mobile business write/read derives ownership from the authenticated Jeecg user; client-supplied user IDs are not accepted for these records.
+For a new database, apply `db/software/mysql/V1__create_rehealth_software_tables.sql` to the Jeecg primary
+software datasource. For an existing database created with the JSON-only profile/interview schema, back up the
+database and apply `V20260729_1__normalize_business_records.sql` before deploying the matching application.
+The upgrade adds typed columns and child tables, backfills valid legacy JSON, leaves legacy JSON columns nullable
+for rollback, and records `software-V20260729.1` in `rehealth_schema_migration`. Verify row counts and invalid JSON
+before retiring the legacy columns. Then set `rehealth.software-db.enabled=true`. Every mobile business write/read
+derives ownership from the authenticated Jeecg user; client-supplied user IDs are not accepted for these records.
 
 For `hardware_db`, set `REHEALTH_HARDWARE_DB_ENABLED=true`,
 `REHEALTH_HARDWARE_DB_URL`, `REHEALTH_HARDWARE_DB_USERNAME`, and either

@@ -68,6 +68,7 @@
 - [ ] telemetry contracts、Device Service 和 Jeecg ReHealth 测试通过。
 - [ ] OpenAPI/DTO characterization 门禁通过且检查数大于零。
 - [ ] software_db 与 TimescaleDB migrations 在目标版本数据库验证。
+- [ ] `software-V20260729.1` 已回填档案/访谈/干预结构化字段，旧 JSON 无效行已审计且新旧记录数一致。
 - [ ] 用户/租户/设备所有权检查和重复批次幂等通过。
 - [ ] TimescaleDB durable write 成功后才返回上传完成。
 - [ ] Outbox/Kafka 投递、重试、DLQ 和消费者幂等通过。

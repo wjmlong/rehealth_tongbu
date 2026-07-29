@@ -81,6 +81,7 @@ data class PatientProfileDto(
     val diabetesHistory: Boolean? = null,
     val hypertensionHistory: Boolean? = null,
     val updatedAt: Long? = null,
+    val version: Long? = null,
 )
 
 @JsonClass(generateAdapter = true)

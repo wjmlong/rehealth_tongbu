@@ -56,7 +56,7 @@ queue until the user logs in again; the app does not invent a refresh-token flow
 | Account registration | `POST /sys/user/register` | Submit phone, six-digit SMS code and password, then perform mobile login on success. |
 | Mobile login | `POST /sys/mLogin` | Save the Jeecg token in encrypted session storage. |
 | Health/config | `GET /rehealth/mobile/health`, `GET /rehealth/mobile/config` | Environment and contract diagnostics. |
-| Profile | `GET/PUT /rehealth/mobile/profile` | Authenticated, user-scoped health profile. |
+| Profile | `GET/PUT /rehealth/mobile/profile` | Authenticated, user-scoped typed profile. Preserve returned `version` on PUT; stale edits return `409`; BMI is server-derived. |
 | Interview | `POST /rehealth/mobile/interviews`, `GET /interviews/latest` | Store locally first, then retry through WorkManager. |
 | Device binding | `POST /rehealth/mobile/devices/bind` | Send a stable device ID and SHA-256 address hash; never send the raw BLE MAC. |
 | Telemetry | `POST /rehealth/mobile/measurements/batch` | Upload normalized Room records with a stable `batchId`; exclude raw PPG/RRI bytes. |

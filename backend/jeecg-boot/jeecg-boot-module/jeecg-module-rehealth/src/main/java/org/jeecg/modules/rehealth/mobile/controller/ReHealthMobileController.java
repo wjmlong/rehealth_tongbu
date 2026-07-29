@@ -1,5 +1,6 @@
 package org.jeecg.modules.rehealth.mobile.controller;
 
+import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.shiro.SecurityUtils;
@@ -31,6 +32,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -70,9 +72,11 @@ public class ReHealthMobileController {
 
     @PutMapping("/profile")
     @Operation(summary = "Create or update current authenticated user's health profile")
-    public Result<PatientProfileDto> updateProfile(@RequestBody PatientProfileDto profile) {
+    public Result<PatientProfileDto> updateProfile(@Valid @RequestBody PatientProfileDto profile) {
         try {
             return Result.OK(mobileService.saveProfile(currentUserId(), profile));
+        } catch (OptimisticLockingFailureException e) {
+            return Result.error(409, "profile changed on another client; refresh before saving again");
         } catch (IllegalStateException e) {
             return Result.error(503, "software_db persistence unavailable; retry profile update");
         }

@@ -74,6 +74,10 @@ git diff --check
    - Before HBand connection, edit the personal profile and select sex, then enter
      age `1..120`, height `50..250 cm`, and weight `10..300 kg`. Confirm saving
      refreshes the profile and allows the HBand Provider to consume the encrypted cache.
+   - Confirm the profile response includes an incrementing `version`, BMI is calculated by
+     the server, and submitting an older version returns `409` without overwriting newer data.
+   - On an upgraded environment, verify profile lists and the latest interview match their
+     pre-migration JSON values after `V20260729_1__normalize_business_records.sql`.
    - Install the full APK after HBand dependency changes and confirm manager initialization
      and BLE connection callbacks do not report missing `WatchOpImpl`, `OnWatchCallback`,
      `McuMgrBleTransport`, or Nordic scanner classes.
