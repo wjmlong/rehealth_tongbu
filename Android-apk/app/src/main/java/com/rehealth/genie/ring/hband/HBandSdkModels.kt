@@ -8,6 +8,8 @@ import com.rehealth.genie.ring.MenstrualCycleConfig
 import com.rehealth.genie.ring.RingFeatureType
 import java.time.Instant
 import java.time.ZoneId
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 
 internal data class HBandCapabilities(
@@ -53,7 +55,96 @@ internal data class HBandCapabilities(
         get() = buildSet {
             if (bloodGlucoseCalibration) add(RingFeatureType.BLOOD_GLUCOSE_CALIBRATION)
             if (womensHealth) add(RingFeatureType.WOMENS_HEALTH)
+    }
+}
+
+/**
+ * Nullable capability fields reported by one of the SDK's numbered function packages.
+ * A package value overrides the deprecated aggregate callback; a missing field preserves
+ * the best value reported by the other sources.
+ */
+internal data class HBandCapabilityPatch(
+    val watchDataDays: Int? = null,
+    val temperatureType: Int? = null,
+    val heartRate: Boolean? = null,
+    val bloodOxygen: Boolean? = null,
+    val hrv: Boolean? = null,
+    val bloodPressure: Boolean? = null,
+    val bloodGlucose: Boolean? = null,
+    val temperature: Boolean? = null,
+    val stress: Boolean? = null,
+    val ecg: Boolean? = null,
+    val bloodComponent: Boolean? = null,
+    val bodyComposition: Boolean? = null,
+    val bloodGlucoseCalibration: Boolean? = null,
+    val womensHealth: Boolean? = null,
+)
+
+internal fun HBandCapabilities.apply(patch: HBandCapabilityPatch): HBandCapabilities = copy(
+    watchDataDays = patch.watchDataDays ?: watchDataDays,
+    temperatureType = patch.temperatureType ?: temperatureType,
+    heartRate = patch.heartRate ?: heartRate,
+    bloodOxygen = patch.bloodOxygen ?: bloodOxygen,
+    hrv = patch.hrv ?: hrv,
+    bloodPressure = patch.bloodPressure ?: bloodPressure,
+    bloodGlucose = patch.bloodGlucose ?: bloodGlucose,
+    temperature = patch.temperature ?: temperature,
+    stress = patch.stress ?: stress,
+    ecg = patch.ecg ?: ecg,
+    bloodComponent = patch.bloodComponent ?: bloodComponent,
+    bodyComposition = patch.bodyComposition ?: bodyComposition,
+    bloodGlucoseCalibration = patch.bloodGlucoseCalibration ?: bloodGlucoseCalibration,
+    womensHealth = patch.womensHealth ?: womensHealth,
+)
+
+/**
+ * Collects the burst of capability callbacks emitted during password confirmation.
+ *
+ * The SDK deprecates FunctionDeviceSupportData because it can be invoked repeatedly while
+ * fields are still being initialized. Numbered packages are authoritative for their fields,
+ * so they are overlaid on the latest aggregate report after the callback burst becomes quiet.
+ */
+internal class HBandCapabilityReports(
+    private val quietPeriodMillis: Long = DEFAULT_QUIET_PERIOD_MILLIS,
+) {
+    private val firstReport = CompletableDeferred<Unit>()
+    private val lock = Any()
+    private var aggregate = HBandCapabilities()
+    private val packagePatches = linkedMapOf<Int, HBandCapabilityPatch>()
+    private var revision = 0L
+
+    fun reportAggregate(capabilities: HBandCapabilities) = report {
+        aggregate = capabilities
+    }
+
+    fun reportPackage(packageNumber: Int, patch: HBandCapabilityPatch) = report {
+        packagePatches[packageNumber] = patch
+    }
+
+    suspend fun awaitSettled(): HBandCapabilities {
+        firstReport.await()
+        while (true) {
+            val observedRevision = synchronized(lock) { revision }
+            if (quietPeriodMillis > 0) delay(quietPeriodMillis)
+            synchronized(lock) {
+                if (observedRevision == revision) {
+                    return packagePatches.values.fold(aggregate, HBandCapabilities::apply)
+                }
+            }
         }
+    }
+
+    private fun report(update: () -> Unit) {
+        synchronized(lock) {
+            update()
+            revision += 1
+        }
+        firstReport.complete(Unit)
+    }
+
+    private companion object {
+        const val DEFAULT_QUIET_PERIOD_MILLIS = 750L
+    }
 }
 
 internal enum class HBandSex { MALE, FEMALE }

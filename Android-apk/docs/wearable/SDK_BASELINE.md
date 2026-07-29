@@ -102,12 +102,17 @@ blood sugar, PPG, and other SDK callbacks are not requested or persisted in this
 phase.
 
 The HBand Provider follows `connectDevice -> Notify -> confirmDevicePwd ->
-FunctionDeviceSupportData -> syncPersonInfo -> READY`. Its product intersection
+settled aggregate/DeviceFunctionPackage capability merge -> syncPersonInfo -> READY`.
+The SDK marks `onFunctionSupportDataChange` deprecated and documents that it may fire
+multiple times before all fields are initialized, so numbered packages override the
+latest aggregate value for their fields. In particular, MT116 ECG and app-HRV are read
+from `DeviceFunctionPackage2`; the aggregate callback remains a compatibility fallback.
+Its product intersection
 allows heart rate, daily steps/activity, sleep, blood oxygen, app HRV, blood pressure,
 blood glucose, stress, MET, ECG, blood component, and body composition
 operations. Blood-glucose calibration
-and menstrual-cycle settings use separate feature operations. The runtime capability
-callback remains authoritative: unsupported actions remain disabled and are not
+and menstrual-cycle settings use separate feature operations. The settled runtime capability
+reports remain authoritative: unsupported actions remain disabled and are not
 requested or persisted. ECG is a product requirement for `RH-HB-E01`; a device
 that does not report ECG support is rejected instead of silently degrading. The user profile comes from ReHealth profile
 data; the SDK demo's fixed sex/age/height/weight values are not used. Blood

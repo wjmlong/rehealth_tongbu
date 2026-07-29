@@ -28,9 +28,15 @@ only `RH-HB-E01`/`HBAND`; it must not scan or connect MRD/RWFit concurrently.
 - vendor cooperation/commercial authorization;
 - vendor-approved password setup/reset flow (the pinned official demo uses
   `0000`, but this has not been confirmed on a purchased device);
-- complete `FunctionDeviceSupportData` result without logging raw health values
-  or the BLE MAC in release logs.
-- confirm `getEcg()` reports support; `RH-HB-E01` must reject the device otherwise.
+- complete numbered `DeviceFunctionPackage1..5` reports without logging raw health
+  values or the BLE MAC in release logs. The deprecated `FunctionDeviceSupportData`
+  callback may fire repeatedly with partially initialized fields and is diagnostic only.
+- for MT116, confirm `DeviceFunctionPackage2.getEcgFunction()` reports support. The
+  latest deprecated aggregate value is used only when package 2 is absent;
+  `RH-HB-E01` must reject the device when neither source reports ECG support.
+- if the settled result still reports no ECG, verify the purchased MT116 SKU has
+  physical ECG electrodes and record its firmware; do not bypass the gate for a
+  non-ECG hardware variant.
 
 ## Connection sequence
 
@@ -41,8 +47,10 @@ only `RH-HB-E01`/`HBAND`; it must not scan or connect MRD/RWFit concurrently.
 4. Record the advertised device name separately from screenshots containing a
    full MAC; redact addresses before sharing evidence.
 5. Connect and verify the sequence is BLE connection, Notify success, password
-   confirmation, capability callback, real ReHealth profile synchronization,
-   then `CONNECTED`/READY.
+   confirmation, a settled merge of the deprecated aggregate capability callback
+   and numbered function-package callbacks, real ReHealth profile synchronization,
+   then `CONNECTED`/READY. MT116 should no longer be rejected from an early,
+   partially initialized aggregate callback when package 2 reports ECG support.
    Confirm logcat contains no `NoClassDefFoundError` for `WatchOpImpl`,
    `McuMgrBleTransport`, or Nordic scanner classes, and that a full APK install,
    rather than Apply Changes, was used after SDK dependency changes.
@@ -72,7 +80,8 @@ For `RH-HB-E01`, validate only device-advertised capabilities:
   verify systolic/diastolic order, `mmHg` units, wear-off/charging/low-battery
   failures, and compare repeated readings with a validated cuff without making
   diagnostic claims;
-- manual ECG only when `getEcg()` is true; verify contact/wear guidance, start/
+- manual ECG only when package 2 `getEcgFunction()` (or the legacy fallback
+  `getEcg()` when package 2 is absent) reports support; verify contact/wear guidance, start/
   stop/cancel behavior, SDK sample rate, local waveform persistence, and the
   average-heart-rate summary for both normal completion and abnormal-result callbacks.
   A summary may exist without a curve when the device returns only average heart rate.

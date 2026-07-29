@@ -48,7 +48,7 @@ class HBandRingRepository internal constructor(
             ?: error("连接 HBand 设备前请先完善性别、年龄、身高和体重")
         val info = gateway.connect(device, profile) ?: error("HBand 设备连接或初始化失败")
         check(RingMetricType.ECG !in expectedMetrics || info.capabilities.ecg) {
-            "当前 HBand 设备未报告 ECG 能力，不能用于该商品"
+            "当前 HBand 设备的稳定能力报告未声明 ECG；请确认 MT116 是带 ECG 电极的硬件版本并检查厂商固件"
         }
         activeWearableStore.recordConnectedDevice(
             vendor = WearableVendor.HBAND,

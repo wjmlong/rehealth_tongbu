@@ -200,12 +200,12 @@ internal class RealHBandSdkGateway(
         publishState()
 
         val password = CompletableDeferred<PwdSnapshot>()
-        val capability = CompletableDeferred<HBandCapabilities>()
+        val capabilityReports = HBandCapabilityReports()
         withContext(Dispatchers.Main.immediate) {
             manager.confirmDevicePwd(
                 writeResponse,
                 passwordListener(password),
-                capabilityListener(capability),
+                capabilityListener(capabilityReports),
                 socialListener,
                 DEFAULT_DEVICE_PASSWORD,
                 true,
@@ -215,7 +215,7 @@ internal class RealHBandSdkGateway(
         check(pwd.success) { "HBand password confirmation failed" }
         stateMachine.readCapabilities()
         publishState()
-        val supported = capability.await()
+        val supported = capabilityReports.awaitSettled()
         stateMachine.syncProfile()
         publishState()
         syncPersonProfile(profile)
@@ -1251,10 +1251,10 @@ internal class RealHBandSdkGateway(
         override fun onConnectionConfirmTimeout() { result.complete(PwdSnapshot(false, null, null)) }
     }
 
-    private fun capabilityListener(result: CompletableDeferred<HBandCapabilities>) = object : IDeviceFuctionDataListener {
+    private fun capabilityListener(reports: HBandCapabilityReports) = object : IDeviceFuctionDataListener {
         override fun onFunctionSupportDataChange(data: FunctionDeviceSupportData?) {
             if (data != null) {
-                result.complete(
+                reports.reportAggregate(
                     HBandCapabilities(
                         steps = true,
                         sleep = true,
@@ -1278,10 +1278,55 @@ internal class RealHBandSdkGateway(
                 )
             }
         }
-        override fun onDeviceFunctionPackage1Report(data: DeviceFunctionPackage1?) = Unit
-        override fun onDeviceFunctionPackage2Report(data: DeviceFunctionPackage2?) = Unit
-        override fun onDeviceFunctionPackage3Report(data: DeviceFunctionPackage3?) = Unit
-        override fun onDeviceFunctionPackage4Report(data: DeviceFunctionPackage4?) = Unit
+        override fun onDeviceFunctionPackage1Report(data: DeviceFunctionPackage1?) {
+            if (data == null) return
+            reports.reportPackage(
+                1,
+                HBandCapabilityPatch(
+                    heartRate = data.heartRateDetect.hasFunction(),
+                    bloodOxygen = data.spo2H.hasFunction(),
+                    bloodPressure = data.bloodPressure.hasFunction(),
+                    womensHealth = data.women.hasFunction(),
+                ),
+            )
+        }
+
+        override fun onDeviceFunctionPackage2Report(data: DeviceFunctionPackage2?) {
+            if (data == null) return
+            reports.reportPackage(
+                2,
+                HBandCapabilityPatch(
+                    watchDataDays = data.watchDataDayNumber,
+                    hrv = data.hrvAppDetectFunction.hasFunction(),
+                    ecg = data.ecgFunction.hasFunction(),
+                ),
+            )
+        }
+
+        override fun onDeviceFunctionPackage3Report(data: DeviceFunctionPackage3?) {
+            if (data == null) return
+            reports.reportPackage(
+                3,
+                HBandCapabilityPatch(
+                    temperatureType = data.temperatureType,
+                    bloodGlucose = data.bloodGlucose.hasFunction(),
+                    temperature = data.temperatureFunction.hasFunction(),
+                    stress = data.stressFunction.hasFunction(),
+                    bloodGlucoseCalibration = data.bloodGlucoseAdjusting.hasFunction(),
+                ),
+            )
+        }
+
+        override fun onDeviceFunctionPackage4Report(data: DeviceFunctionPackage4?) {
+            if (data == null) return
+            reports.reportPackage(
+                4,
+                HBandCapabilityPatch(
+                    bloodComponent = data.bloodComponent.hasFunction(),
+                    bodyComposition = data.bodyComponent.hasFunction(),
+                ),
+            )
+        }
         override fun onDeviceFunctionPackage5Report(data: DeviceFunctionPackage5?) = Unit
     }
 

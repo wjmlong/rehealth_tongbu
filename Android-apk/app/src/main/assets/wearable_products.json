@@ -36,7 +36,7 @@
     "productCode": "RH-HB-E01",
     "vendor": "HBAND",
     "displayName": "ReHealth 基础手环",
-    "modelNameHints": [],
+    "modelNameHints": ["MT116"],
     "expectedMetrics": [
       "HEART_RATE",
       "STEPS",
