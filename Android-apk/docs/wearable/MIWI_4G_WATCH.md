@@ -26,7 +26,7 @@ S8 手表 --4G/SIM--> 云米云平台
                         │
             ┌───────────┴────────────┐
             │ 厂商云 OpenAPI（拉取，首发主路径）│  厂商云主动推送（实时补充通道）
-            │ 后端定时轮询 bytime 接口      │  POST /rehealth/miwi/push?token=
+            │ 后端定时轮询 bytime 接口      │  POST /jeecg-boot/rehealth/miwi/push?token=
             ▼                            ▼
    S8PollingService              MiwiPushService
             │                            │
@@ -68,7 +68,7 @@ App：仅负责 IMEI 绑定（/rehealth/mobile/devices/bind）与结果展示，
 | 类 | 职责 |
 | --- | --- |
 | `MiwiProperties` | `rehealth.miwi.*` 配置（回调默认 `enabled=false`，拉取默认 `pull.enabled=false`） |
-| `MiwiCallbackController` | `POST /rehealth/miwi/push?token=...`，`@IgnoreAuth` + 预共享 token 校验 |
+| `MiwiCallbackController` | `POST /jeecg-boot/rehealth/miwi/push?token=...`，`@IgnoreAuth` + 预共享 token 校验 |
 | `MiwiPushService` | 解包双层 JSON、IMEI→deviceId→用户、送入 `HardwareIngestionPort` |
 | `MiwiHealthDataMapper` | 字段映射与 UTC 时间归一（支持秒/毫秒/本地时间字符串，本地时间按 UTC+8） |
 
@@ -149,3 +149,24 @@ App：仅负责 IMEI 绑定（/rehealth/mobile/devices/bind）与结果展示，
 - 后端模块本机未运行 Maven 编译（开发机无 Maven/JDK 配置），合入主干前需
   在 CI 或后端开发机执行 `mvn -pl jeecg-boot-module/jeccg-module-rehealth -am test`。
 - L16 直连为二期，未在本分支实现。
+
+## 9. 推送地址与表结构补充（2026-07-30）
+
+### 9.1 给厂商的推送回调 URL
+
+厂商主动把测量 POST 到睿禾后端，端点由 MiwiCallbackController 实现，完整地址为：
+POST https://rehealth.youngjimmy.store/jeecg-boot/rehealth/miwi/push?token=<callback-token>
+
+- 域名 rehealth.youngjimmy.store 为阿里云 ECS 上的 nginx（Let's Encrypt HTTPS），反代目标为办公室电脑运行的 JeecgBoot，context-path 为 /jeecg-boot。
+- token 为 rehealth.miwi.callback-token（预共享密钥）；厂商协议无签名，以 query token + 建议 IP 白名单兜底。
+- 启用条件：rehealth.miwi.enabled=true。返回 {"code":1} 表示已接收。
+- 拉取账号（厂商云后台 睿禾/A123456a*）与推送地址是两回事：前者用于 S8PollingService 获取 AccessToken 定时拉取；后者是厂商回调我们的 URL。
+
+### 9.2 表结构（推送路径）
+
+推送地址是部署层 URL，与表结构正交，无需等拿到地址再设计表；推送 payload 字段由厂商 OpenAPI（V1.6.5）决定，表沿用既有设计：
+
+- 推送数据 -> MiwiPushService -> HardwareIngestionPort -> hardware_measurement（统一表，与 BLE / 拉取同源，source=MIWI_4G_CLOUD）。
+- 幂等：每条推送测量在入库前注入确定性 client_record_id（s8- + SHA-256(deviceId|MIWI_4G_CLOUD|metricType|measuredAt|values)），依赖 hardware_measurement.uk_hardware_measurement_dedupe 唯一索引，厂商重试重发同一包不重复入库。pull 与 push 按分传输方式存各自保留、互不覆盖。
+- 设备注册表 rehealth_s8_device 增加 transport（PULL/PUSH/BOTH）、last_push_at、push_registered_at 字段。
+- 新增 rehealth_s8_push_raw 原始落库表（software 库）：先存厂商原始 envelope，再解析入库，用于与厂商对账、重放与排错。迁移见 src/main/resources/db/software/mysql/V3__miwi_push_raw_and_transport.sql。
