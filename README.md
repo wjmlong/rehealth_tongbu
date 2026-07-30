@@ -148,7 +148,13 @@ productCode / 单一有效绑定
 ```text
 POST /jeecg-boot/rehealth/mobile/measurements/batch
 GET  /jeecg-boot/rehealth/mobile/measurements/recent
+POST /jeecg-boot/rehealth/viomi/report        (云米/viomi 平台主动上报回调；JWT HS256 验签)
 ```
+
+`/rehealth/viomi/report` 是手表厂商（云米 miwitracker）主动上报的回调端点：云米平台
+先把数据发给自己的云，再按我们提供的回调地址（AppId/AppKey 鉴权）推送到本端点，
+复用与手机 batch 同一条 `hardware` 落库链路。端点契约与字段映射见
+`backend/docs/HARDWARE_INGEST_ARCHITECTURE.md` 的"Viomi Adapter"一节。
 
 Gateway 在完成切换审批后把这两个路径路由到 Device Service。Device Service
 校验批次、通过 JeecgBoot 确认用户/租户/设备绑定，并在一个 TimescaleDB

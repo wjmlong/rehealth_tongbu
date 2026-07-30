@@ -84,6 +84,94 @@ must build individual attribution inputs from persisted risk, intervention,
 feedback, and telemetry-derived summaries. Settlement remains an admin-only
 evidence workflow and never runs in telemetry ingestion.
 
+## Viomi Adapter (云米主动上报回调)
+
+`POST /rehealth/viomi/report` lets the Viomi (miwitracker) platform push wearable
+telemetry to this backend. The watch does **not** call `measurements/batch`
+directly; Viomi's cloud calls our callback after receiving the watch data.
+
+### Flow
+
+```text
+Viomi cloud (signed JWT HS256 with shared AppKey)
+  -> POST /rehealth/viomi/report   (@IgnoreAuth; no Jeecg session)
+  -> ViomiReportController writes the exact {"code":1,"msg":"操作成功"} ack
+  -> ViomiReportService verifies JWT, maps payload, calls HardwareIngestionPort
+  -> HardwareTelemetryIngestionService
+  -> TelemetryBatchValidator
+  -> JdbcHardwareTelemetryWriter (same hardware datasource + idempotency)
+```
+
+### Authentication
+
+- The token is delivered in `Authorization: Bearer <jwt>` or in the body field
+  `AccessToken`.
+- Verified with HMAC-SHA256 (JWT HS256) using `rehealth.viomi.app-key`.
+- Claims `appId` / `imei` are read from the JWT payload (fallback to the body
+  `Imei` field and configured `rehealth.viomi.app-id`).
+- When `rehealth.viomi.require-auth=true` (default) and verification fails, the
+  endpoint returns `{"code":0,"msg":"操作失败"}` so Viomi retries.
+
+### Field mapping (Viomi -> ReHealth metricType)
+
+| Viomi DataType | Viomi field | ReHealth metricType | unit |
+| --- | --- | --- | --- |
+| `Health` | `heartRate` | `HEART_RATE` | bpm |
+| `Health` | `bloodOxygen` | `SPO2` | % |
+| `Health` | `bloodPressureMax`/`bloodPressureMin` | `BLOOD_PRESSURE` (primary=systolic, secondary=diastolic) | mmHg |
+| `Health` | `steps` | `STEPS` | steps |
+| `Health` | `distance` | `DISTANCE` | m |
+| `Health` | `calorie` | `CALORIE` | kcal |
+| `Health` | `deepSleep`/`lighSleep`/`totalSleep`/`sleepTime` | `hardware_sleep_session` (deep/light minutes) | - |
+| `StepRoll`/`StepRolls` | `step`/`roll`/`distance`/`calorie` | `STEPS` / `ROLL` / `DISTANCE` / `CALORIE` | steps / count / m / kcal |
+| `Temperature` | `temperature` | `BODY_TEMPERATURE` | °C |
+| `Location` | `battery` | `DEVICE_BATTERY` | % |
+
+Empty/blank Viomi values are skipped so a partial payload persists the available
+metrics. `ResultData` is a JSON string and is parsed per `DataType`.
+
+### Ownership and idempotency
+
+- `deviceId` = Viomi `imei`.
+- `userId` = configured `rehealth.viomi.user-id` (default `viomi-gateway`),
+  i.e. a platform gateway account, because the callback has no Jeecg user
+  session. Per-IMEI → real-user binding through `software_db` device binding is a
+  follow-up (depends on E1.1).
+- `batchId` = `viomi-{imei}-{dataType}-{reqId|hash}`, giving idempotency under
+  the same `(user_id, device_id, batch_id)` unique key.
+
+### Response contract
+
+```json
+{ "code": 1, "msg": "操作成功" }
+```
+
+on success, and:
+
+```json
+{ "code": 0, "msg": "操作失败" }
+```
+
+on auth failure, validation rejection, or persistence error. The transport is
+always HTTP 200 so Viomi marks the report delivered based on `code`.
+
+### Configuration
+
+```yaml
+rehealth:
+  viomi:
+    enabled: true
+    app-id: "<viomi-issued-app-id>"
+    app-key: "<viomi-issued-app-key>"
+    require-auth: true
+    user-id: viomi-gateway
+    source: viomi
+```
+
+`app-id`/`app-key` are issued by Viomi during onboarding and must be supplied via
+environment/secret in every environment. For local testing without a real Viomi
+token, set `rehealth.viomi.require-auth=false`.
+
 ## Production Follow-up
 
 The direct JDBC transaction is appropriate for an MVP pilot, not the final
