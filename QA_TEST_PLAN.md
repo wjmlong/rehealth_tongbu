@@ -60,6 +60,9 @@ git diff --check
      Confirm the app explains the purpose and that recordings are not stored before launching
      the Android permission request. Deny it and verify the app offers system settings while
      text input remains usable; grant it and verify speech recognition starts.
+   - From the main Home tab, tap the microphone and confirm it launches the system speech
+     recognizer instead of health onboarding. Confirm recognized text returns to the input field
+     for review and is not sent until the user explicitly submits it.
    - Confirm completing an interview cannot leave the result page until its Room queue insert
      succeeds. After upload, verify the latest interview is stored in the normalized
      `software_db` interview/answer/baseline/focus tables and can be queried after re-login.
@@ -78,6 +81,12 @@ git diff --check
      user's conversation. Reuse a `requestId` with different content and expect `409`.
    - Disable the network while sending: the user message must remain in Room as failed;
      no locally synthesized assistant answer may appear.
+   - Send a response containing headings, lists, bold text, inline code, a Markdown link,
+     a remote image and raw HTML. Confirm the supported formatting renders on Home and chat,
+     while HTML is inert, no remote image is loaded, and no link target opens automatically.
+   - Send a question from Home, leave and return to the Home tab, and reopen the app as the same
+     user. Confirm the Home preview is sourced from the same latest Room conversation rather
+     than a temporary one-turn state.
    - Ask for a diagnosis/prescription and enter urgent chest-pain/breathing wording.
      Verify the Java safety policy refuses diagnosis and escalates urgent care, while every
      answer displays “仅供健康参考，不能替代医疗诊断”.

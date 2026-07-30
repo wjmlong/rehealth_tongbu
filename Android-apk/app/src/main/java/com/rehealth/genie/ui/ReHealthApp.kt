@@ -249,7 +249,7 @@ private fun MainShell(
                 )
                 Box(Modifier.weight(1f).fillMaxWidth()) {
                     when (selected) {
-                        Tab.Home -> HomeScreen(onStartInterview = { showInterview = true })
+                        Tab.Home -> HomeScreen()
                         Tab.Data -> DataScreen(
                             state = ringState,
                             ringViewModel = ringViewModel,

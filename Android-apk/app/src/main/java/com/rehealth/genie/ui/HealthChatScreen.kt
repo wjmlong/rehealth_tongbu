@@ -239,14 +239,21 @@ private fun ChatBubble(message: HealthChatMessageEntity) {
             Spacer(Modifier.width(8.dp))
         }
         Column(horizontalAlignment = if (isUser) Alignment.End else Alignment.Start) {
-            Text(
-                message.content,
-                color = if (isUser) Color.White else Ink,
-                fontSize = 13.sp,
-                lineHeight = 18.sp,
+            Box(
                 modifier = Modifier.widthIn(max = 280.dp).clip(RoundedCornerShape(14.dp))
                     .background(if (isUser) Mint else Color.White).padding(12.dp),
-            )
+            ) {
+                if (isUser) {
+                    Text(
+                        message.content,
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                    )
+                } else {
+                    SafeMarkdownText(message.content)
+                }
+            }
             if (message.deliveryStatus == HealthChatRepository.DELIVERY_FAILED) {
                 Text("发送失败，已保存在本机", color = Color(0xFFD94C4C), fontSize = 10.sp)
             }

@@ -1,5 +1,14 @@
 package com.rehealth.genie.ui
 
+import android.Manifest
+import android.app.Activity
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
+import android.speech.RecognizerIntent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,19 +39,20 @@ import androidx.compose.material.icons.outlined.MicNone
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.TaskAlt
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
@@ -56,8 +66,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rehealth.genie.R
 import com.rehealth.genie.ReHealthApplication
+import com.rehealth.genie.data.HealthChatMessageEntity
+import com.rehealth.genie.data.HealthChatRepository
 import com.rehealth.genie.network.PatientInterventionPayload
 import com.rehealth.genie.phm.Intervention
 import com.rehealth.genie.ui.theme.Canvas
@@ -66,17 +80,21 @@ import com.rehealth.genie.ui.theme.Line
 import com.rehealth.genie.ui.theme.Mint
 import com.rehealth.genie.ui.theme.MintSoft
 import com.rehealth.genie.ui.theme.Muted
-import kotlinx.coroutines.launch
 
 @Composable
-internal fun HomeScreen(onStartInterview: () -> Unit) {
+internal fun HomeScreen() {
     var input by remember { mutableStateOf("") }
     var showActions by remember { mutableStateOf(false) }
-    var lastMessage by remember { mutableStateOf<String?>(null) }
-    var aiReply by remember { mutableStateOf<String?>(null) }
-    var isAsking by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-    val application = LocalContext.current.applicationContext as ReHealthApplication
+    var voiceMessage by remember { mutableStateOf<String?>(null) }
+    var showMicrophonePermissionDialog by remember { mutableStateOf(false) }
+    var showMicrophoneSettingsDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val application = context.applicationContext as ReHealthApplication
+    val chatViewModel: HealthChatViewModel = viewModel(
+        factory = remember(application) { HealthChatViewModel.Factory(application) },
+    )
+    val messages by chatViewModel.messages.collectAsState()
+    val chatState by chatViewModel.uiState.collectAsState()
     val session = application.sessionStore
     val greetingPrefix = remember {
         val h = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
@@ -90,19 +108,53 @@ internal fun HomeScreen(onStartInterview: () -> Unit) {
     }
 
     fun askAi(text: String) {
-        if (text.isBlank() || isAsking) return
-        lastMessage = text
+        val question = text.trim()
+        if (question.isBlank() || chatState.isLoading) return
+        chatViewModel.send(question)
         input = ""
-        isAsking = true
-        aiReply = null
-        scope.launch {
-            aiReply = when (val result = application.healthChatRepository.send(text)) {
-                is com.rehealth.genie.network.ApiResult.Success ->
-                    result.data.answer ?: "健康助手暂未返回内容，请稍后重试。"
-                is com.rehealth.genie.network.ApiResult.Unauthorized -> result.message
-                else -> "暂时无法连接健康助手，问题已保存在本机，请稍后重试。"
+    }
+
+    val voiceLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val recognized = result.data
+                ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                ?.firstOrNull()
+            if (!recognized.isNullOrBlank()) {
+                input = recognized
+                voiceMessage = "语音已转换为文字，请确认后发送"
+            } else {
+                voiceMessage = "没有听清，请再试一次或使用键盘输入"
             }
-            isAsking = false
+        }
+    }
+    fun startVoiceInput() {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "zh-CN")
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "请说出你的健康问题")
+        }
+        runCatching { voiceLauncher.launch(intent) }
+            .onFailure { voiceMessage = "当前设备没有可用的系统语音输入，请使用键盘输入" }
+    }
+    val microphonePermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            startVoiceInput()
+        } else {
+            voiceMessage = "麦克风权限未授权，你仍可以使用键盘输入"
+            showMicrophoneSettingsDialog = true
+        }
+    }
+    fun requestVoiceInput() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            startVoiceInput()
+        } else {
+            showMicrophonePermissionDialog = true
         }
     }
 
@@ -145,37 +197,36 @@ internal fun HomeScreen(onStartInterview: () -> Unit) {
             )
             Text("今天想从哪里开始？", color = Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
 
-            lastMessage?.let {
-                Text(
-                    "你：$it",
-                    color = Ink,
-                    fontSize = 12.sp,
-                    maxLines = 2,
-                    modifier = Modifier.padding(horizontal = 22.dp, vertical = 6.dp)
-                        .clip(RoundedCornerShape(16.dp)).background(MintSoft)
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                )
-                if (isAsking) {
-                    Text(
-                        "小禾灵正在思考…",
-                        color = Muted,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(horizontal = 22.dp, vertical = 4.dp),
-                    )
-                } else {
-                    aiReply?.let { reply ->
-                        Text(
-                            "小禾灵：$reply",
-                            color = Ink,
-                            fontSize = 12.sp,
-                            lineHeight = 17.sp,
-                            modifier = Modifier.padding(horizontal = 22.dp, vertical = 6.dp)
-                                .clip(RoundedCornerShape(16.dp)).background(Color.White)
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                        )
+            val recentMessages = messages.takeLast(2)
+            if (recentMessages.isNotEmpty()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    recentMessages.forEach { message ->
+                        HomeChatPreview(message)
                     }
                 }
-            } ?: Spacer(Modifier.height(12.dp))
+            } else {
+                Spacer(Modifier.height(12.dp))
+            }
+            if (chatState.isLoading) {
+                Text(
+                    "小禾灵正在结合你的健康画像思考…",
+                    color = Muted,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(horizontal = 22.dp, vertical = 4.dp),
+                )
+            }
+            chatState.errorMessage?.let { error ->
+                Text(
+                    error,
+                    color = Color(0xFFD94C4C),
+                    fontSize = 11.sp,
+                    modifier = Modifier.clickable(onClick = chatViewModel::clearError)
+                        .padding(horizontal = 22.dp, vertical = 4.dp),
+                )
+            }
 
             Spacer(Modifier.weight(1f))
         }
@@ -186,20 +237,28 @@ internal fun HomeScreen(onStartInterview: () -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 HomeQuickAction(Icons.Outlined.AddAPhoto, "拍照记录", Modifier.weight(1f)) {
-                    lastMessage = "我想拍照记录饮食或报告"
+                    input = "我想记录饮食或健康报告"
                     showActions = false
                 }
                 HomeQuickAction(Icons.Outlined.Assessment, "健康记录", Modifier.weight(1f)) {
-                    lastMessage = "打开我的健康记录"
+                    input = "请结合我的健康记录给出建议"
                     showActions = false
                 }
                 HomeQuickAction(Icons.Outlined.Devices, "戒指同步", Modifier.weight(1f)) {
-                    lastMessage = "查看智能戒指状态"
+                    input = "请分析我最近同步的可穿戴设备数据"
                     showActions = false
                 }
             }
         }
 
+        voiceMessage?.let { message ->
+            Text(
+                message,
+                color = Muted,
+                fontSize = 10.sp,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp),
+            )
+        }
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -236,10 +295,85 @@ internal fun HomeScreen(onStartInterview: () -> Unit) {
                 },
             )
             IconButton(
-                onClick = onStartInterview,
+                onClick = ::requestVoiceInput,
                 modifier = Modifier.size(48.dp).clip(CircleShape).background(Mint),
             ) {
-                Icon(Icons.Outlined.MicNone, "实时语音", tint = Color.White)
+                Icon(Icons.Outlined.MicNone, "系统语音输入", tint = Color.White)
+            }
+        }
+    }
+
+    if (showMicrophonePermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { showMicrophonePermissionDialog = false },
+            title = { Text("使用系统语音输入") },
+            text = { Text("授权后，系统语音服务会把本次问题转换为文字供你确认。睿禾精灵不会保存录音。") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showMicrophonePermissionDialog = false
+                        microphonePermission.launch(Manifest.permission.RECORD_AUDIO)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Mint),
+                ) {
+                    Text("授权并继续")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMicrophonePermissionDialog = false }) {
+                    Text("使用键盘")
+                }
+            },
+        )
+    }
+
+    if (showMicrophoneSettingsDialog) {
+        AlertDialog(
+            onDismissRequest = { showMicrophoneSettingsDialog = false },
+            title = { Text("麦克风权限未开启") },
+            text = { Text("如需系统语音输入，请在系统设置中允许睿禾精灵使用麦克风。") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showMicrophoneSettingsDialog = false
+                        context.startActivity(
+                            Intent(
+                                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                Uri.parse("package:${context.packageName}"),
+                            ),
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Mint),
+                ) {
+                    Text("去设置")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMicrophoneSettingsDialog = false }) {
+                    Text("使用键盘")
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun HomeChatPreview(message: HealthChatMessageEntity) {
+    val isUser = message.role == HealthChatRepository.ROLE_USER
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
+    ) {
+        Box(
+            modifier = Modifier.widthIn(max = 320.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(if (isUser) MintSoft else Color.White)
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+        ) {
+            if (isUser) {
+                Text(message.content, color = Ink, fontSize = 12.sp, lineHeight = 17.sp, maxLines = 3)
+            } else {
+                SafeMarkdownText(message.content, fontSize = 12.sp)
             }
         }
     }

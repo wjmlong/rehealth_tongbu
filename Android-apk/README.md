@@ -121,6 +121,11 @@ Android 在请求成功后自动填入该值。Release 的签名字段和测试�
 健康问答语音入口声明并按需申请 `RECORD_AUDIO`。点击麦克风时先解释用途和“不保存录音”，
 用户确认后才显示系统授权；拒绝后可转到应用设置，也可继续使用文字回答。
 
+首页健康助手与健康问答页复用同一个 `HealthChatViewModel` 和按用户隔离的 Room 会话流，
+不再维护临时单轮回复。首页麦克风调用系统语音识别服务并只把识别结果回填输入框，用户确认后
+才发送，不再跳转健康初识。服务端 AI 回复使用受限 Markdown 子集渲染；原始 HTML 不执行，
+远程图片不加载，链接目标不自动打开。
+
 模拟戒指只存在于 `app/src/debug`，由 Debug 专用工厂和
 `USE_FAKE_RING`/`SEED_FAKE_HEALTH_DATA` 控制。`app/src/release` 的工厂只构造
 真实 MRD/RWFit/HBand Provider；远程风险评估失败时显示不可用，不生成本地模拟风险。
