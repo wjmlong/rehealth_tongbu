@@ -81,6 +81,12 @@ upload, WorkManager telemetry upload, MQ, or hardware_db persistence.
 ## Known Remaining Work
 
 - F2: real CatBoost/SHAP model-service scoring and validated non-mock model versions.
+  **Done (2026-07-30 smoke test):** `POST /v1/cvd/risk/evaluate` returns
+  `is_mock=false`, `scorer_mode=real_available`,
+  `model_version=cvd-core16-catboost-20260710T173543Z`, real SHAP contributions
+  (`contribution_method=shap_via_catboost`). The mobile `features/evaluate` path
+  reaches this via JeecgBoot `model-service.base-url=http://127.0.0.1:8000`
+  (application-dev.yml).
 - D2: durable Android telemetry upload queue and retry strategy.
 - B1: release blockers for background collection remain outside P0b.
 - Production auth/token handling and refresh if not already completed.
