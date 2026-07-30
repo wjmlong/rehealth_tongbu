@@ -111,6 +111,10 @@ services:
       REHEALTH_ATTRIBUTION_SERVICE_INTERNAL_TOKEN_FILE: /run/secrets/internal_service_credential
       REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE: /run/secrets/internal_service_credential
       REHEALTH_AGENT_INTERNAL_TOKEN_FILE: /run/secrets/internal_service_credential
+      REHEALTH_HEALTH_AGENT_ENGINE: ${REHEALTH_HEALTH_AGENT_ENGINE:-model-service}
+      REHEALTH_LLM_BASE_URL: ${REHEALTH_LLM_BASE_URL:-https://api.deepseek.com}
+      REHEALTH_LLM_API_KEY_FILE: /run/secrets/provider_credential
+      REHEALTH_LLM_MODEL: ${REHEALTH_LLM_MODEL:-deepseek-v4-flash}
       REHEALTH_KAFKA_CONSUMER_ENABLED: "true"
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SPRING_KAFKA_CONSUMER_ENABLE_AUTO_COMMIT: "false"
@@ -131,6 +135,7 @@ services:
       - software_db_password
       - redis_password
       - internal_service_credential
+      - provider_credential
       - kafka_sasl_jaas_config
       - kafka_truststore
       - kafka_truststore_password

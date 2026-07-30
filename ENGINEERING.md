@@ -26,8 +26,8 @@ MVP 优先保证真实采集、本地可靠性、离线可用、云端评分和�
 | Android | BLE/厂商 SDK、Room、轻量特征、上传队列、用户交互 | CatBoost、SHAP、LLM、生产归因 |
 | Gateway | 公网入口、路由、安全头、限流边界 | 业务持久化、模型推理 |
 | Device Service | 遥测校验、TimescaleDB、Outbox、Kafka | 用户业务档案、模型推理 |
-| JeecgBoot | 账号、权限、绑定、业务编排、software_db、管理后台 | 硬件时序库所有权、模型执行 |
-| model-service | 风险评分、模型治理、干预与健康助手安全边界 | 用户认证、设备接入、业务主数据 |
+| JeecgBoot | 账号、权限、绑定、业务编排、LangChain4j 健康问答、software_db、管理后台 | 硬件时序库所有权、CatBoost/SHAP/归因模型执行 |
+| model-service | 风险评分、模型治理、干预；保留健康问答旧接口用于灰度回退 | 用户认证、设备接入、业务主数据、权威聊天历史 |
 | PIAS | 个体归因服务 | Android 端归因、静默 Mock |
 | rehealth-algorithms | 训练、仿真、算法研究和 PIAS 实现 | 患者移动端入口 |
 
@@ -40,6 +40,7 @@ MVP 优先保证真实采集、本地可靠性、离线可用、云端评分和�
 5. 原始 PPG/RRI 默认不上传；启用前必须完成同意、加密和保留策略评审。
 6. 客户端不得通过请求体声明数据所有者；用户和租户来自可信认证上下文。
 7. Kafka 事件只携带最小引用与状态，不携带原始健康值。
+8. 健康问答完整历史归 `software_db`，模型上下文只使用有界消息窗口和每轮重新查询的服务端授权画像；Android 必须先写 Room 再发起网络请求。
 
 ## 4. Android 规则
 

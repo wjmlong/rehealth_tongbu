@@ -3,6 +3,7 @@ package com.rehealth.genie
 import android.app.Application
 import com.rehealth.genie.data.AppDatabase
 import com.rehealth.genie.data.RiskHistoryRepository
+import com.rehealth.genie.data.HealthChatRepository
 import com.rehealth.genie.data.sync.InterventionFeedbackRepository
 import com.rehealth.genie.data.sync.RingCloudRepository
 import com.rehealth.genie.data.sync.SyncRepository
@@ -90,6 +91,14 @@ class ReHealthApplication : Application() {
         RemotePhmService(
             api = null,
             authenticatedApi = authenticatedApiClient,
+        )
+    }
+
+    val healthChatRepository by lazy {
+        HealthChatRepository(
+            dao = database.healthChatDao(),
+            apiClient = authenticatedApiClient,
+            userIdProvider = { sessionStore.userId },
         )
     }
 

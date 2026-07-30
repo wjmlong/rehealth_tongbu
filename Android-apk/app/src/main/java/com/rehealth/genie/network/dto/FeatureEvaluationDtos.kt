@@ -144,6 +144,8 @@ data class MobileConfigResponse(
 @JsonClass(generateAdapter = true)
 data class HealthAgentMessageRequest(
     val requestId: String,
+    val conversationId: String? = null,
+    val clientMessageId: String? = null,
     val message: String,
     val locale: String = "zh-CN",
 )
@@ -151,6 +153,10 @@ data class HealthAgentMessageRequest(
 @JsonClass(generateAdapter = true)
 data class HealthAgentResponse(
     val request_id: String? = null,
+    val requestId: String? = null,
+    val conversationId: String? = null,
+    val messageId: String? = null,
+    val createdAt: Long? = null,
     val status: String? = null,
     val answer: String? = null,
     val medical_disclaimer: String? = null,
@@ -158,4 +164,26 @@ data class HealthAgentResponse(
     val model_version: String? = null,
     val is_demo: Boolean? = null,
     val retryable: Boolean? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class HealthAgentHistoryMessage(
+    val messageId: String,
+    val requestId: String? = null,
+    val role: String,
+    val content: String,
+    val status: String? = null,
+    val provider: String? = null,
+    val modelVersion: String? = null,
+    val createdAt: Long,
+)
+
+@JsonClass(generateAdapter = true)
+data class HealthAgentConversation(
+    val conversationId: String,
+    val title: String? = null,
+    val status: String? = null,
+    val createdAt: Long? = null,
+    val updatedAt: Long? = null,
+    val messages: List<HealthAgentHistoryMessage> = emptyList(),
 )

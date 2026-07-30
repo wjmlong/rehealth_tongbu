@@ -17,7 +17,8 @@
 
 - [ ] 登录、退出、401 重新登录和队列恢复通过。
 - [ ] 重新登录及进入“我的”页会按当前用户查询个人资料与最近健康问答；退出后不残留上一用户资料，风险/干预服务失败不阻断档案展示。
-- [ ] 健康问答完成前先写入 Room durable queue，云端同步后可从 `software_db` 类型化访谈表重读；不存在仅保存在 SharedPreferences 的健康档案副本。
+- [ ] 健康初识完成前先写入 Room durable queue，云端同步后可从 `software_db` 类型化访谈表重读；年龄/身高/体重合并进入类型化个人资料，且不覆盖已有非空资料。
+- [ ] 健康问答用户消息先写 Room v6；进程重启和同一用户重新登录后可恢复本机及服务端最新会话，不同用户看不到彼此记录，断网不生成本地伪 AI 回答。
 - [ ] 麦克风入口声明 `RECORD_AUDIO`，申请前说明用途及不保存录音；拒绝后提供系统设置入口且文字回答仍可用。
 - [ ] Debug 注册 `/sys/sms` 签名通过；仅在 `JEECG_SMS_DEV_MODE=true` 时请求成功后自动填入测试码 `123456`。
 - [ ] 数据页固定展示心率、血氧、血压、HRV、血糖、压力、MET、ECG、血液/身体成分、睡眠、步数和活动；HBand 不展示体温；无数据为 `--`，不支持的动作明确禁用。
@@ -76,12 +77,16 @@
 - [ ] OpenAPI/DTO characterization 门禁通过且检查数大于零。
 - [ ] software_db 与 TimescaleDB migrations 在目标版本数据库验证。
 - [ ] `software-V20260729.1` 已回填档案/访谈/干预结构化字段，旧 JSON 无效行已审计且新旧记录数一致。
+- [ ] `software-V20260730.1` 已创建 `rehealth_ai_conversation`/`rehealth_ai_message`，用户+租户隔离、请求幂等、数据库重启恢复和保留/删除策略已验证。
 - [ ] 用户/租户/设备所有权检查和重复批次幂等通过。
 - [ ] TimescaleDB durable write 成功后才返回上传完成。
 - [ ] Outbox/Kafka 投递、重试、DLQ 和消费者幂等通过。
 - [ ] 备份、恢复、容量和故障切换方案经过发布负责人确认。
 
 ## Model Service 与 PIAS
+
+- [ ] `REHEALTH_HEALTH_AGENT_ENGINE` 的 `model-service` 回退和 `langchain4j` 主路径均通过；LangChain4j 凭据只通过 secret file 提供，模型请求/响应和健康画像未写日志。
+- [ ] 健康问答每轮重新装配授权画像，只发送有界历史窗口；诊断/开药拦截、紧急症状升级和医疗免责声明通过审核。
 
 - [ ] `/health`、`/ready`、模型注册表和 Prometheus 指标通过。
 - [ ] 真实模型制品哈希、schema、特征顺序和版本已验证。

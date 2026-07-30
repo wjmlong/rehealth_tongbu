@@ -28,6 +28,14 @@ public final class ReHealthRuntimeSafetyValidator implements InitializingBean {
                 "rehealth.attribution.mode",
                 "pias"
         ));
+        String healthAgentEngine = property(
+                environment,
+                "rehealth.health-agent.engine",
+                "model-service"
+        ).toLowerCase(Locale.ROOT);
+        if (!List.of("model-service", "legacy", "langchain4j").contains(healthAgentEngine)) {
+            reject("INVALID_HEALTH_AGENT_ENGINE", "expected model-service or langchain4j");
+        }
 
         if (runtimeMode.isProtected()) {
             requireEnabled(environment, "rehealth.software-db.enabled", "SOFTWARE_DB_REQUIRED");
@@ -65,6 +73,24 @@ public final class ReHealthRuntimeSafetyValidator implements InitializingBean {
             }
             if (!property(environment, "rehealth.provider-credentials.embedded-secret", "").isBlank()) {
                 reject("EMBEDDED_SECRET_FORBIDDEN", "provider credentials must come from an external secret store");
+            }
+            if ("langchain4j".equals(healthAgentEngine)) {
+                requireSecureUrl(environment, "rehealth.health-agent.langchain4j.base-url");
+                if (!property(environment, "rehealth.health-agent.langchain4j.api-key", "").isBlank()) {
+                    reject(
+                            "EMBEDDED_LLM_SECRET_FORBIDDEN",
+                            "LangChain4j provider credentials must come from an external secret file"
+                    );
+                }
+                if (property(environment, "rehealth.health-agent.langchain4j.api-key-file", "").isBlank()) {
+                    reject(
+                            "LLM_SECRET_FILE_REQUIRED",
+                            "rehealth.health-agent.langchain4j.api-key-file is required"
+                    );
+                }
+                if (property(environment, "rehealth.health-agent.langchain4j.model", "").isBlank()) {
+                    reject("LLM_MODEL_REQUIRED", "rehealth.health-agent.langchain4j.model is required");
+                }
             }
         }
 

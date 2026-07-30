@@ -20,8 +20,12 @@ JsonValue = JsonScalar | list["JsonValue"] | dict[str, "JsonValue"]
 Reason = NewType("Reason", str)
 ROOT: Final = Path(__file__).resolve().parents[3]
 CONTRACTS: Final = ROOT / "backend" / "contracts"
-CONTROLLER: Final = ROOT / "backend" / "jeecg-boot" / "jeecg-boot-module" / "jeecg-module-rehealth" / "src" / "main" / "java" / "org" / "jeecg" / "modules" / "rehealth" / "mobile" / "controller" / "ReHealthMobileController.java"
-DTO_ROOT: Final = CONTROLLER.parents[1] / "dto"
+CONTROLLER_ROOT: Final = ROOT / "backend" / "jeecg-boot" / "jeecg-boot-module" / "jeecg-module-rehealth" / "src" / "main" / "java" / "org" / "jeecg" / "modules" / "rehealth" / "mobile" / "controller"
+CONTROLLERS: Final = (
+    CONTROLLER_ROOT / "ReHealthMobileController.java",
+    CONTROLLER_ROOT / "HealthAgentController.java",
+)
+DTO_ROOT: Final = CONTROLLER_ROOT.parent / "dto"
 FORBIDDEN_KEYS: Final = {
     "$ref": Reason("schema_ref"),
     "token": Reason("token"),
@@ -122,15 +126,18 @@ def schema_reasons(value: JsonValue, schema: dict[str, JsonValue]) -> set[Reason
 
 
 def controller_routes() -> set[tuple[str, str]]:
-    source = CONTROLLER.read_text(encoding="utf-8")
-    prefix_match = re.search(r'@RequestMapping\("([^"]+)"\)', source)
-    if prefix_match is None:
-        return set()
-    prefix = prefix_match.group(1)
-    return {
-        (method.upper(), prefix + path)
-        for method, path in re.findall(r'@(Get|Post|Put|Delete)Mapping\("([^"]+)"\)', source)
-    }
+    routes: set[tuple[str, str]] = set()
+    for controller in CONTROLLERS:
+        source = controller.read_text(encoding="utf-8")
+        prefix_match = re.search(r'@RequestMapping\("([^"]+)"\)', source)
+        if prefix_match is None:
+            continue
+        prefix = prefix_match.group(1)
+        routes.update(
+            (method.upper(), prefix + path)
+            for method, path in re.findall(r'@(Get|Post|Put|Delete)Mapping\("([^"]+)"\)', source)
+        )
+    return routes
 
 
 def dto_fields(dto_name: str) -> set[str]:

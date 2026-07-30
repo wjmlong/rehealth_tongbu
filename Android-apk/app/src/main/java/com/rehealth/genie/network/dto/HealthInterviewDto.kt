@@ -17,6 +17,7 @@ data class HealthInterviewBaselineItemDto(
 
 @JsonClass(generateAdapter = true)
 data class HealthInterviewSubmitRequestDto(
+    val profile: PatientProfileDto? = null,
     val answers: List<HealthInterviewAnswerDto>,
     val baselineItems: List<HealthInterviewBaselineItemDto> = emptyList(),
     val focusAreas: List<String> = emptyList(),

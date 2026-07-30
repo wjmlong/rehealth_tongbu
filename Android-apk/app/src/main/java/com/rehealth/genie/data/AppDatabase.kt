@@ -48,8 +48,9 @@ data class AttributionLogEntity(
         UploadQueueEntity::class,
         InterventionFeedbackEntity::class,
         RiskHistoryEntity::class,
+        HealthChatMessageEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -57,8 +58,42 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun uploadQueueDao(): UploadQueueDao
     abstract fun interventionFeedbackDao(): InterventionFeedbackDao
     abstract fun riskHistoryDao(): RiskHistoryDao
+    abstract fun healthChatDao(): HealthChatDao
 
     companion object {
+        private val Migration5To6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS health_chat_messages (
+                        message_id TEXT NOT NULL PRIMARY KEY,
+                        user_id TEXT NOT NULL,
+                        conversation_id TEXT NOT NULL,
+                        request_id TEXT,
+                        role TEXT NOT NULL,
+                        content TEXT NOT NULL,
+                        delivery_status TEXT NOT NULL,
+                        provider TEXT,
+                        model_version TEXT,
+                        created_at INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_health_chat_messages_user_id_created_at " +
+                        "ON health_chat_messages(user_id, created_at)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_health_chat_messages_user_id_conversation_id_created_at " +
+                        "ON health_chat_messages(user_id, conversation_id, created_at)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_health_chat_messages_user_id_request_id " +
+                        "ON health_chat_messages(user_id, request_id)",
+                )
+            }
+        }
+
         private val Migration4To5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE ring_signal_chunks ADD COLUMN draw_frequency_hz INTEGER")
@@ -216,7 +251,13 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun create(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, "rehealth-local.db")
-                .addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5)
+                .addMigrations(
+                    Migration1To2,
+                    Migration2To3,
+                    Migration3To4,
+                    Migration4To5,
+                    Migration5To6,
+                )
                 .fallbackToDestructiveMigration()
                 .build()
     }

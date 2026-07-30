@@ -4,6 +4,7 @@ import org.jeecg.config.shiro.IgnoreAuth;
 import org.jeecg.modules.rehealth.mobile.dto.HealthAgentMessageRequestDto;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.lang.reflect.Method;
@@ -25,5 +26,20 @@ class HealthAgentControllerContractTest {
         assertArrayEquals(new String[]{"/messages"}, message.getAnnotation(PostMapping.class).value());
         assertFalse(HealthAgentController.class.isAnnotationPresent(IgnoreAuth.class));
         assertFalse(message.isAnnotationPresent(IgnoreAuth.class));
+    }
+
+    @Test
+    void exposesAuthenticatedConversationRestoreRoute() throws Exception {
+        Method latest = HealthAgentController.class.getMethod(
+                "latestConversation",
+                String.class,
+                int.class
+        );
+
+        assertArrayEquals(
+                new String[]{"/conversations/latest"},
+                latest.getAnnotation(GetMapping.class).value()
+        );
+        assertFalse(latest.isAnnotationPresent(IgnoreAuth.class));
     }
 }

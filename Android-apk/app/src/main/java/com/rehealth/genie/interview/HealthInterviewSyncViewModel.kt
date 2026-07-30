@@ -9,6 +9,7 @@ import com.rehealth.genie.data.sync.UploadQueueEntity
 import com.rehealth.genie.network.dto.HealthInterviewAnswerDto
 import com.rehealth.genie.network.dto.HealthInterviewBaselineItemDto
 import com.rehealth.genie.network.dto.HealthInterviewSubmitRequestDto
+import com.rehealth.genie.network.dto.PatientProfileDto
 import com.rehealth.genie.work.MeasurementSyncWorker
 import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -74,6 +75,7 @@ internal fun healthInterviewSyncPayload(
     answers: List<InterviewAnswer>,
     baseline: HealthBaseline,
 ): HealthInterviewSubmitRequestDto = HealthInterviewSubmitRequestDto(
+    profile = extractInterviewProfile(answers),
     answers = answers.map { answer ->
         HealthInterviewAnswerDto(
             questionId = answer.question.id,
@@ -87,3 +89,18 @@ internal fun healthInterviewSyncPayload(
     focusAreas = baseline.focusAreas,
     generatedAt = baseline.generatedAt,
 )
+
+internal fun extractInterviewProfile(answers: List<InterviewAnswer>): PatientProfileDto? {
+    val content = answers.firstOrNull { it.question.topic == InterviewTopic.PROFILE }
+        ?.content
+        ?.trim()
+        ?: return null
+    val age = Regex("(\\d{1,3})\\s*岁").find(content)?.groupValues?.get(1)?.toIntOrNull()
+        ?.takeIf { it in 1..120 }
+    val height = Regex("(\\d{2,3}(?:\\.\\d+)?)\\s*(?:cm|厘米|公分)", RegexOption.IGNORE_CASE)
+        .find(content)?.groupValues?.get(1)?.toDoubleOrNull()?.takeIf { it in 50.0..250.0 }
+    val weight = Regex("(\\d{1,3}(?:\\.\\d+)?)\\s*(?:kg|公斤|千克)", RegexOption.IGNORE_CASE)
+        .find(content)?.groupValues?.get(1)?.toDoubleOrNull()?.takeIf { it in 2.0..500.0 }
+    if (age == null && height == null && weight == null) return null
+    return PatientProfileDto(age = age, heightCm = height, weightKg = weight)
+}

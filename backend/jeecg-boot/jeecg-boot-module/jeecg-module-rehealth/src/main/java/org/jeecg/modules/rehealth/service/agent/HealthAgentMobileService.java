@@ -1,29 +1,43 @@
 package org.jeecg.modules.rehealth.service.agent;
 
 import org.jeecg.modules.rehealth.mobile.dto.HealthAgentMessageRequestDto;
-import org.jeecg.modules.rehealth.mobile.dto.HealthAgentModelRequestDto;
+import org.jeecg.modules.rehealth.mobile.dto.HealthAgentConversationDto;
+import org.jeecg.modules.rehealth.mobile.dto.HealthAgentHistoryMessageDto;
 import org.jeecg.modules.rehealth.mobile.dto.HealthAgentResponseDto;
 import org.jeecg.modules.rehealth.model.ModelCallAudit;
-import org.jeecg.modules.rehealth.model.HealthAgentModelClient;
+import org.jeecg.modules.rehealth.repository.HealthAgentConversationRepository;
 import org.jeecg.modules.rehealth.repository.ReHealthBusinessRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.regex.Pattern;
+
 @Service
 public class HealthAgentMobileService {
+    private static final Pattern IDENTIFIER = Pattern.compile("^[A-Za-z0-9._:-]{1,64}$");
+    private static final int PROMPT_HISTORY_LIMIT = 16;
     private final HealthAgentContextAssembler contextAssembler;
     private final HealthAgentRateLimiter rateLimiter;
-    private final HealthAgentModelClient modelServiceClient;
+    private final HealthAgentEngine engine;
+    private final HealthAgentSafetyPolicy safetyPolicy;
+    private final HealthAgentConversationRepository conversationRepository;
     private final ReHealthBusinessRepository repository;
 
     public HealthAgentMobileService(
             HealthAgentContextAssembler contextAssembler,
             HealthAgentRateLimiter rateLimiter,
-            HealthAgentModelClient modelServiceClient,
+            HealthAgentEngine engine,
+            HealthAgentSafetyPolicy safetyPolicy,
+            HealthAgentConversationRepository conversationRepository,
             ReHealthBusinessRepository repository
     ) {
         this.contextAssembler = contextAssembler;
         this.rateLimiter = rateLimiter;
-        this.modelServiceClient = modelServiceClient;
+        this.engine = engine;
+        this.safetyPolicy = safetyPolicy;
+        this.conversationRepository = conversationRepository;
         this.repository = repository;
     }
 
@@ -39,27 +53,105 @@ public class HealthAgentMobileService {
         if (!decision.allowed()) {
             throw new HealthAgentRequestException(429, "health-agent rate limit exceeded");
         }
-        HealthAgentModelRequestDto request = contextAssembler.assemble(userId, message);
+        validateIdentifiers(message);
+        HealthAgentPromptContext promptContext = contextAssembler.assemblePrompt(userId, message);
+        String conversationId = conversationRepository.resolveConversation(
+                tenantId,
+                userId,
+                message.conversationId,
+                promptContext.legacyRequest().message
+        );
+        Optional<HealthAgentConversationRepository.HealthAgentRequestState> existing =
+                conversationRepository.findRequestState(
+                        tenantId, userId, conversationId, promptContext.legacyRequest().requestId
+                );
+        if (existing.isPresent()) {
+            if (!existing.get().userContent().equals(promptContext.legacyRequest().message)) {
+                throw new HealthAgentRequestException(409, "requestId was already used for another message");
+            }
+            if (existing.get().response() != null
+                    && !Boolean.TRUE.equals(existing.get().response().retryable)) {
+                return existing.get().response();
+            }
+        } else {
+            conversationRepository.saveUserMessage(
+                    tenantId,
+                    userId,
+                    conversationId,
+                    clientMessageId(message.clientMessageId),
+                    promptContext.legacyRequest().requestId,
+                    promptContext.legacyRequest().message
+            );
+        }
+        List<HealthAgentHistoryMessageDto> history = conversationRepository.findRecentMessages(
+                        tenantId, userId, conversationId, PROMPT_HISTORY_LIMIT + 1
+                ).stream()
+                .filter(item -> !promptContext.legacyRequest().requestId.equals(item.requestId))
+                .toList();
         long startedNanos = System.nanoTime();
         HealthAgentResponseDto response;
         try {
-            response = modelServiceClient.respond(request);
+            response = safetyPolicy.preflight(promptContext.legacyRequest())
+                    .orElseGet(() -> engine.respond(new HealthAgentEngineRequest(promptContext, history)));
+            response = safetyPolicy.postflight(response);
         } catch (RuntimeException failure) {
-            recordAudit(userId, request.requestId, null, "FAILED", "MODEL_SERVICE_FAILURE", startedNanos);
+            recordAudit(
+                    userId,
+                    promptContext.legacyRequest().requestId,
+                    null,
+                    "FAILED",
+                    "HEALTH_AGENT_ENGINE_FAILURE",
+                    startedNanos
+            );
             throw failure;
         }
+        conversationRepository.saveAssistantMessage(
+                tenantId,
+                userId,
+                conversationId,
+                promptContext.legacyRequest().requestId,
+                response
+        );
         String outcome = response == null || response.status == null
                 ? "FAILED"
                 : response.status.toUpperCase();
         recordAudit(
                 userId,
-                request.requestId,
+                promptContext.legacyRequest().requestId,
                 response == null ? null : response.modelVersion,
                 outcome,
                 response == null ? "EMPTY_RESPONSE" : null,
                 startedNanos
         );
         return response;
+    }
+
+    public Optional<HealthAgentConversationDto> latestConversation(
+            String tenantId,
+            String userId,
+            int messageLimit
+    ) {
+        return conversationRepository.findLatestConversation(
+                tenantId, userId, Math.max(1, Math.min(messageLimit, 200))
+        );
+    }
+
+    private void validateIdentifiers(HealthAgentMessageRequestDto message) {
+        if (message == null) {
+            throw new HealthAgentRequestException(400, "health-agent request is required");
+        }
+        if (message.conversationId != null && !message.conversationId.isBlank()
+                && !IDENTIFIER.matcher(message.conversationId).matches()) {
+            throw new HealthAgentRequestException(400, "invalid health-agent conversationId");
+        }
+        if (message.clientMessageId != null && !message.clientMessageId.isBlank()
+                && !IDENTIFIER.matcher(message.clientMessageId).matches()) {
+            throw new HealthAgentRequestException(400, "invalid health-agent clientMessageId");
+        }
+    }
+
+    private String clientMessageId(String candidate) {
+        return candidate == null || candidate.isBlank() ? UUID.randomUUID().toString() : candidate;
     }
 
     private void recordAudit(

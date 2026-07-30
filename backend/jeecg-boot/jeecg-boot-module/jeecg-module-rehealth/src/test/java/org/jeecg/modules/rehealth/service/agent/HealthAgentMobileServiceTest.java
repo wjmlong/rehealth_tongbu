@@ -7,6 +7,7 @@ import org.jeecg.modules.rehealth.mobile.dto.InterventionGenerateResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
 import org.jeecg.modules.rehealth.model.HealthAgentModelClient;
+import org.jeecg.modules.rehealth.repository.impl.StatelessHealthAgentConversationRepository;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -85,7 +86,9 @@ class HealthAgentMobileServiceTest {
         return new HealthAgentMobileService(
                 new HealthAgentContextAssembler(repository),
                 (tenantId, userId) -> decision,
-                modelClient,
+                request -> modelClient.respond(request.promptContext().legacyRequest()),
+                new HealthAgentSafetyPolicy(),
+                new StatelessHealthAgentConversationRepository(),
                 repository
         );
     }

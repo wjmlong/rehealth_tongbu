@@ -201,6 +201,12 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
                     ) VALUES (?, ?, ?, ?)
                     """, UUID.randomUUID().toString(), interviewId, focusArea.strip(), index);
         }
+        if (request.profile != null) {
+            request.profile = savePatientProfile(
+                    userId,
+                    mergeProfile(findPatientProfile(userId).orElse(null), request.profile)
+            );
+        }
         return request;
     }
 
@@ -253,7 +259,34 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
                         WHERE interview_id = ?
                         ORDER BY sort_order
                         """, (resultSet, rowNum) -> resultSet.getString("focus_area"), interview.id());
+        restored.profile = findPatientProfile(userId).orElse(null);
         return Optional.of(restored);
+    }
+
+    private PatientProfileDto mergeProfile(PatientProfileDto existing, PatientProfileDto incoming) {
+        if (existing == null) {
+            return incoming;
+        }
+        PatientProfileDto merged = new PatientProfileDto();
+        merged.name = incoming.name != null ? incoming.name : existing.name;
+        merged.gender = incoming.gender != null ? incoming.gender : existing.gender;
+        merged.age = incoming.age != null ? incoming.age : existing.age;
+        merged.heightCm = incoming.heightCm != null ? incoming.heightCm : existing.heightCm;
+        merged.weightKg = incoming.weightKg != null ? incoming.weightKg : existing.weightKg;
+        merged.diagnoses = incoming.diagnoses != null ? incoming.diagnoses : existing.diagnoses;
+        merged.medications = incoming.medications != null ? incoming.medications : existing.medications;
+        merged.allergies = incoming.allergies != null ? incoming.allergies : existing.allergies;
+        merged.familyHistory = incoming.familyHistory != null ? incoming.familyHistory : existing.familyHistory;
+        merged.smoking = incoming.smoking != null ? incoming.smoking : existing.smoking;
+        merged.drinking = incoming.drinking != null ? incoming.drinking : existing.drinking;
+        merged.diabetesHistory = incoming.diabetesHistory != null
+                ? incoming.diabetesHistory
+                : existing.diabetesHistory;
+        merged.hypertensionHistory = incoming.hypertensionHistory != null
+                ? incoming.hypertensionHistory
+                : existing.hypertensionHistory;
+        merged.version = existing.version;
+        return merged;
     }
 
     @Override

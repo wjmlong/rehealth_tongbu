@@ -1,6 +1,6 @@
 # ReHealth MVP QA Test Plan
 
-Last reviewed: 2026-07-29
+Last reviewed: 2026-07-30
 Scope: Android MVP, backend services, model-service, contract gates, and release QA. This plan is not final release approval; see `STATUS.md` for current blockers.
 
 ## Test Environment
@@ -59,13 +59,33 @@ git diff --check
    - Confirm completing an interview cannot leave the result page until its Room queue insert
      succeeds. After upload, verify the latest interview is stored in the normalized
      `software_db` interview/answer/baseline/focus tables and can be queried after re-login.
+   - Enter `32 岁，身高 168 cm，体重 62 kg` in the basic-profile interview answer.
+     After sync, verify those values are merged into `rehealth_patient_profile` without
+     clearing an existing name, gender, diagnoses, medication, allergy or history field.
 
-3. Ring permission
+3. Health assistant memory and safety
+   - Apply `software-V20260730.1`, enable `REHEALTH_SOFTWARE_DB_ENABLED=true`, and
+     send two related questions. Verify the second Java LangChain4j prompt receives the
+     bounded prior messages and freshly queried profile/interview/risk/intervention context.
+   - Force-stop and reopen the app, then log out and log back into the same account.
+     Verify Room shows the latest local messages immediately and
+     `GET /rehealth/mobile/agent/conversations/latest` reconciles the server history.
+   - Log in as another user/tenant and verify neither Room nor MySQL returns the first
+     user's conversation. Reuse a `requestId` with different content and expect `409`.
+   - Disable the network while sending: the user message must remain in Room as failed;
+     no locally synthesized assistant answer may appear.
+   - Ask for a diagnosis/prescription and enter urgent chest-pain/breathing wording.
+     Verify the Java safety policy refuses diagnosis and escalates urgent care, while every
+     answer displays “仅供健康参考，不能替代医疗诊断”.
+   - Run once with `REHEALTH_HEALTH_AGENT_ENGINE=model-service` and once with
+     `langchain4j`; confirm the public Android endpoint and response fields stay stable.
+
+4. Ring permission
    - On Android 12+, deny and then grant `BLUETOOTH_SCAN` and `BLUETOOTH_CONNECT`.
    - On Android 13+, verify notification permission behavior before enabling background collection.
    - Confirm denial pauses collection safely.
 
-4. Ring scan/connect
+5. Ring scan/connect
    - Turn Bluetooth on.
    - Scan from device binding screen.
    - Connect the wearable selected by the current `productCode` (MRD, RWFit, or HBand).
@@ -95,7 +115,7 @@ git diff --check
      and BLE connection callbacks do not report missing `WatchOpImpl`, `OnWatchCallback`,
      `McuMgrBleTransport`, Nordic scanner classes, or `libnative-lib.so`.
 
-5. Manual measurement
+6. Manual measurement
    - Open the data page before connecting a device. Confirm heart rate, SpO2, BP,
      HRV, blood glucose, stress, MET, ECG, blood/body component, sleep, steps, and activity cards remain
      visible with `--` where no real record exists. Unsupported actions remain visible
@@ -136,7 +156,7 @@ git diff --check
      “仅供健康参考，不能替代医疗诊断” warning.
    - Confirm unsupported metrics fail with safe UI text.
 
-6. Background collection
+7. Background collection
    - Start B1 background collection through service/ViewModel API or approved debug path.
    - Confirm foreground notification appears with Stop action.
    - Put app in background and wait at least one 15 minute interval.
@@ -147,7 +167,7 @@ git diff --check
    - Log out while collection is active and confirm the service stops and the
      device disconnects.
 
-7. Room persistence
+8. Room persistence
    - Inspect local Room tables:
      - `ring_measurements`
      - `ring_sleep_sessions`
@@ -156,75 +176,73 @@ git diff --check
    - Confirm collected data persists across app restart.
    - Confirm Room is the first persistence layer.
 
-8. Feature extraction
+9. Feature extraction
    - Generate a CVD vector from local profile plus Room data.
    - Confirm all 16 fields are present in the contract.
    - Confirm nullable labs remain null and are marked `MISSING`.
    - Confirm `featureQuality` is keyed by snake_case field names.
 
-9. Backend feature evaluation
+10. Backend feature evaluation
    - Run backend E1 and model-service F1.
    - Configure Android base URL for emulator or physical device LAN.
    - Submit feature evaluation through `POST /rehealth/mobile/features/evaluate`.
    - Confirm model-service errors surface an unavailable state without synthetic risk output and do not block BLE collection.
 
-10. Model-service risk result
+11. Model-service risk result
    - Confirm response includes `risk_score`, `risk_level`, `feature_contributions`, `model_version`, `is_mock`, `missing_fields`, `quality_warnings`, and `summary`.
    - Confirm Android/backend map snake_case response fields to camelCase DTO properties where needed.
    - Confirm `is_mock=true` is visible and not described as production model output.
 
-11. Intervention retrieval
+12. Intervention retrieval
     - Call `POST /v1/cvd/intervention/generate` through backend support endpoint or model-service directly.
     - Confirm intervention text is conservative wellness support only.
     - Confirm `medical_disclaimer` is present.
 
-12. Feedback submission
+13. Feedback submission
     - Submit `POST /rehealth/mobile/interventions/{id}/feedback`.
     - Confirm E1 returns explicit software persistence-pending status.
     - Confirm no raw health data, phone number, token, or identifier is logged.
 
-13. Offline, no backend, no model-service
+14. Offline, no backend, no model-service
     - Disable network.
     - Stop backend.
     - Stop model-service.
     - Confirm BLE/manual/background collection continues locally.
     - Confirm feature evaluation reports fallback mode and no data loss.
 
-14. Bluetooth off
+15. Bluetooth off
     - Turn Bluetooth off while background collection is active.
     - Confirm notification reports paused/off state.
     - Confirm collection retries later and does not crash.
 
-15. Permission denied
+16. Permission denied
     - Deny BLE permission and start collection.
     - Confirm service reports permission required and does not attempt BLE operations.
 
-16. App killed
+17. App killed
     - Kill app process while background collection is active.
     - Reopen app.
     - Confirm WorkManager recovery is scheduled and no duplicate aggressive loops appear.
 
-17. Lock screen
+18. Lock screen
     - Lock device during active background collection.
     - Wait at least one collection interval.
     - Confirm records are persisted locally after unlock.
 
-18. Reboot
+19. Reboot
     - Reboot device after enabling background collection.
     - Confirm current B1 limitation: no boot receiver is documented, so collection is not release-approved across reboot until explicitly implemented or product accepts manual restart.
 
-19. Duplicate collection prevention
+20. Duplicate collection prevention
     - Start foreground/manual sync while background service interval is due.
     - Confirm background cycle skips when `RingConnectionState.SYNCING`.
     - Confirm Room primary keys/on-conflict behavior avoid duplicate latest rows.
 
-20. Authenticated AI health chat
-   - Put the DeepSeek key only in ignored `model-service/config/ai-chat.local.yml`.
-   - Confirm provider `https://api.deepseek.com` and configured model `deepseek-v4-flash`.
-   - Log in through `/sys/mLogin`, then send a message through `POST /rehealth/mobile/agent/messages`.
-   - Confirm `status=ok`, `model_version=deepseek-v4-flash`, `provider=configured`, `is_demo=false`, and a non-empty `medical_disclaimer`.
-   - Ask for a diagnosis or medication prescription and confirm the response is `safety_refusal`.
-   - Confirm the API key, access token, prompt, and authorized health context are absent from Git status and logs.
+21. Health-agent provider rollback
+   - Put the provider key only in the ignored `secrets/provider_credential` file.
+   - With `REHEALTH_HEALTH_AGENT_ENGINE=langchain4j`, confirm the configured OpenAI-compatible provider/model and `provider=langchain4j-openai-compatible`.
+   - Switch only the engine variable to `model-service`, restart JeecgBoot, and confirm the same mobile endpoint succeeds through the retained Python provider.
+   - Confirm the API key, access token, prompt, complete message content, and authorized health context are absent from Git status and production logs.
 
 ## Failure Cases To Record
 

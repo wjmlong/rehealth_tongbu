@@ -42,8 +42,8 @@ Debug 设备页可验证套餐切换顺序；Release 不允许用户在客户端
 后台恢复只重连加密保存的当前绑定；HBand 所需四项真实画像使用按用户哈希隔离的
 加密缓存，不使 BLE 采集依赖网络。
 Android 在重新登录和进入个人页时按当前用户读取类型化个人资料及最近健康问答；这些读取与
-风险/干预服务解耦，退出后清除上一用户的内存资料。健康问答先写 Room durable queue，
-再同步到 `software_db` 类型化表；麦克风语音入口按需解释并申请权限，应用不保存录音。
+风险/干预服务解耦，退出后清除上一用户的内存资料。健康问答用户消息先写按用户隔离的
+Room v6 消息表，再调用服务端并由 `software_db` 保存完整会话；麦克风语音入口按需解释并申请权限，应用不保存录音。
 
 ## 2. 系统架构
 
@@ -63,8 +63,8 @@ flowchart LR
 
     Jeecg --> SoftwareDb["MySQL software_db"]
     Jeecg --> Model["model-service"]
+    Jeecg --> Agent["LangChain4j 健康问答"]
     Model --> Risk["CatBoost / SHAP"]
-    Model --> Agent["健康助手 Provider"]
     Jeecg --> PIAS["PIAS 归因服务"]
 ```
 
@@ -75,8 +75,8 @@ flowchart LR
 | Android | BLE/厂商 SDK、Room、本地轻量特征、离线队列、用户交互 | CatBoost、SHAP、LLM、云端归因 |
 | Gateway | 统一公网入口、路由、安全头处理、未来限流 | 业务数据持久化、模型推理 |
 | Device Service | 硬件遥测校验、设备授权、TimescaleDB、Outbox | 用户业务档案、模型推理 |
-| JeecgBoot | 账号、租户、设备绑定、业务编排、后台权限、software_db | 直接拥有硬件时序库、直接运行模型 |
-| model-service | CVD 风险、SHAP、干预生成、健康助手安全边界 | 用户认证、设备接入、业务主数据 |
+| JeecgBoot | 账号、租户、设备绑定、业务编排、LangChain4j 健康问答、后台权限、software_db | 直接拥有硬件时序库、运行 CatBoost/SHAP/归因模型 |
+| model-service | CVD 风险、SHAP、干预生成；保留旧健康助手接口用于灰度回退 | 用户认证、设备接入、业务主数据、权威聊天历史 |
 | PIAS | 生产个体归因 | Android 端计算、静默 Mock 回退 |
 | rehealth-algorithms | 训练、仿真、算法研究及独立 PIAS 实现 | 患者移动端业务入口 |
 
@@ -186,7 +186,7 @@ Android Room
 | --- | --- | --- |
 | Android 本地遥测和待上传任务 | Room | 本地优先、离线可用 |
 | 规范化硬件时序数据 | TimescaleDB | Device Service 独占写入和读取 |
-| 用户、档案、绑定、风险、干预、反馈 | MySQL `software_db` | JeecgBoot 业务权威 |
+| 用户、档案、绑定、风险、干预、反馈、健康问答历史 | MySQL `software_db` | JeecgBoot 业务权威；聊天按用户+租户隔离 |
 | 遥测持久化/质量事件 | Kafka | 事件通知，不存原始健康值 |
 | 模型制品 | 只读制品挂载 | model-service 校验签名/哈希后加载 |
 | 原始 PPG/RRI | 当前禁止云端上传 | 未来必须经过同意、加密和保留策略评审 |

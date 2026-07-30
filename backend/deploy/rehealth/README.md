@@ -121,16 +121,34 @@ Keep passwords and internal service credentials in the ignored
 `backend/deploy/rehealth/secrets/` files. Load them into the local process
 environment at startup; never copy them into tracked YAML or source files.
 
-To enable Android AI health Q&A locally with the YAML-first development path:
+Health chat now supports two server-side engines behind the unchanged mobile API:
+
+- `REHEALTH_HEALTH_AGENT_ENGINE=model-service` keeps the Python provider path for rollback.
+- `REHEALTH_HEALTH_AGENT_ENGINE=langchain4j` runs prompt assembly, bounded conversation
+  memory and the OpenAI-compatible provider call inside JeecgBoot.
+
+Before enabling LangChain4j, apply
+`V20260730_1__add_health_agent_conversations.sql`, keep
+`REHEALTH_SOFTWARE_DB_ENABLED=true`, and place the provider key in the ignored
+`secrets/provider_credential` file. The container mounts it into JeecgBoot as
+`REHEALTH_LLM_API_KEY_FILE`; the key must not be placed in tracked YAML or Android.
+Provider URL/model are selected with `REHEALTH_LLM_BASE_URL` and
+`REHEALTH_LLM_MODEL`.
+
+To keep using the legacy model-service health Q&A locally with the YAML-first path:
 
 1. Copy `model-service/config/ai-chat.example.yml` to the ignored
    `model-service/config/ai-chat.local.yml` file.
 2. Fill `health-agent.provider.api-key`. The default provider is
    `https://api.deepseek.com` with model `deepseek-v4-flash`; a non-empty key
    automatically enables it.
-3. Restart the local applications. `start-local-apps.ps1` detects this file and
+3. Keep `REHEALTH_HEALTH_AGENT_ENGINE=model-service` and restart the local applications. `start-local-apps.ps1` detects this file and
    lets model-service load it directly. The API key is read only by `model-service`;
    it must never be copied into the Android project, JeecgBoot YAML, or Git.
+
+For Java LangChain4j local testing, set `REHEALTH_HEALTH_AGENT_ENGINE=langchain4j`
+in the ignored local `.env` and use `secrets/provider_credential`; the startup
+script passes only the secret-file path to JeecgBoot.
 
 The secret-file plus ignored `.env` path remains supported when
 `ai-chat.local.yml` is absent and is still the required pattern for staging and

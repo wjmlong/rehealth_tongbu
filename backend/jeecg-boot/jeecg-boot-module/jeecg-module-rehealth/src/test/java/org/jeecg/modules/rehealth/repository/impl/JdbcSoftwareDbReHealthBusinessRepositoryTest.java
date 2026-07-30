@@ -183,13 +183,16 @@ class JdbcSoftwareDbReHealthBusinessRepositoryTest {
         interview.answers = List.of(answer);
         interview.focusAreas = List.of("sleep");
         interview.generatedAt = 1_726_000_000_000L;
+        interview.profile = new PatientProfileDto();
+        interview.profile.age = 32;
         repository.saveHealthInterview("user-a", interview);
 
         assertEquals(1, count("rehealth_patient_profile"));
         PatientProfileDto restored = repository.findPatientProfile("user-a").orElseThrow();
         assertEquals("updated", restored.name);
         assertEquals(23.53, restored.bmi);
-        assertEquals(2L, restored.version);
+        assertEquals(3L, restored.version);
+        assertEquals(32, restored.age);
         assertEquals(List.of("hypertension"), restored.diagnoses);
         assertEquals(List.of("medication-a"), restored.medications);
         assertEquals(List.of("penicillin"), restored.allergies);
