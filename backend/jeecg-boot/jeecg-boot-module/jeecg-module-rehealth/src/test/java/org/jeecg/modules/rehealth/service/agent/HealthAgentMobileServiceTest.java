@@ -78,6 +78,28 @@ class HealthAgentMobileServiceTest {
         assertFalse(modelClient.called);
     }
 
+    @Test
+    void persistsExplicitBasicProfileBeforeBuildingTheSameTurnPrompt() {
+        StubReHealthBusinessRepository repository = populatedRepository();
+        RecordingModelClient modelClient = new RecordingModelClient();
+        HealthAgentMobileService service = service(
+                repository,
+                modelClient,
+                HealthAgentRateLimitDecision.allowedDecision()
+        );
+        HealthAgentMessageRequestDto message = message();
+        message.message = "我今年36岁，身高168cm，体重60kg。";
+
+        HealthAgentResponseDto response = service.respond("tenant-a", "user-a", message);
+
+        assertEquals(36, repository.profile.age);
+        assertEquals(168.0, repository.profile.heightCm);
+        assertEquals(60.0, repository.profile.weightKg);
+        assertEquals("30-39", modelClient.request.context.ageBand);
+        assertEquals("已更新个人资料：年龄、身高、体重。", response.answer);
+        assertEquals(1, repository.profileSaveCount);
+    }
+
     private HealthAgentMobileService service(
             StubReHealthBusinessRepository repository,
             RecordingModelClient modelClient,
@@ -89,7 +111,11 @@ class HealthAgentMobileServiceTest {
                 request -> modelClient.respond(request.promptContext().legacyRequest()),
                 new HealthAgentSafetyPolicy(),
                 new StatelessHealthAgentConversationRepository(),
-                repository
+                repository,
+                new HealthAgentProfileUpdateService(
+                        new HealthAgentProfileUpdateExtractor(),
+                        repository
+                )
         );
     }
 

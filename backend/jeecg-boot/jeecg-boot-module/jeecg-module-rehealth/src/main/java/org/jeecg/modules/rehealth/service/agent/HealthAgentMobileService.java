@@ -24,6 +24,7 @@ public class HealthAgentMobileService {
     private final HealthAgentSafetyPolicy safetyPolicy;
     private final HealthAgentConversationRepository conversationRepository;
     private final ReHealthBusinessRepository repository;
+    private final HealthAgentProfileUpdateService profileUpdateService;
 
     public HealthAgentMobileService(
             HealthAgentContextAssembler contextAssembler,
@@ -31,7 +32,8 @@ public class HealthAgentMobileService {
             HealthAgentEngine engine,
             HealthAgentSafetyPolicy safetyPolicy,
             HealthAgentConversationRepository conversationRepository,
-            ReHealthBusinessRepository repository
+            ReHealthBusinessRepository repository,
+            HealthAgentProfileUpdateService profileUpdateService
     ) {
         this.contextAssembler = contextAssembler;
         this.rateLimiter = rateLimiter;
@@ -39,6 +41,7 @@ public class HealthAgentMobileService {
         this.safetyPolicy = safetyPolicy;
         this.conversationRepository = conversationRepository;
         this.repository = repository;
+        this.profileUpdateService = profileUpdateService;
     }
 
     public HealthAgentResponseDto respond(
@@ -65,6 +68,7 @@ public class HealthAgentMobileService {
                 conversationRepository.findRequestState(
                         tenantId, userId, conversationId, promptContext.legacyRequest().requestId
                 );
+        HealthAgentProfileUpdateResult profileUpdate = HealthAgentProfileUpdateResult.none();
         if (existing.isPresent()) {
             if (!existing.get().userContent().equals(promptContext.legacyRequest().message)) {
                 throw new HealthAgentRequestException(409, "requestId was already used for another message");
@@ -74,6 +78,11 @@ public class HealthAgentMobileService {
                 return existing.get().response();
             }
         } else {
+            profileUpdate = profileUpdateService.updateFromMessage(userId, message.message);
+            if (profileUpdate.changed()) {
+                message.requestId = promptContext.legacyRequest().requestId;
+                promptContext = contextAssembler.assemblePrompt(userId, message);
+            }
             conversationRepository.saveUserMessage(
                     tenantId,
                     userId,
@@ -83,21 +92,23 @@ public class HealthAgentMobileService {
                     promptContext.legacyRequest().message
             );
         }
+        HealthAgentPromptContext enginePromptContext = promptContext;
         List<HealthAgentHistoryMessageDto> history = conversationRepository.findRecentMessages(
                         tenantId, userId, conversationId, PROMPT_HISTORY_LIMIT + 1
                 ).stream()
-                .filter(item -> !promptContext.legacyRequest().requestId.equals(item.requestId))
+                .filter(item -> !enginePromptContext.legacyRequest().requestId.equals(item.requestId))
                 .toList();
         long startedNanos = System.nanoTime();
         HealthAgentResponseDto response;
         try {
-            response = safetyPolicy.preflight(promptContext.legacyRequest())
-                    .orElseGet(() -> engine.respond(new HealthAgentEngineRequest(promptContext, history)));
+            response = safetyPolicy.preflight(enginePromptContext.legacyRequest())
+                    .orElseGet(() -> engine.respond(new HealthAgentEngineRequest(enginePromptContext, history)));
             response = safetyPolicy.postflight(response);
+            appendProfileUpdateConfirmation(response, profileUpdate);
         } catch (RuntimeException failure) {
             recordAudit(
                     userId,
-                    promptContext.legacyRequest().requestId,
+                    enginePromptContext.legacyRequest().requestId,
                     null,
                     "FAILED",
                     "HEALTH_AGENT_ENGINE_FAILURE",
@@ -109,7 +120,7 @@ public class HealthAgentMobileService {
                 tenantId,
                 userId,
                 conversationId,
-                promptContext.legacyRequest().requestId,
+                enginePromptContext.legacyRequest().requestId,
                 response
         );
         String outcome = response == null || response.status == null
@@ -117,13 +128,26 @@ public class HealthAgentMobileService {
                 : response.status.toUpperCase();
         recordAudit(
                 userId,
-                promptContext.legacyRequest().requestId,
+                enginePromptContext.legacyRequest().requestId,
                 response == null ? null : response.modelVersion,
                 outcome,
                 response == null ? "EMPTY_RESPONSE" : null,
                 startedNanos
         );
         return response;
+    }
+
+    private void appendProfileUpdateConfirmation(
+            HealthAgentResponseDto response,
+            HealthAgentProfileUpdateResult profileUpdate
+    ) {
+        if (response == null || !profileUpdate.changed()) {
+            return;
+        }
+        String confirmation = "已更新个人资料：" + String.join("、", profileUpdate.changedFields()) + "。";
+        response.answer = response.answer == null || response.answer.isBlank()
+                ? confirmation
+                : response.answer.stripTrailing() + "\n\n" + confirmation;
     }
 
     public Optional<HealthAgentConversationDto> latestConversation(

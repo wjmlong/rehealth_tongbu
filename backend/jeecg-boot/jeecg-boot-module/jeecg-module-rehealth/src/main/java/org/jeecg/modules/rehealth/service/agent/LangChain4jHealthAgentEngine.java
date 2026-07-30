@@ -4,11 +4,15 @@ import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.exception.HttpException;
+import dev.langchain4j.http.client.jdk.JdkHttpClientBuilder;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import org.jeecg.modules.rehealth.mobile.dto.HealthAgentHistoryMessageDto;
 import org.jeecg.modules.rehealth.mobile.dto.HealthAgentResponseDto;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -22,6 +26,7 @@ import java.util.List;
 
 @Component
 public class LangChain4jHealthAgentEngine {
+    private static final Logger log = LoggerFactory.getLogger(LangChain4jHealthAgentEngine.class);
     private final String baseUrl;
     private final String apiKey;
     private final String modelName;
@@ -90,6 +95,12 @@ public class LangChain4jHealthAgentEngine {
             response.retryable = false;
             return response;
         } catch (RuntimeException failure) {
+            log.warn(
+                    "LangChain4j health-agent request failed: failureType={}, rootCauseType={}, httpStatus={}",
+                    failure.getClass().getSimpleName(),
+                    rootCause(failure).getClass().getSimpleName(),
+                    httpStatus(failure)
+            );
             return unavailable(response);
         }
     }
@@ -105,6 +116,7 @@ public class LangChain4jHealthAgentEngine {
         synchronized (this) {
             if (chatModel == null) {
                 chatModel = OpenAiChatModel.builder()
+                        .httpClientBuilder(new JdkHttpClientBuilder())
                         .baseUrl(baseUrl)
                         .apiKey(apiKey)
                         .modelName(modelName)
@@ -126,6 +138,25 @@ public class LangChain4jHealthAgentEngine {
         response.modelVersion = modelName.isBlank() ? "provider-unconfigured" : modelName;
         response.retryable = true;
         return response;
+    }
+
+    private Throwable rootCause(Throwable failure) {
+        Throwable current = failure;
+        while (current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        return current;
+    }
+
+    private Integer httpStatus(Throwable failure) {
+        Throwable current = failure;
+        while (current != null) {
+            if (current instanceof HttpException httpFailure) {
+                return httpFailure.statusCode();
+            }
+            current = current.getCause();
+        }
+        return null;
     }
 
     private String systemPrompt(String authorizedContextJson) {

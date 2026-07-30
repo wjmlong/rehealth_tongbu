@@ -1,5 +1,6 @@
 package org.jeecg.modules.rehealth.service.agent;
 
+import com.sun.net.httpserver.HttpServer;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
@@ -9,6 +10,8 @@ import org.jeecg.modules.rehealth.mobile.dto.HealthAgentHistoryMessageDto;
 import org.jeecg.modules.rehealth.mobile.dto.HealthAgentModelRequestDto;
 import org.junit.jupiter.api.Test;
 
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,6 +20,47 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LangChain4jHealthAgentEngineTest {
+    @Test
+    void usesExplicitJdkHttpClientWhenExecutableContainsMultipleClientProviders() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/", exchange -> {
+            byte[] response = """
+                    {"id":"chat-1","object":"chat.completion","created":1785391200,
+                    "model":"test-model","choices":[{"index":0,"message":{"role":"assistant",
+                    "content":"服务可用"},"finish_reason":"stop"}],
+                    "usage":{"prompt_tokens":10,"completion_tokens":4,"total_tokens":14}}
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getRequestBody().readAllBytes();
+            exchange.sendResponseHeaders(200, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+        server.start();
+        try {
+            LangChain4jHealthAgentEngine engine = new LangChain4jHealthAgentEngine(
+                    "http://127.0.0.1:" + server.getAddress().getPort(),
+                    "test-key",
+                    "",
+                    "test-model",
+                    2,
+                    128
+            );
+            HealthAgentModelRequestDto request = new HealthAgentModelRequestDto();
+            request.requestId = "request-http-client";
+            request.message = "你好";
+
+            var response = engine.respond(new HealthAgentEngineRequest(
+                    new HealthAgentPromptContext(request, "{}"),
+                    List.of()
+            ));
+
+            assertEquals("ok", response.status);
+            assertEquals("服务可用", response.answer);
+        } finally {
+            server.stop(0);
+        }
+    }
+
     @Test
     void injectsAuthorizedPortraitAndBoundedHistoryIntoLangChain4jMessages() {
         RecordingChatModel model = new RecordingChatModel();
