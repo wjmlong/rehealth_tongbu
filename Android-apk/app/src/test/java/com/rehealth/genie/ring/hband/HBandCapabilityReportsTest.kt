@@ -8,6 +8,21 @@ import kotlinx.coroutines.test.runTest
 
 class HBandCapabilityReportsTest {
     @Test
+    fun `HRV accepts every explicit SDK capability signal`() {
+        assertTrue(supportsHBandHrv(appDetection = true, deviceFeature = false, hrvType = 0))
+        assertTrue(supportsHBandHrv(appDetection = false, deviceFeature = true, hrvType = 0))
+        assertTrue(supportsHBandHrv(appDetection = false, deviceFeature = false, hrvType = 1))
+        assertFalse(supportsHBandHrv(appDetection = false, deviceFeature = false, hrvType = 0))
+    }
+
+    @Test
+    fun `MET accepts feature flag or non-zero protocol type`() {
+        assertTrue(supportsHBandMet(feature = true, metType = 0))
+        assertTrue(supportsHBandMet(feature = false, metType = 1))
+        assertFalse(supportsHBandMet(feature = false, metType = 0))
+    }
+
+    @Test
     fun `numbered package overrides incomplete deprecated aggregate report`() = runTest {
         val reports = HBandCapabilityReports(quietPeriodMillis = 0)
 

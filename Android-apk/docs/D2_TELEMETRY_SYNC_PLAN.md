@@ -24,7 +24,11 @@ Status: implemented software path; updated 2026-07-29.
   explicitly awaits `readSleepData` before starting `readOriginData`, because physical-device
   validation found firmware that returned origin records but omitted sleep from `readAllHealthData`. Five-minute
   step, distance, and calorie records are aggregated per day before Room persistence;
-  capability-gated manual measurement and body-composition history follow. Completed
+  capability-gated manual measurement and body-composition history follow. HBand HRV
+  capability merges the app-detection, device-feature, and protocol-type signals; MET
+  accepts either its feature flag or non-zero protocol type. Connected `RH-HB-E01` devices
+  additionally expose scoped HRV/MET compatibility commands for legacy firmware that leaves
+  those signals unset; only positive real SDK results are persisted. Completed
   reads are retained if a later optional SDK operation fails. Unsupported,
   zero, and invalid readings remain absent; raw ECG samples remain local only.
   HBand ECG uses the matching four-ABI JNI runtime and Room v5: new records store

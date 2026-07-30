@@ -33,7 +33,15 @@ class HBandRingRepository internal constructor(
     override val connectedDevice: StateFlow<RingDevice?> = gateway.connectedDevice
     override val liveEcg: StateFlow<RingEcgLiveState> = gateway.liveEcg
     override val supportedMetrics: Set<RingMetricType>
-        get() = gateway.capabilities.value.supportedMetrics intersect expectedMetrics
+        get() {
+            val reported = gateway.capabilities.value.supportedMetrics intersect expectedMetrics
+            val compatibilityMeasurements = if (connectedDevice.value == null) {
+                emptySet()
+            } else {
+                expectedMetrics intersect COMPATIBILITY_MEASUREMENT_METRICS
+            }
+            return reported + compatibilityMeasurements
+        }
     override val supportedFeatures: Set<RingFeatureType>
         get() = gateway.capabilities.value.supportedFeatures
 
@@ -81,7 +89,12 @@ class HBandRingRepository internal constructor(
 
     override suspend fun measure(type: RingMetricType): RingSyncResult {
         if (type !in supportedMetrics || type !in MANUAL_METRICS) return emptyResult()
-        return persist(gateway.measure(type))
+        return persist(
+            gateway.measure(
+                type = type,
+                allowUnreportedCapability = type in COMPATIBILITY_MEASUREMENT_METRICS,
+            ),
+        )
     }
 
     override suspend fun sendCommand(data: ByteArray): Boolean = false
@@ -145,5 +158,6 @@ class HBandRingRepository internal constructor(
             RingMetricType.BLOOD_COMPONENT,
             RingMetricType.BODY_COMPOSITION,
         )
+        val COMPATIBILITY_MEASUREMENT_METRICS = setOf(RingMetricType.HRV, RingMetricType.MET)
     }
 }

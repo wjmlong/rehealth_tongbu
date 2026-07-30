@@ -113,15 +113,21 @@ The HBand Provider follows `connectDevice -> Notify -> confirmDevicePwd ->
 settled aggregate/DeviceFunctionPackage capability merge -> syncPersonInfo -> READY`.
 The SDK marks `onFunctionSupportDataChange` deprecated and documents that it may fire
 multiple times before all fields are initialized, so numbered packages override the
-latest aggregate value for their fields. In particular, MT116 ECG and app-HRV are read
+latest aggregate value for their fields. In particular, MT116 ECG and HRV are read
 from `DeviceFunctionPackage2`; the aggregate callback remains a compatibility fallback.
+HRV support merges `hrvAppDetectFunction`, `hrvFunction`, and a non-zero `hrvType`,
+because model-specific firmware may expose only one of those explicit SDK signals. MET
+similarly accepts either `met` support or a non-zero `metType` from the aggregate report.
 Its product intersection
 allows heart rate, daily steps/activity, sleep, blood oxygen, app HRV, blood pressure,
 blood glucose, stress, MET, ECG, blood component, and body composition
 operations. Blood-glucose calibration
 and menstrual-cycle settings use separate feature operations. The settled runtime capability
-reports remain authoritative: unsupported actions remain disabled and are not
-requested or persisted. ECG is a product requirement for `RH-HB-E01`; a device
+signals remain authoritative for other actions. As a scoped compatibility exception,
+connected `RH-HB-E01` devices expose HRV and MET manual measurement when those metrics
+are present in the trusted product profile even if legacy firmware leaves all corresponding
+capability signals unset. These entries still invoke the pinned SDK commands; failures,
+timeouts, zeroes, and absent values are not persisted. ECG is a product requirement for `RH-HB-E01`; a device
 that does not report ECG support is rejected instead of silently degrading. The user profile comes from ReHealth profile
 data; the SDK demo's fixed sex/age/height/weight values are not used. Blood
 pressure history and manual detection persist systolic/diastolic mmHg values.

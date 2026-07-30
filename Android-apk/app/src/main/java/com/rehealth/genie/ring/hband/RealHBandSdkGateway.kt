@@ -299,8 +299,9 @@ internal class RealHBandSdkGateway(
         }
     }
 
-    override suspend fun measure(type: RingMetricType): HBandPayload {
-        if (type !in MANUAL_METRICS || type !in capabilities.value.supportedMetrics) return HBandPayload()
+    override suspend fun measure(type: RingMetricType, allowUnreportedCapability: Boolean): HBandPayload {
+        val capabilityReported = type in capabilities.value.supportedMetrics
+        if (type !in MANUAL_METRICS || (!capabilityReported && !allowUnreportedCapability)) return HBandPayload()
         return try {
             queue.execute(MEASUREMENT_TIMEOUT_MILLIS) {
                 stateMachine.startSync()
@@ -1440,12 +1441,19 @@ internal class RealHBandSdkGateway(
                         temperatureType = data.temptureType,
                         heartRate = data.heartDetect.hasFunction(),
                         bloodOxygen = data.spo2H.hasFunction(),
-                        hrv = data.hrvAppDetectFunction.hasFunction(),
+                        hrv = supportsHBandHrv(
+                            appDetection = data.hrvAppDetectFunction.hasFunction(),
+                            deviceFeature = data.hrvFunction.hasFunction(),
+                            hrvType = data.hrvType,
+                        ),
                         bloodPressure = data.bp.hasFunction(),
                         bloodGlucose = data.bloodGlucose.hasFunction(),
                         temperature = data.temperatureFunction.hasFunction(),
                         stress = data.stress.hasFunction(),
-                        met = data.met.hasFunction(),
+                        met = supportsHBandMet(
+                            feature = data.met.hasFunction(),
+                            metType = data.metType,
+                        ),
                         ecg = data.ecg.hasFunction(),
                         bloodComponent = data.bloodComponent.hasFunction(),
                         bodyComposition = data.bodyComponent.hasFunction(),
@@ -1475,7 +1483,11 @@ internal class RealHBandSdkGateway(
                 2,
                 HBandCapabilityPatch(
                     watchDataDays = data.watchDataDayNumber,
-                    hrv = data.hrvAppDetectFunction.hasFunction(),
+                    hrv = supportsHBandHrv(
+                        appDetection = data.hrvAppDetectFunction.hasFunction(),
+                        deviceFeature = data.hrvFunction.hasFunction(),
+                        hrvType = data.hrvType,
+                    ),
                     ecg = data.ecgFunction.hasFunction(),
                 ),
             )

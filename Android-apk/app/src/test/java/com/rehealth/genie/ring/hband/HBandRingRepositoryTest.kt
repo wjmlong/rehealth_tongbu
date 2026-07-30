@@ -200,6 +200,28 @@ class HBandRingRepositoryTest {
     }
 
     @Test
+    fun productConfiguredHrvAndMetRemainMeasurableWhenLegacyFirmwareOmitsFlags() = runTest {
+        val gateway = FakeHBandGateway(capabilitiesValue = HBandCapabilities(ecg = true))
+        val repository = repository(FakeHBandDao(), HBandBindingStore(), gateway).apply {
+            wearableUserProfile = BaselineHealthProfile(
+                age = 35,
+                gender = "female",
+                heightCm = 165.0,
+                weightKg = 55.0,
+            )
+        }
+
+        repository.connect(DEVICE)
+        repository.measure(RingMetricType.HRV)
+        repository.measure(RingMetricType.MET)
+
+        assertTrue(RingMetricType.HRV in repository.supportedMetrics)
+        assertTrue(RingMetricType.MET in repository.supportedMetrics)
+        assertEquals(listOf(RingMetricType.HRV, RingMetricType.MET), gateway.measuredTypes)
+        assertEquals(listOf(true, true), gateway.unreportedCapabilityOverrides)
+    }
+
+    @Test
     fun backgroundSyncReconnectsOnlyBoundDeviceWhenRealProfileIsAvailable() = runTest {
         val store = HBandBindingStore().apply {
             recordConnectedDevice(WearableVendor.HBAND, DEVICE)
@@ -304,6 +326,7 @@ private class FakeHBandGateway(
     var connectCalls = 0
     var measureCalls = 0
     val measuredTypes = mutableListOf<RingMetricType>()
+    val unreportedCapabilityOverrides = mutableListOf<Boolean>()
     var syncCalls = 0
     var lastConnectedAddress: String? = null
     var bloodGlucoseSettingCalls = 0
@@ -325,9 +348,10 @@ private class FakeHBandGateway(
         syncCalls++
         return payload
     }
-    override suspend fun measure(type: RingMetricType): HBandPayload {
+    override suspend fun measure(type: RingMetricType, allowUnreportedCapability: Boolean): HBandPayload {
         measureCalls++
         measuredTypes += type
+        unreportedCapabilityOverrides += allowUnreportedCapability
         return payload
     }
     override suspend fun setBloodGlucoseCalibration(config: BloodGlucoseCalibration): Boolean {

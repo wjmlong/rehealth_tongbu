@@ -83,6 +83,19 @@ internal data class HBandCapabilityPatch(
     val womensHealth: Boolean? = null,
 )
 
+/**
+ * Older and model-specific HBand firmware does not always set the app-detection flag.
+ * Accept every explicit SDK capability signal that describes an HRV implementation.
+ */
+internal fun supportsHBandHrv(
+    appDetection: Boolean,
+    deviceFeature: Boolean,
+    hrvType: Int,
+): Boolean = appDetection || deviceFeature || hrvType > 0
+
+/** A non-zero MET protocol type is an explicit capability signal even on stale aggregate reports. */
+internal fun supportsHBandMet(feature: Boolean, metType: Int): Boolean = feature || metType > 0
+
 internal fun HBandCapabilities.apply(patch: HBandCapabilityPatch): HBandCapabilities = copy(
     watchDataDays = patch.watchDataDays ?: watchDataDays,
     temperatureType = patch.temperatureType ?: temperatureType,
@@ -260,7 +273,7 @@ internal interface HBandSdkGateway {
     suspend fun connect(device: RingDevice, profile: HBandUserProfile): HBandConnectionInfo?
     suspend fun disconnect()
     suspend fun sync(metrics: Set<RingMetricType>): HBandPayload
-    suspend fun measure(type: RingMetricType): HBandPayload
+    suspend fun measure(type: RingMetricType, allowUnreportedCapability: Boolean = false): HBandPayload
     suspend fun setBloodGlucoseCalibration(config: BloodGlucoseCalibration): Boolean = false
     suspend fun setMenstrualCycle(config: MenstrualCycleConfig): Boolean = false
 }

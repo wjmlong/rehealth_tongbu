@@ -75,8 +75,10 @@ For `RH-HB-E01`, validate only device-advertised capabilities:
   total-only sleep, verify duration is displayed while deep/light/REM remain unknown;
 - manual blood oxygen only when `getSpo2H()` is true; verify a real `%` value and
   wear-off/failure behavior;
-- manual HRV only when `getHrvAppDetectFunction()` is true; verify the SDK integer
-  is persisted as `ms` and compare repeated values with the vendor app;
+- manual HRV when package 2 or aggregate reports `getHrvAppDetectFunction()`,
+  `getHrvFunction()`, or a non-zero `getHrvType()`. Also test the `RH-HB-E01` compatibility
+  entry when legacy firmware leaves all three signals unset: the button must issue the real
+  SDK command, persist only a positive SDK integer as `ms`, and show no-result on failure;
 - blood-pressure history and manual measurement only when `getBp()` is true;
   verify systolic/diastolic order, `mmHg` units, wear-off/charging/low-battery
   failures, and compare repeated readings with a validated cuff without making
@@ -113,8 +115,10 @@ For `RH-HB-E01`, validate only device-advertised capabilities:
   manual-history sync, failure behavior, and non-diagnostic/estimated-value wording;
 - stress only when `getStress()` is true; verify direct measurement and manual-history
   sync stay in `0..100 score` and are not interpreted as a mental-health diagnosis;
-- metabolic equivalent only when `getMet()` is true; verify direct measurement and
-  manual-history sync use `MET` and compare activity-time values with the vendor app;
+- metabolic equivalent when `getMet()` is true or `getMetType()` is non-zero. Also test the
+  `RH-HB-E01` compatibility entry with both signals unset; verify the real direct command and
+  manual-history sync use `MET`, persist only positive values, and compare activity-time values
+  with the vendor app;
 - blood-glucose calibration only when the adjusting capability is true. Use a
   same-time external meter reference value, verify the setting callback, and do
   not treat calibration as a measurement or medical result;
