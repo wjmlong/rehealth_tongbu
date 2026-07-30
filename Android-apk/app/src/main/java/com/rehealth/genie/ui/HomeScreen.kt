@@ -21,20 +21,25 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddAPhoto
+import androidx.compose.material.icons.outlined.AddComment
 import androidx.compose.material.icons.outlined.Assessment
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Devices
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.MicNone
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Add
@@ -71,6 +76,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rehealth.genie.R
 import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.data.HealthChatMessageEntity
+import com.rehealth.genie.data.HealthChatConversationEntity
 import com.rehealth.genie.data.HealthChatRepository
 import com.rehealth.genie.network.PatientInterventionPayload
 import com.rehealth.genie.phm.Intervention
@@ -88,12 +94,17 @@ internal fun HomeScreen() {
     var voiceMessage by remember { mutableStateOf<String?>(null) }
     var showMicrophonePermissionDialog by remember { mutableStateOf(false) }
     var showMicrophoneSettingsDialog by remember { mutableStateOf(false) }
+    var showConversationManager by remember { mutableStateOf(false) }
+    var conversationToDelete by remember { mutableStateOf<HealthChatConversationEntity?>(null) }
+    var showClearConversationsConfirmation by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val application = context.applicationContext as ReHealthApplication
     val chatViewModel: HealthChatViewModel = viewModel(
         factory = remember(application) { HealthChatViewModel.Factory(application) },
     )
     val messages by chatViewModel.messages.collectAsState()
+    val conversations by chatViewModel.conversations.collectAsState()
+    val activeConversationId by chatViewModel.activeConversationId.collectAsState()
     val chatState by chatViewModel.uiState.collectAsState()
     val session = application.sessionStore
     val greetingPrefix = remember {
@@ -168,6 +179,12 @@ internal fun HomeScreen() {
             Column(Modifier.weight(1f)) {
                 Text("小禾灵", color = Ink, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Text("你的健康伙伴一直在这里", color = Muted, fontSize = 11.sp)
+            }
+            IconButton(onClick = chatViewModel::newConversation) {
+                Icon(Icons.Outlined.AddComment, "新建对话", tint = Ink)
+            }
+            IconButton(onClick = { showConversationManager = true }) {
+                Icon(Icons.Outlined.History, "本机会话", tint = Ink)
             }
             IconButton(onClick = {}) {
                 Icon(Icons.Outlined.NotificationsNone, "通知", tint = Ink)
@@ -355,6 +372,165 @@ internal fun HomeScreen() {
             },
         )
     }
+
+    if (showConversationManager) {
+        ConversationManagerDialog(
+            conversations = conversations,
+            activeConversationId = activeConversationId,
+            onNewConversation = {
+                chatViewModel.newConversation()
+                showConversationManager = false
+            },
+            onSelectConversation = { conversationId ->
+                chatViewModel.selectConversation(conversationId)
+                showConversationManager = false
+            },
+            onDeleteConversation = { conversation ->
+                showConversationManager = false
+                conversationToDelete = conversation
+            },
+            onClearConversations = {
+                showConversationManager = false
+                showClearConversationsConfirmation = true
+            },
+            onDismiss = { showConversationManager = false },
+        )
+    }
+
+    conversationToDelete?.let { conversation ->
+        AlertDialog(
+            onDismissRequest = { conversationToDelete = null },
+            title = { Text("删除本机会话？") },
+            text = {
+                Text("“${conversation.title}”及其消息将从本机删除。云端完整历史不会因此删除。")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        chatViewModel.deleteLocalConversation(conversation.conversationId)
+                        conversationToDelete = null
+                    },
+                ) {
+                    Text("删除", color = Color(0xFFD94C4C))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { conversationToDelete = null }) { Text("取消") }
+            },
+        )
+    }
+
+    if (showClearConversationsConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showClearConversationsConfirmation = false },
+            title = { Text("清空本机会话？") },
+            text = { Text("当前账号的全部本机会话和消息将被清空。云端完整历史不会因此删除。") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        chatViewModel.clearLocalConversations()
+                        showClearConversationsConfirmation = false
+                        showConversationManager = false
+                    },
+                ) {
+                    Text("清空", color = Color(0xFFD94C4C))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearConversationsConfirmation = false }) {
+                    Text("取消")
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun ConversationManagerDialog(
+    conversations: List<HealthChatConversationEntity>,
+    activeConversationId: String?,
+    onNewConversation: () -> Unit,
+    onSelectConversation: (String) -> Unit,
+    onDeleteConversation: (HealthChatConversationEntity) -> Unit,
+    onClearConversations: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("本机会话") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "会话列表保存在本机；云端目前只提供最新会话恢复。",
+                    color = Muted,
+                    fontSize = 11.sp,
+                )
+                if (conversations.isEmpty()) {
+                    Text("暂无本机会话", color = Muted, modifier = Modifier.padding(vertical = 18.dp))
+                } else {
+                    androidx.compose.foundation.lazy.LazyColumn(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        items(conversations.size, key = { conversations[it].conversationId }) { index ->
+                            val conversation = conversations[index]
+                            Row(
+                                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                    .background(
+                                        if (conversation.conversationId == activeConversationId) {
+                                            MintSoft
+                                        } else {
+                                            Color(0xFFF7F9F8)
+                                        },
+                                    )
+                                    .clickable {
+                                        onSelectConversation(conversation.conversationId)
+                                    }
+                                    .padding(start = 12.dp, top = 9.dp, bottom = 9.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        conversation.title,
+                                        color = Ink,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                    )
+                                    Text(
+                                        formatSyncTime(conversation.updatedAt),
+                                        color = Muted,
+                                        fontSize = 10.sp,
+                                    )
+                                }
+                                if (conversation.conversationId == activeConversationId) {
+                                    Text("当前", color = Mint, fontSize = 10.sp)
+                                }
+                                IconButton(onClick = { onDeleteConversation(conversation) }) {
+                                    Icon(
+                                        Icons.Outlined.DeleteOutline,
+                                        "删除本机会话",
+                                        tint = Color(0xFFD94C4C),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onNewConversation) { Text("新建对话") }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = onClearConversations, enabled = conversations.isNotEmpty()) {
+                    Text("清空本机", color = Color(0xFFD94C4C))
+                }
+                TextButton(onClick = onDismiss) { Text("关闭") }
+            }
+        },
+    )
 }
 
 @Composable

@@ -107,6 +107,15 @@ and marks failed delivery without synthesizing an AI answer. MySQL migration
 MySQL is the authoritative complete history while the model prompt uses only a
 bounded recent window plus freshly assembled server-authorized health context.
 
+Android Room schema v7 adds `health_chat_conversations`. Migration 6→7 derives one
+conversation row per existing user/conversation without deleting v6 messages, and
+marks the most recently updated conversation active. Android can create, switch,
+locally delete, and locally clear conversations. Local deletion retains a tombstone
+so the existing `conversations/latest` refresh does not immediately restore a
+deleted cache entry. It does not delete authoritative MySQL history: the public
+backend contract still exposes only latest-conversation restore and has no list or
+delete endpoint.
+
 Feedback and device binding completion require `persisted == true`.
 
 ## Data and Privacy Rules

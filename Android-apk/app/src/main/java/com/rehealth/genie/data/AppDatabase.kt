@@ -48,10 +48,11 @@ data class AttributionLogEntity(
         UploadQueueEntity::class,
         InterventionFeedbackEntity::class,
         RiskHistoryEntity::class,
+        HealthChatConversationEntity::class,
         HealthChatMessageEntity::class,
     ],
-    version = 6,
-    exportSchema = false,
+    version = 7,
+    exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun ringDataDao(): RingDataDao
@@ -61,6 +62,74 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun healthChatDao(): HealthChatDao
 
     companion object {
+        val Migration6To7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS health_chat_conversations (
+                        user_id TEXT NOT NULL,
+                        conversation_id TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        created_at INTEGER NOT NULL,
+                        updated_at INTEGER NOT NULL,
+                        is_active INTEGER NOT NULL,
+                        is_deleted INTEGER NOT NULL,
+                        PRIMARY KEY(user_id, conversation_id)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_health_chat_conversations_user_id_updated_at " +
+                        "ON health_chat_conversations(user_id, updated_at)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_health_chat_conversations_user_id_is_active " +
+                        "ON health_chat_conversations(user_id, is_active)",
+                )
+                db.execSQL(
+                    """
+                    INSERT OR IGNORE INTO health_chat_conversations (
+                        user_id,
+                        conversation_id,
+                        title,
+                        created_at,
+                        updated_at,
+                        is_active,
+                        is_deleted
+                    )
+                    SELECT
+                        message.user_id,
+                        message.conversation_id,
+                        COALESCE(
+                            (
+                                SELECT SUBSTR(first_user.content, 1, 48)
+                                FROM health_chat_messages AS first_user
+                                WHERE first_user.user_id = message.user_id
+                                  AND first_user.conversation_id = message.conversation_id
+                                  AND first_user.role = 'USER'
+                                ORDER BY first_user.created_at ASC, first_user.message_id ASC
+                                LIMIT 1
+                            ),
+                            '健康对话'
+                        ),
+                        MIN(message.created_at),
+                        MAX(message.created_at),
+                        CASE WHEN message.conversation_id = (
+                            SELECT latest.conversation_id
+                            FROM health_chat_messages AS latest
+                            WHERE latest.user_id = message.user_id
+                            GROUP BY latest.conversation_id
+                            ORDER BY MAX(latest.created_at) DESC, latest.conversation_id DESC
+                            LIMIT 1
+                        ) THEN 1 ELSE 0 END,
+                        0
+                    FROM health_chat_messages AS message
+                    GROUP BY message.user_id, message.conversation_id
+                    """.trimIndent(),
+                )
+            }
+        }
+
         private val Migration5To6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
@@ -257,8 +326,8 @@ abstract class AppDatabase : RoomDatabase() {
                     Migration3To4,
                     Migration4To5,
                     Migration5To6,
+                    Migration6To7,
                 )
-                .fallbackToDestructiveMigration()
                 .build()
     }
 }

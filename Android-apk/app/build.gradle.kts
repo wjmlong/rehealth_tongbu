@@ -8,6 +8,10 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) f.inputStream().use { load(it) }
@@ -78,6 +82,10 @@ android {
         // Provider credentials and request-signing secrets must never enter a release APK.
         buildConfigField("String", "JEECG_SIGN_SECRET", "\"\"")
         buildConfigField("String", "SMS_TEST_CODE", "\"\"")
+    }
+
+    sourceSets {
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
     }
 
     buildTypes {
@@ -173,5 +181,8 @@ dependencies {
     testImplementation("org.json:json:20250107")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.room:room-testing:2.7.1")
     ksp("androidx.room:room-compiler:2.7.1")
 }

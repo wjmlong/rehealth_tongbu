@@ -87,6 +87,11 @@ git diff --check
    - Send a question from Home, leave and return to the Home tab, and reopen the app as the same
      user. Confirm the Home preview is sourced from the same latest Room conversation rather
      than a temporary one-turn state.
+   - Upgrade an installed v6 database containing two conversations to v7. Confirm both message
+     histories remain, the latest conversation is active, and the generated titles are readable.
+     From Home, create a conversation, switch between conversations, then verify per-conversation
+     delete and clear-all require confirmation. Confirm deleted local conversations do not return
+     after latest refresh, while the UI states that authoritative cloud history is unchanged.
    - Open the Model tab and confirm it shows user-facing risk status without endpoint paths,
      request IDs, contribution values, temperature input, or claims that the cloud model runs
      on-device.

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.rehealth.genie.ReHealthApplication
+import com.rehealth.genie.data.HealthChatConversationEntity
 import com.rehealth.genie.data.HealthChatMessageEntity
 import com.rehealth.genie.network.ApiResult
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,9 +32,21 @@ class HealthChatViewModel(
     val messages: StateFlow<List<HealthChatMessageEntity>> = userId
         .flatMapLatest { currentUser ->
             if (currentUser.isNullOrBlank()) flowOf(emptyList())
-            else application.healthChatRepository.observeLatestConversation(currentUser)
+            else application.healthChatRepository.observeActiveConversation(currentUser)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val conversations: StateFlow<List<HealthChatConversationEntity>> = userId
+        .flatMapLatest { currentUser ->
+            if (currentUser.isNullOrBlank()) flowOf(emptyList())
+            else application.healthChatRepository.observeConversations(currentUser)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val activeConversationId: StateFlow<String?> = userId
+        .flatMapLatest { currentUser ->
+            if (currentUser.isNullOrBlank()) flowOf(null)
+            else application.healthChatRepository.observeActiveConversationId(currentUser)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {
         refresh()
@@ -73,6 +86,30 @@ class HealthChatViewModel(
 
     fun clearError() {
         mutableUiState.value = mutableUiState.value.copy(errorMessage = null)
+    }
+
+    fun newConversation() {
+        viewModelScope.launch {
+            application.healthChatRepository.createConversation()
+        }
+    }
+
+    fun selectConversation(conversationId: String) {
+        viewModelScope.launch {
+            application.healthChatRepository.selectConversation(conversationId)
+        }
+    }
+
+    fun deleteLocalConversation(conversationId: String) {
+        viewModelScope.launch {
+            application.healthChatRepository.deleteLocalConversation(conversationId)
+        }
+    }
+
+    fun clearLocalConversations() {
+        viewModelScope.launch {
+            application.healthChatRepository.clearLocalConversations()
+        }
     }
 
     class Factory(
