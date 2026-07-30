@@ -160,17 +160,19 @@ always HTTP 200 so Viomi marks the report delivered based on `code`.
 ```yaml
 rehealth:
   viomi:
-    enabled: true
-    app-id: "<viomi-issued-app-id>"
-    app-key: "<viomi-issued-app-key>"
-    require-auth: true
-    user-id: viomi-gateway
-    source: viomi
+    enabled: ${REHEALTH_VIOMI_ENABLED:true}
+    app-id: ${REHEALTH_VIOMI_APP_ID:}
+    app-key: ${REHEALTH_VIOMI_APP_KEY:}
+    require-auth: ${REHEALTH_VIOMI_REQUIRE_AUTH:true}
+    user-id: ${REHEALTH_VIOMI_USER_ID:viomi-gateway}
+    source: ${REHEALTH_VIOMI_SOURCE:viomi}
 ```
 
-`app-id`/`app-key` are issued by Viomi during onboarding and must be supplied via
-environment/secret in every environment. For local testing without a real Viomi
-token, set `rehealth.viomi.require-auth=false`.
+`app-id`/`app-key` are issued by Viomi during onboarding and injected via the
+`REHEALTH_VIOMI_APP_ID` / `REHEALTH_VIOMI_APP_KEY` environment variables (no
+secrets in source). `require-auth` defaults to `true`; for local integration
+before Viomi issues real credentials, set `REHEALTH_VIOMI_REQUIRE_AUTH=false`
+so reports pass through (still persisted under the configured `user-id`).
 
 ## Production Follow-up
 
