@@ -1,6 +1,10 @@
 package com.rehealth.genie.ui
 
 import android.content.Context
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Devices
@@ -34,11 +39,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rehealth.genie.ReHealthApplication
+import com.rehealth.genie.data.profileAvatarStorageKey
 import com.rehealth.genie.network.PatientProfilePayload
 import com.rehealth.genie.network.dto.HealthInterviewSubmitRequestDto
 import com.rehealth.genie.ring.RingMetricType
@@ -116,6 +124,20 @@ internal fun ProfileScreen(
     val profile = AttributionDataProvenance.trustedProfile(state.patientMvp)
     val latestInterview = state.patientMvp?.latestHealthInterview
     val session = (context.applicationContext as? ReHealthApplication)?.sessionStore
+    val avatarIdentity = session?.userId ?: session?.username ?: "signed-out"
+    val avatarStorageKey = remember(avatarIdentity) { profileAvatarStorageKey(avatarIdentity) }
+    val avatarViewModel: ProfileAvatarViewModel = viewModel(
+        key = "profile-avatar-$avatarStorageKey",
+        factory = remember(context, avatarIdentity) {
+            ProfileAvatarViewModel.Factory(context.applicationContext, avatarIdentity)
+        },
+    )
+    val avatarState by avatarViewModel.uiState.collectAsState()
+    val avatarPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia(),
+    ) { uri ->
+        uri?.let(avatarViewModel::save)
+    }
     val editViewModel: ProfileEditViewModel = viewModel(factory = ProfileEditViewModel.Factory(context))
     val editState by editViewModel.uiState.collectAsState()
     LaunchedEffect(Unit) {
@@ -132,14 +154,73 @@ internal fun ProfileScreen(
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             ReHealthCardBlock {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(58.dp).clip(CircleShape).background(MintSoft), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Outlined.AccountCircle, null, tint = Mint, modifier = Modifier.size(38.dp))
+                    Box(
+                        Modifier.size(58.dp).clip(CircleShape).background(MintSoft).clickable(
+                            enabled = !avatarState.isSaving,
+                        ) {
+                            avatarPicker.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                            )
+                        },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        val avatar = avatarState.bitmap
+                        if (avatar == null) {
+                            Icon(Icons.Outlined.AccountCircle, "选择本机头像", tint = Mint, modifier = Modifier.size(38.dp))
+                        } else {
+                            Image(
+                                bitmap = avatar.asImageBitmap(),
+                                contentDescription = "本机头像",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.size(58.dp),
+                            )
+                        }
+                        if (avatarState.isSaving) {
+                            Box(
+                                Modifier.size(58.dp).background(Color.Black.copy(alpha = 0.28f)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(22.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp,
+                                )
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier.align(Alignment.BottomEnd).size(21.dp)
+                                    .clip(CircleShape).background(Mint),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    Icons.Outlined.AddAPhoto,
+                                    "更换头像",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(13.dp),
+                                )
+                            }
+                        }
                     }
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
                         Text(profile?.name ?: session?.username ?: "未命名用户", color = Ink, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                         Text("${profile?.age ?: "--"}岁 · BMI ${profile?.bmi ?: "--"} · 已陪伴 ${session?.firstUseDays() ?: 0} 天", color = Muted, fontSize = 11.sp)
+                        Text(
+                            "点击头像从系统相册选择 · 仅保存在本机",
+                            color = Muted,
+                            fontSize = 9.sp,
+                            modifier = Modifier.padding(top = 3.dp),
+                        )
                     }
                     Text("Pro 会员", color = Color(0xFFB47A13), fontSize = 11.sp, modifier = Modifier.clip(CircleShape).background(Color(0xFFFFF1CD)).padding(horizontal = 10.dp, vertical = 5.dp))
+                }
+                avatarState.errorMessage?.let { error ->
+                    Text(
+                        error,
+                        color = Color(0xFFD94C4C),
+                        fontSize = 11.sp,
+                        modifier = Modifier.fillMaxWidth().clickable(onClick = avatarViewModel::clearError)
+                            .padding(top = 8.dp),
+                    )
                 }
             }
             ReHealthCardBlock {

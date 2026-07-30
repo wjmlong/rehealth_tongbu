@@ -130,6 +130,10 @@ Android 在请求成功后自动填入该值。Release 的签名字段和测试�
 请求 ID、内部贡献值或体温输入，也不再声称云端模型在端侧运行。“我的”中的每日步数优先使用
 Room `ring_activities` 按设备当地自然日聚合的真实活动记录，活动缺失时才兼容旧 `STEPS` 测量。
 
+“我的”头像使用 Android 系统照片选择器。所选图片在本机缩放并重新编码为 JPEG（同时去除原图
+元数据），按登录用户 SHA-256 摘要隔离保存到应用私有目录；仅本机预览和持久化，不新增媒体权限，
+也不调用后端上传接口。
+
 模拟戒指只存在于 `app/src/debug`，由 Debug 专用工厂和
 `USE_FAKE_RING`/`SEED_FAKE_HEALTH_DATA` 控制。`app/src/release` 的工厂只构造
 真实 MRD/RWFit/HBand Provider；远程风险评估失败时显示不可用，不生成本地模拟风险。

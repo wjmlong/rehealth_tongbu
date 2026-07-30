@@ -90,6 +90,9 @@ git diff --check
    - Open the Model tab and confirm it shows user-facing risk status without endpoint paths,
      request IDs, contribution values, temperature input, or claims that the cloud model runs
      on-device.
+   - Open “我的”, tap the avatar, and select an image through the Android system picker.
+     Confirm the preview updates, survives app restart and same-user re-login, and is not visible
+     to another user. Verify no avatar upload request is sent and no new media permission is asked.
    - Ask for a diagnosis/prescription and enter urgent chest-pain/breathing wording.
      Verify the Java safety policy refuses diagnosis and escalates urgent care, while every
      answer displays “仅供健康参考，不能替代医疗诊断”.
