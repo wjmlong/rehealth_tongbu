@@ -457,3 +457,14 @@ rehealth:
     retention:
       telemetry-days: 30
       raw-signal-days: 0
+  # Viomi (云米 / miwitracker) active-report adapter. Credentials are issued by
+  # Viomi during onboarding and MUST be injected via env before enabling auth.
+  # Without a real app-key, set REHEALTH_VIOMI_REQUIRE_AUTH=false to let reports
+  # through for local integration (still persisted under the configured user-id).
+  viomi:
+    enabled: ${REHEALTH_VIOMI_ENABLED:true}
+    app-id: ${REHEALTH_VIOMI_APP_ID:}
+    app-key: ${REHEALTH_VIOMI_APP_KEY:}
+    require-auth: ${REHEALTH_VIOMI_REQUIRE_AUTH:true}
+    user-id: ${REHEALTH_VIOMI_USER_ID:viomi-gateway}
+    source: ${REHEALTH_VIOMI_SOURCE:viomi}
