@@ -22,6 +22,7 @@ fun reHealthApiBaseUrl(): String {
 fun reHealthReleaseApiBaseUrl(): String {
     val configured = localProps.getProperty("rehealth.release.api.base.url")
         ?: System.getenv("REHEALTH_RELEASE_API_BASE_URL")
+        ?: providers.gradleProperty("rehealth.release.api.base.url").orNull
         ?: "https://api.rehealth.invalid/"
     val normalized = configured.trim().trimEnd('/') + "/"
     require(normalized.startsWith("https://")) {

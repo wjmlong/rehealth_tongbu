@@ -90,7 +90,7 @@ https://rehealth.youngjimmy.store/jeecg-boot/
 
 ```properties
 rehealth.api.base.url=https://rehealth.youngjimmy.store/jeecg-boot/
-rehealth.release.api.base.url=https://api.example.com/jeecg-boot/
+rehealth.release.api.base.url=https://rehealth.youngjimmy.store/jeecg-boot/
 ```
 
 Release 的后端地址必须使用 HTTPS。模型 Provider 凭据、内部服务 token 和生产
