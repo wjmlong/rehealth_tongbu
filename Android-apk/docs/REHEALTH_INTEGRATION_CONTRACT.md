@@ -68,10 +68,17 @@ queue until the user logs in again; the app does not invent a refresh-token flow
 
 RHI v2 is not yet a canonical Android endpoint. The APK contains only draft
 32-field DTOs and a conservative CVD-16 migration mapper. No Retrofit method,
-Room cache, or UI switch may be added until the shared OpenAPI, JeecgBoot durable
+cloud RHI cache, or canonical RHI UI switch may be added until the shared OpenAPI, JeecgBoot durable
 persistence, daily feature snapshot ownership, and research-preview release gate
 are approved. The model-service-only preview route is
 `POST /v2/rhi/evaluate`; Android must never call model-service directly.
+
+Android does contain a separate local product index named RDI
+(`rdi-rule-1.0.0`). It does not call a backend endpoint and must not be interpreted
+as the RHI v2 clinical/dynamic contract. RDI reads existing Room wearable rows,
+persists local daily snapshots plus calculation evidence, and leaves confirmed
+CVD-16 risk history unchanged. Unverified cuffless blood pressure, missing lab
+values, and inferred LDL/HbA1c are excluded.
 
 Every durable business endpoint returns a retryable `503` envelope when the
 required database is disabled or unavailable. Android must not interpret an
@@ -122,6 +129,14 @@ so the existing `conversations/latest` refresh does not immediately restore a
 deleted cache entry. It does not delete authoritative MySQL history: the public
 backend contract still exposes only latest-conversation restore and has no list or
 delete endpoint.
+
+Android Room schema v8 adds `rdi_daily_snapshots` and
+`rdi_contribution_records`. Migration 7→8 creates only these tables and their
+indices, preserving all prior records. A snapshot stores raw/display scores,
+confidence, status, date and algorithm version; each contribution stores the
+source, current/baseline values, unit, raw points, confidence-adjusted points,
+evidence text, source-factor ID and version. These tables are local-only and are
+not part of telemetry, public mobile DTOs, PIAS, or clinical-risk persistence.
 
 Feedback and device binding completion require `persisted == true`.
 

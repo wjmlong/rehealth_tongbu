@@ -21,7 +21,8 @@ ReHealth 是面向可穿戴设备和健康干预场景的软硬件一体化系�
   -> TimescaleDB + Transactional Outbox
   -> CVD 16 维特征与模型评分
   -> 干预建议
-  -> 用户反馈与风险趋势
+  -> Android 本地 RDI 近期可干预负荷与证据
+  -> 用户反馈与长期风险趋势
 ```
 
 Android 按 `productCode` 选择单一有效 Provider，Release 已注册 MRD、RWFit 和 HBand。
@@ -94,6 +95,7 @@ rehealth_tongbu/
 │  │  ├─ work/                  WorkManager 上传与恢复任务
 │  │  ├─ data/sync/             本地上传队列与反馈同步
 │  │  ├─ features/              CVD 16 维特征提取
+│  │  ├─ rdi/                   本地 RDI 透明规则、每日快照与证据
 │  │  ├─ network/               认证客户端、API 与 DTO
 │  │  ├─ phm/                   风险/干预服务抽象
 │  │  └─ ui/                    Compose 页面
@@ -190,6 +192,13 @@ Feature Pipeline 生成版本化 32 维日快照，由 JeecgBoot 持久化并调
 未发布的后端路由。算法规划见
 `rehealth-algorithms/docs/RHI_V2_ALGORITHM_PLAN.md`。
 
+Android 当前还提供独立的本地 `RDI rdi-rule-1.0.0`：它从 Room 的近
+7/28 日活动、睡眠及满足同设备/有效天数要求的 HRV 生成近期可干预负荷，
+将可信度直接乘入贡献，并对展示值做 `0.30/0.70` 平滑和普通日 `±3` 限幅。
+数据不足时结果向 50 收缩或冻结上一有效展示值。它不调用新接口、不覆盖
+CVD-16 风险历史，也不从消费设备反推验证血压、LDL 或 HbA1c。Room v8
+通过显式 7→8 迁移保存每日快照和逐因素证据。
+
 未来若需要持续云端分析，应增加独立 Feature Pipeline 消费遥测持久化事件，
 按事件中的批次/设备引用读取授权范围内的 TimescaleDB 数据，再生成版本化特征；
 不要把原始健康值直接放入 Kafka 事件。
@@ -199,6 +208,7 @@ Feature Pipeline 生成版本化 32 维日快照，由 JeecgBoot 持久化并调
 | 数据 | 权威存储 | 说明 |
 | --- | --- | --- |
 | Android 本地遥测和待上传任务 | Room | 本地优先、离线可用 |
+| Android 每日 RDI 与贡献证据 | Room v8 | 本地产品趋势；不作为临床概率或云端权威风险 |
 | 规范化硬件时序数据 | TimescaleDB | Device Service 独占写入和读取 |
 | 用户、档案、绑定、风险、干预、反馈、健康问答历史 | MySQL `software_db` | JeecgBoot 业务权威；聊天按用户+租户隔离 |
 | 遥测持久化/质量事件 | Kafka | 事件通知，不存原始健康值 |

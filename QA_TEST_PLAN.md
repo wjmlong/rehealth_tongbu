@@ -94,7 +94,22 @@ git diff --check
      after latest refresh, while the UI states that authoritative cloud history is unchanged.
    - Open the Model tab and confirm it shows user-facing risk status without endpoint paths,
      request IDs, contribution values, temperature input, or claims that the cloud model runs
-     on-device.
+     on-device. Confirm the existing CVD 16 input fields are listed here with real values or
+     missing states, while internal contribution values remain hidden.
+   - Upgrade a v7 database containing health, wearable, queue, risk and chat rows to v8.
+     Confirm all prior rows remain and the two local RDI tables are created.
+   - Open the Attribution tab after at least seven valid activity/sleep days. Confirm it shows
+     RDI, 7-day change, data confidence and at most three factors with confidence `>=0.60`.
+     With fewer than three valid factors, confirm the page says data is accumulating and does
+     not fill gaps with age or default-normal values.
+   - Increase recent steps while holding the baseline stable and confirm the activity
+     contribution moves in the improving direction. Shorten sleep below seven hours and
+     confirm sleep contribution cannot improve. Remove recent wearable data and confirm the
+     display score freezes or contracts toward neutral rather than treating missing data as healthy.
+   - Change the HRV source/device between baseline and current windows and confirm HRV is
+     excluded. Confirm ring/watch cuffless BP, absent labs and inferred LDL/HbA1c never enter
+     the RDI evidence list. Verify the page states RDI is not a disease probability and is not
+     for diagnosis or medication changes.
    - Open “我的”, tap the avatar, and select an image through the Android system picker.
      Confirm the preview updates, survives app restart and same-user re-login, and is not visible
      to another user. Verify no avatar upload request is sent and no new media permission is asked.

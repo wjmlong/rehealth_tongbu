@@ -17,6 +17,9 @@ import com.rehealth.genie.ring.data.RingDataDao
 import com.rehealth.genie.ring.data.RingMeasurementEntity
 import com.rehealth.genie.ring.data.RingSignalChunkEntity
 import com.rehealth.genie.ring.data.RingSleepSessionEntity
+import com.rehealth.genie.rdi.RdiContributionEntity
+import com.rehealth.genie.rdi.RdiDailySnapshotEntity
+import com.rehealth.genie.rdi.RdiDao
 
 @Entity(tableName = "health_records")
 data class HealthRecordEntity(
@@ -50,8 +53,10 @@ data class AttributionLogEntity(
         RiskHistoryEntity::class,
         HealthChatConversationEntity::class,
         HealthChatMessageEntity::class,
+        RdiDailySnapshotEntity::class,
+        RdiContributionEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -60,8 +65,73 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun interventionFeedbackDao(): InterventionFeedbackDao
     abstract fun riskHistoryDao(): RiskHistoryDao
     abstract fun healthChatDao(): HealthChatDao
+    abstract fun rdiDao(): RdiDao
 
     companion object {
+        val Migration7To8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS rdi_daily_snapshots (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        user_id TEXT NOT NULL,
+                        scored_on TEXT NOT NULL,
+                        raw_score REAL NOT NULL,
+                        display_score REAL NOT NULL,
+                        data_confidence REAL NOT NULL,
+                        status TEXT NOT NULL,
+                        algorithm_version TEXT NOT NULL,
+                        created_at INTEGER NOT NULL,
+                        updated_at INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_rdi_daily_snapshots_user_id_scored_on " +
+                        "ON rdi_daily_snapshots(user_id, scored_on)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_rdi_daily_snapshots_user_id_updated_at " +
+                        "ON rdi_daily_snapshots(user_id, updated_at)",
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS rdi_contribution_records (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        snapshot_id TEXT NOT NULL,
+                        user_id TEXT NOT NULL,
+                        scored_on TEXT NOT NULL,
+                        factor_code TEXT NOT NULL,
+                        domain TEXT NOT NULL,
+                        source TEXT NOT NULL,
+                        current_value REAL NOT NULL,
+                        baseline_value REAL,
+                        unit TEXT NOT NULL,
+                        raw_points REAL NOT NULL,
+                        confidence REAL NOT NULL,
+                        final_points REAL NOT NULL,
+                        evidence_text TEXT NOT NULL,
+                        algorithm_version TEXT NOT NULL,
+                        source_factor_id TEXT NOT NULL,
+                        created_at INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_rdi_contribution_records_snapshot_id " +
+                        "ON rdi_contribution_records(snapshot_id)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_rdi_contribution_records_user_id_scored_on " +
+                        "ON rdi_contribution_records(user_id, scored_on)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_rdi_contribution_records_source_factor_id " +
+                        "ON rdi_contribution_records(source_factor_id)",
+                )
+            }
+        }
+
         val Migration6To7 = object : Migration(6, 7) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
@@ -327,6 +397,7 @@ abstract class AppDatabase : RoomDatabase() {
                     Migration4To5,
                     Migration5To6,
                     Migration6To7,
+                    Migration7To8,
                 )
                 .build()
     }
