@@ -200,7 +200,7 @@ class HBandRingRepositoryTest {
     }
 
     @Test
-    fun productConfiguredHrvAndMetRemainMeasurableWhenLegacyFirmwareOmitsFlags() = runTest {
+    fun productConfiguredHrvStressAndMetCanRequestRealHistoryFallback() = runTest {
         val gateway = FakeHBandGateway(capabilitiesValue = HBandCapabilities(ecg = true))
         val repository = repository(FakeHBandDao(), HBandBindingStore(), gateway).apply {
             wearableUserProfile = BaselineHealthProfile(
@@ -213,12 +213,17 @@ class HBandRingRepositoryTest {
 
         repository.connect(DEVICE)
         repository.measure(RingMetricType.HRV)
+        repository.measure(RingMetricType.STRESS)
         repository.measure(RingMetricType.MET)
 
         assertTrue(RingMetricType.HRV in repository.supportedMetrics)
+        assertTrue(RingMetricType.STRESS in repository.supportedMetrics)
         assertTrue(RingMetricType.MET in repository.supportedMetrics)
-        assertEquals(listOf(RingMetricType.HRV, RingMetricType.MET), gateway.measuredTypes)
-        assertEquals(listOf(true, true), gateway.unreportedCapabilityOverrides)
+        assertEquals(
+            listOf(RingMetricType.HRV, RingMetricType.STRESS, RingMetricType.MET),
+            gateway.measuredTypes,
+        )
+        assertEquals(listOf(true, true, true), gateway.historyFallbackRequests)
     }
 
     @Test
@@ -326,7 +331,7 @@ private class FakeHBandGateway(
     var connectCalls = 0
     var measureCalls = 0
     val measuredTypes = mutableListOf<RingMetricType>()
-    val unreportedCapabilityOverrides = mutableListOf<Boolean>()
+    val historyFallbackRequests = mutableListOf<Boolean>()
     var syncCalls = 0
     var lastConnectedAddress: String? = null
     var bloodGlucoseSettingCalls = 0
@@ -348,10 +353,10 @@ private class FakeHBandGateway(
         syncCalls++
         return payload
     }
-    override suspend fun measure(type: RingMetricType, allowUnreportedCapability: Boolean): HBandPayload {
+    override suspend fun measure(type: RingMetricType, allowHistoryFallback: Boolean): HBandPayload {
         measureCalls++
         measuredTypes += type
-        unreportedCapabilityOverrides += allowUnreportedCapability
+        historyFallbackRequests += allowHistoryFallback
         return payload
     }
     override suspend fun setBloodGlucoseCalibration(config: BloodGlucoseCalibration): Boolean {

@@ -75,10 +75,11 @@ For `RH-HB-E01`, validate only device-advertised capabilities:
   total-only sleep, verify duration is displayed while deep/light/REM remain unknown;
 - manual blood oxygen only when `getSpo2H()` is true; verify a real `%` value and
   wear-off/failure behavior;
-- manual HRV when package 2 or aggregate reports `getHrvAppDetectFunction()`,
-  `getHrvFunction()`, or a non-zero `getHrvType()`. Also test the `RH-HB-E01` compatibility
-  entry when legacy firmware leaves all three signals unset: the button must issue the real
-  SDK command, persist only a positive SDK integer as `ms`, and show no-result on failure;
+- direct manual HRV only when package 2 or aggregate reports
+  `getHrvAppDetectFunction()`. When only `getHrvFunction()`/non-zero `getHrvType()` is
+  present, do not call `startDetectHrv`; use package-4 `miniCheckup` when supported, otherwise
+  read real device history. Persist only a positive SDK integer as `ms`, show no-result on
+  failure, and confirm no “This feature is not supported” SDK toast appears;
 - blood-pressure history and manual measurement only when `getBp()` is true;
   verify systolic/diastolic order, `mmHg` units, wear-off/charging/low-battery
   failures, and compare repeated readings with a validated cuff without making
@@ -113,12 +114,13 @@ For `RH-HB-E01`, validate only device-advertised capabilities:
   arms, and still posture; cancelling the dialog must not start measurement;
 - direct blood glucose only when `getBloodGlucose()` is true; verify the device unit,
   manual-history sync, failure behavior, and non-diagnostic/estimated-value wording;
-- stress only when `getStress()` is true; verify direct measurement and manual-history
-  sync stay in `0..100 score` and are not interpreted as a mental-health diagnosis;
-- metabolic equivalent when `getMet()` is true or `getMetType()` is non-zero. Also test the
-  `RH-HB-E01` compatibility entry with both signals unset; verify the real direct command and
-  manual-history sync use `MET`, persist only positive values, and compare activity-time values
-  with the vendor app;
+- stress direct measurement when `getStress()` is true; otherwise use package-4
+  `miniCheckup` when supported, then device history as the final fallback. Verify every real
+  result stays in `0..100 score` and is not interpreted as a mental-health diagnosis;
+- metabolic equivalent direct measurement only when `getMet()` is true. A non-zero
+  `getMetType()` permits history retrieval but must not call `startDetectMet`; the card uses
+  “获取” for the latest device MET, persists only positive values, and shows no-result when
+  the device has no history. Compare activity-time values with the vendor app;
 - blood-glucose calibration only when the adjusting capability is true. Use a
   same-time external meter reference value, verify the setting callback, and do
   not treat calibration as a measurement or medical result;

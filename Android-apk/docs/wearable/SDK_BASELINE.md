@@ -113,21 +113,22 @@ The HBand Provider follows `connectDevice -> Notify -> confirmDevicePwd ->
 settled aggregate/DeviceFunctionPackage capability merge -> syncPersonInfo -> READY`.
 The SDK marks `onFunctionSupportDataChange` deprecated and documents that it may fire
 multiple times before all fields are initialized, so numbered packages override the
-latest aggregate value for their fields. In particular, MT116 ECG and HRV are read
-from `DeviceFunctionPackage2`; the aggregate callback remains a compatibility fallback.
-HRV support merges `hrvAppDetectFunction`, `hrvFunction`, and a non-zero `hrvType`,
-because model-specific firmware may expose only one of those explicit SDK signals. MET
-similarly accepts either `met` support or a non-zero `metType` from the aggregate report.
+latest aggregate value for their fields. In particular, MT116 ECG and direct app-HRV
+support are read from `DeviceFunctionPackage2`; the aggregate callback remains a
+compatibility fallback. Direct HRV requires `hrvAppDetectFunction`; `hrvFunction` or a
+non-zero `hrvType` enables history reads but does not authorize `startDetectHrv`.
+Likewise, direct MET requires `met`, while non-zero `metType` enables history reads only.
+This distinction is required because the pinned SDK itself rejects unsupported direct
+commands with a user-visible toast.
 Its product intersection
 allows heart rate, daily steps/activity, sleep, blood oxygen, app HRV, blood pressure,
 blood glucose, stress, MET, ECG, blood component, and body composition
 operations. Blood-glucose calibration
-and menstrual-cycle settings use separate feature operations. The settled runtime capability
-signals remain authoritative for other actions. As a scoped compatibility exception,
-connected `RH-HB-E01` devices expose HRV and MET manual measurement when those metrics
-are present in the trusted product profile even if legacy firmware leaves all corresponding
-capability signals unset. These entries still invoke the pinned SDK commands; failures,
-timeouts, zeroes, and absent values are not persisted. ECG is a product requirement for `RH-HB-E01`; a device
+and menstrual-cycle settings use separate feature operations. Package 4 `miniCheckup`
+provides a real fallback measurement for HRV and stress when their dedicated direct
+interfaces are unavailable. Connected `RH-HB-E01` devices expose scoped HRV/stress/MET
+history retrieval as the final fallback; MET uses the UI label “获取” when no direct result
+is available. Failures, timeouts, zeroes, and absent values are not persisted. ECG is a product requirement for `RH-HB-E01`; a device
 that does not report ECG support is rejected instead of silently degrading. The user profile comes from ReHealth profile
 data; the SDK demo's fixed sex/age/height/weight values are not used. Blood
 pressure history and manual detection persist systolic/diastolic mmHg values.

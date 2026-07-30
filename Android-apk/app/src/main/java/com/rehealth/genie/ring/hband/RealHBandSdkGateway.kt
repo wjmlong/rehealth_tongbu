@@ -44,6 +44,7 @@ import com.veepoo.protocol.listener.data.ISportDataListener
 import com.veepoo.protocol.listener.data.ITemptureDataListener
 import com.veepoo.protocol.listener.data.ITemptureDetectDataListener
 import com.veepoo.protocol.listener.data.IWomenDataListener
+import com.veepoo.protocol.listener.IMiniCheckupOptListener
 import com.veepoo.protocol.model.datas.BloodComponent
 import com.veepoo.protocol.model.datas.BloodComponentManualData
 import com.veepoo.protocol.model.datas.BloodGlucoseManualData
@@ -58,6 +59,8 @@ import com.veepoo.protocol.model.datas.HrvManualData
 import com.veepoo.protocol.model.datas.MealInfo
 import com.veepoo.protocol.model.datas.MetoManualData
 import com.veepoo.protocol.model.datas.MiniCheckupManualData
+import com.veepoo.protocol.model.datas.MiniCheckupDetailData
+import com.veepoo.protocol.model.datas.MiniCheckupResultData
 import com.veepoo.protocol.model.datas.DeviceFunctionPackage1
 import com.veepoo.protocol.model.datas.DeviceFunctionPackage2
 import com.veepoo.protocol.model.datas.DeviceFunctionPackage3
@@ -96,6 +99,7 @@ import com.veepoo.protocol.model.enums.EUricAcidUnit
 import com.veepoo.protocol.model.enums.HrvDetectState
 import com.veepoo.protocol.model.enums.EWomenOprateStatus
 import com.veepoo.protocol.model.enums.EWomenStatus
+import com.veepoo.protocol.model.enums.EMiniCheckupTestErrorCode
 import com.veepoo.protocol.model.settings.CustomSettingData
 import com.veepoo.protocol.model.settings.ReadOriginSetting
 import com.veepoo.protocol.model.settings.WomenSetting
@@ -299,27 +303,35 @@ internal class RealHBandSdkGateway(
         }
     }
 
-    override suspend fun measure(type: RingMetricType, allowUnreportedCapability: Boolean): HBandPayload {
-        val capabilityReported = type in capabilities.value.supportedMetrics
-        if (type !in MANUAL_METRICS || (!capabilityReported && !allowUnreportedCapability)) return HBandPayload()
+    override suspend fun measure(type: RingMetricType, allowHistoryFallback: Boolean): HBandPayload {
+        val currentCapabilities = capabilities.value
+        val route = currentCapabilities.measurementRoute(type, allowHistoryFallback)
+        if (type !in MANUAL_METRICS || route == HBandMeasurementRoute.UNSUPPORTED) {
+            return HBandPayload()
+        }
         return try {
             queue.execute(MEASUREMENT_TIMEOUT_MILLIS) {
                 stateMachine.startSync()
                 publishState()
                 try {
-                    when (type) {
-                        RingMetricType.HEART_RATE -> measureHeartRate()
-                        RingMetricType.BLOOD_OXYGEN -> measureBloodOxygen()
-                        RingMetricType.HRV -> measureHrv()
-                        RingMetricType.BLOOD_PRESSURE -> measureBloodPressure()
-                        RingMetricType.BLOOD_GLUCOSE -> measureBloodGlucose()
-                        RingMetricType.TEMPERATURE -> measureTemperature()
-                        RingMetricType.STRESS -> measureStress()
-                        RingMetricType.MET -> measureMet()
-                        RingMetricType.ECG -> measureEcg()
-                        RingMetricType.BLOOD_COMPONENT -> measureBloodComponent()
-                        RingMetricType.BODY_COMPOSITION -> measureBodyComposition()
-                        else -> HBandPayload()
+                    when (route) {
+                        HBandMeasurementRoute.DIRECT -> when (type) {
+                            RingMetricType.HEART_RATE -> measureHeartRate()
+                            RingMetricType.BLOOD_OXYGEN -> measureBloodOxygen()
+                            RingMetricType.HRV -> measureHrv()
+                            RingMetricType.BLOOD_PRESSURE -> measureBloodPressure()
+                            RingMetricType.BLOOD_GLUCOSE -> measureBloodGlucose()
+                            RingMetricType.TEMPERATURE -> measureTemperature()
+                            RingMetricType.STRESS -> measureStress()
+                            RingMetricType.MET -> measureMet()
+                            RingMetricType.ECG -> measureEcg()
+                            RingMetricType.BLOOD_COMPONENT -> measureBloodComponent()
+                            RingMetricType.BODY_COMPOSITION -> measureBodyComposition()
+                            else -> HBandPayload()
+                        }
+                        HBandMeasurementRoute.MINI_CHECKUP -> measureMiniCheckup(type)
+                        HBandMeasurementRoute.HISTORY -> readManualMeasurementHistory(setOf(type))
+                        HBandMeasurementRoute.UNSUPPORTED -> HBandPayload()
                     }
                 } finally {
                     stateMachine.ready()
@@ -830,6 +842,40 @@ internal class RealHBandSdkGateway(
         }
     }
 
+    private suspend fun measureMiniCheckup(type: RingMetricType): HBandPayload {
+        val result = CompletableDeferred<HBandPayload>()
+        val listener = object : IMiniCheckupOptListener {
+            override fun onMiniCheckupTestProgress(progress: Int) = Unit
+            override fun onMiniCheckupStopSuccess() {
+                result.complete(HBandPayload())
+            }
+            override fun onMiniCheckupTestFailed(errorCode: EMiniCheckupTestErrorCode) {
+                result.complete(HBandPayload())
+            }
+            override fun onMiniCheckupSuccess(testResultData: MiniCheckupResultData) {
+                result.complete(
+                    hBandMiniCheckupPayload(type, clock(), testResultData.hrv, testResultData.stress),
+                )
+            }
+            override fun onMiniCheckupDetailTestSuccess(miniCheckupDetailData: MiniCheckupDetailData) {
+                result.complete(
+                    hBandMiniCheckupPayload(
+                        type,
+                        clock(),
+                        miniCheckupDetailData.hrv,
+                        miniCheckupDetailData.stress,
+                    ),
+                )
+            }
+        }
+        withContext(Dispatchers.Main.immediate) { manager.startMiniCheckup(sdkWriteResponse, listener) }
+        return try {
+            result.await()
+        } finally {
+            withContext(Dispatchers.Main.immediate) { manager.stopMiniCheckup(sdkWriteResponse, listener) }
+        }
+    }
+
     private suspend fun measureBloodComponent(): HBandPayload {
         val units = readBloodComponentUnits()
         val result = CompletableDeferred<BloodComponent?>()
@@ -1123,7 +1169,27 @@ internal class RealHBandSdkGateway(
                 }
             }
 
-            override fun onMiniCheckupManualDataChange(data: List<MiniCheckupManualData>?) = Unit
+            override fun onMiniCheckupManualDataChange(data: List<MiniCheckupManualData>?) {
+                data.orEmpty().forEach { item ->
+                    val measuredAt = item.timeStamp.toEpochMillisFromSeconds() ?: return@forEach
+                    if (RingMetricType.HRV in metrics) {
+                        records += hBandMiniCheckupPayload(
+                            RingMetricType.HRV,
+                            measuredAt,
+                            item.hrv,
+                            item.pressure,
+                        ).measurements
+                    }
+                    if (RingMetricType.STRESS in metrics) {
+                        records += hBandMiniCheckupPayload(
+                            RingMetricType.STRESS,
+                            measuredAt,
+                            item.hrv,
+                            item.pressure,
+                        ).measurements
+                    }
+                }
+            }
             override fun onEmotionManualDataChange(data: List<EmotionManualData>?) = Unit
             override fun onFatigueManualDataChange(data: List<FatigueManualData>?) = Unit
             override fun onSkinConductanceManualDataChange(data: List<SkinConductanceManualData>?) = Unit
@@ -1441,8 +1507,8 @@ internal class RealHBandSdkGateway(
                         temperatureType = data.temptureType,
                         heartRate = data.heartDetect.hasFunction(),
                         bloodOxygen = data.spo2H.hasFunction(),
-                        hrv = supportsHBandHrv(
-                            appDetection = data.hrvAppDetectFunction.hasFunction(),
+                        hrv = data.hrvAppDetectFunction.hasFunction(),
+                        hrvHistory = supportsHBandHrvHistory(
                             deviceFeature = data.hrvFunction.hasFunction(),
                             hrvType = data.hrvType,
                         ),
@@ -1450,10 +1516,10 @@ internal class RealHBandSdkGateway(
                         bloodGlucose = data.bloodGlucose.hasFunction(),
                         temperature = data.temperatureFunction.hasFunction(),
                         stress = data.stress.hasFunction(),
-                        met = supportsHBandMet(
-                            feature = data.met.hasFunction(),
-                            metType = data.metType,
-                        ),
+                        stressHistory = supportsHBandMetricHistory(data.stressType),
+                        met = data.met.hasFunction(),
+                        metHistory = supportsHBandMetricHistory(data.metType),
+                        miniCheckup = data.miniCheckup.hasFunction(),
                         ecg = data.ecg.hasFunction(),
                         bloodComponent = data.bloodComponent.hasFunction(),
                         bodyComposition = data.bodyComponent.hasFunction(),
@@ -1483,8 +1549,8 @@ internal class RealHBandSdkGateway(
                 2,
                 HBandCapabilityPatch(
                     watchDataDays = data.watchDataDayNumber,
-                    hrv = supportsHBandHrv(
-                        appDetection = data.hrvAppDetectFunction.hasFunction(),
+                    hrv = data.hrvAppDetectFunction.hasFunction(),
+                    hrvHistory = supportsHBandHrvHistory(
                         deviceFeature = data.hrvFunction.hasFunction(),
                         hrvType = data.hrvType,
                     ),
@@ -1514,6 +1580,7 @@ internal class RealHBandSdkGateway(
                 HBandCapabilityPatch(
                     bloodComponent = data.bloodComponent.hasFunction(),
                     bodyComposition = data.bodyComponent.hasFunction(),
+                    miniCheckup = data.miniCheckup.hasFunction(),
                 ),
             )
         }

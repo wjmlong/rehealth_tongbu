@@ -23,11 +23,15 @@ internal data class HBandCapabilities(
     val heartRate: Boolean = false,
     val bloodOxygen: Boolean = false,
     val hrv: Boolean = false,
+    val hrvHistory: Boolean = false,
     val bloodPressure: Boolean = false,
     val bloodGlucose: Boolean = false,
     val temperature: Boolean = false,
     val stress: Boolean = false,
+    val stressHistory: Boolean = false,
     val met: Boolean = false,
+    val metHistory: Boolean = false,
+    val miniCheckup: Boolean = false,
     val ecg: Boolean = false,
     val bloodComponent: Boolean = false,
     val bodyComposition: Boolean = false,
@@ -43,12 +47,12 @@ internal data class HBandCapabilities(
             if (sleep) add(RingMetricType.SLEEP)
             if (heartRate) add(RingMetricType.HEART_RATE)
             if (bloodOxygen) add(RingMetricType.BLOOD_OXYGEN)
-            if (hrv) add(RingMetricType.HRV)
+            if (hrv || hrvHistory || miniCheckup) add(RingMetricType.HRV)
             if (bloodPressure) add(RingMetricType.BLOOD_PRESSURE)
             if (bloodGlucose) add(RingMetricType.BLOOD_GLUCOSE)
             if (temperature) add(RingMetricType.TEMPERATURE)
-            if (stress) add(RingMetricType.STRESS)
-            if (met) add(RingMetricType.MET)
+            if (stress || stressHistory || miniCheckup) add(RingMetricType.STRESS)
+            if (met || metHistory) add(RingMetricType.MET)
             if (ecg) add(RingMetricType.ECG)
             if (bloodComponent) add(RingMetricType.BLOOD_COMPONENT)
             if (bodyComposition) add(RingMetricType.BODY_COMPOSITION)
@@ -72,10 +76,15 @@ internal data class HBandCapabilityPatch(
     val heartRate: Boolean? = null,
     val bloodOxygen: Boolean? = null,
     val hrv: Boolean? = null,
+    val hrvHistory: Boolean? = null,
     val bloodPressure: Boolean? = null,
     val bloodGlucose: Boolean? = null,
     val temperature: Boolean? = null,
     val stress: Boolean? = null,
+    val stressHistory: Boolean? = null,
+    val met: Boolean? = null,
+    val metHistory: Boolean? = null,
+    val miniCheckup: Boolean? = null,
     val ecg: Boolean? = null,
     val bloodComponent: Boolean? = null,
     val bodyComposition: Boolean? = null,
@@ -83,18 +92,10 @@ internal data class HBandCapabilityPatch(
     val womensHealth: Boolean? = null,
 )
 
-/**
- * Older and model-specific HBand firmware does not always set the app-detection flag.
- * Accept every explicit SDK capability signal that describes an HRV implementation.
- */
-internal fun supportsHBandHrv(
-    appDetection: Boolean,
-    deviceFeature: Boolean,
-    hrvType: Int,
-): Boolean = appDetection || deviceFeature || hrvType > 0
+internal fun supportsHBandHrvHistory(deviceFeature: Boolean, hrvType: Int): Boolean =
+    deviceFeature || hrvType > 0
 
-/** A non-zero MET protocol type is an explicit capability signal even on stale aggregate reports. */
-internal fun supportsHBandMet(feature: Boolean, metType: Int): Boolean = feature || metType > 0
+internal fun supportsHBandMetricHistory(protocolType: Int): Boolean = protocolType > 0
 
 internal fun HBandCapabilities.apply(patch: HBandCapabilityPatch): HBandCapabilities = copy(
     watchDataDays = patch.watchDataDays ?: watchDataDays,
@@ -102,16 +103,58 @@ internal fun HBandCapabilities.apply(patch: HBandCapabilityPatch): HBandCapabili
     heartRate = patch.heartRate ?: heartRate,
     bloodOxygen = patch.bloodOxygen ?: bloodOxygen,
     hrv = patch.hrv ?: hrv,
+    hrvHistory = patch.hrvHistory ?: hrvHistory,
     bloodPressure = patch.bloodPressure ?: bloodPressure,
     bloodGlucose = patch.bloodGlucose ?: bloodGlucose,
     temperature = patch.temperature ?: temperature,
     stress = patch.stress ?: stress,
+    stressHistory = patch.stressHistory ?: stressHistory,
+    met = patch.met ?: met,
+    metHistory = patch.metHistory ?: metHistory,
+    miniCheckup = patch.miniCheckup ?: miniCheckup,
     ecg = patch.ecg ?: ecg,
     bloodComponent = patch.bloodComponent ?: bloodComponent,
     bodyComposition = patch.bodyComposition ?: bodyComposition,
     bloodGlucoseCalibration = patch.bloodGlucoseCalibration ?: bloodGlucoseCalibration,
     womensHealth = patch.womensHealth ?: womensHealth,
 )
+
+internal fun HBandCapabilities.supportsDirectMeasurement(type: RingMetricType): Boolean = when (type) {
+    RingMetricType.HRV -> hrv
+    RingMetricType.STRESS -> stress
+    RingMetricType.MET -> met
+    else -> type in supportedMetrics
+}
+
+internal enum class HBandMeasurementRoute { DIRECT, MINI_CHECKUP, HISTORY, UNSUPPORTED }
+
+internal fun HBandCapabilities.measurementRoute(
+    type: RingMetricType,
+    allowHistoryFallback: Boolean,
+): HBandMeasurementRoute = when {
+    supportsDirectMeasurement(type) -> HBandMeasurementRoute.DIRECT
+    miniCheckup && type in setOf(RingMetricType.HRV, RingMetricType.STRESS) ->
+        HBandMeasurementRoute.MINI_CHECKUP
+    allowHistoryFallback && type in setOf(RingMetricType.HRV, RingMetricType.STRESS, RingMetricType.MET) ->
+        HBandMeasurementRoute.HISTORY
+    else -> HBandMeasurementRoute.UNSUPPORTED
+}
+
+internal fun hBandMiniCheckupPayload(
+    type: RingMetricType,
+    measuredAt: Long,
+    hrv: Int,
+    stress: Int,
+): HBandPayload {
+    val sample = when (type) {
+        RingMetricType.HRV -> hrv.takeIf { it > 0 }
+            ?.let { HBandMetricSample(type, measuredAt, it.toDouble(), "ms") }
+        RingMetricType.STRESS -> stress.takeIf { it in 1..100 }
+            ?.let { HBandMetricSample(type, measuredAt, it.toDouble(), "score") }
+        else -> null
+    }
+    return HBandPayload(measurements = listOfNotNull(sample))
+}
 
 /**
  * Collects the burst of capability callbacks emitted during password confirmation.
@@ -273,7 +316,7 @@ internal interface HBandSdkGateway {
     suspend fun connect(device: RingDevice, profile: HBandUserProfile): HBandConnectionInfo?
     suspend fun disconnect()
     suspend fun sync(metrics: Set<RingMetricType>): HBandPayload
-    suspend fun measure(type: RingMetricType, allowUnreportedCapability: Boolean = false): HBandPayload
+    suspend fun measure(type: RingMetricType, allowHistoryFallback: Boolean = false): HBandPayload
     suspend fun setBloodGlucoseCalibration(config: BloodGlucoseCalibration): Boolean = false
     suspend fun setMenstrualCycle(config: MenstrualCycleConfig): Boolean = false
 }

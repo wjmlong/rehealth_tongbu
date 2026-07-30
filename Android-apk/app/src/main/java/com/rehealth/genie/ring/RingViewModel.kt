@@ -419,12 +419,13 @@ class RingViewModel(
     fun measure(type: RingMetricType) {
         viewModelScope.launch {
             Log.i(TAG, "measure clicked type=$type")
+            val action = if (type == RingMetricType.MET) "获取" else "测量"
             mutableUiState.update {
                 it.copy(
                     isSyncing = true,
                     measuringMetric = type,
                     syncProgress = 15,
-                    message = "请保持戒指佩戴稳定，正在测量${type.displayName()}",
+                    message = "请保持设备佩戴稳定，正在${action}${type.displayName()}",
                 )
             }
             val progressJob = launch {
@@ -443,9 +444,9 @@ class RingViewModel(
                             syncProgress = 100,
                             lastSyncAt = result.completedAt,
                             message = if (result.recordsWritten > 0) {
-                                "${type.displayName()}测量完成，结果已保存"
+                                "${type.displayName()}${action}完成，结果已保存"
                             } else {
-                                "没有读取到${type.displayName()}结果，请重新测量"
+                                "没有读取到${type.displayName()}结果，请保持设备连接后重试"
                             },
                         )
                     }
@@ -457,7 +458,7 @@ class RingViewModel(
                             isSyncing = false,
                             measuringMetric = null,
                             syncProgress = 0,
-                            message = error.message ?: "${type.displayName()}测量失败",
+                            message = error.message ?: "${type.displayName()}${action}失败",
                         )
                     }
                 }

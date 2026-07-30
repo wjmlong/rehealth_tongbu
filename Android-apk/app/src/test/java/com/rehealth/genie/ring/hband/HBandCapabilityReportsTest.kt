@@ -1,5 +1,6 @@
 package com.rehealth.genie.ring.hband
 
+import com.rehealth.genie.ring.RingMetricType
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -8,18 +9,77 @@ import kotlinx.coroutines.test.runTest
 
 class HBandCapabilityReportsTest {
     @Test
-    fun `HRV accepts every explicit SDK capability signal`() {
-        assertTrue(supportsHBandHrv(appDetection = true, deviceFeature = false, hrvType = 0))
-        assertTrue(supportsHBandHrv(appDetection = false, deviceFeature = true, hrvType = 0))
-        assertTrue(supportsHBandHrv(appDetection = false, deviceFeature = false, hrvType = 1))
-        assertFalse(supportsHBandHrv(appDetection = false, deviceFeature = false, hrvType = 0))
+    fun `HRV separates direct detection from history and mini checkup`() {
+        assertTrue(supportsHBandHrvHistory(deviceFeature = true, hrvType = 0))
+        assertTrue(supportsHBandHrvHistory(deviceFeature = false, hrvType = 1))
+        assertFalse(supportsHBandHrvHistory(deviceFeature = false, hrvType = 0))
+
+        val historyOnly = HBandCapabilities(hrvHistory = true)
+        assertTrue(RingMetricType.HRV in historyOnly.supportedMetrics)
+        assertFalse(historyOnly.supportsDirectMeasurement(RingMetricType.HRV))
+
+        val miniCheckup = HBandCapabilities(miniCheckup = true)
+        assertTrue(RingMetricType.HRV in miniCheckup.supportedMetrics)
+        assertTrue(RingMetricType.STRESS in miniCheckup.supportedMetrics)
     }
 
     @Test
-    fun `MET accepts feature flag or non-zero protocol type`() {
-        assertTrue(supportsHBandMet(feature = true, metType = 0))
-        assertTrue(supportsHBandMet(feature = false, metType = 1))
-        assertFalse(supportsHBandMet(feature = false, metType = 0))
+    fun `MET protocol type enables history without claiming direct measurement`() {
+        assertTrue(supportsHBandMetricHistory(protocolType = 1))
+        assertFalse(supportsHBandMetricHistory(protocolType = 0))
+
+        val historyOnly = HBandCapabilities(metHistory = true)
+        assertTrue(RingMetricType.MET in historyOnly.supportedMetrics)
+        assertFalse(historyOnly.supportsDirectMeasurement(RingMetricType.MET))
+    }
+
+    @Test
+    fun `measurement routing avoids unsupported direct SDK commands`() {
+        assertEquals(
+            HBandMeasurementRoute.DIRECT,
+            HBandCapabilities(hrv = true).measurementRoute(RingMetricType.HRV, allowHistoryFallback = true),
+        )
+        assertEquals(
+            HBandMeasurementRoute.MINI_CHECKUP,
+            HBandCapabilities(miniCheckup = true).measurementRoute(RingMetricType.STRESS, allowHistoryFallback = true),
+        )
+        assertEquals(
+            HBandMeasurementRoute.HISTORY,
+            HBandCapabilities(metHistory = true).measurementRoute(RingMetricType.MET, allowHistoryFallback = true),
+        )
+        assertEquals(
+            HBandMeasurementRoute.UNSUPPORTED,
+            HBandCapabilities().measurementRoute(RingMetricType.MET, allowHistoryFallback = false),
+        )
+    }
+
+    @Test
+    fun `mini checkup keeps only valid requested HRV or stress result`() {
+        val measuredAt = 1_700_000_000_000L
+        val hrv = hBandMiniCheckupPayload(
+            RingMetricType.HRV,
+            measuredAt,
+            hrv = 48,
+            stress = 62,
+        )
+        val stress = hBandMiniCheckupPayload(
+            RingMetricType.STRESS,
+            measuredAt,
+            hrv = 48,
+            stress = 62,
+        )
+        val invalid = hBandMiniCheckupPayload(
+            RingMetricType.HRV,
+            measuredAt,
+            hrv = 0,
+            stress = 62,
+        )
+
+        assertEquals(48.0, hrv.measurements.single().value)
+        assertEquals("ms", hrv.measurements.single().unit)
+        assertEquals(62.0, stress.measurements.single().value)
+        assertEquals("score", stress.measurements.single().unit)
+        assertTrue(invalid.measurements.isEmpty())
     }
 
     @Test

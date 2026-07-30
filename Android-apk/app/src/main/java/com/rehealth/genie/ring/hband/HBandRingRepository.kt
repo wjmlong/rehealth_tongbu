@@ -38,7 +38,7 @@ class HBandRingRepository internal constructor(
             val compatibilityMeasurements = if (connectedDevice.value == null) {
                 emptySet()
             } else {
-                expectedMetrics intersect COMPATIBILITY_MEASUREMENT_METRICS
+                expectedMetrics intersect HISTORY_FALLBACK_METRICS
             }
             return reported + compatibilityMeasurements
         }
@@ -92,7 +92,7 @@ class HBandRingRepository internal constructor(
         return persist(
             gateway.measure(
                 type = type,
-                allowUnreportedCapability = type in COMPATIBILITY_MEASUREMENT_METRICS,
+                allowHistoryFallback = type in HISTORY_FALLBACK_METRICS,
             ),
         )
     }
@@ -158,6 +158,10 @@ class HBandRingRepository internal constructor(
             RingMetricType.BLOOD_COMPONENT,
             RingMetricType.BODY_COMPOSITION,
         )
-        val COMPATIBILITY_MEASUREMENT_METRICS = setOf(RingMetricType.HRV, RingMetricType.MET)
+        val HISTORY_FALLBACK_METRICS = setOf(
+            RingMetricType.HRV,
+            RingMetricType.STRESS,
+            RingMetricType.MET,
+        )
     }
 }

@@ -182,7 +182,19 @@ internal fun DataScreen(
         RingMetricUi(RingMetricType.HRV, "HRV", hrvText, "ms", capabilityStatus(RingMetricType.HRV, periodLabel), Icons.Outlined.Timeline, Color(0xFF00A6A6), manualMeasure = RingMetricType.HRV in state.supportedMetrics, showAction = true),
         RingMetricUi(RingMetricType.BLOOD_GLUCOSE, "血糖", decimalMeasurement(RingMetricType.BLOOD_GLUCOSE), measurementUnit(RingMetricType.BLOOD_GLUCOSE, "设备单位"), capabilityStatus(RingMetricType.BLOOD_GLUCOSE, "设备估算，仅供健康参考"), Icons.Outlined.DataUsage, Color(0xFFE06B57), manualMeasure = RingMetricType.BLOOD_GLUCOSE in state.supportedMetrics, showAction = true),
         RingMetricUi(RingMetricType.STRESS, "压力", measurement(RingMetricType.STRESS), "分", capabilityStatus(RingMetricType.STRESS, periodLabel), Icons.Outlined.Timeline, Color(0xFF7B61B8), manualMeasure = RingMetricType.STRESS in state.supportedMetrics, showAction = true),
-        RingMetricUi(RingMetricType.MET, "MET", decimalMeasurement(RingMetricType.MET), "MET", capabilityStatus(RingMetricType.MET, "代谢当量"), Icons.Outlined.ShowChart, Color(0xFF2E8B72), manualMeasure = RingMetricType.MET in state.supportedMetrics, showAction = true),
+        RingMetricUi(
+            RingMetricType.MET,
+            "MET",
+            decimalMeasurement(RingMetricType.MET),
+            "MET",
+            capabilityStatus(RingMetricType.MET, "获取设备最新代谢当量"),
+            Icons.Outlined.ShowChart,
+            Color(0xFF2E8B72),
+            manualMeasure = RingMetricType.MET in state.supportedMetrics,
+            showAction = true,
+            actionLabel = "获取",
+            measuringLabel = "获取中",
+        ),
         RingMetricUi(RingMetricType.ECG, "ECG", ecgText, "bpm", capabilityStatus(RingMetricType.ECG, ecgStatus), Icons.Outlined.Assessment, Color(0xFF009688), manualMeasure = RingMetricType.ECG in state.supportedMetrics, showAction = true),
     )
     val bloodComponentTypes = listOf(
@@ -836,7 +848,11 @@ private fun DashboardMetricCard(
 ) {
     val context = LocalContext.current
     val startMeasure = {
-        Toast.makeText(context, "开始测量${metric.title}，请保持设备佩戴稳定", Toast.LENGTH_SHORT).show()
+        Toast.makeText(
+            context,
+            "开始${metric.actionLabel}${metric.title}，请保持设备佩戴稳定",
+            Toast.LENGTH_SHORT,
+        ).show()
         onMeasure(metric.type)
     }
     Column(
