@@ -457,7 +457,7 @@ rehealth:
       type: direct-hardware-db
     max-records-per-batch: 5000
   hardware-db:
-    enabled: ${REHEALTH_HARDWARE_DB_ENABLED:false}
+    enabled: ${REHEALTH_HARDWARE_DB_ENABLED:true}
     retention:
       telemetry-days: 30
       raw-signal-days: 0
