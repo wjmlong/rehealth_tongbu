@@ -87,6 +87,9 @@ git diff --check
    - Send a question from Home, leave and return to the Home tab, and reopen the app as the same
      user. Confirm the Home preview is sourced from the same latest Room conversation rather
      than a temporary one-turn state.
+   - Open the Model tab and confirm it shows user-facing risk status without endpoint paths,
+     request IDs, contribution values, temperature input, or claims that the cloud model runs
+     on-device.
    - Ask for a diagnosis/prescription and enter urgent chest-pain/breathing wording.
      Verify the Java safety policy refuses diagnosis and escalates urgent care, while every
      answer displays “仅供健康参考，不能替代医疗诊断”.
@@ -110,6 +113,9 @@ git diff --check
    - In Debug, confirm switching products requires confirmation, pauses active
      collection, disconnects the old Provider, preserves Room history, and does
      not let the old Provider reconnect. Confirm the selector is absent in Release.
+   - Sync two valid activity rows for the current local calendar day and one for the previous
+     day. Confirm “我的 > 每日步数” sums only the current-day Room activity rows and does not
+     prefer a stale standalone `STEPS` measurement.
    - For RWFit, build with
      `-Prehealth.debug.wearable.product.code=RH-RW-P01`, then record model,
      firmware and capability output per `Android-apk/docs/wearable/RWFIT_DEVICE_QA.md`.

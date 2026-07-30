@@ -126,6 +126,10 @@ Android 在请求成功后自动填入该值。Release 的签名字段和测试�
 才发送，不再跳转健康初识。服务端 AI 回复使用受限 Markdown 子集渲染；原始 HTML 不执行，
 远程图片不加载，链接目标不自动打开。
 
+模型页只展示用户可理解的风险等级、分数、版本、评估进度和已纳入的数据类型，不显示接口路径、
+请求 ID、内部贡献值或体温输入，也不再声称云端模型在端侧运行。“我的”中的每日步数优先使用
+Room `ring_activities` 按设备当地自然日聚合的真实活动记录，活动缺失时才兼容旧 `STEPS` 测量。
+
 模拟戒指只存在于 `app/src/debug`，由 Debug 专用工厂和
 `USE_FAKE_RING`/`SEED_FAKE_HEALTH_DATA` 控制。`app/src/release` 的工厂只构造
 真实 MRD/RWFit/HBand Provider；远程风险评估失败时显示不可用，不生成本地模拟风险。

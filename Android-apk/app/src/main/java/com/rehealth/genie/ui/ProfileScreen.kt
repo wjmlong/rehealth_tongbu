@@ -157,7 +157,15 @@ internal fun ProfileScreen(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Metric("睡眠时长", formatSleepMinutes(state.sleep), "昨夜", Modifier.weight(1f))
-                Metric("每日步数", formatSteps(state.measurements[RingMetricType.STEPS]?.primaryValue), "步", Modifier.weight(1f))
+                Metric(
+                    "每日步数",
+                    formatSteps(
+                        state.todayActivitySteps?.toDouble()
+                            ?: state.measurements[RingMetricType.STEPS]?.primaryValue,
+                    ),
+                    "步",
+                    Modifier.weight(1f),
+                )
                 Metric("体重", profile?.weightKg?.let { "%.1f".format(it) } ?: "--", "kg", Modifier.weight(1f))
             }
             ReHealthCardBlock {

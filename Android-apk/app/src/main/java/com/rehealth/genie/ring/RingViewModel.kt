@@ -56,6 +56,7 @@ data class RingUiState(
     val measurements: Map<RingMetricType, RingMeasurementEntity> = emptyMap(),
     val sleep: RingSleepSessionEntity? = null,
     val activity: RingActivityEntity? = null,
+    val todayActivitySteps: Long? = null,
     val signals: Map<RingMetricType, RingSignalChunkEntity> = emptyMap(),
     val ecgHistory: List<RingSignalChunkEntity> = emptyList(),
     val liveEcg: RingEcgLiveState = RingEcgLiveState(),
@@ -85,6 +86,25 @@ data class PeriodAggregate(
     val avgSleepMinutes: Double? = null,
     val daysWithData: Int = 0,
 )
+
+internal fun aggregateLocalDayActivitySteps(
+    activities: List<RingActivityEntity>,
+    now: Long = System.currentTimeMillis(),
+): Long? {
+    val dayStart = Calendar.getInstance().apply {
+        timeInMillis = now
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+    val startMillis = dayStart.timeInMillis
+    dayStart.add(Calendar.DAY_OF_MONTH, 1)
+    val endMillis = dayStart.timeInMillis
+    val today = activities.filter { it.startedAt in startMillis until endMillis }
+    if (today.isEmpty()) return null
+    return today.sumOf { it.steps.coerceAtLeast(0).toLong() }
+}
 
 class RingViewModel(
     private val repository: RingRepository,
@@ -143,10 +163,10 @@ class RingViewModel(
             combine(
                 dao.observeLatestMeasurements(),
                 dao.observeLatestSleepSession(),
-                dao.observeLatestActivity(),
+                dao.observeActivities(),
                 dao.observeLatestSignalChunks(),
-            ) { measurements, sleep, activity, signals ->
-                RingDatabaseSnapshot(measurements, sleep, activity, signals)
+            ) { measurements, sleep, activities, signals ->
+                RingDatabaseSnapshot(measurements, sleep, activities, signals)
             }.collect { snapshot ->
                 lastRingVector = vectorFromMeasurements(snapshot.measurements)
                 mutableUiState.update { state ->
@@ -157,7 +177,8 @@ class RingViewModel(
                                 ?.let { it to record }
                         }.toMap(),
                         sleep = snapshot.sleep,
-                        activity = snapshot.activity,
+                        activity = snapshot.activities.firstOrNull(),
+                        todayActivitySteps = aggregateLocalDayActivitySteps(snapshot.activities),
                         signals = snapshot.signals.mapNotNull { record ->
                             runCatching { RingMetricType.valueOf(record.signalType) }
                                 .getOrNull()
@@ -574,7 +595,7 @@ class RingViewModel(
     private data class RingDatabaseSnapshot(
         val measurements: List<RingMeasurementEntity>,
         val sleep: RingSleepSessionEntity?,
-        val activity: RingActivityEntity?,
+        val activities: List<RingActivityEntity>,
         val signals: List<RingSignalChunkEntity>,
     )
 
