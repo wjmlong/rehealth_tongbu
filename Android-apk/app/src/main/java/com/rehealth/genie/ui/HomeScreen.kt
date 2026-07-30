@@ -77,9 +77,6 @@ internal fun HomeScreen(onStartInterview: () -> Unit) {
     var isAsking by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val application = LocalContext.current.applicationContext as ReHealthApplication
-    val chatService = remember(application) {
-        com.rehealth.genie.network.HealthChatService(application.authenticatedApiClient)
-    }
     val session = application.sessionStore
     val greetingPrefix = remember {
         val h = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
@@ -99,8 +96,12 @@ internal fun HomeScreen(onStartInterview: () -> Unit) {
         isAsking = true
         aiReply = null
         scope.launch {
-            val reply = runCatching { chatService.ask(text) }.getOrDefault("暂时无法连接健康助手，请检查网络后重试。")
-            aiReply = reply
+            aiReply = when (val result = application.healthChatRepository.send(text)) {
+                is com.rehealth.genie.network.ApiResult.Success ->
+                    result.data.answer ?: "健康助手暂未返回内容，请稍后重试。"
+                is com.rehealth.genie.network.ApiResult.Unauthorized -> result.message
+                else -> "暂时无法连接健康助手，问题已保存在本机，请稍后重试。"
+            }
             isAsking = false
         }
     }

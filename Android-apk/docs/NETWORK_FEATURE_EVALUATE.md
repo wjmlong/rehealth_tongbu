@@ -58,13 +58,13 @@ D1 deliberately does **not** build production telemetry ingestion. Deferred item
 Default dev URL (Android emulator → host loopback):
 
 ```text
-http://10.0.2.2:8080/jeecg-boot
+https://rehealth.youngjimmy.store/jeecg-boot
 ```
 
 Source: `app/build.gradle.kts`
 
 ```kotlin
-buildConfigField("String", "REHEALTH_API_BASE_URL", "\"http://10.0.2.2:8080/jeecg-boot\"")
+buildConfigField("String", "REHEALTH_API_BASE_URL", "\"https://rehealth.youngjimmy.store/jeecg-boot\"")
 buildConfigField("String", "REHEALTH_API_TOKEN", "\"\"")
 ```
 

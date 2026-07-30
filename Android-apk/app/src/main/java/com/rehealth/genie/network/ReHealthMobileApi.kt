@@ -4,6 +4,7 @@ import com.rehealth.genie.network.dto.FeatureEvaluateRequest
 import com.rehealth.genie.network.dto.HealthCheckResponse
 import com.rehealth.genie.network.dto.HealthAgentMessageRequest
 import com.rehealth.genie.network.dto.HealthAgentResponse
+import com.rehealth.genie.network.dto.HealthAgentConversation
 import com.rehealth.genie.network.dto.HealthInterviewSubmitRequestDto
 import com.rehealth.genie.network.dto.InterventionFeedbackRequest
 import com.rehealth.genie.network.dto.InterventionFeedbackResponse
@@ -129,6 +130,11 @@ class ReHealthMobileApi(
         request: HealthAgentMessageRequest,
     ): RemotePhmOutcome<HealthAgentResponse> =
         unwrap { api.sendHealthAgentMessage(request) }
+
+    suspend fun getLatestHealthAgentConversation(
+        limit: Int = 100,
+    ): RemotePhmOutcome<HealthAgentConversation?> =
+        unwrapNullable { api.getLatestHealthAgentConversation(limit) }
 
     /**
      * JeecgBoot system login. No auth token is attached (the auth interceptor only adds

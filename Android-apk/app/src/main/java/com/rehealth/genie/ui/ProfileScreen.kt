@@ -39,6 +39,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rehealth.genie.ReHealthApplication
+import com.rehealth.genie.network.PatientProfilePayload
+import com.rehealth.genie.network.dto.HealthInterviewSubmitRequestDto
 import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.RingUiState
 import com.rehealth.genie.ui.theme.Ink
@@ -60,6 +62,44 @@ import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rehealth.genie.work.MeasurementSyncWorker
 
+internal fun healthArchiveRows(
+    profile: PatientProfilePayload?,
+    interview: HealthInterviewSubmitRequestDto?,
+): List<Pair<String, String>> = buildList {
+    val diagnoses = profile?.diagnoses.orEmpty()
+        .takeIf { it.isNotEmpty() }
+        ?.joinToString("、")
+        .orEmpty()
+        .ifBlank { "待补全" }
+    add("诊断标签" to diagnoses)
+    add(
+        "性别" to when (normalizeProfileGender(profile?.gender)) {
+            "male" -> "男"
+            "female" -> "女"
+            else -> "待补全"
+        },
+    )
+    add("家族史" to profile?.familyHistory.toArchiveBoolean())
+    add("高血压史" to profile?.hypertensionHistory.toArchiveBoolean())
+    add("糖尿病史" to profile?.diabetesHistory.toArchiveBoolean())
+    interview?.baselineItems.orEmpty().forEach { item ->
+        add("健康问答 · ${item.label}" to item.value)
+    }
+    add(
+        "关注方向" to interview?.focusAreas.orEmpty()
+            .takeIf { it.isNotEmpty() }
+            ?.joinToString("、")
+            .orEmpty()
+            .ifBlank { "暂无健康问答记录" },
+    )
+}
+
+private fun Boolean?.toArchiveBoolean(): String = when (this) {
+    true -> "有"
+    false -> "无"
+    null -> "待补全"
+}
+
 @Composable
 internal fun ProfileScreen(
     state: RingUiState,
@@ -68,14 +108,19 @@ internal fun ProfileScreen(
     onGoToLogin: () -> Unit,
     onStartInterview: () -> Unit = {},
     onProfileUpdated: () -> Unit = {},
+    onRefreshProfile: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
-    val profile = state.patientMvp?.profile
+    val profile = AttributionDataProvenance.trustedProfile(state.patientMvp)
+    val latestInterview = state.patientMvp?.latestHealthInterview
     val session = (context.applicationContext as? ReHealthApplication)?.sessionStore
     val editViewModel: ProfileEditViewModel = viewModel(factory = ProfileEditViewModel.Factory(context))
     val editState by editViewModel.uiState.collectAsState()
+    LaunchedEffect(Unit) {
+        onRefreshProfile()
+    }
     LaunchedEffect(editState.saved) {
         if (editState.saved) {
             showEditDialog = false
@@ -98,20 +143,17 @@ internal fun ProfileScreen(
                 }
             }
             ReHealthCardBlock {
-                Text("健康档案", color = Ink, fontWeight = FontWeight.SemiBold)
-                StatusRow("诊断标签", profile?.diagnoses?.joinToString("、") ?: "待补全")
-                StatusRow(
-                    "性别",
-                    when (normalizeProfileGender(profile?.gender)) {
-                        "male" -> "男"
-                        "female" -> "女"
-                        else -> "待补全"
-                    },
-                )
-                StatusRow("家族史", if (profile?.familyHistory == true) "有" else "无")
-                StatusRow("高血压史", if (profile?.hypertensionHistory == true) "有" else "无")
-                StatusRow("糖尿病史", if (profile?.diabetesHistory == true) "有" else "无")
-                StatusRow("最近更新", profile?.updatedAt?.let { formatSyncTime(it) } ?: "待同步")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("健康档案", color = Ink, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    if (state.isPatientMvpLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Mint, strokeWidth = 2.dp)
+                    }
+                }
+                healthArchiveRows(profile, latestInterview).forEach { row ->
+                    StatusRow(row.first, row.second)
+                }
+                val updatedAt = listOfNotNull(profile?.updatedAt, latestInterview?.generatedAt).maxOrNull()
+                StatusRow("最近更新", updatedAt?.let { formatSyncTime(it) } ?: "待同步")
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Metric("睡眠时长", formatSleepMinutes(state.sleep), "昨夜", Modifier.weight(1f))

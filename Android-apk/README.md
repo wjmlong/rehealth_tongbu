@@ -12,7 +12,7 @@
 - MRD SDK/协议适配，以及固定版本 RWFit、HBand 官方 SDK Provider。
 - 基于 `productCode` 的单一有效设备路由；Release 注册 MRD/RWFit/HBand，Debug 另可
   注册 Mock 或通过 Gradle 属性生成指定厂商真机测试 APK。
-- 心率、HRV、血氧、血压、体温、ECG、睡眠、步数、活动、血液成分和身体成分等本地记录与数据卡片；能力门控的血糖校准与经期设置。
+- 心率、HRV、血氧、血压、血糖、压力、MET、ECG、睡眠、步数、活动、血液成分和身体成分等本地记录与数据卡片；能力门控的血糖校准与经期设置。
 - Room 本地优先持久化及显式数据库迁移。
 - Foreground Service 后台低频采集与 WorkManager 恢复任务。
 - 认证感知的 durable upload queue；401 时暂停，重新登录后恢复。
@@ -45,12 +45,15 @@ app/libs/vpprotocol-2.3.73.15.aar
 app/libs/jl_bt_ota_V1.10.0_10931-release.aar
 app/libs/jl_rcsp_V0.7.2_527-release.aar
 app/libs/JL_Watch_V1.13.1_11214-release.aar
+app/src/main/jniLibs/{arm64-v8a,armeabi-v7a,x86,x86_64}/libnative-lib.so
 ```
 
 三个 JieLi AAR 仅满足 HBand 核心 SDK 的连接/认证及管理器初始化依赖；应用不提供 OTA、
 表盘或消息控制入口。
 HBand SDK 还会在 BLE 连接回调中初始化 Nordic OTA 适配器，因此固定引入官方要求的
 `mcumgr-core:2.7.4`、`mcumgr-ble:2.7.4` 和 `scanner:1.4.2`；应用仍不提供 OTA 入口。
+HBand ECG 算法还会通过 JNI 加载 `libnative-lib.so`；四个 ABI 的文件均来自与
+`vpprotocol-2.3.73.15.aar` 相同的官方固定提交，不能与其他 SDK 版本混用。
 
 ## 核心数据流
 
@@ -77,18 +80,27 @@ CVD 评估通过独立的 feature-evaluate 路径完成。
 
 ## 配置
 
-Debug 默认后端：
+Debug 默认后端（已提交到 `gradle.properties`，内测环境）：
 
 ```text
-http://10.0.2.2:8080/jeecg-boot/
+https://rehealth.youngjimmy.store/jeecg-boot/
 ```
 
-可在未跟踪的 `local.properties` 中配置：
+可在未跟踪的 `local.properties` 中覆盖（优先级高于 `gradle.properties` 与环境变量）：
 
 ```properties
-rehealth.api.base.url=http://10.0.2.2:8080/jeecg-boot/
-rehealth.release.api.base.url=https://api.example.com/jeecg-boot/
+rehealth.api.base.url=https://rehealth.youngjimmy.store/jeecg-boot/
+rehealth.release.api.base.url=https://rehealth.youngjimmy.store/jeecg-boot/
 ```
+
+无蓝牙的真机 QA（模拟器 / MuMu）可用 fake-ring 通道替掉 BLE 采集：
+
+```bash
+./gradlew.bat assembleDebug -Prehealth.debug.use.fake.ring=true
+```
+
+该开关默认关闭，不影响真机 BLE 采集 QA；仅 `MockRingRepository` 合成数据走上传→
+`rehealth/mobile/features/evaluate` 链路，后端与 model-service 仍是真实调用。
 
 Release 的后端地址必须使用 HTTPS。模型 Provider 凭据、内部服务 token 和生产
 secret 禁止进入 `local.properties`、BuildConfig 或 APK。
@@ -98,6 +110,15 @@ Debug 注册请求会使用 JeecgBoot 的开发签名默认值为 `/sys/sms` 增
 覆盖。仅当后端使用 `JEECG_SMS_DEV_MODE=true` 时，验证码接口保存固定测试码 `123456`，
 Android 在请求成功后自动填入该值。Release 的签名字段和测试码均为空，生产环境继续
 由后端随机生成验证码并调用真实短信 Provider。
+
+进入主界面和打开“我的”页时，客户端会按当前登录用户重新读取
+`GET /rehealth/mobile/profile` 与 `GET /rehealth/mobile/interviews/latest`。个人资料、
+最近健康问答画像和关注方向的读取不依赖风险模型或干预接口可用；退出登录会立即清除
+内存中的上一位用户资料。健康问答点击完成后，必须先成功写入 Room durable queue 才能离开页面，
+再由 WorkManager 写入 `software_db` 的类型化访谈表；不再另存一份无人读取的偏好摘要。
+
+健康问答语音入口声明并按需申请 `RECORD_AUDIO`。点击麦克风时先解释用途和“不保存录音”，
+用户确认后才显示系统授权；拒绝后可转到应用设置，也可继续使用文字回答。
 
 模拟戒指只存在于 `app/src/debug`，由 Debug 专用工厂和
 `USE_FAKE_RING`/`SEED_FAKE_HEALTH_DATA` 控制。`app/src/release` 的工厂只构造
@@ -154,15 +175,41 @@ HBand 真机联调可生成强制选择 `RH-HB-E01` 的专用 APK：
 ```
 
 连接前必须从真实用户档案取得性别、年龄、身高和体重。当前 HBand 商品能力开放
-心率、步数/活动、睡眠、血氧、HRV、血压、ECG、血液成分和身体成分；运行时仍与设备的
-`FunctionDeviceSupportData` 取交集。血糖校准和经期设置也只在设备报告相应能力时启用。
+心率、步数/活动、睡眠、血氧、HRV、血压、血糖、压力、MET、ECG、血液成分和身体成分；运行时仍与设备的
+SDK 能力报告取交集。新版 `DeviceFunctionPackage1..5` 对相应字段优先，旧版
+`FunctionDeviceSupportData` 仅作为兼容回退；应用等待能力回调稳定后再判定，避免 MT116
+因旧回调首次返回的字段尚未初始化而误报不支持 ECG。血糖校准和经期设置也只在设备报告相应能力时启用。
+HBand 将独立测量能力与历史协议能力分开处理，避免把 `hrvType`/`metType` 误当成独立测量
+开关而触发 SDK 的“不支持”提示。2026-07-30 的 MT116 真机日志进一步确认：固件虽然声明
+HRV、压力、MET 独立能力，三项 `manual_detect_de` 命令仍全部返回 `unknown action`。因此
+HRV、压力在设备报告 `miniCheckup` 时优先走一键体检真实结果，MET 的“获取”按钮优先读取
+设备最新 MET 历史；只有调用方明确禁用真实数据兜底时才允许尝试专用直测接口。连接成功的
+`RH-HB-E01` 也允许对 HRV、压力、MET 发起受控历史读取；失败或无有效值时不写入占位数据。
+`ECG` 是 `RH-HB-E01` 的必需能力；设备未上报 ECG 时连接会明确失败，避免把不兼容型号当作已支持商品。
 不支持的能力在数据页保留禁用入口或静态空卡片，但不会触发测量、写入 0 或生成模拟数据。
-计步、睡眠、活动属于同步数据，不提供即时测量按钮；生命体征和高级指标无记录时显示 `--`。
+计步、睡眠、活动属于同步数据，不提供即时测量按钮；数据页“睡眠与活动”区域提供手动同步按钮，
+点击后执行完整设备历史同步，同步期间按钮禁用并显示进度。生命体征和高级指标无记录时显示 `--`。
 血液成分拆分为尿酸、总胆固醇、甘油三酯、HDL、LDL 独立记录，单位读取设备个性化设置；
-身体成分拆分为 14 项独立记录。血糖校准与女性功能是设备设置，不写入测量表；当前女性功能
+身体成分拆分为 14 项独立记录。ECG 和身体成分在下发测量命令前会显示操作说明并等待用户确认，
+明确要求另一只手持续接触金属电极片、保持姿势稳定；取消说明不会启动 SDK 测量。
+血糖校准与女性功能是设备设置，不写入测量表；当前女性功能
 只接入经期模式，备孕、孕期和妈妈模式尚未开放。
-ECG 波形只写入本地 Room，
-不会进入遥测上传批次；血压与 ECG 结果仅用于健康记录，不作诊断解释。
+同步按 SDK 的串行限制先用 `readSleepData` 完整读取睡眠，再用 `readOriginData` 读取五分钟原始数据；
+这样兼容合并读取只返回原始数据、不返回睡眠的设备固件。原始步数、距离和热量按天聚合，
+并用实时计步补齐当天结果；同时读取设备声明支持的手动测量、ECG 和身体成分历史。ECG 测量同时处理
+正常结束状态和异常诊断结果，即使设备不返回曲线但返回平均心率也会保存摘要。血糖保留设备单位，
+压力只保存正数 `1..100 score`，代谢当量保存为 `MET`；一键体检历史中的 HRV/压力也会按相同
+规则规范化。ECG 波形只写入本地 Room，
+不会进入遥测上传批次；实时回调的 ADC 采样按对应增益通过官方 `EcgUtil` 换算为 mV，
+Room v5 同时保存采样率、绘制频率、时长、导联、ECG 类型、校准方式、平均心率和接触质量。
+旧版 `INT32_LE` 记录通过 v4→v5 非破坏迁移保留，在详情页只按相对幅值展示；新记录使用
+`FLOAT32_LE` 保存校准后的 mV。数据页可进入单导联 ECG 详情查看实时和最近 10 条本机历史波形；
+导联仅在 SDK 明确返回 `leadOffType` 时标记为 I 或 V1，否则显示待设备确认。
+血压与 ECG 结果仅用于健康记录，SDK 疾病风险不作为诊断展示，页面固定提示
+“仅供健康参考，不能替代医疗诊断”。
+HBand 体温在当前采购设备上验证不通过，已从 `RH-HB-E01` 商品能力和数据页移除。
+若 HBand 只返回总睡眠时长而没有深睡/浅睡拆分，应用会保存阶段未知的睡眠会话并展示总时长，
+不会把未知时长伪造为深睡、浅睡或 REM。
 
 Debug APK：
 
@@ -173,8 +220,8 @@ app/build/outputs/apk/debug/app-debug.apk
 ## 当前限制
 
 - 已有 MRD/RWFit/HBand 单一有效设备路由；RWFit 真机型号/固件、HRV 单位、数据准确性
-  和后台稳定性仍待验证；HBand 已开始真机联调，连接所需的 JieLi/Nordic 运行时依赖已补齐，
-  已实现能力门控的心率、步数/活动、睡眠、血氧、HRV、血压、ECG、血液/身体成分、
+  和后台稳定性仍待验证；HBand 已开始真机联调，连接及 ECG 所需的 JieLi/Nordic/JNI 运行时依赖已补齐，
+  已实现能力门控的心率、步数/活动、睡眠、血氧、HRV、血压、血糖、压力、MET、ECG、血液/身体成分、
   血糖校准和经期设置，仍需使用完整重装 APK
   验证采购设备实际能力、测量准确性、扫描、认证、画像同步、历史读取与后台稳定性；
   不支持多设备同时连接或数据融合。

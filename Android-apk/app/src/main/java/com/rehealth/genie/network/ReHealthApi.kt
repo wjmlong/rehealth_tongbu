@@ -4,6 +4,7 @@ import com.rehealth.genie.network.dto.FeatureEvaluateRequest
 import com.rehealth.genie.network.dto.HealthCheckResponse
 import com.rehealth.genie.network.dto.HealthAgentMessageRequest
 import com.rehealth.genie.network.dto.HealthAgentResponse
+import com.rehealth.genie.network.dto.HealthAgentConversation
 import com.rehealth.genie.network.dto.HealthInterviewSubmitRequestDto
 import com.rehealth.genie.network.dto.InterventionFeedbackRequest
 import com.rehealth.genie.network.dto.InterventionFeedbackResponse
@@ -25,6 +26,7 @@ import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Query
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.PUT
@@ -98,6 +100,11 @@ interface ReHealthApi {
     suspend fun sendHealthAgentMessage(
         @Body request: HealthAgentMessageRequest,
     ): Response<JeecgResult<HealthAgentResponse>>
+
+    @GET("rehealth/mobile/agent/conversations/latest")
+    suspend fun getLatestHealthAgentConversation(
+        @Query("limit") limit: Int = 100,
+    ): Response<JeecgResult<HealthAgentConversation?>>
 
     /**
      * JeecgBoot system login. Lives under `/jeecg-boot` (not the `/rehealth/mobile`

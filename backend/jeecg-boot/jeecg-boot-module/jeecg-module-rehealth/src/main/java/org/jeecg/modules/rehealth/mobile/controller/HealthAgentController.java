@@ -8,14 +8,17 @@ import org.jeecg.common.api.vo.Result;
 import org.jeecg.common.constant.CommonConstant;
 import org.jeecg.common.system.vo.LoginUser;
 import org.jeecg.modules.rehealth.mobile.dto.HealthAgentMessageRequestDto;
+import org.jeecg.modules.rehealth.mobile.dto.HealthAgentConversationDto;
 import org.jeecg.modules.rehealth.mobile.dto.HealthAgentResponseDto;
 import org.jeecg.modules.rehealth.service.agent.HealthAgentMobileService;
 import org.jeecg.modules.rehealth.service.agent.HealthAgentRequestException;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @Tag(name = "ReHealth Health Agent API")
 @RestController
@@ -44,9 +47,22 @@ public class HealthAgentController {
             return Result.OK(service.respond(authorizedTenant, user.getId(), request));
         } catch (HealthAgentRequestException failure) {
             return Result.error(failure.statusCode(), failure.getMessage());
+        } catch (IllegalArgumentException invalid) {
+            return Result.error(400, invalid.getMessage());
         } catch (RuntimeException unavailable) {
             return Result.error(503, "health-agent is temporarily unavailable; retry later");
         }
+    }
+
+    @GetMapping("/conversations/latest")
+    @Operation(summary = "Restore the authenticated user's latest health-agent conversation")
+    public Result<HealthAgentConversationDto> latestConversation(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
+            @RequestParam(value = "limit", defaultValue = "100") int limit
+    ) {
+        LoginUser user = currentUser();
+        String authorizedTenant = tenantResolver.resolve(user, tenantId);
+        return Result.OK(service.latestConversation(authorizedTenant, user.getId(), limit).orElse(null));
     }
 
     private LoginUser currentUser() {

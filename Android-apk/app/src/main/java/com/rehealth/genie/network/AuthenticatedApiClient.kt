@@ -83,6 +83,10 @@ class AuthenticatedApiClient(
         mobileApi.submitHealthInterview(request)
     }
 
+    suspend fun getLatestHealthInterview(): ApiResult<HealthInterviewSubmitRequestDto?> = executeWithAuth {
+        mobileApi.getLatestHealthInterview()
+    }
+
     suspend fun attributeIndividual(
         request: IndividualAttributionRequestDto,
     ): ApiResult<IndividualAttributionResponseDto> = executeWithAuth {
@@ -93,6 +97,12 @@ class AuthenticatedApiClient(
         request: HealthAgentMessageRequest,
     ): ApiResult<HealthAgentResponse> = executeWithAuth {
         mobileApi.sendHealthAgentMessage(request)
+    }
+
+    suspend fun getLatestHealthAgentConversation(
+        limit: Int = 100,
+    ): ApiResult<com.rehealth.genie.network.dto.HealthAgentConversation?> = executeWithAuth {
+        mobileApi.getLatestHealthAgentConversation(limit)
     }
 
     suspend fun getRiskLatest(): ApiResult<RiskResultDto?> = executeWithAuth {

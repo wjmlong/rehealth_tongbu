@@ -24,6 +24,7 @@ class StubReHealthBusinessRepository implements ReHealthBusinessRepository {
     InterventionGenerateResponseDto intervention;
     final List<String> queriedUsers = new ArrayList<>();
     ModelCallAudit audit;
+    int profileSaveCount;
 
     @Override
     public Optional<PatientProfileDto> findPatientProfile(String userId) {
@@ -61,6 +62,9 @@ class StubReHealthBusinessRepository implements ReHealthBusinessRepository {
 
     @Override
     public PatientProfileDto savePatientProfile(String userId, PatientProfileDto profile) {
+        queriedUsers.add(userId);
+        this.profile = profile;
+        profileSaveCount++;
         return profile;
     }
 

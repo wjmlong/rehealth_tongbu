@@ -1,13 +1,13 @@
 # ReHealth Android / Backend MVP Integration Contract
 
-Status: canonical Android contract, updated 2026-07-28.
+Status: canonical Android contract, updated 2026-07-30.
 
 ## Runtime Boundary
 
 ```text
 productCode -> single active RingRepository Provider -> Android BLE
 -> Room -> durable upload queue -> JeecgBoot
-JeecgBoot -> software_db / hardware_db -> model-service
+JeecgBoot -> software_db / hardware_db -> LangChain4j health chat or model-service scoring
 ```
 
 BLE collection is independent from network availability. Android must persist a
@@ -25,10 +25,20 @@ cached in encrypted preferences under a SHA-256-derived user key so process
 recovery does not depend on network availability. They are not Room telemetry,
 are not logged, and do not change backend DTOs or PIAS.
 
+`RH-HB-E01` does not advertise `TEMPERATURE` after the current physical-device
+measurement failed acceptance. The domain/telemetry string remains backward-compatible
+for other Providers and existing rows; this changes no endpoint or DTO schema.
+
 This local routing change does not change endpoint paths, authentication, DTOs,
 durable acknowledgement, or backend PIAS behavior.
 
-Debug emulator base URL:
+Debug default base URL (committed `gradle.properties` for internal testing):
+
+```text
+https://rehealth.youngjimmy.store/jeecg-boot/
+```
+
+Local emulator dev (no tunnel) override:
 
 ```text
 http://10.0.2.2:8080/jeecg-boot/
@@ -46,15 +56,15 @@ queue until the user logs in again; the app does not invent a refresh-token flow
 | Account registration | `POST /sys/user/register` | Submit phone, six-digit SMS code and password, then perform mobile login on success. |
 | Mobile login | `POST /sys/mLogin` | Save the Jeecg token in encrypted session storage. |
 | Health/config | `GET /rehealth/mobile/health`, `GET /rehealth/mobile/config` | Environment and contract diagnostics. |
-| Profile | `GET/PUT /rehealth/mobile/profile` | Authenticated, user-scoped health profile. |
-| Interview | `POST /rehealth/mobile/interviews`, `GET /interviews/latest` | Store locally first, then retry through WorkManager. |
+| Profile | `GET/PUT /rehealth/mobile/profile` | Authenticated, user-scoped typed profile. Preserve returned `version` on PUT; stale edits return `409`; BMI is server-derived. |
+| Interview | `POST /rehealth/mobile/interviews`, `GET /rehealth/mobile/interviews/latest` | Store in the Room durable queue before leaving the result screen, retry through WorkManager, and reload the latest typed record after login/profile entry. The optional `profile` object carries parsed age/height/weight and is merged into the typed profile in the same software-db transaction. |
 | Device binding | `POST /rehealth/mobile/devices/bind` | Send a stable device ID and SHA-256 address hash; never send the raw BLE MAC. |
 | Telemetry | `POST /rehealth/mobile/measurements/batch` | Upload normalized Room records with a stable `batchId`; exclude raw PPG/RRI bytes. |
 | Risk | `POST /rehealth/mobile/features/evaluate`, `GET /risk/latest` | Use the authenticated client and persisted server result. |
 | Intervention | `POST /interventions/generate`, `GET /interventions/today` | Generate only when today's persisted plan is absent. |
 | Feedback | `POST /interventions/{id}/feedback` | Mark local feedback complete only when `persisted=true`. |
 | Attribution | `POST /rehealth/mobile/attribution/events` | Authenticated individual attribution only. |
-| Health assistant | `POST /rehealth/mobile/agent/messages` | Backend-proxied model access; no provider credential in the APK. |
+| Health assistant | `POST /rehealth/mobile/agent/messages`, `GET /rehealth/mobile/agent/conversations/latest` | Persist the user message in Room before sending. `conversationId`, `clientMessageId`, and `requestId` make retries stable; restore the latest user/tenant-scoped server conversation after login. JeecgBoot extracts only explicit self-reported name, gender, age, height and weight, merges changed values into the typed profile before assembling that turn's prompt, and appends a Chinese field-update confirmation to the persisted answer. Hypothetical or third-party values are not profile updates. Provider credentials remain server-only. |
 
 Every durable business endpoint returns a retryable `503` envelope when the
 required database is disabled or unavailable. Android must not interpret an
@@ -74,13 +84,28 @@ status starts with "ACCEPTED_"
 ```
 
 HBand advanced-health measurements use independent normalized `metricType` values:
-`URIC_ACID`, `TOTAL_CHOLESTEROL`, `TRIGLYCERIDES`, `HDL_CHOLESTEROL`,
+`BLOOD_GLUCOSE`, `TEMPERATURE`, `STRESS`, `MET`, `URIC_ACID`,
+`TOTAL_CHOLESTEROL`, `TRIGLYCERIDES`, `HDL_CHOLESTEROL`,
 `LDL_CHOLESTEROL`, `BMI`, `BODY_FAT_PERCENT`, `FAT_MASS`, `FAT_FREE_MASS`,
 `MUSCLE_PERCENT`, `MUSCLE_MASS`, `SUBCUTANEOUS_FAT_PERCENT`,
 `BODY_WATER_PERCENT`, `WATER_MASS`, `SKELETAL_MUSCLE_PERCENT`, `BONE_MASS`,
 `PROTEIN_PERCENT`, `PROTEIN_MASS`, and `BASAL_METABOLIC_RATE`. Blood-glucose
 calibration and menstrual-cycle configuration are device settings and never enter
 the telemetry batch.
+
+Android Room schema v5 extends local `ring_signal_chunks` for ECG with nullable
+draw frequency, duration, lead type, vendor ECG type, calibration type, average
+heart rate, and contact quality. Newly calibrated HBand curves use `FLOAT32_LE`
+millivolts with `calibration_type=HBAND_ECG_UTIL_MV_V1`; v4 `INT32_LE` rows migrate
+without deletion and remain relative-amplitude data. These fields and waveform bytes
+are local UI/history data only and do not change the public telemetry DTO.
+
+Android Room schema v6 adds `health_chat_messages`. It stores each authenticated
+user's current conversation separately, writes the user message before network I/O,
+and marks failed delivery without synthesizing an AI answer. MySQL migration
+`software-V20260730.1` adds `rehealth_ai_conversation` and `rehealth_ai_message`;
+MySQL is the authoritative complete history while the model prompt uses only a
+bounded recent window plus freshly assembled server-authorized health context.
 
 Feedback and device binding completion require `persisted == true`.
 
@@ -98,8 +123,8 @@ Feedback and device binding completion require `persisted == true`.
 - Telemetry ingest does not trigger model scoring. Risk evaluation is a separate
   canonical request after local feature extraction.
 - CatBoost, SHAP, LLM, and causal attribution remain outside the Android APK.
-- Offline health-assistant fallback must be labelled as generic and must not claim
-  to use the user's cloud record.
+- A failed health-assistant request remains visible as a failed local user message;
+  Android must not synthesize a provider answer or claim to use cloud records offline.
 
 ## Retired Android Paths
 
@@ -128,9 +153,12 @@ rehealth:
     time-zone: Asia/Shanghai
 ```
 
-Model and health-agent calls require `rehealth.model-service.base-url`. Provider
-credentials and internal service credentials belong only in backend/model-service
-runtime secrets.
+Risk/model calls still require `rehealth.model-service.base-url`. Health chat uses
+`rehealth.health-agent.engine=model-service|langchain4j`; the default remains
+`model-service` for rollback safety. Enabling `langchain4j` additionally requires
+`REHEALTH_LLM_BASE_URL`, `REHEALTH_LLM_MODEL`, and a provider credential supplied
+through `REHEALTH_LLM_API_KEY_FILE`. Provider and internal credentials belong only
+in backend runtime secrets.
 
 ## QA Status
 

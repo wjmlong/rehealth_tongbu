@@ -1,6 +1,6 @@
 # ReHealth 当前状态
 
-> 最后核对：2026-07-29。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
+> 最后核对：2026-07-30。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
 > `docs/archive/acceptance/`，不得作为当前实现或发布状态的依据。
 
 ## 发布结论
@@ -17,13 +17,13 @@
 
 | 范围 | 当前实现 |
 | --- | --- |
-| Android | 单一有效设备 Provider 路由（Release 注册 MRD/RWFit/HBand）、真实 SDK/BLE、Room、本地优先、Foreground Service、WorkManager、CVD 16 特征、认证感知上传队列、风险/干预/反馈 UI；HBand 心率、步数/活动、睡眠、血氧、HRV、血压、ECG、血液/身体成分以及血糖校准、经期设置按设备能力接入，真机验收待完成 |
+| Android | 单一有效设备 Provider 路由（Release 注册 MRD/RWFit/HBand）、真实 SDK/BLE、Room、本地优先、Foreground Service、WorkManager、CVD 16 特征、认证感知上传队列、风险/干预/反馈 UI；Room v6 新增按登录用户隔离的健康问答消息，用户消息先落本机再请求服务端，页面重建/重登后恢复本机及云端最新会话；健康初识会把可识别的年龄、身高、体重作为结构化 profile 一并排队同步；HBand 心率、步数/活动、睡眠、血氧、HRV、血压、血糖、压力、MET、ECG、血液/身体成分以及血糖校准、经期设置按设备能力接入；MT116 能力判定合并新版分包报告，ECG 以 2 号能力包优先；2026-07-30 真机日志证实固件虽然声明 HRV/压力/MET 独立能力，三项专用命令仍返回全 0 `unknown action`，现已改为 HRV/压力优先走 4 号能力包一键体检、MET 优先获取设备历史，避免 SDK 弹出不支持提示且不生成占位值；固定 SDK 对应四 ABI JNI 已打包，Room v5 保存校准 mV/导联/采样元数据并提供实时及历史单导联波形详情；ECG 与身体成分在用户确认电极接触和稳定姿势说明后才下发测量命令；体温因真机验证不通过已从 HBand 商品能力和数据页移除，其他指标及 ECG 真机准确性仍待验收 |
 | Device Service | 遥测校验、TimescaleDB 持久化、幂等批次、Transactional Outbox、Kafka 发布 |
-| JeecgBoot | 登录与权限、用户/设备绑定、业务数据、风险/干预/反馈编排、software_db |
-| model-service | CVD 风险评分、模型制品校验、干预生成、健康助手安全边界 |
+| JeecgBoot | 登录与权限、用户/设备绑定、结构化档案/访谈/干预业务数据、风险/干预/反馈编排、LangChain4j 健康问答、安全策略、用户/租户隔离会话历史和 software_db；健康问答可把明确自述的姓名、性别、年龄、身高和体重合并入结构化档案，并让同轮提示词读取新值；模型证据继续保留版本化 JSON 快照 |
+| model-service | CVD 风险评分、模型制品校验、干预生成；旧健康助手接口保留为可配置回退 |
 | PIAS | 独立服务提供个体归因；Android 不执行生产归因 |
 | 部署 | Gateway、MySQL、TimescaleDB、Kafka、Redis、Nacos、Prometheus、Grafana 的 Compose 拓扑 |
-| 真机联调通道 | SSH 反向隧道 + ECS nginx 已打通公网访问开发机 `jeecg-boot:8080`（2026-07-29 端到端验证 200），仅限 Debug 联调；见 `tools/dev-tunnel/README.md` |
+| 真机联调通道 | `https://rehealth.youngjimmy.store`（SSH 反向隧道 + ECS nginx，Let's Encrypt SAN 证书，2026-07-29 端到端 200；备用 `rehealth.47.80.30.228.sslip.io`），Debug/Release 均可联调；见 `tools/dev-tunnel/README.md` |
 
 ## 已验证边界
 
@@ -36,12 +36,15 @@
 - `productCode` 只选择一个懒加载 Provider；绑定存于加密偏好且不迁移 Room，
   未绑定地址时后台采集不会使用固定 MAC 自动连接；RWFit SDK 类型不进入 UI、
   ViewModel 或 Room Entity；HBand SDK 类型同样被限制在 Gateway 文件内，未支持的指标不生成占位记录，
-  ECG 波形只写本地 Room 且不进入云端上传。
+  ECG 波形只写本地 Room 且不进入云端上传；HBand SDK 疾病风险不作为诊断展示，
+  新记录保存校准 mV 和结构化导联/采样元数据，旧整数记录保留并仅按相对幅值展示。
 - Debug 设备页可在明确确认后暂停采集、断开旧 Provider 并切换本地 `productCode`；
   Release 隐藏该入口，切换不会删除历史 `ring_*` 数据。
 - 三个真实 Provider 的后台同步只重连已绑定地址且不做环境扫描；前后台操作共享
   路由互斥锁。HBand 恢复画像使用按用户哈希隔离的加密缓存，外部协程取消会断开 SDK。
 - MySQL 8 staging 已有迁移、用户隔离、幂等和重启回读证据；生产容量与恢复仍待验证。
+- Android 重新登录和进入个人页会刷新当前用户的类型化个人资料与最近健康问答，且不再受风险/干预接口失败影响；健康初识完成前先持久化 Room 队列，麦克风入口具备用途说明、运行时授权和拒绝后的设置引导。
+- 健康问答 Java 纵向链路已实现：可在 `model-service` 与 `langchain4j` 间配置切换，每轮装配类型化画像/访谈/风险/干预，问答中明确自述的五项基本资料先合并入库再装配同轮画像，MySQL 会话与消息按用户+租户隔离，Android Room v6 本地先写并恢复历史；生产数据库迁移、真实 Provider 和跨设备手工 QA 仍待执行。
 
 ## 当前仓库治理决定
 
@@ -55,7 +58,7 @@
 
 1. Docker 引擎恢复后补跑 Device Service 的 TimescaleDB/Testcontainers 集成测试。
 2. 在发布环境挂载已审核模型制品并复核真实模型门禁。
-3. 使用包含完整 JieLi/Nordic 依赖的 APK 完成 HBand 连接复测，再完成 MRD/RWFit/HBand 与 Android 运行时端到端 QA。
+3. 使用包含完整 JieLi/Nordic/JNI 依赖的 APK 完成 HBand 连接与 ECG 实时/历史波形复测，再完成 MRD/RWFit/HBand 与 Android 运行时端到端 QA。
 4. 完成签名 Release APK 和真实部署环境验收。
 
 ## 历史证据

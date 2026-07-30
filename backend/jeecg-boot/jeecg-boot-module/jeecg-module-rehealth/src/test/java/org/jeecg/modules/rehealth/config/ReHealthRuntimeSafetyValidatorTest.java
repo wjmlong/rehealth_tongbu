@@ -72,6 +72,29 @@ class ReHealthRuntimeSafetyValidatorTest {
         assertRejected(properties, "AGENT_INTERNAL_TOKEN_REQUIRED");
     }
 
+    @Test
+    void acceptsProtectedLangChain4jWithHttpsAndSecretFile() {
+        Map<String, Object> properties = safeConfiguration("production");
+        properties.put("rehealth.health-agent.engine", "langchain4j");
+        properties.put("rehealth.health-agent.langchain4j.base-url", "https://api.example.com");
+        properties.put("rehealth.health-agent.langchain4j.api-key-file", "/run/secrets/provider");
+        properties.put("rehealth.health-agent.langchain4j.model", "health-chat-model");
+
+        assertDoesNotThrow(() -> validate(properties));
+    }
+
+    @Test
+    void rejectsEmbeddedLangChain4jSecretInProduction() {
+        Map<String, Object> properties = safeConfiguration("production");
+        properties.put("rehealth.health-agent.engine", "langchain4j");
+        properties.put("rehealth.health-agent.langchain4j.base-url", "https://api.example.com");
+        properties.put("rehealth.health-agent.langchain4j.api-key", "do-not-ship");
+        properties.put("rehealth.health-agent.langchain4j.api-key-file", "/run/secrets/provider");
+        properties.put("rehealth.health-agent.langchain4j.model", "health-chat-model");
+
+        assertRejected(properties, "EMBEDDED_LLM_SECRET_FORBIDDEN");
+    }
+
     private static Map<String, Object> safeConfiguration(String mode) {
         Map<String, Object> properties = new HashMap<>();
         properties.put("rehealth.runtime.mode", mode);

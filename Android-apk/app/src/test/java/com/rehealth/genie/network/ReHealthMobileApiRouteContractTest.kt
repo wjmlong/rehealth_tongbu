@@ -86,6 +86,41 @@ class ReHealthMobileApiRouteContractTest {
     }
 
     @Test
+    fun `reads latest health interview from authenticated Jeecg route`() = runTest {
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200).setBody(INTERVIEW_ENVELOPE))
+        val api = ReHealthMobileApi(
+            baseUrl = server.url("/jeecg-boot/").toString(),
+            httpClient = OkHttpClient(),
+            apiToken = "synthetic-test-token",
+        )
+
+        assertIs<RemotePhmOutcome.Success<*>>(api.getLatestHealthInterview())
+
+        assertRequest("/jeecg-boot/rehealth/mobile/interviews/latest", "GET")
+    }
+
+    @Test
+    fun `restores latest authenticated health chat conversation`() = runTest {
+        server.start()
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"success":true,"code":200,"result":{"conversationId":"conversation-1","messages":[]}}""",
+            ),
+        )
+        val api = ReHealthMobileApi(
+            baseUrl = server.url("/jeecg-boot/").toString(),
+            httpClient = OkHttpClient(),
+            apiToken = "synthetic-test-token",
+        )
+
+        val result = assertIs<RemotePhmOutcome.Success<*>>(api.getLatestHealthAgentConversation(50))
+        val conversation = result.data as com.rehealth.genie.network.dto.HealthAgentConversation
+        assertEquals("conversation-1", conversation.conversationId)
+        assertRequest("/jeecg-boot/rehealth/mobile/agent/conversations/latest?limit=50", "GET")
+    }
+
+    @Test
     fun `uses authenticated software loop routes and parses persistence acknowledgements`() = runTest {
         server.start()
         listOf(
@@ -130,6 +165,8 @@ class ReHealthMobileApiRouteContractTest {
             api.sendHealthAgentMessage(
                 HealthAgentMessageRequest(
                     requestId = "agent-1",
+                    conversationId = "conversation-1",
+                    clientMessageId = "message-1",
                     message = "如何改善睡眠？",
                 ),
             ),

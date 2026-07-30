@@ -12,12 +12,17 @@ val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) f.inputStream().use { load(it) }
 }
-fun reHealthApiBaseUrl(): String =
-    (localProps.getProperty("rehealth.api.base.url") ?: System.getenv("REHEALTH_API_BASE_URL")
-        ?: "http://10.0.2.2:8080/jeecg-boot/").trim().trimEnd('/') + "/"
+fun reHealthApiBaseUrl(): String {
+    val configured = localProps.getProperty("rehealth.api.base.url")
+        ?: System.getenv("REHEALTH_API_BASE_URL")
+        ?: providers.gradleProperty("rehealth.api.base.url").orNull
+        ?: "http://10.0.2.2:8080/jeecg-boot/"
+    return configured.trim().trimEnd('/') + "/"
+}
 fun reHealthReleaseApiBaseUrl(): String {
     val configured = localProps.getProperty("rehealth.release.api.base.url")
         ?: System.getenv("REHEALTH_RELEASE_API_BASE_URL")
+        ?: providers.gradleProperty("rehealth.release.api.base.url").orNull
         ?: "https://api.rehealth.invalid/"
     val normalized = configured.trim().trimEnd('/') + "/"
     require(normalized.startsWith("https://")) {
@@ -43,6 +48,17 @@ fun debugWearableProductCode(): String {
     }
     return normalizedProductCode
 }
+// Debug-only ring simulation switches. Default off so real-device BLE QA is unaffected.
+// Override per-run via -Prehealth.debug.use.fake.ring=true or local.properties /
+// gradle.properties. SEED_FAKE_HEALTH_DATA only auto-activates on recognized emulators.
+fun useFakeRing(): Boolean =
+    (localProps.getProperty("rehealth.debug.use.fake.ring")
+        ?: providers.gradleProperty("rehealth.debug.use.fake.ring").orNull
+        ?: "false").toBooleanStrict()
+fun seedFakeHealthData(): Boolean =
+    (localProps.getProperty("rehealth.debug.seed.fake.health.data")
+        ?: providers.gradleProperty("rehealth.debug.seed.fake.health.data").orNull
+        ?: "false").toBooleanStrict()
 
 android {
     namespace = "com.rehealth.genie"
@@ -66,8 +82,8 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("boolean", "USE_FAKE_RING", "false")
-            buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", "false")
+            buildConfigField("boolean", "USE_FAKE_RING", useFakeRing().toString())
+            buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", seedFakeHealthData().toString())
             buildConfigField("boolean", "ALLOW_WEARABLE_PRODUCT_SWITCH", "true")
             buildConfigField("String", "DEBUG_WEARABLE_PRODUCT_CODE", "\"${debugWearableProductCode()}\"")
             buildConfigField("String", "REHEALTH_API_BASE_URL", "\"${reHealthApiBaseUrl()}\"")

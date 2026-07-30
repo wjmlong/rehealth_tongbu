@@ -23,6 +23,7 @@ import com.rehealth.genie.ring.data.RingSleepSessionEntity
 import com.rehealth.genie.ring.provider.ActiveWearableManager
 import com.rehealth.genie.service.RingForegroundService
 import java.util.Calendar
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,6 +57,8 @@ data class RingUiState(
     val sleep: RingSleepSessionEntity? = null,
     val activity: RingActivityEntity? = null,
     val signals: Map<RingMetricType, RingSignalChunkEntity> = emptyMap(),
+    val ecgHistory: List<RingSignalChunkEntity> = emptyList(),
+    val liveEcg: RingEcgLiveState = RingEcgLiveState(),
     val supportedMetrics: Set<RingMetricType> = emptySet(),
     val supportedFeatures: Set<RingFeatureType> = emptySet(),
     val wearableProducts: List<WearableProductOption> = emptyList(),
@@ -93,6 +96,7 @@ class RingViewModel(
     private val mutableUiState = MutableStateFlow(RingUiState(supportedMetrics = repository.supportedMetrics))
     val uiState: StateFlow<RingUiState> = mutableUiState.asStateFlow()
     private var autoCollectionJob: Job? = null
+    private var patientRefreshJob: Job? = null
     private var lastRingVector: CvdFeatureVector = CvdFeatureVector()
 
     init {
@@ -164,7 +168,16 @@ class RingViewModel(
             }
         }
         viewModelScope.launch {
-            refreshPatientMvp(silent = true)
+            dao.observeSignalChunks(RingMetricType.ECG.name, ECG_HISTORY_LIMIT).collect { records ->
+                mutableUiState.update { it.copy(ecgHistory = records) }
+            }
+        }
+        (repository as? RingEcgRepository)?.let { ecgRepository ->
+            viewModelScope.launch {
+                ecgRepository.liveEcg.collect { live ->
+                    mutableUiState.update { it.copy(liveEcg = live) }
+                }
+            }
         }
     }
 
@@ -380,20 +393,39 @@ class RingViewModel(
     }
 
     fun refreshPatientMvp() {
-        viewModelScope.launch {
+        patientRefreshJob?.cancel()
+        patientRefreshJob = viewModelScope.launch {
             refreshPatientMvp(silent = false)
+        }
+    }
+
+    fun clearPatientSession() {
+        patientRefreshJob?.cancel()
+        patientRefreshJob = null
+        pushProfileToRepository(repository, null)
+        mutableUiState.update {
+            it.copy(
+                patientMvp = null,
+                isPatientMvpLoading = false,
+                cloudRiskLevel = null,
+                cloudRiskScore = null,
+                cloudRiskMode = null,
+                cloudRiskSummary = null,
+                message = null,
+            )
         }
     }
 
     fun measure(type: RingMetricType) {
         viewModelScope.launch {
             Log.i(TAG, "measure clicked type=$type")
+            val action = if (type == RingMetricType.MET) "获取" else "测量"
             mutableUiState.update {
                 it.copy(
                     isSyncing = true,
                     measuringMetric = type,
                     syncProgress = 15,
-                    message = "请保持戒指佩戴稳定，正在测量${type.displayName()}",
+                    message = "请保持设备佩戴稳定，正在${action}${type.displayName()}",
                 )
             }
             val progressJob = launch {
@@ -412,9 +444,9 @@ class RingViewModel(
                             syncProgress = 100,
                             lastSyncAt = result.completedAt,
                             message = if (result.recordsWritten > 0) {
-                                "${type.displayName()}测量完成，结果已保存"
+                                "${type.displayName()}${action}完成，结果已保存"
                             } else {
-                                "没有读取到${type.displayName()}结果，请重新测量"
+                                "没有读取到${type.displayName()}结果，请保持设备连接后重试"
                             },
                         )
                     }
@@ -426,7 +458,7 @@ class RingViewModel(
                             isSyncing = false,
                             measuringMetric = null,
                             syncProgress = 0,
-                            message = error.message ?: "${type.displayName()}测量失败",
+                            message = error.message ?: "${type.displayName()}${action}失败",
                         )
                     }
                 }
@@ -562,7 +594,7 @@ class RingViewModel(
     private suspend fun refreshPatientMvp(silent: Boolean) {
         val client = cloudRepository ?: return
         if (!silent) {
-            mutableUiState.update { it.copy(isPatientMvpLoading = true, message = "正在刷新患者健康计划") }
+            mutableUiState.update { it.copy(isPatientMvpLoading = true, message = "正在读取个人资料与健康档案") }
         }
         client.fetchPatientMvp()
             .onSuccess { mvp ->
@@ -576,17 +608,18 @@ class RingViewModel(
                         cloudRiskScore = risk?.riskScore ?: it.cloudRiskScore,
                         cloudRiskMode = risk?.mode ?: it.cloudRiskMode,
                         cloudRiskSummary = risk?.summary ?: it.cloudRiskSummary,
-                        message = if (silent) it.message else "患者健康计划已更新",
+                        message = if (silent) it.message else "个人资料与健康档案已更新",
                     )
                 }
             }
             .onFailure { error ->
+                if (error is CancellationException) return@onFailure
                 Log.w(TAG, "patient mvp refresh failed", error)
                 mutableUiState.update {
                     it.copy(
                         isPatientMvpLoading = false,
                         patientMvp = it.patientMvp ?: buildFallbackPatientMvp(lastRingVector),
-                        message = if (silent) it.message else "已使用本地模拟健康计划",
+                        message = if (silent) it.message else "资料读取失败，请检查网络后重试",
                     )
                 }
             }
@@ -618,6 +651,7 @@ private data class CloudUploadUiStatus(
 
 private const val TAG = "RingViewModel"
 private const val AUTO_COLLECTION_INTERVAL_MS = 15 * 60 * 1000L
+private const val ECG_HISTORY_LIMIT = 10
 private const val DAY_MS = 24L * 60 * 60 * 1000
 
 private fun periodStartMillis(windowDays: Int): Long {
@@ -756,12 +790,14 @@ private fun RingMetricType.displayName(): String = when (this) {
     RingMetricType.HEART_RATE -> "心率"
     RingMetricType.BLOOD_OXYGEN -> "血氧"
     RingMetricType.BLOOD_PRESSURE -> "血压"
+    RingMetricType.BLOOD_GLUCOSE -> "血糖"
     RingMetricType.TEMPERATURE -> "体温"
     RingMetricType.HRV -> "HRV"
     RingMetricType.SLEEP -> "睡眠"
     RingMetricType.STEPS -> "步数"
     RingMetricType.ACTIVITY -> "运动"
     RingMetricType.STRESS -> "压力"
+    RingMetricType.MET -> "MET"
     RingMetricType.RRI -> "RRI"
     RingMetricType.PPG -> "PPG"
     RingMetricType.ECG -> "ECG"

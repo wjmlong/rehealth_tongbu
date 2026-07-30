@@ -28,8 +28,15 @@ only `RH-HB-E01`/`HBAND`; it must not scan or connect MRD/RWFit concurrently.
 - vendor cooperation/commercial authorization;
 - vendor-approved password setup/reset flow (the pinned official demo uses
   `0000`, but this has not been confirmed on a purchased device);
-- complete `FunctionDeviceSupportData` result without logging raw health values
-  or the BLE MAC in release logs.
+- complete numbered `DeviceFunctionPackage1..5` reports without logging raw health
+  values or the BLE MAC in release logs. The deprecated `FunctionDeviceSupportData`
+  callback may fire repeatedly with partially initialized fields and is diagnostic only.
+- for MT116, confirm `DeviceFunctionPackage2.getEcgFunction()` reports support. The
+  latest deprecated aggregate value is used only when package 2 is absent;
+  `RH-HB-E01` must reject the device when neither source reports ECG support.
+- if the settled result still reports no ECG, verify the purchased MT116 SKU has
+  physical ECG electrodes and record its firmware; do not bypass the gate for a
+  non-ECG hardware variant.
 
 ## Connection sequence
 
@@ -40,10 +47,13 @@ only `RH-HB-E01`/`HBAND`; it must not scan or connect MRD/RWFit concurrently.
 4. Record the advertised device name separately from screenshots containing a
    full MAC; redact addresses before sharing evidence.
 5. Connect and verify the sequence is BLE connection, Notify success, password
-   confirmation, capability callback, real ReHealth profile synchronization,
-   then `CONNECTED`/READY.
+   confirmation, a settled merge of the deprecated aggregate capability callback
+   and numbered function-package callbacks, real ReHealth profile synchronization,
+   then `CONNECTED`/READY. MT116 should no longer be rejected from an early,
+   partially initialized aggregate callback when package 2 reports ECG support.
    Confirm logcat contains no `NoClassDefFoundError` for `WatchOpImpl`,
-   `McuMgrBleTransport`, or Nordic scanner classes, and that a full APK install,
+   `McuMgrBleTransport`, or Nordic scanner classes and no `UnsatisfiedLinkError`
+   for `libnative-lib.so`, and that a full APK install,
    rather than Apply Changes, was used after SDK dependency changes.
 6. Test wrong password/confirmation timeout and verify the app reports an error,
    writes no telemetry, and can recover after disconnect/retry.
@@ -57,27 +67,62 @@ For `RH-HB-E01`, validate only device-advertised capabilities:
 
 - heart-rate history and manual heart-rate measurement (`bpm`);
 - daily steps/activity, including confirmation that SDK distance in kilometres
-  is converted to Room metres and calories remain kcal;
+  is converted to Room metres and calories remain kcal. Confirm live daily sport
+  and the per-day sum of five-minute origin records agree with the vendor app;
 - sleep start/end, deep/light duration, cross-midnight handling, and the
-  documented absence of a separate REM field in the selected SDK callback;
+  documented absence of a separate REM field in the selected SDK callback. Confirm
+  the dedicated sleep read completes before the origin-history command starts. For
+  total-only sleep, verify duration is displayed while deep/light/REM remain unknown;
 - manual blood oxygen only when `getSpo2H()` is true; verify a real `%` value and
   wear-off/failure behavior;
-- manual HRV only when `getHrvAppDetectFunction()` is true; verify the SDK integer
-  is persisted as `ms` and compare repeated values with the vendor app;
+- the purchased MT116's 2026-07-30 log shows that its dedicated HRV/stress/MET commands all
+  receive an all-zero `unknown action` response even though the firmware advertises those
+  switches. For `RH-HB-E01`, verify HRV and stress select package-4 `miniCheckup` before any
+  dedicated command, and MET selects real device history. Persist only a positive SDK HRV
+  integer as `ms`, show no-result on failure, and confirm no “This feature is not supported”
+  SDK toast appears. Debug evidence must use the `HBandMetricFlow` tag and must not include
+  device identifiers or raw health values;
 - blood-pressure history and manual measurement only when `getBp()` is true;
   verify systolic/diastolic order, `mmHg` units, wear-off/charging/low-battery
   failures, and compare repeated readings with a validated cuff without making
   diagnostic claims;
-- manual ECG only when `getEcg()` is true; verify contact/wear guidance, start/
-  stop/cancel behavior, SDK sample rate, local waveform persistence, and the
-  average-heart-rate summary. Confirm raw ECG waveform bytes never enter a
-  telemetry upload payload or production log, and do not expose SDK diagnosis
-  output as medical advice.
+- manual ECG only when package 2 `getEcgFunction()` (or the legacy fallback
+  `getEcg()` when package 2 is absent) reports support; verify contact/wear guidance, start/
+  stop/cancel behavior, SDK sample/draw frequency, local waveform persistence, and the
+  average-heart-rate summary for both normal completion and abnormal-result callbacks.
+  Before the SDK start command, verify both the data-card entry and detail-page button show
+  instructions requiring continuous opposite-hand contact with the metal electrode and a
+  stable posture. Cancelling the dialog must not start measurement.
+  Open the single-lead detail page before measurement, confirm ADC callbacks update the
+  live chart and progress, and verify every valid ADC point is paired with the callback's
+  corresponding gain before `EcgUtil.convertToMvWithValue(..., ecgType, false, gain)`.
+  After completion, inspect the Room v5 row: new HBand records use `FLOAT32_LE`, identify
+  `HBAND_ECG_UTIL_MV_V1`, retain duration/ECG type/contact quality, and label I or V1 only
+  when `EcgDiagnosis.leadOffType` explicitly supplies it. A normal result without that field
+  must remain “导联待设备确认”. Upgrade from v4 and confirm old `INT32_LE` rows remain visible
+  as relative amplitude rather than being deleted or mislabeled mV. Confirm the latest ten
+  local records can be selected and replayed without UI stalls.
+  A summary may exist without a curve when the device returns only average heart rate.
+  Confirm raw ECG waveform bytes never enter a
+  telemetry upload payload or production log. The page must say this is portable single-lead
+  ECG rather than a clinical 12-lead examination, must not list SDK disease-risk output as a
+  diagnosis, and must show “仅供健康参考，不能替代医疗诊断”.
 - blood components only when `getBloodComponent()` is true; verify uric acid,
   TCHO, TAG, HDL, and LDL are five distinct Room records and that displayed units
   match the current device `CustomSettingData` units;
 - body composition only when `getBodyComponent()` is true; verify all 14 fields,
-  units, lead-off handling, local persistence, and non-diagnostic UI text;
+  units, lead-off handling, local persistence, and non-diagnostic UI text. Before the SDK
+  command, verify the instructions require a complete electrode circuit, separated relaxed
+  arms, and still posture; cancelling the dialog must not start measurement;
+- direct blood glucose only when `getBloodGlucose()` is true; verify the device unit,
+  manual-history sync, failure behavior, and non-diagnostic/estimated-value wording;
+- stress measurement uses package-4 `miniCheckup` first when available, then device history;
+  the dedicated interface is not selected while fallback is enabled. Verify every real
+  result stays in `1..100 score`; zero is treated as no result and is not interpreted as a mental-health diagnosis;
+- metabolic equivalent uses device history first for `RH-HB-E01`. A non-zero
+  `getMetType()` permits history retrieval but must not call `startDetectMet`; the card uses
+  “获取” for the latest device MET, persists only positive values, and shows no-result when
+  the device has no history. Compare activity-time values with the vendor app;
 - blood-glucose calibration only when the adjusting capability is true. Use a
   same-time external meter reference value, verify the setting callback, and do
   not treat calibration as a measurement or medical result;
@@ -87,9 +132,10 @@ For `RH-HB-E01`, validate only device-advertised capabilities:
 Compare ten repeated syncs against the vendor app. Verify deterministic IDs
 prevent duplicate Room rows. Unsupported, zero, invalid, or absent readings must
 not produce measurements. A visible disabled card is not evidence that the device
-supports the operation. Do not enable temperature, stress, direct blood-glucose
-measurement, pregnancy/preparation/mother modes, TCM, OTA, dials, messages,
+supports the operation. Do not enable pregnancy/preparation/mother modes, TCM, OTA, dials, messages,
 contacts, music, or audio.
+Do not enable HBand temperature for `RH-HB-E01`; it failed the current physical-device
+test and has been removed from the product capability and data page.
 
 ## Failure and background matrix
 

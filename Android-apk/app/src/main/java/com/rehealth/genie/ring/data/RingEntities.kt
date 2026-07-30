@@ -63,6 +63,13 @@ data class RingSignalChunkEntity(
     val encoding: String = "INT32_LE",
     val payload: ByteArray,
     val source: String,
+    @ColumnInfo(name = "draw_frequency_hz") val drawFrequencyHz: Int? = null,
+    @ColumnInfo(name = "duration_seconds") val durationSeconds: Int? = null,
+    @ColumnInfo(name = "lead_type") val leadType: String? = null,
+    @ColumnInfo(name = "ecg_type") val ecgType: Int? = null,
+    @ColumnInfo(name = "calibration_type") val calibrationType: String? = null,
+    @ColumnInfo(name = "average_heart_rate") val averageHeartRate: Int? = null,
+    @ColumnInfo(name = "contact_quality") val contactQuality: String? = null,
 ) {
     override fun equals(other: Any?): Boolean =
         other is RingSignalChunkEntity &&

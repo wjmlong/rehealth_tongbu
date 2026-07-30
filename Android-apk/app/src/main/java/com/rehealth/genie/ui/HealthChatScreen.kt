@@ -2,14 +2,44 @@ package com.rehealth.genie.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.QuestionAnswer
+import androidx.compose.material.icons.outlined.Send
+import androidx.compose.material.icons.outlined.SmartToy
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -18,189 +48,128 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rehealth.genie.ReHealthApplication
-import com.rehealth.genie.network.HealthChatService
-import com.rehealth.genie.ring.RingMetricType
+import com.rehealth.genie.data.HealthChatMessageEntity
+import com.rehealth.genie.data.HealthChatRepository
 import com.rehealth.genie.ring.RingViewModel
-import com.rehealth.genie.ui.theme.*
-import kotlinx.coroutines.launch
+import com.rehealth.genie.ui.theme.Canvas
+import com.rehealth.genie.ui.theme.Ink
+import com.rehealth.genie.ui.theme.Line
+import com.rehealth.genie.ui.theme.Mint
+import com.rehealth.genie.ui.theme.MintSoft
+import com.rehealth.genie.ui.theme.Muted
 
-/**
- * AI健康问答页面 - 通过后端托管的健康助手模型服务（本地默认 DeepSeek V4 Flash）。
- */
 @Composable
 fun HealthChatScreen(
     onBack: () -> Unit,
-    ringViewModel: RingViewModel
+    @Suppress("UNUSED_PARAMETER") ringViewModel: RingViewModel,
 ) {
-    var messages by remember { mutableStateOf(listOf<ChatMessage>()) }
-    var inputText by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
     val application = LocalContext.current.applicationContext as ReHealthApplication
-    val chatService = remember(application) { HealthChatService(application.authenticatedApiClient) }
-    val scope = rememberCoroutineScope()
-    val ringState by ringViewModel.uiState.collectAsState()
+    val chatViewModel: HealthChatViewModel = viewModel(
+        factory = remember(application) { HealthChatViewModel.Factory(application) },
+    )
+    val messages by chatViewModel.messages.collectAsState()
+    val uiState by chatViewModel.uiState.collectAsState()
+    var inputText by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Canvas)
-            .statusBarsPadding()
+            .statusBarsPadding(),
     ) {
-        // Header
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
                 Icon(Icons.Outlined.ArrowBack, "返回", tint = Ink)
             }
             Column(Modifier.weight(1f)) {
                 Text("AI健康问答", color = Ink, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                Text(chatService.currentModelName(), color = Muted, fontSize = 11.sp)
+                Text("睿禾健康助手（服务端托管）", color = Muted, fontSize = 11.sp)
             }
         }
+        Text(
+            "仅供健康参考，不能替代医疗诊断；严重或突发症状请及时就医。",
+            color = Muted,
+            fontSize = 11.sp,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 4.dp),
+        )
 
-        // 快捷问题
         if (messages.isEmpty()) {
-            LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                item {
-                    Text("💬 问我一些健康问题", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Text("例如：", color = Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
-                }
-
-                item {
-                    QuickQuestionCard("我的睡眠质量如何改善？") {
-                        sendMessage(it, messages, chatService, scope) { newMessages, loading ->
-                            messages = newMessages
-                            isLoading = loading
-                        }
-                    }
-                }
-
-                item {
-                    QuickQuestionCard("如何提高心率变异性？") {
-                        sendMessage(it, messages, chatService, scope) { newMessages, loading ->
-                            messages = newMessages
-                            isLoading = loading
-                        }
-                    }
-                }
-
-                item {
-                    QuickQuestionCard("我的血压偏高，应该注意什么？") {
-                        sendMessage(it, messages, chatService, scope) { newMessages, loading ->
-                            messages = newMessages
-                            isLoading = loading
-                        }
-                    }
-                }
-
-                item {
-                    QuickQuestionCard("根据我的数据，给我健康建议") {
-                        scope.launch {
-                            isLoading = true
-                            // Requirement A+B: 绑定用户真实体征；Requirement C: 无实时读数时回退到
-                            // 本地 7 天聚合(由 Room 历史计算得出，非随机/写死)
-                            val agg = runCatching { ringViewModel.loadPeriodAggregate(7) }.getOrNull()
-                            val hr = ringState.measurements[RingMetricType.HEART_RATE]?.primaryValue ?: agg?.avgHeartRate
-                            val spo2 = ringState.measurements[RingMetricType.BLOOD_OXYGEN]?.primaryValue ?: agg?.avgSpo2
-                            val stepsVal = ringState.measurements[RingMetricType.STEPS]?.primaryValue ?: agg?.totalSteps?.toDouble()
-                            val sleepMin = ringState.sleep?.let { (it.deepMinutes + it.lightMinutes + it.remMinutes + it.awakeMinutes).toDouble() } ?: agg?.avgSleepMinutes
-                            val healthData = buildMap<String, String> {
-                                put("心率", hr?.let { "%.0f bpm".format(it) } ?: "—")
-                                put("血氧", spo2?.let { "%.0f%%".format(it) } ?: "—")
-                                put("睡眠", sleepMin?.let { "${it.toInt() / 60}h${it.toInt() % 60}m" } ?: "—")
-                                put("步数", stepsVal?.let { "%,d步".format(it.toLong()) } ?: "—")
-                            }
-                            val response = chatService.generateHealthInsight(healthData)
-                            messages = messages + ChatMessage("根据我的数据，给我健康建议", true)
-                            messages = messages + ChatMessage(response, false)
-                            isLoading = false
-                        }
-                    }
-                }
-            }
+            QuickQuestions(
+                modifier = Modifier.weight(1f),
+                enabled = !uiState.isLoading,
+                onQuestion = chatViewModel::send,
+            )
         } else {
-            // 聊天消息列表
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items(messages.size) { index ->
-                    ChatBubble(messages[index])
+                items(messages, key = { it.messageId }) { message ->
+                    ChatBubble(message)
                 }
-
-                if (isLoading) {
+                if (uiState.isLoading) {
                     item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Start
+                        Box(
+                            modifier = Modifier.clip(RoundedCornerShape(14.dp))
+                                .background(Color.White).padding(12.dp),
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(Color.White)
-                                    .padding(12.dp)
-                            ) {
-                                Text("正在思考...", color = Muted, fontSize = 13.sp)
-                            }
+                            Text("正在结合你的健康画像思考…", color = Muted, fontSize = 13.sp)
                         }
                     }
                 }
             }
         }
 
-        // 输入框
+        uiState.errorMessage?.let { error ->
+            Text(
+                error,
+                color = Color(0xFFD94C4C),
+                fontSize = 12.sp,
+                modifier = Modifier.fillMaxWidth().clickable(onClick = chatViewModel::clearError)
+                    .padding(horizontal = 18.dp, vertical = 8.dp),
+            )
+        }
+
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White)
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.fillMaxWidth().background(Color.White)
+                .navigationBarsPadding().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedTextField(
                 value = inputText,
                 onValueChange = { inputText = it },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("输入健康问题...", color = Muted, fontSize = 13.sp) },
+                placeholder = { Text("输入健康问题…", color = Muted, fontSize = 13.sp) },
                 shape = RoundedCornerShape(20.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Mint,
-                    unfocusedBorderColor = Line
+                    unfocusedBorderColor = Line,
                 ),
-                maxLines = 3
+                maxLines = 3,
             )
-
             Spacer(Modifier.width(8.dp))
-
             IconButton(
                 onClick = {
-                    if (inputText.isNotBlank() && !isLoading) {
-                        sendMessage(inputText, messages, chatService, scope) { newMessages, loading ->
-                            messages = newMessages
-                            isLoading = loading
-                        }
+                    val question = inputText.trim()
+                    if (question.isNotEmpty()) {
+                        chatViewModel.send(question)
                         inputText = ""
                     }
                 },
-                enabled = inputText.isNotBlank() && !isLoading,
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(if (inputText.isNotBlank()) Mint else Line)
+                enabled = inputText.isNotBlank() && !uiState.isLoading,
+                modifier = Modifier.size(48.dp).clip(CircleShape)
+                    .background(if (inputText.isNotBlank()) Mint else Line),
             ) {
                 Icon(
                     Icons.Outlined.Send,
                     "发送",
-                    tint = if (inputText.isNotBlank()) Color.White else Muted
+                    tint = if (inputText.isNotBlank()) Color.White else Muted,
                 )
             }
         }
@@ -208,105 +177,88 @@ fun HealthChatScreen(
 }
 
 @Composable
-private fun QuickQuestionCard(question: String, onClick: (String) -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick(question) },
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+private fun QuickQuestions(
+    modifier: Modifier,
+    enabled: Boolean,
+    onQuestion: (String) -> Unit,
+) {
+    val questions = listOf(
+        "我的睡眠质量如何改善？",
+        "如何提高心率变异性？",
+        "我的血压偏高，应该注意什么？",
+        "根据我的档案和最新健康数据给出建议",
+    )
+    LazyColumn(
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Outlined.QuestionAnswer, null, tint = Mint, modifier = Modifier.size(20.dp))
-            Text(
-                question,
-                color = Ink,
-                fontSize = 13.sp,
-                modifier = Modifier.weight(1f).padding(horizontal = 12.dp)
-            )
-            Icon(Icons.Outlined.ChevronRight, null, tint = Muted, modifier = Modifier.size(18.dp))
+        item {
+            Text("💬 问我一些健康问题", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("每轮回答都会结合已同步的健康画像", color = Muted, fontSize = 13.sp)
+        }
+        items(questions) { question ->
+            Card(
+                modifier = Modifier.fillMaxWidth().clickable(enabled = enabled) { onQuestion(question) },
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Outlined.QuestionAnswer, null, tint = Mint, modifier = Modifier.size(20.dp))
+                    Text(
+                        question,
+                        color = Ink,
+                        fontSize = 13.sp,
+                        modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+                    )
+                    Icon(Icons.Outlined.ChevronRight, null, tint = Muted, modifier = Modifier.size(18.dp))
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun ChatBubble(message: ChatMessage) {
+private fun ChatBubble(message: HealthChatMessageEntity) {
+    val isUser = message.role == HealthChatRepository.ROLE_USER
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start
+        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
+        verticalAlignment = Alignment.Bottom,
     ) {
-        if (!message.isUser) {
+        if (!isUser) {
             Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(MintSoft),
-                contentAlignment = Alignment.Center
+                modifier = Modifier.size(32.dp).clip(CircleShape).background(MintSoft),
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(Icons.Outlined.SmartToy, null, tint = Mint, modifier = Modifier.size(18.dp))
             }
             Spacer(Modifier.width(8.dp))
         }
-
-        Box(
-            modifier = Modifier
-                .widthIn(max = 280.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(if (message.isUser) Mint else Color.White)
-                .padding(12.dp)
-        ) {
+        Column(horizontalAlignment = if (isUser) Alignment.End else Alignment.Start) {
             Text(
                 message.content,
-                color = if (message.isUser) Color.White else Ink,
+                color = if (isUser) Color.White else Ink,
                 fontSize = 13.sp,
-                lineHeight = 18.sp
+                lineHeight = 18.sp,
+                modifier = Modifier.widthIn(max = 280.dp).clip(RoundedCornerShape(14.dp))
+                    .background(if (isUser) Mint else Color.White).padding(12.dp),
             )
+            if (message.deliveryStatus == HealthChatRepository.DELIVERY_FAILED) {
+                Text("发送失败，已保存在本机", color = Color(0xFFD94C4C), fontSize = 10.sp)
+            }
         }
-
-        if (message.isUser) {
+        if (isUser) {
             Spacer(Modifier.width(8.dp))
             Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFE8F5F2)),
-                contentAlignment = Alignment.Center
+                modifier = Modifier.size(32.dp).clip(CircleShape).background(Color(0xFFE8F5F2)),
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(Icons.Outlined.Person, null, tint = Mint, modifier = Modifier.size(18.dp))
             }
         }
     }
 }
-
-private fun sendMessage(
-    text: String,
-    currentMessages: List<ChatMessage>,
-    chatService: HealthChatService,
-    scope: kotlinx.coroutines.CoroutineScope,
-    onUpdate: (List<ChatMessage>, Boolean) -> Unit
-) {
-    val userMessage = ChatMessage(text, true)
-    onUpdate(currentMessages + userMessage, true)
-
-    scope.launch {
-        try {
-            val response = chatService.ask(text)
-            val aiMessage = ChatMessage(response, false)
-            onUpdate(currentMessages + userMessage + aiMessage, false)
-        } catch (e: Exception) {
-            val errorMessage = ChatMessage("抱歉，连接失败：${e.message}", false)
-            onUpdate(currentMessages + userMessage + errorMessage, false)
-        }
-    }
-}
-
-data class ChatMessage(
-    val content: String,
-    val isUser: Boolean,
-    val timestamp: Long = System.currentTimeMillis()
-)

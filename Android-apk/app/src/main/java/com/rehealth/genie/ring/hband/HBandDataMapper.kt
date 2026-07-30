@@ -29,12 +29,18 @@ internal object HBandDataMapper {
                 )
             }.distinctBy { it.id },
         sleepSessions = payload.sleep
-            .filter { it.startedAt > 0 && it.endedAt > it.startedAt && it.deepMinutes + it.lightMinutes > 0 }
+            .filter { it.startedAt > 0 && it.endedAt > it.startedAt && it.totalMinutes > 0 }
             .map { record ->
+                val hasStageBreakdown = record.deepMinutes + record.lightMinutes + record.awakeMinutes > 0
                 RingSleepSessionEntity(
                     id = stableId(deviceKey, "sleep", "session", record.startedAt),
                     startedAt = record.startedAt,
-                    endedAt = record.endedAt,
+                    // Preserve total-only sleep without inventing a deep/light/REM stage.
+                    endedAt = if (hasStageBreakdown) {
+                        record.endedAt
+                    } else {
+                        record.startedAt + record.totalMinutes * MILLIS_PER_MINUTE
+                    },
                     deepMinutes = record.deepMinutes,
                     lightMinutes = record.lightMinutes,
                     awakeMinutes = record.awakeMinutes,
@@ -64,16 +70,24 @@ internal object HBandDataMapper {
                 )
             }.distinctBy { it.id },
         signalChunks = payload.ecgRecords
-            .filter { it.measuredAt > 0 && it.samples.isNotEmpty() }
+            .filter { it.measuredAt > 0 && it.samplesMv.isNotEmpty() }
             .map { record ->
                 RingSignalChunkEntity(
                     id = stableId(deviceKey, "signal", RingMetricType.ECG.name, record.measuredAt),
                     signalType = RingMetricType.ECG.name,
                     startedAt = record.measuredAt,
                     sampleRateHz = record.sampleRateHz?.takeIf { it > 0 },
-                    sampleCount = record.samples.size,
-                    payload = SignalEncoding.int32LittleEndian(record.samples),
+                    sampleCount = record.samplesMv.size,
+                    encoding = "FLOAT32_LE",
+                    payload = SignalEncoding.float32LittleEndian(record.samplesMv),
                     source = SOURCE,
+                    drawFrequencyHz = record.drawFrequencyHz,
+                    durationSeconds = record.durationSeconds,
+                    leadType = record.lead.takeUnless { it == com.rehealth.genie.ring.RingEcgLead.UNKNOWN }?.name,
+                    ecgType = record.ecgType,
+                    calibrationType = record.calibrationType,
+                    averageHeartRate = record.averageHeartRate,
+                    contactQuality = record.contactStatus.name,
                 )
             }.distinctBy { it.id },
     )
@@ -94,4 +108,6 @@ internal object HBandDataMapper {
             .digest(input.toByteArray(Charsets.UTF_8))
             .joinToString("") { "%02x".format(it) }
     }
+
+    private const val MILLIS_PER_MINUTE = 60_000L
 }

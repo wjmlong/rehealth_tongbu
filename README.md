@@ -27,11 +27,24 @@ ReHealth 是面向可穿戴设备和健康干预场景的软硬件一体化系�
 Android 按 `productCode` 选择单一有效 Provider，Release 已注册 MRD、RWFit 和 HBand。
 RWFit 使用固定版本官方 SDK，当前仍需采购型号的真机能力和单位验证；HBand 已完成
 隔离 Provider 并进入真机联调，已按设备能力接入心率、步数/活动、睡眠、血氧、HRV、血压、
-ECG、血液成分和身体成分，并接入血糖校准与经期设置；
+血糖、压力、MET、ECG、血液成分和身体成分的测量或历史同步，并接入血糖校准与经期设置；
+MT116 真机已证实其固件虽声明 HRV/压力/MET 独立能力，却会对三项专用命令返回
+`unknown action`。因此 HRV/压力优先走 HBand 一键体检，MET 优先读取设备历史，
+再也不会因误信能力位而调用已被固件拒绝的直测命令；
+HBand 体温因当前真机验证不通过，已从 `RH-HB-E01` 商品能力和数据页移除；MT116 已加入
+该商品的扫描优先提示，能力判定合并新版分包报告，并由 2 号能力包优先确认 ECG；
 采购设备的完整连接、能力与数据验收仍待完成。当前不支持多设备同时连接或数据融合。
+HBand ECG 已补齐与固定 SDK 匹配的四 ABI 原生库，实时 ADC 按设备增益换算为 mV；Android Room v5
+保存导联、采样/绘制频率、时长、校准方式、平均心率和接触质量，并提供实时及本机历史单导联波形详情。
+ECG 和身体成分在下发设备测量命令前先展示电极接触与稳定姿势说明，用户确认后才开始测量。
+SDK 疾病风险不作为诊断展示，界面明确标注仅供健康参考、不能替代医疗诊断。
 Debug 设备页可验证套餐切换顺序；Release 不允许用户在客户端自行改变套餐。
 后台恢复只重连加密保存的当前绑定；HBand 所需四项真实画像使用按用户哈希隔离的
 加密缓存，不使 BLE 采集依赖网络。
+Android 在重新登录和进入个人页时按当前用户读取类型化个人资料及最近健康问答；这些读取与
+风险/干预服务解耦，退出后清除上一用户的内存资料。健康问答用户消息先写按用户隔离的
+Room v6 消息表，再调用服务端并由 `software_db` 保存完整会话；问答中明确自述的姓名、性别、
+年龄、身高和体重由 JeecgBoot 合并写入类型化个人档案，并在同轮回复中确认更新字段；麦克风语音入口按需解释并申请权限，应用不保存录音。
 
 ## 2. 系统架构
 
@@ -51,8 +64,8 @@ flowchart LR
 
     Jeecg --> SoftwareDb["MySQL software_db"]
     Jeecg --> Model["model-service"]
+    Jeecg --> Agent["LangChain4j 健康问答"]
     Model --> Risk["CatBoost / SHAP"]
-    Model --> Agent["健康助手 Provider"]
     Jeecg --> PIAS["PIAS 归因服务"]
 ```
 
@@ -63,8 +76,8 @@ flowchart LR
 | Android | BLE/厂商 SDK、Room、本地轻量特征、离线队列、用户交互 | CatBoost、SHAP、LLM、云端归因 |
 | Gateway | 统一公网入口、路由、安全头处理、未来限流 | 业务数据持久化、模型推理 |
 | Device Service | 硬件遥测校验、设备授权、TimescaleDB、Outbox | 用户业务档案、模型推理 |
-| JeecgBoot | 账号、租户、设备绑定、业务编排、后台权限、software_db | 直接拥有硬件时序库、直接运行模型 |
-| model-service | CVD 风险、SHAP、干预生成、健康助手安全边界 | 用户认证、设备接入、业务主数据 |
+| JeecgBoot | 账号、租户、设备绑定、业务编排、LangChain4j 健康问答、后台权限、software_db | 直接拥有硬件时序库、运行 CatBoost/SHAP/归因模型 |
+| model-service | CVD 风险、SHAP、干预生成；保留旧健康助手接口用于灰度回退 | 用户认证、设备接入、业务主数据、权威聊天历史 |
 | PIAS | 生产个体归因 | Android 端计算、静默 Mock 回退 |
 | rehealth-algorithms | 训练、仿真、算法研究及独立 PIAS 实现 | 患者移动端业务入口 |
 
@@ -174,10 +187,12 @@ Android Room
 | --- | --- | --- |
 | Android 本地遥测和待上传任务 | Room | 本地优先、离线可用 |
 | 规范化硬件时序数据 | TimescaleDB | Device Service 独占写入和读取 |
-| 用户、档案、绑定、风险、干预、反馈 | MySQL `software_db` | JeecgBoot 业务权威 |
+| 用户、档案、绑定、风险、干预、反馈、健康问答历史 | MySQL `software_db` | JeecgBoot 业务权威；聊天按用户+租户隔离 |
 | 遥测持久化/质量事件 | Kafka | 事件通知，不存原始健康值 |
 | 模型制品 | 只读制品挂载 | model-service 校验签名/哈希后加载 |
 | 原始 PPG/RRI | 当前禁止云端上传 | 未来必须经过同意、加密和保留策略评审 |
+
+`software_db` 的核心可查询业务字段使用类型化列或明细表；完整 JSON 仅用于模型证据快照、版本化扩展和可重放队列载荷，不作为个人档案或访谈的唯一权威表示。
 
 ## 6. 主要开发与验证命令
 
@@ -237,8 +252,9 @@ python backend/qa/rehealth_stack_gate.py topology `
 
 - 真实 MRD 扫描、长时间重连、锁屏采集、功耗和测量准确性仍需要物理设备 QA。
 - HBand 已开始真机联调；管理器和连接回调所需的 JieLi/Nordic 运行时依赖已补齐，
-  心率、步数/活动、睡眠、血氧、HRV、血压、ECG、血液/身体成分及设备设置均受能力门控；
-  ECG 波形只保存在本地，
+  心率、步数/活动、睡眠、血氧、HRV、血压、血糖、压力、MET、ECG、
+  血液/身体成分及设备设置均受能力门控；
+  ECG 波形只保存在本地；新 HBand 波形以校准 mV 和结构化导联/采样元数据保存，升级前旧记录保留为相对幅值，
   完整重装后的连接、认证、画像、能力、准确性与后台数据 QA 仍待完成。
 - Android 已有 MRD/RWFit/HBand 单一有效 Provider 路由；RWFit 的具体型号、固件、HRV
   单位和长时间采集仍待真机确认；HBand 的扫描、认证、画像同步、数据准确性和后台

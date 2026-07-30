@@ -319,6 +319,12 @@ Stable response fields:
 
 ## POST /v1/health-agent/respond
 
+This endpoint remains supported as the `model-service` rollback engine. The
+preferred Java path uses LangChain4j inside JeecgBoot and does not call this
+endpoint; both paths stay behind `POST /rehealth/mobile/agent/messages`. Do not
+remove this endpoint until the LangChain4j production cutover and rollback window
+have completed.
+
 Internal JeecgBoot-to-model-service endpoint. It requires
 `Authorization: Bearer <mounted-internal-credential>` and accepts no user or
 tenant identifier. JeecgBoot is authoritative for ownership and sends only an

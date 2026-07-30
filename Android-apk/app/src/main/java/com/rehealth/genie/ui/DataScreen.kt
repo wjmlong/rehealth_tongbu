@@ -28,11 +28,14 @@ import androidx.compose.material.icons.outlined.DataUsage
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.ShowChart
+import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Timeline
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
@@ -97,10 +100,26 @@ internal fun DataScreen(
     ringViewModel: RingViewModel,
     canonicalRiskStatus: androidx.compose.runtime.State<RemoteFeatureEvaluateStatus?>,
     onMeasure: (RingMetricType) -> Unit,
+    onSync: () -> Unit,
 ) {
     var selectedPeriod by remember { mutableIntStateOf(1) }
     var showBloodGlucoseCalibration by remember { mutableStateOf(false) }
     var showWomensHealthSetting by remember { mutableStateOf(false) }
+    var showEcgDetail by remember { mutableStateOf(false) }
+    var showEcgInstructionsOnOpen by remember { mutableStateOf(false) }
+    var pendingMeasurementInstruction by remember { mutableStateOf<RingMetricType?>(null) }
+    if (showEcgDetail) {
+        EcgDetailScreen(
+            state = state,
+            showMeasurementInstructionsOnOpen = showEcgInstructionsOnOpen,
+            onBack = {
+                showEcgDetail = false
+                showEcgInstructionsOnOpen = false
+            },
+            onMeasure = onMeasure,
+        )
+        return
+    }
     // 真实周期聚合：切换 今日/7天/30天/90天 时从本地 Room 历史重新计算
     var aggregate by remember { mutableStateOf<PeriodAggregate?>(null) }
     LaunchedEffect(selectedPeriod, state.lastSyncAt, state.activity?.id, state.sleep?.id) {
@@ -127,10 +146,9 @@ internal fun DataScreen(
         val d = agg.avgDbp?.toInt()
         if (s != null && d != null) "$s/$d" else null
     } ?: measurement(RingMetricType.BLOOD_PRESSURE)
-    val tempText = aggregate?.avgTemp?.let { String.format(Locale.getDefault(), "%.1f", it) } ?: measurement(RingMetricType.TEMPERATURE)
     val hrvText = measurement(RingMetricType.HRV)
     val sleepValue = aggregate?.avgSleepMinutes?.toInt()?.let { "${it / 60}h${it % 60}m" } ?: run {
-        val m = state.sleep?.let { (it.endedAt - it.startedAt) / 60_000 }
+        val m = sleepDurationMinutes(state.sleep)
         m?.let { "${it / 60}h${it % 60}m" } ?: "--"
     }
     val stepsText = aggregate?.totalSteps?.let { if (it > 0) it.toString() else null }
@@ -162,7 +180,21 @@ internal fun DataScreen(
         RingMetricUi(RingMetricType.BLOOD_OXYGEN, "血氧", spo2Text, "%", capabilityStatus(RingMetricType.BLOOD_OXYGEN, periodLabel), Icons.Outlined.DataUsage, Color(0xFF148BFF), manualMeasure = RingMetricType.BLOOD_OXYGEN in state.supportedMetrics, showAction = true),
         RingMetricUi(RingMetricType.BLOOD_PRESSURE, "血压", bpText, "mmHg", capabilityStatus(RingMetricType.BLOOD_PRESSURE, periodLabel), Icons.Outlined.FavoriteBorder, Color(0xFF8B63F6), manualMeasure = RingMetricType.BLOOD_PRESSURE in state.supportedMetrics, showAction = true),
         RingMetricUi(RingMetricType.HRV, "HRV", hrvText, "ms", capabilityStatus(RingMetricType.HRV, periodLabel), Icons.Outlined.Timeline, Color(0xFF00A6A6), manualMeasure = RingMetricType.HRV in state.supportedMetrics, showAction = true),
-        RingMetricUi(RingMetricType.TEMPERATURE, "体温", tempText, "°C", capabilityStatus(RingMetricType.TEMPERATURE, "定时采集"), Icons.Outlined.Assessment, Color(0xFFFF8A32), manualMeasure = RingMetricType.TEMPERATURE in state.supportedMetrics, showAction = true, actionLabel = "开启", measuringLabel = "采集中"),
+        RingMetricUi(RingMetricType.BLOOD_GLUCOSE, "血糖", decimalMeasurement(RingMetricType.BLOOD_GLUCOSE), measurementUnit(RingMetricType.BLOOD_GLUCOSE, "设备单位"), capabilityStatus(RingMetricType.BLOOD_GLUCOSE, "设备估算，仅供健康参考"), Icons.Outlined.DataUsage, Color(0xFFE06B57), manualMeasure = RingMetricType.BLOOD_GLUCOSE in state.supportedMetrics, showAction = true),
+        RingMetricUi(RingMetricType.STRESS, "压力", measurement(RingMetricType.STRESS), "分", capabilityStatus(RingMetricType.STRESS, periodLabel), Icons.Outlined.Timeline, Color(0xFF7B61B8), manualMeasure = RingMetricType.STRESS in state.supportedMetrics, showAction = true),
+        RingMetricUi(
+            RingMetricType.MET,
+            "MET",
+            decimalMeasurement(RingMetricType.MET),
+            "MET",
+            capabilityStatus(RingMetricType.MET, "获取设备最新代谢当量"),
+            Icons.Outlined.ShowChart,
+            Color(0xFF2E8B72),
+            manualMeasure = RingMetricType.MET in state.supportedMetrics,
+            showAction = true,
+            actionLabel = "获取",
+            measuringLabel = "获取中",
+        ),
         RingMetricUi(RingMetricType.ECG, "ECG", ecgText, "bpm", capabilityStatus(RingMetricType.ECG, ecgStatus), Icons.Outlined.Assessment, Color(0xFF009688), manualMeasure = RingMetricType.ECG in state.supportedMetrics, showAction = true),
     )
     val bloodComponentTypes = listOf(
@@ -285,8 +317,22 @@ internal fun DataScreen(
             MetricGrid(
                 metrics = vitalMetrics,
                 measuringMetric = state.measuringMetric,
-                onMeasure = onMeasure,
+                onMeasure = { type ->
+                    if (type == RingMetricType.ECG) {
+                        showEcgInstructionsOnOpen = true
+                        showEcgDetail = true
+                    } else {
+                        onMeasure(type)
+                    }
+                },
                 measureEnabled = !state.isSyncing,
+            )
+        }
+        item {
+            EcgDetailEntryCard(
+                latest = state.ecgHistory.firstOrNull(),
+                isMeasuring = state.measuringMetric == RingMetricType.ECG,
+                onClick = { showEcgDetail = true },
             )
         }
         item {
@@ -307,7 +353,10 @@ internal fun DataScreen(
             MetricGrid(
                 metrics = bodyComponentMetrics,
                 measuringMetric = state.measuringMetric,
-                onMeasure = onMeasure,
+                onMeasure = { type ->
+                    pendingMeasurementInstruction = measurementInstructionFor(type)?.let { type }
+                    if (pendingMeasurementInstruction == null) onMeasure(type)
+                },
                 measureEnabled = !state.isSyncing,
             )
         }
@@ -334,6 +383,34 @@ internal fun DataScreen(
         }
         item {
             DashboardSectionHeader(Icons.Outlined.Timeline, "睡眠与活动")
+        }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Button(
+                    onClick = onSync,
+                    enabled = !state.isSyncing,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Mint),
+                ) {
+                    Icon(
+                        Icons.Outlined.Sync,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        if (state.isSyncing) "正在同步 ${state.syncProgress}%" else "同步睡眠、步数与活动",
+                        modifier = Modifier.padding(start = 8.dp),
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                Text(
+                    "从设备读取历史数据，保存到本机后加入云端同步队列",
+                    color = Muted,
+                    fontSize = 10.sp,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+            }
         }
         item {
             MetricGrid(dailyMetrics)
@@ -382,6 +459,16 @@ internal fun DataScreen(
             onConfirm = { periodLength, cycleLength, lastStart ->
                 showWomensHealthSetting = false
                 ringViewModel.setMenstrualCycle(periodLength, cycleLength, lastStart)
+            },
+        )
+    }
+    pendingMeasurementInstruction?.let { metricType ->
+        MeasurementInstructionDialog(
+            metricType = metricType,
+            onDismiss = { pendingMeasurementInstruction = null },
+            onConfirm = {
+                pendingMeasurementInstruction = null
+                onMeasure(metricType)
             },
         )
     }
@@ -761,12 +848,11 @@ private fun DashboardMetricCard(
 ) {
     val context = LocalContext.current
     val startMeasure = {
-        val toast = if (metric.type == RingMetricType.TEMPERATURE) {
-            "已开启体温定时采集，稍后会读取历史体温"
-        } else {
-            "开始测量${metric.title}，请保持戒指佩戴稳定"
-        }
-        Toast.makeText(context, toast, Toast.LENGTH_SHORT).show()
+        Toast.makeText(
+            context,
+            "开始${metric.actionLabel}${metric.title}，请保持设备佩戴稳定",
+            Toast.LENGTH_SHORT,
+        ).show()
         onMeasure(metric.type)
     }
     Column(

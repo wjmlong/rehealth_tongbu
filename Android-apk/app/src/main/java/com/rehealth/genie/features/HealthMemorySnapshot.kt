@@ -90,7 +90,9 @@ private fun summarizeSleep(sessions: List<RingSleepSessionEntity>): SleepSummary
     val validSessions = sessions
         .filter { it.endedAt > it.startedAt }
         .mapNotNull { session ->
-            val total = session.deepMinutes + session.lightMinutes + session.remMinutes
+            val stagedTotal = session.deepMinutes + session.lightMinutes + session.remMinutes
+            val total = stagedTotal.takeIf { it > 0 }
+                ?: ((session.endedAt - session.startedAt) / 60_000L).toInt().coerceAtLeast(0)
             if (total <= 0) null else session to total
         }
         .sortedByDescending { it.first.endedAt }

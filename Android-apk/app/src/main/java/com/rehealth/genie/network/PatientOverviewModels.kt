@@ -1,11 +1,14 @@
 package com.rehealth.genie.network
 
+import com.rehealth.genie.network.dto.HealthInterviewSubmitRequestDto
+
 data class PatientMvpPayload(
     val profile: PatientProfilePayload?,
     val risk: PatientRiskPayload?,
     val interventionPlan: List<PatientInterventionPayload>?,
     val recentCheckins: List<PatientCheckInPayload>?,
     val updatedAt: Long?,
+    val latestHealthInterview: HealthInterviewSubmitRequestDto? = null,
 )
 
 data class PatientProfilePayload(

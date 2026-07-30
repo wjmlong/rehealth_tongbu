@@ -50,11 +50,17 @@ internal fun Page(title: String, subtitle: String? = null, content: @Composable 
 internal fun formatSyncTime(timestamp: Long): String =
     SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(timestamp))
 
-/** Real sleep duration from the latest sleep session (deep+light+rem+awake minutes). Computed, never canned. */
+/** Real sleep duration; falls back to the persisted session span when the device omits stage details. */
+internal fun sleepDurationMinutes(entity: RingSleepSessionEntity?): Int? {
+    if (entity == null) return null
+    val stagedTotal = entity.deepMinutes + entity.lightMinutes + entity.remMinutes + entity.awakeMinutes
+    val total = stagedTotal.takeIf { it > 0 }
+        ?: ((entity.endedAt - entity.startedAt) / 60_000L).toInt().coerceAtLeast(0)
+    return total.takeIf { it > 0 }
+}
+
 internal fun formatSleepMinutes(entity: RingSleepSessionEntity?): String {
-    if (entity == null) return "--"
-    val total = entity.deepMinutes + entity.lightMinutes + entity.remMinutes + entity.awakeMinutes
-    if (total <= 0) return "--"
+    val total = sleepDurationMinutes(entity) ?: return "--"
     return "${total / 60}h${total % 60}m"
 }
 

@@ -5,6 +5,9 @@ import com.alibaba.fastjson.annotation.JSONField;
 public class HealthAgentResponseDto {
     @JSONField(name = "request_id")
     public String requestId;
+    public String conversationId;
+    public String messageId;
+    public Long createdAt;
     public String status;
     public String answer;
     @JSONField(name = "medical_disclaimer")
