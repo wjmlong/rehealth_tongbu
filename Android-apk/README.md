@@ -93,6 +93,15 @@ rehealth.api.base.url=https://rehealth.youngjimmy.store/jeecg-boot/
 rehealth.release.api.base.url=https://rehealth.youngjimmy.store/jeecg-boot/
 ```
 
+无蓝牙的真机 QA（模拟器 / MuMu）可用 fake-ring 通道替掉 BLE 采集：
+
+```bash
+./gradlew.bat assembleDebug -Prehealth.debug.use.fake.ring=true
+```
+
+该开关默认关闭，不影响真机 BLE 采集 QA；仅 `MockRingRepository` 合成数据走上传→
+`rehealth/mobile/features/evaluate` 链路，后端与 model-service 仍是真实调用。
+
 Release 的后端地址必须使用 HTTPS。模型 Provider 凭据、内部服务 token 和生产
 secret 禁止进入 `local.properties`、BuildConfig 或 APK。
 

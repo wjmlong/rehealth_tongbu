@@ -48,6 +48,17 @@ fun debugWearableProductCode(): String {
     }
     return normalizedProductCode
 }
+// Debug-only ring simulation switches. Default off so real-device BLE QA is unaffected.
+// Override per-run via -Prehealth.debug.use.fake.ring=true or local.properties /
+// gradle.properties. SEED_FAKE_HEALTH_DATA only auto-activates on recognized emulators.
+fun useFakeRing(): Boolean =
+    (localProps.getProperty("rehealth.debug.use.fake.ring")
+        ?: providers.gradleProperty("rehealth.debug.use.fake.ring").orNull
+        ?: "false").toBooleanStrict()
+fun seedFakeHealthData(): Boolean =
+    (localProps.getProperty("rehealth.debug.seed.fake.health.data")
+        ?: providers.gradleProperty("rehealth.debug.seed.fake.health.data").orNull
+        ?: "false").toBooleanStrict()
 
 android {
     namespace = "com.rehealth.genie"
@@ -71,8 +82,8 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("boolean", "USE_FAKE_RING", "false")
-            buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", "false")
+            buildConfigField("boolean", "USE_FAKE_RING", useFakeRing().toString())
+            buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", seedFakeHealthData().toString())
             buildConfigField("boolean", "ALLOW_WEARABLE_PRODUCT_SWITCH", "true")
             buildConfigField("String", "DEBUG_WEARABLE_PRODUCT_CODE", "\"${debugWearableProductCode()}\"")
             buildConfigField("String", "REHEALTH_API_BASE_URL", "\"${reHealthApiBaseUrl()}\"")
