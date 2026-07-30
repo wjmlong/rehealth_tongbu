@@ -54,7 +54,11 @@ import com.rehealth.genie.ui.theme.Mint
 import com.rehealth.genie.ui.theme.Muted
 import com.rehealth.genie.ui.components.QueueStatusBanner
 
-private enum class AppStage { Splash, Login, Register, InterviewSession, DeviceSetup, Main }
+internal enum class AppStage { Splash, Login, Register, InterviewSession, Main }
+
+internal fun stageAfterAuthentication(onboardingComplete: Boolean): AppStage =
+    if (onboardingComplete) AppStage.Main else AppStage.InterviewSession
+
 private enum class Tab(val label: String, val icon: ImageVector) {
     Home("首页", Icons.Outlined.Home),
     Data("数据", Icons.Outlined.ShowChart),
@@ -69,8 +73,8 @@ fun ReHealthApp() {
     val profilePreferences = remember(application) {
         application.getSharedPreferences("rehealth_profile", 0)
     }
-    val onboardingComplete = remember(profilePreferences) {
-        profilePreferences.getBoolean("onboarding_complete", false)
+    var onboardingComplete by remember(profilePreferences) {
+        mutableStateOf(profilePreferences.getBoolean("onboarding_complete", false))
     }
     var stage by remember {
         mutableStateOf(if (onboardingComplete) AppStage.Main else AppStage.Splash)
@@ -105,8 +109,8 @@ fun ReHealthApp() {
             AppStage.Login -> LoginScreen(
                 onLoginSuccess = {
                     // Return to Main if onboarding is already complete (e.g. after re-login),
-                    // otherwise continue the first-run interview/device-setup flow.
-                    stage = if (onboardingComplete) AppStage.Main else AppStage.InterviewSession
+                    // otherwise continue the first-run health interview.
+                    stage = stageAfterAuthentication(onboardingComplete)
                 },
                 onGoToRegister = { stage = AppStage.Register },
             )
@@ -114,32 +118,19 @@ fun ReHealthApp() {
                 onBackToLogin = { stage = AppStage.Login },
                 onRegistered = {
                     // New users are not onboarded yet, so continue the first-run flow.
-                    stage = if (onboardingComplete) AppStage.Main else AppStage.InterviewSession
+                    stage = stageAfterAuthentication(onboardingComplete)
                 },
             )
             AppStage.InterviewSession -> HealthInterviewFlow(
                 onBack = { stage = AppStage.Login },
-                onComplete = { stage = AppStage.DeviceSetup },
-                completionLabel = "连接智能戒指",
-            )
-            AppStage.DeviceSetup -> DeviceBindingScreen(
-                state = ringState,
-                onBack = { stage = AppStage.InterviewSession },
-                onScan = ringViewModel::scan,
-                onConnect = ringViewModel::connect,
-                onDisconnect = ringViewModel::disconnect,
-                onSync = ringViewModel::syncAll,
-                onSwitchProduct = { productCode ->
-                    ringViewModel.switchWearableProduct(application, productCode)
-                },
-                onboarding = true,
                 onComplete = {
                     profilePreferences.edit()
-                        .putBoolean("device_setup_complete", true)
                         .putBoolean("onboarding_complete", true)
                         .apply()
+                    onboardingComplete = true
                     stage = AppStage.Main
                 },
+                completionLabel = "进入首页",
             )
             AppStage.Main -> MainShell(
                 ringState = ringState,
@@ -154,6 +145,7 @@ fun ReHealthApp() {
                 onMeasure = ringViewModel::measure,
                 onRestartOnboarding = {
                     profilePreferences.edit().clear().apply()
+                    onboardingComplete = false
                     ringViewModel.disconnect()
                     stage = AppStage.Splash
                 },

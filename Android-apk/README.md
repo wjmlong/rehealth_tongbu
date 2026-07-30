@@ -115,7 +115,8 @@ Android 在请求成功后自动填入该值。Release 的签名字段和测试�
 `GET /rehealth/mobile/profile` 与 `GET /rehealth/mobile/interviews/latest`。个人资料、
 最近健康问答画像和关注方向的读取不依赖风险模型或干预接口可用；退出登录会立即清除
 内存中的上一位用户资料。健康问答点击完成后，必须先成功写入 Room durable queue 才能离开页面，
-再由 WorkManager 写入 `software_db` 的类型化访谈表；不再另存一份无人读取的偏好摘要。
+随后直接进入首页，再由 WorkManager 写入 `software_db` 的类型化访谈表；设备绑定不再阻塞
+首次使用流程，可从“我的 > 设备绑定”按需进入。不再另存一份无人读取的偏好摘要。
 
 健康问答语音入口声明并按需申请 `RECORD_AUDIO`。点击麦克风时先解释用途和“不保存录音”，
 用户确认后才显示系统授权；拒绝后可转到应用设置，也可继续使用文字回答。
