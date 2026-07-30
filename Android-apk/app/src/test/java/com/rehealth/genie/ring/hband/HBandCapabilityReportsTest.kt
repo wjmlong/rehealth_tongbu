@@ -36,16 +36,33 @@ class HBandCapabilityReportsTest {
     @Test
     fun `measurement routing avoids unsupported direct SDK commands`() {
         assertEquals(
-            HBandMeasurementRoute.DIRECT,
-            HBandCapabilities(hrv = true).measurementRoute(RingMetricType.HRV, allowHistoryFallback = true),
+            HBandMeasurementRoute.MINI_CHECKUP,
+            HBandCapabilities(hrv = true, miniCheckup = true).measurementRoute(
+                RingMetricType.HRV,
+                allowHistoryFallback = true,
+            ),
         )
         assertEquals(
             HBandMeasurementRoute.MINI_CHECKUP,
-            HBandCapabilities(miniCheckup = true).measurementRoute(RingMetricType.STRESS, allowHistoryFallback = true),
+            HBandCapabilities(stress = true, miniCheckup = true).measurementRoute(
+                RingMetricType.STRESS,
+                allowHistoryFallback = true,
+            ),
         )
         assertEquals(
             HBandMeasurementRoute.HISTORY,
-            HBandCapabilities(metHistory = true).measurementRoute(RingMetricType.MET, allowHistoryFallback = true),
+            HBandCapabilities(met = true, metHistory = true).measurementRoute(
+                RingMetricType.MET,
+                allowHistoryFallback = true,
+            ),
+        )
+        assertEquals(
+            HBandMeasurementRoute.HISTORY,
+            HBandCapabilities(hrv = true).measurementRoute(RingMetricType.HRV, allowHistoryFallback = true),
+        )
+        assertEquals(
+            HBandMeasurementRoute.DIRECT,
+            HBandCapabilities(hrv = true).measurementRoute(RingMetricType.HRV, allowHistoryFallback = false),
         )
         assertEquals(
             HBandMeasurementRoute.UNSUPPORTED,
@@ -74,12 +91,19 @@ class HBandCapabilityReportsTest {
             hrv = 0,
             stress = 62,
         )
+        val zeroStress = hBandMiniCheckupPayload(
+            RingMetricType.STRESS,
+            measuredAt,
+            hrv = 48,
+            stress = 0,
+        )
 
         assertEquals(48.0, hrv.measurements.single().value)
         assertEquals("ms", hrv.measurements.single().unit)
         assertEquals(62.0, stress.measurements.single().value)
         assertEquals("score", stress.measurements.single().unit)
         assertTrue(invalid.measurements.isEmpty())
+        assertTrue(zeroStress.measurements.isEmpty())
     }
 
     @Test

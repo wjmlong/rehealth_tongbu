@@ -75,11 +75,13 @@ For `RH-HB-E01`, validate only device-advertised capabilities:
   total-only sleep, verify duration is displayed while deep/light/REM remain unknown;
 - manual blood oxygen only when `getSpo2H()` is true; verify a real `%` value and
   wear-off/failure behavior;
-- direct manual HRV only when package 2 or aggregate reports
-  `getHrvAppDetectFunction()`. When only `getHrvFunction()`/non-zero `getHrvType()` is
-  present, do not call `startDetectHrv`; use package-4 `miniCheckup` when supported, otherwise
-  read real device history. Persist only a positive SDK integer as `ms`, show no-result on
-  failure, and confirm no “This feature is not supported” SDK toast appears;
+- the purchased MT116's 2026-07-30 log shows that its dedicated HRV/stress/MET commands all
+  receive an all-zero `unknown action` response even though the firmware advertises those
+  switches. For `RH-HB-E01`, verify HRV and stress select package-4 `miniCheckup` before any
+  dedicated command, and MET selects real device history. Persist only a positive SDK HRV
+  integer as `ms`, show no-result on failure, and confirm no “This feature is not supported”
+  SDK toast appears. Debug evidence must use the `HBandMetricFlow` tag and must not include
+  device identifiers or raw health values;
 - blood-pressure history and manual measurement only when `getBp()` is true;
   verify systolic/diastolic order, `mmHg` units, wear-off/charging/low-battery
   failures, and compare repeated readings with a validated cuff without making
@@ -114,10 +116,10 @@ For `RH-HB-E01`, validate only device-advertised capabilities:
   arms, and still posture; cancelling the dialog must not start measurement;
 - direct blood glucose only when `getBloodGlucose()` is true; verify the device unit,
   manual-history sync, failure behavior, and non-diagnostic/estimated-value wording;
-- stress direct measurement when `getStress()` is true; otherwise use package-4
-  `miniCheckup` when supported, then device history as the final fallback. Verify every real
-  result stays in `0..100 score` and is not interpreted as a mental-health diagnosis;
-- metabolic equivalent direct measurement only when `getMet()` is true. A non-zero
+- stress measurement uses package-4 `miniCheckup` first when available, then device history;
+  the dedicated interface is not selected while fallback is enabled. Verify every real
+  result stays in `1..100 score`; zero is treated as no result and is not interpreted as a mental-health diagnosis;
+- metabolic equivalent uses device history first for `RH-HB-E01`. A non-zero
   `getMetType()` permits history retrieval but must not call `startDetectMet`; the card uses
   “获取” for the latest device MET, persists only positive values, and shows no-result when
   the device has no history. Compare activity-time values with the vendor app;

@@ -132,11 +132,14 @@ internal fun HBandCapabilities.measurementRoute(
     type: RingMetricType,
     allowHistoryFallback: Boolean,
 ): HBandMeasurementRoute = when {
-    supportsDirectMeasurement(type) -> HBandMeasurementRoute.DIRECT
+    // MT116 advertises the dedicated HRV/stress/MET switches but rejects their
+    // manual_detect_de commands. Prefer the richer one-key checkup and persisted
+    // device data whenever the product allows those real-data fallbacks.
     miniCheckup && type in setOf(RingMetricType.HRV, RingMetricType.STRESS) ->
         HBandMeasurementRoute.MINI_CHECKUP
     allowHistoryFallback && type in setOf(RingMetricType.HRV, RingMetricType.STRESS, RingMetricType.MET) ->
         HBandMeasurementRoute.HISTORY
+    supportsDirectMeasurement(type) -> HBandMeasurementRoute.DIRECT
     else -> HBandMeasurementRoute.UNSUPPORTED
 }
 

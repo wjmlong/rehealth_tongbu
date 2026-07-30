@@ -1,6 +1,6 @@
 # ReHealth 当前状态
 
-> 最后核对：2026-07-29。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
+> 最后核对：2026-07-30。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
 > `docs/archive/acceptance/`，不得作为当前实现或发布状态的依据。
 
 ## 发布结论
@@ -17,7 +17,7 @@
 
 | 范围 | 当前实现 |
 | --- | --- |
-| Android | 单一有效设备 Provider 路由（Release 注册 MRD/RWFit/HBand）、真实 SDK/BLE、Room、本地优先、Foreground Service、WorkManager、CVD 16 特征、认证感知上传队列、风险/干预/反馈 UI；HBand 心率、步数/活动、睡眠、血氧、HRV、血压、血糖、压力、MET、ECG、血液/身体成分以及血糖校准、经期设置按设备能力接入；MT116 能力判定合并新版分包报告，ECG 以 2 号能力包优先；HRV/MET 已区分独立测量与历史协议能力，HRV/压力可回退到 4 号能力包的一键体检真实结果，MET 不支持直测时只获取设备历史，避免 SDK 弹出不支持提示且不生成占位值；固定 SDK 对应四 ABI JNI 已打包，Room v5 保存校准 mV/导联/采样元数据并提供实时及历史单导联波形详情；ECG 与身体成分在用户确认电极接触和稳定姿势说明后才下发测量命令；体温因真机验证不通过已从 HBand 商品能力和数据页移除，其他指标及 ECG 真机准确性仍待验收 |
+| Android | 单一有效设备 Provider 路由（Release 注册 MRD/RWFit/HBand）、真实 SDK/BLE、Room、本地优先、Foreground Service、WorkManager、CVD 16 特征、认证感知上传队列、风险/干预/反馈 UI；HBand 心率、步数/活动、睡眠、血氧、HRV、血压、血糖、压力、MET、ECG、血液/身体成分以及血糖校准、经期设置按设备能力接入；MT116 能力判定合并新版分包报告，ECG 以 2 号能力包优先；2026-07-30 真机日志证实固件虽然声明 HRV/压力/MET 独立能力，三项专用命令仍返回全 0 `unknown action`，现已改为 HRV/压力优先走 4 号能力包一键体检、MET 优先获取设备历史，避免 SDK 弹出不支持提示且不生成占位值；固定 SDK 对应四 ABI JNI 已打包，Room v5 保存校准 mV/导联/采样元数据并提供实时及历史单导联波形详情；ECG 与身体成分在用户确认电极接触和稳定姿势说明后才下发测量命令；体温因真机验证不通过已从 HBand 商品能力和数据页移除，其他指标及 ECG 真机准确性仍待验收 |
 | Device Service | 遥测校验、TimescaleDB 持久化、幂等批次、Transactional Outbox、Kafka 发布 |
 | JeecgBoot | 登录与权限、用户/设备绑定、结构化档案/访谈/干预业务数据、风险/干预/反馈编排、software_db；模型证据继续保留版本化 JSON 快照 |
 | model-service | CVD 风险评分、模型制品校验、干预生成、健康助手安全边界 |

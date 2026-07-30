@@ -1,11 +1,13 @@
 package com.rehealth.genie.ring.hband
 
 import android.content.Context
+import android.util.Log
 import com.inuker.bluetooth.library.Code
 import com.inuker.bluetooth.library.connect.response.BleWriteResponse
 import com.inuker.bluetooth.library.model.BleGattProfile
 import com.inuker.bluetooth.library.search.SearchResult
 import com.inuker.bluetooth.library.search.response.SearchResponse
+import com.rehealth.genie.BuildConfig
 import com.rehealth.genie.ring.RingBleGuards
 import com.rehealth.genie.ring.RingConnectionState
 import com.rehealth.genie.ring.RingDevice
@@ -228,6 +230,12 @@ internal class RealHBandSdkGateway(
         stateMachine.readCapabilities()
         publishState()
         val supported = capabilityReports.awaitSettled()
+        debugLog {
+            "capabilities hrvDirect=${supported.hrv} hrvHistory=${supported.hrvHistory} " +
+                "stressDirect=${supported.stress} stressHistory=${supported.stressHistory} " +
+                "metDirect=${supported.met} metHistory=${supported.metHistory} " +
+                "miniCheckup=${supported.miniCheckup}"
+        }
         stateMachine.syncProfile()
         publishState()
         syncPersonProfile(profile)
@@ -306,6 +314,11 @@ internal class RealHBandSdkGateway(
     override suspend fun measure(type: RingMetricType, allowHistoryFallback: Boolean): HBandPayload {
         val currentCapabilities = capabilities.value
         val route = currentCapabilities.measurementRoute(type, allowHistoryFallback)
+        debugLog {
+            "measure type=$type route=$route allowHistoryFallback=$allowHistoryFallback " +
+                "direct=${currentCapabilities.supportsDirectMeasurement(type)} " +
+                "miniCheckup=${currentCapabilities.miniCheckup}"
+        }
         if (type !in MANUAL_METRICS || route == HBandMeasurementRoute.UNSUPPORTED) {
             return HBandPayload()
         }
@@ -847,17 +860,27 @@ internal class RealHBandSdkGateway(
         val listener = object : IMiniCheckupOptListener {
             override fun onMiniCheckupTestProgress(progress: Int) = Unit
             override fun onMiniCheckupStopSuccess() {
+                debugLog { "miniCheckup type=$type stoppedWithoutResult" }
                 result.complete(HBandPayload())
             }
             override fun onMiniCheckupTestFailed(errorCode: EMiniCheckupTestErrorCode) {
+                debugLog { "miniCheckup type=$type failed=$errorCode" }
                 result.complete(HBandPayload())
             }
             override fun onMiniCheckupSuccess(testResultData: MiniCheckupResultData) {
+                debugLog {
+                    "miniCheckup type=$type success hasHrv=${testResultData.hrv > 0} " +
+                        "hasStress=${testResultData.stress in MIN_STRESS_SCORE..MAX_STRESS_SCORE}"
+                }
                 result.complete(
                     hBandMiniCheckupPayload(type, clock(), testResultData.hrv, testResultData.stress),
                 )
             }
             override fun onMiniCheckupDetailTestSuccess(miniCheckupDetailData: MiniCheckupDetailData) {
+                debugLog {
+                    "miniCheckupDetail type=$type success hasHrv=${miniCheckupDetailData.hrv > 0} " +
+                        "hasStress=${miniCheckupDetailData.stress in MIN_STRESS_SCORE..MAX_STRESS_SCORE}"
+                }
                 result.complete(
                     hBandMiniCheckupPayload(
                         type,
@@ -1194,8 +1217,14 @@ internal class RealHBandSdkGateway(
             override fun onFatigueManualDataChange(data: List<FatigueManualData>?) = Unit
             override fun onSkinConductanceManualDataChange(data: List<SkinConductanceManualData>?) = Unit
             override fun onReadProgress(progress: Float) = Unit
-            override fun onReadComplete() { complete.complete(true) }
-            override fun onReadFail() { complete.complete(false) }
+            override fun onReadComplete() {
+                debugLog { "manualHistory metrics=$metrics completed records=${records.size}" }
+                complete.complete(true)
+            }
+            override fun onReadFail() {
+                debugLog { "manualHistory metrics=$metrics failed" }
+                complete.complete(false)
+            }
         }
         withContext(Dispatchers.Main.immediate) {
             manager.readDeviceManualData(writeResponse, 0L, requested, emptyList(), listener)
@@ -1594,6 +1623,10 @@ internal class RealHBandSdkGateway(
 
     private fun EFunctionStatus?.hasFunction(): Boolean = this?.isHaveFunction == true
 
+    private inline fun debugLog(message: () -> String) {
+        if (BuildConfig.DEBUG) Log.d(TAG, message())
+    }
+
     private fun validBloodPressure(systolic: Int, diastolic: Int): Boolean =
         systolic in 70..250 && diastolic in 40..150 && systolic > diastolic
 
@@ -1658,6 +1691,7 @@ internal class RealHBandSdkGateway(
     )
 
     private companion object {
+        const val TAG = "HBandMetricFlow"
         const val DEFAULT_DEVICE_PASSWORD = "0000" // Official SDK demo default; physical-device QA is still required.
         const val DEFAULT_WATCH_DATA_DAYS = 3
         const val MAX_WATCH_DATA_DAYS = 30
@@ -1687,7 +1721,7 @@ internal class RealHBandSdkGateway(
         const val MIN_BODY_TEMPERATURE_C = 25f
         const val MAX_BODY_TEMPERATURE_C = 45f
         const val TEMPERATURE_DEVICE_READY = 0
-        const val MIN_STRESS_SCORE = 0
+        const val MIN_STRESS_SCORE = 1
         const val MAX_STRESS_SCORE = 100
         const val MEASUREMENT_COMPLETE_PROGRESS = 100
         const val ECG_FAILURE_DATA_TYPE = 3

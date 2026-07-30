@@ -103,11 +103,12 @@ git diff --check
    - Trigger only metrics advertised by the active Provider. RWFit manual measure
      currently supports HR, SpO2 and HRV; BP/temperature/stress are not requested.
      HBand `RH-HB-E01` manual measure supports HR, SpO2, HRV, BP,
-     blood glucose, stress, MET, ECG, blood component, and body composition. Direct commands
-     still require their dedicated capability; HRV/stress may use device `miniCheckup`, and
-     MET falls back to a latest-history “获取” action. Steps, sleep, and activity are sync-only.
-   - On an MT116 that rejects direct HRV/MET, tap HRV, pressure, and MET. Confirm HRV/pressure
-     use mini-checkup or real history, MET only reads real history, no SDK unsupported-feature
+     blood glucose, stress, MET, ECG, blood component, and body composition. The purchased
+     MT116 advertises HRV/stress/MET direct switches but rejects all three direct commands;
+     HRV/stress therefore prioritize device `miniCheckup`, while MET uses a latest-history
+     “获取” action. Steps, sleep, and activity are sync-only.
+   - On MT116, tap HRV, pressure, and MET. Confirm HRV/pressure use mini-checkup or real history,
+     MET only reads real history, `HBandMetricFlow` reports the selected route, no SDK unsupported-feature
      toast appears, and an absent/zero result creates no Room row.
    - Start ECG from both the data card and the single-lead detail page, and start body composition
      from its data card. Confirm each flow shows the matching instructions before any SDK command,

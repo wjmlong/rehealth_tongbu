@@ -124,11 +124,14 @@ Its product intersection
 allows heart rate, daily steps/activity, sleep, blood oxygen, app HRV, blood pressure,
 blood glucose, stress, MET, ECG, blood component, and body composition
 operations. Blood-glucose calibration
-and menstrual-cycle settings use separate feature operations. Package 4 `miniCheckup`
-provides a real fallback measurement for HRV and stress when their dedicated direct
-interfaces are unavailable. Connected `RH-HB-E01` devices expose scoped HRV/stress/MET
-history retrieval as the final fallback; MET uses the UI label “获取” when no direct result
-is available. Failures, timeouts, zeroes, and absent values are not persisted. ECG is a product requirement for `RH-HB-E01`; a device
+and menstrual-cycle settings use separate feature operations. On 2026-07-30, the purchased
+MT116 was observed to advertise dedicated HRV/stress/MET support while returning an all-zero
+`unknown action` response to all three `manual_detect_de` commands. For `RH-HB-E01`, package
+4 `miniCheckup` therefore has priority over the dedicated HRV/stress commands, and scoped
+manual history has priority over the dedicated MET command. HRV/stress history remains the
+final fallback when mini-checkup is absent; MET uses the UI label “获取”. Dedicated commands
+remain reachable only when the caller explicitly disables these real-data fallbacks.
+Failures, timeouts, zeroes, and absent values are not persisted. ECG is a product requirement for `RH-HB-E01`; a device
 that does not report ECG support is rejected instead of silently degrading. The user profile comes from ReHealth profile
 data; the SDK demo's fixed sex/age/height/weight values are not used. Blood
 pressure history and manual detection persist systolic/diastolic mmHg values.
@@ -141,7 +144,7 @@ is not interpreted as a diagnosis. Blood oxygen and HRV manual results use `%` a
 blood-fat units are read from `CustomSettingData` before measurement. Body composition
 is stored as 14 independent measurements with the SDK-documented units. Capability-
 gated manual-history reads preserve the device blood-glucose unit, store stress as a
-`0..100` score, and store metabolic equivalent
+positive `1..100` score (zero means no result), and store metabolic equivalent
 as `MET`; direct measurement uses the corresponding pinned SDK operations. Blood-glucose
 calibration and menstrual-cycle settings do not create measurement rows. Pregnancy/
 preparation/mother modes, TCM, OTA, dials, and messaging remain outside `RH-HB-E01`.
