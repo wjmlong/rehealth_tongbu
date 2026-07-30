@@ -183,6 +183,13 @@ Android Room
   -> JeecgBoot feedback API
 ```
 
+RHI v2 当前是隔离的 research preview，不改变上述生产链路。目标链路是独立
+Feature Pipeline 生成版本化 32 维日快照，由 JeecgBoot 持久化并调用
+`model-service /v2/rhi/evaluate`，同时分别保存临床长期风险、每日 RHI、
+28 日改善动量和数据可信度。APK 目前只具备 v2 DTO 与保守迁移映射，不调用
+未发布的后端路由。算法规划见
+`rehealth-algorithms/docs/RHI_V2_ALGORITHM_PLAN.md`。
+
 未来若需要持续云端分析，应增加独立 Feature Pipeline 消费遥测持久化事件，
 按事件中的批次/设备引用读取授权范围内的 TimescaleDB 数据，再生成版本化特征；
 不要把原始健康值直接放入 Kafka 事件。
@@ -286,6 +293,7 @@ python backend/qa/rehealth_stack_gate.py topology `
 | `backend/contracts/adrs/` | 跨服务架构决策 | 权威边界、消息系统、数据库或信任模型变化时 |
 | `backend/deploy/rehealth/README.md` | 部署拓扑和运行方式 | 服务、端口、环境变量、secret、容器变化时 |
 | `model-service/docs/API_CONTRACT.md` | 模型服务接口 | 模型请求/响应、版本或就绪语义变化时 |
+| `rehealth-algorithms/docs/RHI_V2_ALGORITHM_PLAN.md` | RHI v2 双轨模型、32 维协议、迁移与验证门禁 | RHI 字段、评分、证据或上线阶段变化时 |
 | `tools/dev-tunnel/README.md` | 真机联调公网通道（SSH 反向隧道 + ECS nginx） | 隧道链路、域名、ECS 侧配置或自启方式变化时 |
 | `QA_TEST_PLAN.md` | QA 范围 | 用户行为、硬件能力和发布门禁变化时 |
 | `RELEASE_CHECKLIST.md` | 发布条件 | 新权限、新数据类型、新依赖或新运行时风险出现时 |

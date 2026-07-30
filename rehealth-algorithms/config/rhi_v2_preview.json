@@ -1,0 +1,65 @@
+{
+  "schema_version": "rhi-core32-v2-preview",
+  "algorithm_version": "rhi-deterministic-preview-2.0.0",
+  "algorithm_status": "research_preview_not_clinically_validated",
+  "display_smoothing_alpha": 0.25,
+  "personal_baseline": {
+    "window_days": 28,
+    "minimum_samples": 7,
+    "scale": "1.4826 * MAD + epsilon",
+    "device_change_policy": "disable_personal_component_and_rebuild_baseline"
+  },
+  "domains": {
+    "hemodynamic": 0.25,
+    "activity_fitness": 0.25,
+    "sleep_recovery": 0.2,
+    "metabolic_control": 0.2,
+    "behavior_adherence": 0.1
+  },
+  "quality_status_factors": {
+    "VALID": 1.0,
+    "LOW_CONFIDENCE": 0.4,
+    "STALE": 0.2,
+    "MISSING": 0.0
+  },
+  "feature_registry": [
+    {"name": "age", "group": "clinical_slow", "minimum_tier": "clinical", "daily_rhi": false},
+    {"name": "biological_sex", "group": "clinical_slow", "minimum_tier": "clinical", "daily_rhi": false},
+    {"name": "waist_circumference_cm", "group": "clinical_slow", "minimum_tier": "standard", "daily_rhi": true, "domain": "metabolic_control", "lambda": 0.8},
+    {"name": "bmi", "group": "clinical_slow", "minimum_tier": "standard", "daily_rhi": true, "domain": "metabolic_control", "lambda": 0.8},
+    {"name": "sbp_7d_mean", "group": "clinical_slow", "minimum_tier": "standard", "daily_rhi": true, "domain": "hemodynamic", "lambda": 0.8, "improvement_direction": "lower"},
+    {"name": "total_cholesterol", "group": "clinical_slow", "minimum_tier": "clinical", "daily_rhi": false},
+    {"name": "hdl_c", "group": "clinical_slow", "minimum_tier": "clinical", "daily_rhi": true, "domain": "metabolic_control", "lambda": 0.8, "improvement_direction": "higher"},
+    {"name": "ldl_c", "group": "clinical_slow", "minimum_tier": "clinical", "daily_rhi": true, "domain": "metabolic_control", "lambda": 0.8, "improvement_direction": "lower"},
+    {"name": "triglycerides", "group": "clinical_slow", "minimum_tier": "clinical", "daily_rhi": true, "domain": "metabolic_control", "lambda": 0.8, "improvement_direction": "lower"},
+    {"name": "glycemia_value", "group": "clinical_slow", "minimum_tier": "clinical", "daily_rhi": true, "domain": "metabolic_control", "lambda": 0.8, "improvement_direction": "lower"},
+    {"name": "egfr", "group": "clinical_slow", "minimum_tier": "clinical", "daily_rhi": false},
+    {"name": "nicotine_exposure", "group": "clinical_slow", "minimum_tier": "lite", "daily_rhi": true, "domain": "behavior_adherence", "lambda": 1.0, "improvement_direction": "lower"},
+    {"name": "diabetes_status", "group": "clinical_slow", "minimum_tier": "clinical", "daily_rhi": false},
+    {"name": "antihypertensive_medication", "group": "clinical_slow", "minimum_tier": "clinical", "daily_rhi": false},
+    {"name": "lipid_lowering_medication", "group": "clinical_slow", "minimum_tier": "clinical", "daily_rhi": false},
+    {"name": "premature_cvd_family_history", "group": "clinical_slow", "minimum_tier": "clinical", "daily_rhi": false},
+    {"name": "dbp_7d_mean", "group": "dynamic_physiology", "minimum_tier": "standard", "daily_rhi": true, "domain": "hemodynamic", "lambda": 0.8, "improvement_direction": "lower"},
+    {"name": "resting_hr_14d_median", "group": "dynamic_physiology", "minimum_tier": "lite", "daily_rhi": true, "domain": "hemodynamic", "lambda": 0.5, "improvement_direction": "lower"},
+    {"name": "resting_hr_change_28d_pct", "group": "dynamic_physiology", "minimum_tier": "lite", "daily_rhi": true, "domain": "hemodynamic", "lambda": 0.5, "improvement_direction": "lower"},
+    {"name": "nocturnal_hrv_14d_median", "group": "dynamic_physiology", "minimum_tier": "lite", "daily_rhi": true, "domain": "hemodynamic", "lambda": 0.0, "improvement_direction": "higher"},
+    {"name": "hrv_change_28d_pct", "group": "dynamic_physiology", "minimum_tier": "lite", "daily_rhi": true, "domain": "hemodynamic", "lambda": 0.5, "improvement_direction": "higher"},
+    {"name": "cardiorespiratory_fitness_score", "group": "dynamic_physiology", "minimum_tier": "lite", "daily_rhi": true, "domain": "activity_fitness", "lambda": 0.5, "improvement_direction": "higher"},
+    {"name": "sleep_duration_7d_mean_hours", "group": "dynamic_physiology", "minimum_tier": "lite", "daily_rhi": true, "domain": "sleep_recovery", "lambda": 0.5},
+    {"name": "sleep_regularity_14d_pct", "group": "dynamic_physiology", "minimum_tier": "lite", "daily_rhi": true, "domain": "sleep_recovery", "lambda": 0.5, "improvement_direction": "higher"},
+    {"name": "sleep_efficiency_14d_pct", "group": "dynamic_physiology", "minimum_tier": "lite", "daily_rhi": true, "domain": "sleep_recovery", "lambda": 0.5, "improvement_direction": "higher"},
+    {"name": "nocturnal_spo2_drop_burden_14d_pct", "group": "dynamic_physiology", "minimum_tier": "lite", "daily_rhi": true, "domain": "sleep_recovery", "lambda": 0.5, "improvement_direction": "lower"},
+    {"name": "steps_7d_mean", "group": "behavior_execution", "minimum_tier": "lite", "daily_rhi": true, "domain": "activity_fitness", "lambda": 0.5, "improvement_direction": "higher"},
+    {"name": "mvpa_minutes_7d", "group": "behavior_execution", "minimum_tier": "lite", "daily_rhi": true, "domain": "activity_fitness", "lambda": 0.5, "improvement_direction": "higher"},
+    {"name": "sedentary_hours_7d_mean", "group": "behavior_execution", "minimum_tier": "lite", "daily_rhi": true, "domain": "activity_fitness", "lambda": 0.5, "improvement_direction": "lower"},
+    {"name": "active_day_regularity_14d_pct", "group": "behavior_execution", "minimum_tier": "lite", "daily_rhi": true, "domain": "activity_fitness", "lambda": 0.5, "improvement_direction": "higher"},
+    {"name": "weight_change_28d_pct", "group": "behavior_execution", "minimum_tier": "standard", "daily_rhi": true, "domain": "metabolic_control", "lambda": 0.5},
+    {"name": "adherence_composite_28d_pct", "group": "behavior_execution", "minimum_tier": "lite", "daily_rhi": true, "domain": "behavior_adherence", "lambda": 1.0, "improvement_direction": "higher"}
+  ],
+  "runtime_threshold_curves": "../../model-service/app/rhi.py",
+  "notes": [
+    "This manifest is a research governance artifact, not a clinical threshold approval.",
+    "Clinical probability is supplied by an independently reviewed risk model.",
+    "Missing values remain null and reduce confidence; they are never imputed as normal."
+  ]
+}

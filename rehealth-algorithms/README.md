@@ -2,6 +2,10 @@
 
 # 🧠 ReHealth AI HealthAgent
 
+> RHI v2.0 研究规划与验证入口：`docs/RHI_V2_ALGORITHM_PLAN.md`。
+> 当前生产仍使用 `cvd-16-v1`；RHI 确定性评分处于 research preview，
+> 不得替换生产临床风险模型。
+
 ### Multi-Agent Health Intervention Simulation Engine
 
 > Repository role: model training, wearable feature research, HealthAgent/PIAS

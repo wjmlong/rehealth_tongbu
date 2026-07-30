@@ -17,6 +17,8 @@
 - Foreground Service 后台低频采集与 WorkManager 恢复任务。
 - 认证感知的 durable upload queue；401 时暂停，重新登录后恢复。
 - 遥测批量上传、设备绑定、访谈、CVD 16 特征评估和 typed intervention feedback。
+- 已加入隔离的 RHI v2 32 维 DTO 与 CVD-16 保守迁移映射，便于后续接入；
+  当前未声明后端路由、未切换首页，研究预览不会替代生产风险结果。
 - Debug 环境可连接本机 JeecgBoot，Release 环境强制 HTTPS 后端地址。
 
 ## 主要目录
@@ -29,8 +31,8 @@ app/src/main/java/com/rehealth/genie/
 ├─ service/         RingForegroundService
 ├─ work/            采集恢复和上传 WorkManager
 ├─ data/sync/       上传队列、云端映射和反馈同步
-├─ features/        CVD 16 维特征与质量信息
-├─ network/         会话、认证客户端、API 和 DTO
+├─ features/        CVD 16 特征、质量信息与 RHI v2 草稿迁移
+├─ network/         会话、认证客户端、API、v1 DTO 与未接线的 v2 DTO
 ├─ phm/             风险/干预远程服务抽象与显式失败状态
 └─ ui/              Compose UI
 ```

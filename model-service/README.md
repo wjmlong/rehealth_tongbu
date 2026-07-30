@@ -4,7 +4,9 @@ Standalone FastAPI service for the ReHealth Android MVP model boundary.
 
 ## Scope
 
-This service owns cloud-side CVD risk scoring and conservative intervention generation. It accepts the Android C1 feature contract from:
+This service owns cloud-side CVD risk scoring, the isolated RHI v2 research
+preview, and conservative intervention generation. It accepts the Android C1
+feature contract from:
 
 - `Android-apk/docs/FEATURE_EXTRACTOR.md`
 - `Android-apk/app/src/main/java/com/rehealth/genie/features/CvdFeatureVector.kt`
@@ -21,11 +23,17 @@ The runtime loads a reviewed local CVD-16 CatBoost artifact when canonical files
 - `GET /v1/models/active`
 - `POST /v1/cvd/risk/evaluate`
 - `POST /v1/cvd/intervention/generate`
+- `POST /v2/rhi/evaluate` research preview only; it does not calculate a
+  clinical probability or replace the CVD-16 production path, and returns 503
+  in production/staging runtime modes
 - `POST /v1/cvd/attribution/individual` only when explicit `demo_mock` mode is enabled outside production/staging
 
 `/v1/cvd/risk/evaluate` accepts either a flat Android feature vector body or `{ "featureVector": { ... } }`. The service accepts Android camelCase names and snake_case names for the CVD fields.
 
 The frozen MVP API contract is documented in `docs/API_CONTRACT.md`.
+The RHI v2 design, 32-field migration rules, validation gates, and rollout
+sequence are documented in
+`../rehealth-algorithms/docs/RHI_V2_ALGORITHM_PLAN.md`.
 Real model artifact requirements, F2 safety gates, historical artifact traces, and M1 model registry behavior are documented in `docs/REAL_MODEL_INTEGRATION.md`, `docs/MODEL_ARTIFACTS.md`, `docs/REHEALTH_ALGORITHMS_MODEL_TRACE.md`, and `docs/MODEL_REGISTRY.md`.
 
 ## Run

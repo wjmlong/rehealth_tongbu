@@ -21,6 +21,7 @@ OPERATIONS: Final = {
     "/v1/cvd/risk/evaluate": "risk_evaluate",
     "/v1/cvd/intervention/generate": "intervention_generate",
     "/v1/cvd/attribution/individual": "attribution_individual",
+    "/v2/rhi/evaluate": "rhi_evaluate",
 }
 ALLOWED_OUTCOMES: Final = frozenset(
     {"success", "client_error", "unavailable", "timeout", "circuit_open", "server_error"}

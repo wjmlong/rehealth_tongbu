@@ -1,6 +1,8 @@
 # ReHealth Model Service API Contract
 
-Status: frozen for F1b MVP integration, extended by F2b model-loader health metadata and M1 model governance trace metadata.
+Status: v1 frozen for F1b MVP integration, extended by F2b model-loader health
+metadata and M1 model governance trace metadata. The additive RHI v2 endpoint is
+a research preview and is not a production clinical-risk contract.
 
 This contract is the boundary between Android D1, backend E1, and the Python model-service. It is compatible with the Android C1 feature extractor contract documented in `Android-apk/docs/FEATURE_EXTRACTOR.md`, `CvdFeatureVector.kt`, `FeatureQuality.kt`, and `HealthMemorySnapshot.kt`.
 
@@ -373,6 +375,79 @@ When no real model artifact exists, `load_risk_scorer()` returns `MockRiskScorer
 - Conservative text only; no clinical claims.
 - Missing fields are accepted and reported in `missing_fields`.
 
+## POST /v2/rhi/evaluate
+
+This additive endpoint evaluates the research-preview dynamic heart health
+index. It does not alter `/v1/cvd/risk/evaluate`, does not load a 32-field
+CatBoost model, and does not manufacture a China-PAR or PREVENT probability.
+It is available only in development/demo runtime modes. Production and staging
+fail closed with HTTP 503 code `rhi_preview_disabled`.
+
+The request contains:
+
+- `featureVector`: all 32 nullable RHI fields;
+- `featureQuality`: exactly one quality entry for every RHI field;
+- `productTier`: `lite`, `standard`, or `clinical`;
+- `glycemiaMetric`: required when `glycemia_value` is present;
+- `personalBaselines`: optional median/MAD baselines with sample count;
+- `history`: prior display scores for smoothing and 7/28-day deltas;
+- `clinicalRisk`: optional reviewed clinical-risk anchor;
+- `deviceContext`: brand/model/firmware/algorithm/method, signal quality,
+  wear time, and device-change state;
+- `safetyFlags`: upstream red flags that remain separate from the score.
+
+Response 200 separates the four product outputs:
+
+```json
+{
+  "schema_version": "rhi-core32-v2-preview",
+  "algorithm_version": "rhi-deterministic-preview-2.0.0",
+  "algorithm_status": "research_preview_not_clinically_validated",
+  "product_tier": "lite",
+  "clinical_risk": {
+    "model": "not_available",
+    "applicable": false,
+    "model_version": "none",
+    "reason": "No reviewed clinical risk anchor was supplied."
+  },
+  "dynamic_health_index": {
+    "score": 72.4,
+    "raw_score": 74.1,
+    "delta_7d": 1.8,
+    "delta_28d": 6.4,
+    "status": "confirmed",
+    "smoothing_alpha": 0.25
+  },
+  "domains": {
+    "hemodynamic": 66.2,
+    "activity_fitness": 78.4,
+    "sleep_recovery": 69.5,
+    "metabolic_control": null,
+    "behavior_adherence": 81.0
+  },
+  "data_confidence": {
+    "score": 0.86,
+    "grade": "A",
+    "missing_fields": [],
+    "stale_fields": [],
+    "low_confidence_fields": [],
+    "device_change_detected": false
+  },
+  "top_drivers": [],
+  "safety_flags": []
+}
+```
+
+`algorithm_status` is a release gate. Android must not treat any value other
+than a future reviewed `validated_production` state as a production result.
+FastAPI publishes this typed schema in the runtime-generated `/openapi.json`.
+The preview endpoint rejects implausible adult age, BMI, waist, seven-day blood
+pressure pairs, laboratory values, resting heart rate, HRV, daily hours, steps,
+MVPA, percentage fields, and weight changes with HTTP 422.
+The canonical field list, old-to-new migration table, scoring logic, and
+validation plan are in
+`rehealth-algorithms/docs/RHI_V2_ALGORITHM_PLAN.md`.
+
 ## Future Real Model Artifact
 
 The reserved artifact path is:
@@ -389,4 +464,7 @@ models/model_metadata.json
 
 If a model artifact and feature-order artifact exist, `load_risk_scorer()` validates that the feature-order artifact exactly matches the Android C1 CVD 16 order before creating `RealCatBoostRiskScorer`. Artifact paths must stay under the local `models/` root because pickle-compatible artifacts can execute code during load. Production responses with `is_mock=false` must not be enabled until the artifact, preprocessing pipeline, probability calibration, contribution extraction, and model version naming are validated and documented.
 
-Future feature expansion must use a new `feature_schema_version` such as `cvd-97-v2` instead of changing the `cvd-16-v1` semantics in place.
+Future clinical-risk feature expansion must use a new
+`feature_schema_version` instead of changing `cvd-16-v1` semantics in place.
+RHI `rhi-core32-v2-preview` is a separate dynamic-health schema, not a
+replacement CatBoost feature order.

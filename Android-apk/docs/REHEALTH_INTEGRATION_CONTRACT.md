@@ -66,6 +66,13 @@ queue until the user logs in again; the app does not invent a refresh-token flow
 | Attribution | `POST /rehealth/mobile/attribution/events` | Authenticated individual attribution only. |
 | Health assistant | `POST /rehealth/mobile/agent/messages`, `GET /rehealth/mobile/agent/conversations/latest` | Persist the user message in Room before sending. `conversationId`, `clientMessageId`, and `requestId` make retries stable; restore the latest user/tenant-scoped server conversation after login. JeecgBoot extracts only explicit self-reported name, gender, age, height and weight, merges changed values into the typed profile before assembling that turn's prompt, and appends a Chinese field-update confirmation to the persisted answer. Hypothetical or third-party values are not profile updates. Provider credentials remain server-only. |
 
+RHI v2 is not yet a canonical Android endpoint. The APK contains only draft
+32-field DTOs and a conservative CVD-16 migration mapper. No Retrofit method,
+Room cache, or UI switch may be added until the shared OpenAPI, JeecgBoot durable
+persistence, daily feature snapshot ownership, and research-preview release gate
+are approved. The model-service-only preview route is
+`POST /v2/rhi/evaluate`; Android must never call model-service directly.
+
 Every durable business endpoint returns a retryable `503` envelope when the
 required database is disabled or unavailable. Android must not interpret an
 HTTP/Jeecg success envelope without a durable acknowledgement as completed.

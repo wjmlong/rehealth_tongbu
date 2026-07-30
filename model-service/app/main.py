@@ -20,9 +20,11 @@ from app.health_agent import (
 from app.health_agent_schemas import HealthAgentRequest, HealthAgentResponse
 from app.observability import CONTENT_TYPE, ServiceMetrics, observe_request
 from app.prescription_generator import ConservativePrescriptionGenerator
+from app.rhi import RhiEvaluateRequest, RhiEvaluateResponse, RhiPreviewEngine
 from app.risk_scorer import RiskScorer, load_risk_scorer
 from app.runtime_config import (
     RuntimeConfig,
+    RuntimeMode,
     RuntimeStatus,
     load_runtime_config,
     runtime_status,
@@ -73,6 +75,7 @@ def create_app(
             agent_provider.close()
 
     prescription_generator = ConservativePrescriptionGenerator()
+    rhi_preview_engine = RhiPreviewEngine()
     service = FastAPI(
         title="ReHealth Model Service",
         version="0.1.0",
@@ -178,6 +181,27 @@ def create_app(
     def generate_intervention(request: InterventionGenerateRequest) -> InterventionGenerateResponse:
         logger.info("intervention generation requested")
         return prescription_generator.generate(request)
+
+    @service.post(
+        "/v2/rhi/evaluate",
+        response_model=RhiEvaluateResponse,
+    )
+    def evaluate_rhi_preview(
+        request: RhiEvaluateRequest,
+        http_request: Request,
+    ) -> RhiEvaluateResponse:
+        if config.runtime_mode in {RuntimeMode.PRODUCTION, RuntimeMode.STAGING}:
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "code": "rhi_preview_disabled",
+                    "message": "RHI v2 preview is not enabled in protected runtime modes.",
+                },
+            )
+        request_id = request.request_id or http_request.state.correlation_id
+        http_request.state.correlation_id = request_id
+        request.request_id = request_id
+        return rhi_preview_engine.evaluate(request)
 
     @service.post("/v1/health-agent/respond", response_model=HealthAgentResponse)
     def health_agent_respond(

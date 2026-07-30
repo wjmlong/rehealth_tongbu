@@ -20,7 +20,7 @@
 | Android | 单一有效设备 Provider 路由（Release 注册 MRD/RWFit/HBand）、真实 SDK/BLE、Room、本地优先、Foreground Service、WorkManager、CVD 16 特征、认证感知上传队列、风险/干预/反馈 UI；健康初识完成后直接进入首页，设备绑定保留在“我的”；Room v7 按登录用户隔离健康问答会话与消息，6→7 显式迁移保留消息并生成会话，首页支持本机会话列表、新建、切换和确认删除/清空，用户消息先落本机再请求服务端，页面重建/重登后恢复本机及云端最新会话；首页麦克风使用系统语音转文字并回填待确认输入，AI 回复使用不执行 HTML、远程资源或自动链接的受限 Markdown；模型页只显示用户可理解的云端评估状态，不暴露接口、请求 ID、内部贡献值或体温输入；“我的”每日步数优先聚合 Room 当地自然日活动，头像经系统照片选择、本机重编码后按用户隔离保存且不上云；健康初识会把可识别的年龄、身高、体重作为结构化 profile 一并排队同步；HBand 心率、步数/活动、睡眠、血氧、HRV、血压、血糖、压力、MET、ECG、血液/身体成分以及血糖校准、经期设置按设备能力接入；MT116 能力判定合并新版分包报告，ECG 以 2 号能力包优先；2026-07-30 真机日志证实固件虽然声明 HRV/压力/MET 独立能力，三项专用命令仍返回全 0 `unknown action`，现已改为 HRV/压力优先走 4 号能力包一键体检、MET 优先获取设备历史，避免 SDK 弹出不支持提示且不生成占位值；固定 SDK 对应四 ABI JNI 已打包，Room v5 保存校准 mV/导联/采样元数据并提供实时及历史单导联波形详情；ECG 与身体成分在用户确认电极接触和稳定姿势说明后才下发测量命令；体温因真机验证不通过已从 HBand 商品能力和数据页移除，其他指标及 ECG 真机准确性仍待验收 |
 | Device Service | 遥测校验、TimescaleDB 持久化、幂等批次、Transactional Outbox、Kafka 发布 |
 | JeecgBoot | 登录与权限、用户/设备绑定、结构化档案/访谈/干预业务数据、风险/干预/反馈编排、LangChain4j 健康问答、安全策略、用户/租户隔离会话历史和 software_db；健康问答可把明确自述的姓名、性别、年龄、身高和体重合并入结构化档案，并让同轮提示词读取新值；模型证据继续保留版本化 JSON 快照 |
-| model-service | CVD 风险评分、模型制品校验、干预生成；旧健康助手接口保留为可配置回退 |
+| model-service | CVD 风险评分、模型制品校验、干预生成；新增隔离的 `/v2/rhi/evaluate` research preview，提供 32 维确定性 RHI、五域、动量和可信度，明确不生成临床概率；旧健康助手接口保留为可配置回退 |
 | PIAS | 独立服务提供个体归因；Android 不执行生产归因 |
 | 部署 | Gateway、MySQL、TimescaleDB、Kafka、Redis、Nacos、Prometheus、Grafana 的 Compose 拓扑 |
 | 真机联调通道 | `https://rehealth.youngjimmy.store`（SSH 反向隧道 + ECS nginx，Let's Encrypt SAN 证书，2026-07-29 端到端 200；备用 `rehealth.47.80.30.228.sslip.io`），Debug/Release 均可联调；见 `tools/dev-tunnel/README.md` |
@@ -45,6 +45,7 @@
 - MySQL 8 staging 已有迁移、用户隔离、幂等和重启回读证据；生产容量与恢复仍待验证。
 - Android 重新登录和进入个人页会刷新当前用户的类型化个人资料与最近健康问答，且不再受风险/干预接口失败影响；健康初识完成前先持久化 Room 队列，麦克风入口具备用途说明、运行时授权和拒绝后的设置引导。
 - 健康问答 Java 纵向链路已实现：可在 `model-service` 与 `langchain4j` 间配置切换，每轮装配类型化画像/访谈/风险/干预，问答中明确自述的五项基本资料先合并入库再装配同轮画像，MySQL 会话与消息按用户+租户隔离，Android Room v7 本地先写并管理会话；后端仍只有最新会话恢复，没有列表/删除契约，生产数据库迁移、真实 Provider 和跨设备手工 QA 仍待执行。
+- RHI v2 已完成研究规划、32 维 typed schema、确定性预览引擎、验证工具和 Android 未接线 DTO/迁移映射；当前没有 JeecgBoot 公共路由、数据库表或用户页面，不能作为发布能力，生产仍走 CVD-16。
 
 ## 当前仓库治理决定
 

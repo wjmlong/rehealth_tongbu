@@ -57,3 +57,22 @@ Implausible values are rejected as `null` with `FeatureQualityStatus.LOW_CONFIDE
 ## Current Scope
 
 C1 adds the pure extractor and unit tests. It does not wire feature extraction into upload, risk scoring, BLE collection, or Compose UI.
+
+## RHI v2 readiness
+
+`RhiV2DraftMapper` provides an additive migration draft for the future
+`rhi-core32-v2` contract. It only carries fields whose semantics remain valid:
+age, biological sex, BMI, lipids, fasting glucose with an explicit metric,
+nicotine exposure, and diabetes status.
+
+It deliberately does not relabel:
+
+- the latest `sbp`/`dbp` as a validated seven-day home average;
+- `exercise_days` as steps, MVPA, sedentary time, or activity regularity;
+- hypertension history as medication status.
+- generic family history as premature CVD family history.
+
+All 32 v2 fields receive an explicit quality entry and unavailable values remain
+`null/MISSING`. The DTO and mapper are not connected to Retrofit, Room, or UI.
+The current production path remains CVD-16 until JeecgBoot exposes a durable,
+versioned v2 contract.
