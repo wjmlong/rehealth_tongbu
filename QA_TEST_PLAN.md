@@ -252,7 +252,8 @@ git diff --check
      values sent for evaluation, and label the rule as Factor16 rather than RDI16.
    - Expand all 16 rows. Confirm each explanation contains the row's current value
      and each row has a conservative field-specific suggestion. The detail card must
-     not display technical source or rule-version text. Missing values must remain explicit.
+     not display source, rule version, rule-contribution explanation, or 80/20 component text.
+     Missing values must remain explicit.
    - Confirm cuffless wearable BP stays on Data but produces missing/low-confidence
      Factor16 BP; only a confirmed 3–7 day upper-arm cuff mean unlocks SBP/DBP.
    - Confirm hospital labs require a report date and explicit source confirmation.

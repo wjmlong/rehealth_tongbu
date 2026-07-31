@@ -733,26 +733,6 @@ private fun AttributionFactorRow(
                     style = Type.Detail,
                 )
                 Text(
-                    if (contribution == null) {
-                        "规则贡献：当前无可用贡献，缺失值不会按正常值补齐。"
-                    } else {
-                        "规则贡献：${String.format(Locale.US, "%+.3f", contribution)}；正值表示风险方向，负值表示保护方向。"
-                    },
-                    color = Palette.TextSecondary,
-                    style = Type.Micro,
-                    modifier = Modifier.padding(top = Dimensions.FactorEvidenceTop),
-                )
-                if (factor.measuredComponent != null) {
-                    Text(
-                        "80/20：实测部分 ${String.format(Locale.US, "%+.3f", factor.measuredComponent)}；" +
-                            "控制支持趋势 ${String.format(Locale.US, "%+.3f", factor.controlSupportComponent ?: 0.0)}。" +
-                            " 未取得可验证趋势时不补造 20% 数值。",
-                        color = Palette.TextSecondary,
-                        style = Type.Micro,
-                        modifier = Modifier.padding(top = Dimensions.FactorEvidenceTop),
-                    )
-                }
-                Text(
                     "建议：${evidence.recommendation}",
                     color = Palette.Accent,
                     style = Type.Detail,
