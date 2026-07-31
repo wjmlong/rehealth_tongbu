@@ -68,6 +68,17 @@ class TelemetryBatchValidatorTest {
     }
 
     @Test
+    void rawSignalExcludedControlMetadataDoesNotLookLikeRawSignalPayload() {
+        TelemetryBatchRequestDto request = validBatch();
+        request.quality.put("rawSignalExcluded", true);
+
+        TelemetryBatchValidationResult result = validator(defaultProperties()).validate(request);
+
+        assertTrue(result.valid);
+        assertTrue(result.errors.isEmpty());
+    }
+
+    @Test
     void oversizedBatchIsRejected() {
         ReHealthIngestProperties properties = defaultProperties();
         ReflectionTestUtils.setField(properties, "maxRecordsPerBatch", 1);

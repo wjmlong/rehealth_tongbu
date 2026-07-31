@@ -169,7 +169,8 @@ VO₂max、HbA1c、eGFR、经确认的上臂袖带血压和医院血检。RHI �
 带报告日期的医院血检；两类项目按 80% 测量贡献 + 20% 已验证控制支持展示，
 尚无纵向证据时支持项明确为 0，不补造数值。模型页不新增 RHI 或展开的
 CVD 16 项卡片。
-数据页使用相同的双轨语义：风险分以 RDI-16 名义展示既有 CVD-16 已确认评估，Mock、网络失败或
+数据页使用相同的双轨语义：风险卡通过 RDI-16 接口展示既有 CVD-16 已确认风险百分比，不能把
+`risk_score × 100` 标成动态影响“分”；Mock、网络失败或
 未返回有效分数时显示不可用；健康指数来自 RHI-100，今日/7 日显示当前 RHI，
 30/90 日显示有效日稳健中位数，数据不足时显示积累状态。
 模型页仍不显示接口路径、请求 ID、内部贡献值或体温输入，也不再声称云端模型在端侧运行。“我的”中的每日步数优先使用
@@ -182,6 +183,17 @@ Room `ring_activities` 按设备当地自然日聚合的真实活动记录，活
 模拟戒指只存在于 `app/src/debug`，由 Debug 专用工厂和
 `USE_FAKE_RING`/`SEED_FAKE_HEALTH_DATA` 控制。`app/src/release` 的工厂只构造
 真实 MRD/RWFit/HBand Provider；远程风险评估失败时显示不可用，不生成本地模拟风险。
+
+Debug 版“我的 → 设备绑定”另提供唯一的全链路演练入口，且必须在警告对话框中
+再次确认。它为当前测试账号写入 90 天、来源为 `synthetic_qa` 的 50 岁男性正常
+纵向数据，然后依次真实执行 Room 入库、设备绑定、遥测上传及持久化确认、本地和
+JeecgBoot 远程 RHI、30 日 RDI-16 与 PIAS；Release source set 的实现固定
+`available=false`。遥测中的 `rawSignalExcluded=true` 是“未上传原始信号”的
+控制元数据，不得被服务端误判为 PPG/RRI 波形内容。
+
+RHI 默认本地计算；数据页和归因页可显式选择“JeecgBoot 远程（预览）”。远程
+模式调用认证路由 `POST /rehealth/mobile/rhi/evaluate-series`，JeecgBoot 再调用
+`model-service /v2/rhi/evaluate`，APK 不保存 model-service 地址，也不直接访问它。
 
 当前有效设备绑定保存在 `EncryptedSharedPreferences`，不进入 Room。设备首次
 扫描连接成功后才保存绑定地址；没有绑定地址时，后台采集不会使用固定地址或

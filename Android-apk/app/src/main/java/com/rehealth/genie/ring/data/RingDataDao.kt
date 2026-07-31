@@ -85,6 +85,26 @@ interface RingDataDao {
     @Query("SELECT * FROM ring_sleep_sessions WHERE started_at >= :since ORDER BY started_at DESC")
     suspend fun getSleepSessionsSince(since: Long): List<RingSleepSessionEntity>
 
+    @Query("DELETE FROM ring_measurements WHERE source = :source")
+    suspend fun deleteMeasurementsBySource(source: String)
+
+    @Query("DELETE FROM ring_sleep_sessions WHERE source = :source")
+    suspend fun deleteSleepSessionsBySource(source: String)
+
+    @Query("DELETE FROM ring_activities WHERE source = :source")
+    suspend fun deleteActivitiesBySource(source: String)
+
+    @Query("DELETE FROM ring_signal_chunks WHERE source = :source")
+    suspend fun deleteSignalChunksBySource(source: String)
+
+    @Transaction
+    suspend fun deleteSourceData(source: String) {
+        deleteMeasurementsBySource(source)
+        deleteSleepSessionsBySource(source)
+        deleteActivitiesBySource(source)
+        deleteSignalChunksBySource(source)
+    }
+
     @Transaction
     suspend fun insertBatch(batch: RingDataBatch) {
         insertMeasurements(batch.measurements)

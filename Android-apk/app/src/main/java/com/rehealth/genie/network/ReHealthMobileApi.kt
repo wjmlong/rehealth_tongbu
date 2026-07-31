@@ -20,6 +20,8 @@ import com.rehealth.genie.network.dto.InterventionGenerateRequestDto
 import com.rehealth.genie.network.dto.PatientProfileDto
 import com.rehealth.genie.network.dto.RegisterRequest
 import com.rehealth.genie.network.dto.RiskResultDto
+import com.rehealth.genie.network.dto.RhiV2SeriesEvaluateRequestDto
+import com.rehealth.genie.network.dto.RhiV2SeriesEvaluateResponseDto
 import com.rehealth.genie.network.dto.SendSmsRequest
 import com.rehealth.genie.network.dto.TelemetryBatchRequestDto
 import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
@@ -90,6 +92,11 @@ class ReHealthMobileApi(
         request: FeatureEvaluateRequest,
     ): RemotePhmOutcome<RiskResultDto> =
         unwrap { api.evaluateFeatures(request) }
+
+    suspend fun evaluateRhiSeries(
+        request: RhiV2SeriesEvaluateRequestDto,
+    ): RemotePhmOutcome<RhiV2SeriesEvaluateResponseDto> =
+        unwrap { api.evaluateRhiSeries(request) }
 
     suspend fun getRiskLatest(): RemotePhmOutcome<RiskResultDto?> =
         unwrapNullable { api.getRiskLatest() }

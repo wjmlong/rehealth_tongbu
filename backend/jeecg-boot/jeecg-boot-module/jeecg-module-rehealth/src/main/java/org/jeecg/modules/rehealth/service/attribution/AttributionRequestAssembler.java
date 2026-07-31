@@ -7,7 +7,11 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.time.LocalDate;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public final class AttributionRequestAssembler {
     private AttributionRequestAssembler() {
@@ -24,6 +28,50 @@ public final class AttributionRequestAssembler {
         authorized.riskHistory = persistedHistory == null ? List.of() : List.copyOf(persistedHistory);
         authorized.requestId = requestId(userId, authorized);
         return authorized;
+    }
+
+    /**
+     * Local-QA-only replay path. Production must keep the corresponding property disabled;
+     * normal attribution continues to ignore client-provided outcome history.
+     */
+    public static AttributionEventsRequestDto fromSyntheticQaHistory(
+            String userId,
+            AttributionEventsRequestDto clientRequest
+    ) {
+        Map<String, AttributionEventsRequestDto.AttributionHistoryPointDto> validByDate =
+                new LinkedHashMap<>();
+        if (clientRequest != null && clientRequest.riskHistory != null) {
+            clientRequest.riskHistory.stream()
+                    .filter(AttributionRequestAssembler::isValidSyntheticPoint)
+                    .sorted(Comparator.comparing(point -> LocalDate.parse(point.date)))
+                    .forEach(point -> validByDate.put(point.date, point));
+        }
+        List<AttributionEventsRequestDto.AttributionHistoryPointDto> ordered =
+                validByDate.values().stream().toList();
+        int fromIndex = Math.max(0, ordered.size() - 90);
+        AttributionEventsRequestDto authorized = new AttributionEventsRequestDto();
+        authorized.forecastDays = normalizedForecastDays(clientRequest);
+        authorized.language = normalizedLanguage(clientRequest);
+        authorized.riskHistory = List.copyOf(ordered.subList(fromIndex, ordered.size()));
+        authorized.requestId = requestId(userId + "|synthetic_qa", authorized);
+        return authorized;
+    }
+
+    private static boolean isValidSyntheticPoint(
+            AttributionEventsRequestDto.AttributionHistoryPointDto point
+    ) {
+        if (point == null || point.date == null || point.riskScore == null || point.intervention == null) {
+            return false;
+        }
+        try {
+            LocalDate.parse(point.date);
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+        return Double.isFinite(point.riskScore)
+                && point.riskScore >= 0.0
+                && point.riskScore <= 1.0
+                && (point.intervention == 0 || point.intervention == 1);
     }
 
     private static int normalizedForecastDays(AttributionEventsRequestDto request) {

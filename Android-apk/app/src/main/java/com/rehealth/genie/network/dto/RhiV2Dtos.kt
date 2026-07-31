@@ -4,11 +4,12 @@ import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
 /**
- * Draft RHI v2 contract models.
+ * RHI v2 research-preview contract models.
  *
- * These models are intentionally not wired to a Retrofit route yet. JeecgBoot does
- * not expose a durable RHI v2 endpoint, so the current CVD-16 production flow remains
- * authoritative until the cross-service contract and persistence migration land.
+ * Local RHI remains the offline default. When the user explicitly selects remote
+ * recalculation, these DTOs travel through the authenticated JeecgBoot proxy to the
+ * model-service `/v2/rhi/evaluate` endpoint. RDI-16 remains a separate clinical-risk
+ * contract and is not replaced by this preview route.
  */
 @JsonClass(generateAdapter = true)
 data class RhiV2FeatureVectorDto(
@@ -190,3 +191,15 @@ data class RhiV2EvaluateResponseDto(
     val isProductionEligible: Boolean
         get() = algorithmStatus == "validated_production"
 }
+
+@JsonClass(generateAdapter = true)
+data class RhiV2SeriesEvaluateRequestDto(
+    val evaluations: List<RhiV2EvaluateRequestDto>,
+)
+
+@JsonClass(generateAdapter = true)
+data class RhiV2SeriesEvaluateResponseDto(
+    val provider: String,
+    val route: String,
+    val evaluations: List<RhiV2EvaluateResponseDto>,
+)

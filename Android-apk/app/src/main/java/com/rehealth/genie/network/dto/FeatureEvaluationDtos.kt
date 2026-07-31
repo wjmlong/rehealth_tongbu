@@ -129,6 +129,25 @@ data class InterventionPlanDto(
     val model_version: String? = null,
     val is_mock: Boolean? = null,
     val medical_disclaimer: String? = null,
+    val summary: String? = null,
+    val items: List<InterventionActionDto>? = null,
+    val focus_date: String? = null,
+    val context_version: String? = null,
+    val context_generated_at: Long? = null,
+    val latest_data_at: Long? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class InterventionActionDto(
+    val id: String? = null,
+    val category: String? = null,
+    val title: String? = null,
+    val action: String? = null,
+    val rationale: String? = null,
+    val target: String? = null,
+    val timing: String? = null,
+    val priority: Int? = null,
+    val evidenceRefs: List<String>? = null,
 )
 
 @JsonClass(generateAdapter = true)

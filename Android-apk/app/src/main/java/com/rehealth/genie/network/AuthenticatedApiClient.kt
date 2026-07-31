@@ -52,6 +52,12 @@ class AuthenticatedApiClient(
         mobileApi.evaluateFeatures(request)
     }
 
+    suspend fun evaluateRhiSeries(
+        request: RhiV2SeriesEvaluateRequestDto,
+    ): ApiResult<RhiV2SeriesEvaluateResponseDto> = executeWithAuth {
+        mobileApi.evaluateRhiSeries(request)
+    }
+
     suspend fun getProfile(): ApiResult<PatientProfileDto?> = executeWithAuth {
         mobileApi.getProfile()
     }

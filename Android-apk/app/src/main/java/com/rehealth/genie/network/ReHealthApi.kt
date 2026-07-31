@@ -20,6 +20,8 @@ import com.rehealth.genie.network.dto.InterventionGenerateRequestDto
 import com.rehealth.genie.network.dto.PatientProfileDto
 import com.rehealth.genie.network.dto.RegisterRequest
 import com.rehealth.genie.network.dto.RiskResultDto
+import com.rehealth.genie.network.dto.RhiV2SeriesEvaluateRequestDto
+import com.rehealth.genie.network.dto.RhiV2SeriesEvaluateResponseDto
 import com.rehealth.genie.network.dto.SendSmsRequest
 import com.rehealth.genie.network.dto.TelemetryBatchRequestDto
 import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
@@ -60,6 +62,11 @@ interface ReHealthApi {
 
     @POST("rehealth/mobile/features/evaluate")
     suspend fun evaluateFeatures(@Body request: FeatureEvaluateRequest): Response<JeecgResult<RiskResultDto>>
+
+    @POST("rehealth/mobile/rhi/evaluate-series")
+    suspend fun evaluateRhiSeries(
+        @Body request: RhiV2SeriesEvaluateRequestDto,
+    ): Response<JeecgResult<RhiV2SeriesEvaluateResponseDto>>
 
     @GET("rehealth/mobile/risk/latest")
     suspend fun getRiskLatest(): Response<JeecgResult<RiskResultDto?>>

@@ -78,7 +78,11 @@ public class TelemetryBatchValidator {
     private boolean containsRawSignalValue(Object value) {
         if (value instanceof Map<?, ?> map) {
             for (Map.Entry<?, ?> entry : map.entrySet()) {
-                if (isRawSignalKey(String.valueOf(entry.getKey())) || containsRawSignalValue(entry.getValue())) {
+                String key = String.valueOf(entry.getKey());
+                if (isRawSignalExclusionMetadata(key)) {
+                    continue;
+                }
+                if (isRawSignalKey(key) || containsRawSignalValue(entry.getValue())) {
                     return true;
                 }
             }
@@ -90,6 +94,15 @@ public class TelemetryBatchValidator {
             }
         }
         return false;
+    }
+
+    private boolean isRawSignalExclusionMetadata(String key) {
+        if (key == null) {
+            return false;
+        }
+        String normalized = key.toLowerCase(Locale.ROOT).replace("-", "_");
+        return "rawsignalexcluded".equals(normalized)
+                || "raw_signal_excluded".equals(normalized);
     }
 
     private boolean isRawSignalKey(String key) {

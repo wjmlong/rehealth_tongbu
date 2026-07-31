@@ -54,6 +54,24 @@ class RhiPeriodAggregatorTest {
         assertEquals(71.5, sufficient.score)
     }
 
+    @Test
+    fun `summary exposes truthful period movement without changing the aggregate score`() {
+        val history = listOf(
+            RhiDailyScore(today.minusDays(2), 64.2, 0.8),
+            RhiDailyScore(today.minusDays(1), 65.7, 0.8),
+            RhiDailyScore(today, 68.9, 0.8),
+        )
+
+        val result = RhiPeriodAggregator.summarize(
+            periodDays = 7,
+            current = history.last(),
+            dailyScores = history,
+        )
+
+        assertEquals(68.9, result.score)
+        assertEquals(4.7, result.trendDelta)
+    }
+
     private fun scores(count: Int, value: (Int) -> Double): List<RhiDailyScore> =
         (0 until count).map { index ->
             RhiDailyScore(today.minusDays(index.toLong()), value(index), 0.8)

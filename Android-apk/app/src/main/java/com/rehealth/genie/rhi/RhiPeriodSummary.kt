@@ -17,7 +17,17 @@ data class RhiPeriodSummary(
     val aggregation: RhiPeriodAggregation,
     val history: List<RhiDailyScore>,
     val algorithmVersion: String = RHI_LITE_ALGORITHM_VERSION,
-)
+    val calculationSource: RhiCalculationSource = RhiCalculationSource.LOCAL,
+) {
+    val trendDelta: Double?
+        get() = history.takeIf { it.size >= 2 }
+            ?.let { (it.last().score - it.first().score).round1() }
+}
+
+enum class RhiCalculationSource {
+    LOCAL,
+    REMOTE,
+}
 
 enum class RhiPeriodAggregation {
     CURRENT_7_DAY,
@@ -29,6 +39,8 @@ object RhiPeriodAggregator {
         periodDays: Int,
         current: RhiDailyScore?,
         dailyScores: List<RhiDailyScore>,
+        algorithmVersion: String = RHI_LITE_ALGORITHM_VERSION,
+        calculationSource: RhiCalculationSource = RhiCalculationSource.LOCAL,
     ): RhiPeriodSummary {
         require(periodDays in SUPPORTED_PERIODS) { "RHI period must be 7, 30, or 90 days" }
         val ordered = dailyScores.sortedBy { it.date }.takeLast(periodDays)
@@ -59,6 +71,8 @@ object RhiPeriodAggregator {
                 RhiPeriodAggregation.ROBUST_MEDIAN
             },
             history = ordered,
+            algorithmVersion = algorithmVersion,
+            calculationSource = calculationSource,
         )
     }
 

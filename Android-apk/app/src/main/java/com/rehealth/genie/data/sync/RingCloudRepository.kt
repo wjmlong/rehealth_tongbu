@@ -13,7 +13,6 @@ import com.rehealth.genie.network.dto.DeviceBindResponseDto
 import com.rehealth.genie.network.dto.InterventionGenerateRequestDto
 import com.rehealth.genie.network.dto.InterventionPlanDto
 import com.rehealth.genie.network.dto.PatientProfileDto
-import com.rehealth.genie.network.dto.RiskEvaluateResponseDto
 import com.rehealth.genie.network.dto.RiskResultDto
 import com.rehealth.genie.network.dto.TelemetryBatchRequestDto
 import com.rehealth.genie.ring.RingDevice
@@ -93,15 +92,14 @@ class RingCloudRepository(
         if (intervention == null && risk?.normalizedRiskScore != null) {
             intervention = apiClient.generateIntervention(
                 InterventionGenerateRequestDto(
-                    riskResult = risk.toGenerateRiskDto(),
-                    patientContext = profile?.toPatientContext().orEmpty(),
+                    requestId = UUID.randomUUID().toString(),
                 ),
             ).successOrNull()
         }
         PatientMvpPayload(
             profile = profile?.toPayload(),
             risk = risk?.toPayload(),
-            interventionPlan = intervention?.let { listOf(it.toPayload()) }.orEmpty(),
+            interventionPlan = intervention?.toPatientInterventionPayloads().orEmpty(),
             recentCheckins = emptyList(),
             updatedAt = nowProvider(),
             latestHealthInterview = latestHealthInterview,
@@ -129,14 +127,19 @@ class RingCloudRepository(
             activity?.let { add(it.startedAt); it.endedAt?.let(::add) }
         }
         val provenance = if (
+            vendor == WearableVendor.MOCK ||
+            measurements.any { it.source.equals("ring_sim", true) } ||
             measurements.any { it.source.contains("mock", true) || it.source.contains("synthetic", true) } ||
+            sleep?.source?.equals("ring_sim", true) == true ||
             sleep?.source?.let { it.contains("mock", true) || it.contains("synthetic", true) } == true ||
+            activity?.source?.equals("ring_sim", true) == true ||
             activity?.source?.let { it.contains("mock", true) || it.contains("synthetic", true) } == true
         ) "synthetic_qa" else "${vendor.name.lowercase()}_room"
         val batchId = UUID.nameUUIDFromBytes(
             "$effectiveDeviceId|$collectedAt|$trigger".toByteArray(StandardCharsets.UTF_8),
         ).toString()
         return TelemetryBatchRequestDto(
+            schemaVersion = "telemetry-v2",
             batchId = batchId,
             deviceId = effectiveDeviceId,
             collectedFrom = timestamps.minOrNull() ?: collectedAt,
@@ -185,6 +188,7 @@ class RingCloudRepository(
                     ),
                 )
             }.orEmpty(),
+            dietRecords = emptyList(),
             signalChunks = emptyList(),
             quality = mapOf(
                 "provenance" to provenance,
@@ -208,7 +212,10 @@ class RingCloudRepository(
 private fun String.matchesVendor(vendor: WearableVendor): Boolean = when (vendor) {
     WearableVendor.RWFIT -> startsWith("rwfit", ignoreCase = true)
     WearableVendor.MRD -> startsWith("mrd", ignoreCase = true)
-    WearableVendor.MOCK -> contains("mock", ignoreCase = true) || contains("synthetic", ignoreCase = true)
+    WearableVendor.MOCK ->
+        equals("ring_sim", ignoreCase = true) ||
+            contains("mock", ignoreCase = true) ||
+            contains("synthetic", ignoreCase = true)
     WearableVendor.HBAND -> startsWith("hband", ignoreCase = true)
 }
 
@@ -228,29 +235,6 @@ private fun safeMessage(result: ApiResult<*>, fallback: String): String = when (
     is ApiResult.NetworkError -> "网络连接失败，请稍后重试。"
     is ApiResult.Success -> fallback
 }
-
-private fun RiskResultDto.toGenerateRiskDto(): RiskEvaluateResponseDto =
-    RiskEvaluateResponseDto(
-        riskScore = normalizedRiskScore,
-        riskLevel = normalizedRiskLevel,
-        featureContributions = normalizedFeatureContributions,
-        modelVersion = normalizedModelVersion,
-        isMock = normalizedIsMock,
-        missingFields = normalizedMissingFields,
-        qualityWarnings = normalizedQualityWarnings,
-        requestId = normalizedRequestId,
-        summary = summary,
-    )
-
-private fun PatientProfileDto.toPatientContext(): Map<String, Any> = mapOfNotNull(
-    "age" to age,
-    "gender" to gender,
-    "bmi" to bmi,
-    "smoking" to smoking,
-    "drinking" to drinking,
-    "diabetes_history" to diabetesHistory,
-    "hypertension_history" to hypertensionHistory,
-)
 
 private fun PatientProfileDto.toPayload(): PatientProfilePayload = PatientProfilePayload(
     patientId = patientId,
@@ -280,15 +264,36 @@ private fun RiskResultDto.toPayload(): PatientRiskPayload = PatientRiskPayload(
     generatedAt = null,
 )
 
-private fun InterventionPlanDto.toPayload(): PatientInterventionPayload = PatientInterventionPayload(
-    id = plan_id,
-    title = priority_intervention,
-    goal = expected_impact,
-    action = rationale,
-    duration = null,
-    reason = medical_disclaimer,
-    status = "active",
-)
+internal fun InterventionPlanDto.toPatientInterventionPayloads(): List<PatientInterventionPayload> {
+    val planId = plan_id?.takeIf(String::isNotBlank) ?: return emptyList()
+    val structured = items.orEmpty()
+        .sortedBy { it.priority ?: Int.MAX_VALUE }
+        .mapNotNull { item ->
+            val title = item.title?.takeIf(String::isNotBlank) ?: return@mapNotNull null
+            val action = item.action?.takeIf(String::isNotBlank) ?: return@mapNotNull null
+            PatientInterventionPayload(
+                id = planId,
+                title = title,
+                goal = item.target,
+                action = action,
+                duration = item.timing,
+                reason = item.rationale,
+                status = "active",
+            )
+        }
+    if (structured.isNotEmpty()) return structured
+    return listOf(
+        PatientInterventionPayload(
+            id = planId,
+            title = priority_intervention,
+            goal = expected_impact,
+            action = rationale,
+            duration = null,
+            reason = medical_disclaimer,
+            status = "active",
+        ),
+    )
+}
 
 private fun mapOfNotNull(vararg pairs: Pair<String, Any?>): Map<String, Any> =
     buildMap {

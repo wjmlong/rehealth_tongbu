@@ -40,6 +40,10 @@ class JdbcSoftwareDbReHealthBusinessRepositoryTest {
                 new ClassPathResource("db/software/mysql/V1__create_rehealth_software_tables.sql")
         ).execute(dataSource);
         jdbcTemplate = new JdbcTemplate(dataSource);
+        jdbcTemplate.execute("ALTER TABLE rehealth_cvd_risk_result ADD COLUMN factor_contribution_version VARCHAR(64)");
+        jdbcTemplate.execute("ALTER TABLE rehealth_cvd_risk_result ADD COLUMN factor_contribution_json LONGTEXT");
+        jdbcTemplate.execute("ALTER TABLE rehealth_cvd_risk_result ADD COLUMN factor_measured_component_json LONGTEXT");
+        jdbcTemplate.execute("ALTER TABLE rehealth_cvd_risk_result ADD COLUMN factor_control_support_json LONGTEXT");
         repository = new JdbcSoftwareDbReHealthBusinessRepository(jdbcTemplate, new ObjectMapper());
     }
 

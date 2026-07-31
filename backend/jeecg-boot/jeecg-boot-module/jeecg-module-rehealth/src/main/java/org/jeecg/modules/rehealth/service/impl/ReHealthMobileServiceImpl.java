@@ -1,5 +1,9 @@
 package org.jeecg.modules.rehealth.service.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.jeecg.modules.rehealth.ingest.HardwareIngestionPort;
 import org.jeecg.modules.rehealth.ingest.query.HardwareTelemetryQuery;
 import org.jeecg.modules.rehealth.config.ReHealthIngestProperties;
@@ -26,6 +30,7 @@ import org.jeecg.modules.rehealth.model.ModelServiceException;
 import org.jeecg.modules.rehealth.repository.ReHealthBusinessRepository;
 import org.jeecg.modules.rehealth.service.ReHealthMobileService;
 import org.jeecg.modules.rehealth.service.attribution.AttributionRequestAssembler;
+import org.jeecg.modules.rehealth.service.intervention.PersonalizedInterventionService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -46,6 +51,8 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
     private final ReHealthBusinessRepository businessRepository;
     private final ReHealthIngestProperties ingestProperties;
     private final boolean softwareDbEnabled;
+    private final boolean syntheticQaAttributionHistoryEnabled;
+    private final PersonalizedInterventionService personalizedInterventionService;
     private final ZoneId mobileZoneId;
 
     public ReHealthMobileServiceImpl(
@@ -54,7 +61,10 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
             HardwareTelemetryQuery hardwareTelemetryQuery,
             ReHealthBusinessRepository businessRepository,
             ReHealthIngestProperties ingestProperties,
+            PersonalizedInterventionService personalizedInterventionService,
             @Value("${rehealth.software-db.enabled:false}") boolean softwareDbEnabled,
+            @Value("${rehealth.qa.synthetic-attribution-history-enabled:false}")
+            boolean syntheticQaAttributionHistoryEnabled,
             @Value("${rehealth.mobile.time-zone:Asia/Shanghai}") String mobileTimeZone
     ) {
         this.modelServiceClient = modelServiceClient;
@@ -62,7 +72,9 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
         this.hardwareTelemetryQuery = hardwareTelemetryQuery;
         this.businessRepository = businessRepository;
         this.ingestProperties = ingestProperties;
+        this.personalizedInterventionService = personalizedInterventionService;
         this.softwareDbEnabled = softwareDbEnabled;
+        this.syntheticQaAttributionHistoryEnabled = syntheticQaAttributionHistoryEnabled;
         this.mobileZoneId = ZoneId.of(mobileTimeZone);
     }
 
@@ -104,6 +116,7 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
                 "POST /rehealth/mobile/measurements/batch",
                 "GET /rehealth/mobile/measurements/recent",
                 "POST /rehealth/mobile/features/evaluate",
+                "POST /rehealth/mobile/rhi/evaluate-series",
                 "GET /rehealth/mobile/risk/latest",
                 "POST /rehealth/mobile/interventions/generate",
                 "GET /rehealth/mobile/interventions/today",
@@ -201,24 +214,89 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
     }
 
     @Override
-    public InterventionGenerateResponseDto generateIntervention(String userId, InterventionGenerateRequestDto request) {
+    public JsonNode evaluateRhiSeries(String userId, JsonNode request) {
+        JsonNode evaluations = request == null ? null : request.get("evaluations");
+        if (evaluations == null || !evaluations.isArray() || evaluations.isEmpty()) {
+            throw new IllegalArgumentException("evaluations must be a non-empty array");
+        }
+        if (evaluations.size() > 120) {
+            throw new IllegalArgumentException("at most 120 RHI evaluations are allowed");
+        }
+
+        ArrayNode responses = JsonNodeFactory.instance.arrayNode();
+        for (int index = 0; index < evaluations.size(); index++) {
+            JsonNode candidate = evaluations.get(index);
+            if (candidate == null || !candidate.isObject()) {
+                throw new IllegalArgumentException("each RHI evaluation must be an object");
+            }
+            ObjectNode evaluation = candidate.deepCopy();
+            String requestId = correlationId(evaluation.path("requestId").asText(null));
+            evaluation.put("requestId", requestId);
+            ObjectNode history = evaluation.withObject("/history");
+            history.put("available_days", index + 1);
+            if (index > 0) {
+                history.put(
+                        "previous_display_score",
+                        rhiScore(responses.get(index - 1))
+                );
+            }
+            if (index >= 7) {
+                history.put("display_score_7d_ago", rhiScore(responses.get(index - 7)));
+            }
+            if (index >= 28) {
+                history.put("display_score_28d_ago", rhiScore(responses.get(index - 28)));
+            }
+            responses.add(modelServiceClient.evaluateRhi(evaluation));
+        }
+
+        ObjectNode result = JsonNodeFactory.instance.objectNode();
+        result.put("provider", "model-service");
+        result.put("route", "/v2/rhi/evaluate");
+        result.set("evaluations", responses);
+        return result;
+    }
+
+    private double rhiScore(JsonNode response) {
+        JsonNode score = response == null
+                ? null
+                : response.path("dynamic_health_index").get("score");
+        if (score == null || !score.isNumber()) {
+            throw new IllegalStateException("model-service RHI response has no numeric score");
+        }
+        return score.asDouble();
+    }
+
+    @Override
+    public InterventionGenerateResponseDto generateIntervention(
+            String tenantId,
+            String userId,
+            InterventionGenerateRequestDto request
+    ) {
         requireSoftwareDb();
         String requestId = correlationId(request == null ? null : request.requestId);
-        if (request != null) {
-            request.requestId = requestId;
-        }
         long startedNanos = System.nanoTime();
         InterventionGenerateResponseDto response;
         try {
-            response = modelServiceClient.generateIntervention(request);
+            response = personalizedInterventionService.generate(
+                    tenantId,
+                    userId,
+                    requestId,
+                    mobileZoneId
+            );
         } catch (RuntimeException failure) {
-            recordModelFailure(userId, requestId, "INTERVENTION_GENERATE", startedNanos, failure);
+            recordModelFailure(
+                    userId,
+                    requestId,
+                    "INTERVENTION_GENERATE_LANGCHAIN4J",
+                    startedNanos,
+                    failure
+            );
             throw failure;
         }
         businessRepository.saveInterventionPlan(userId, response);
         businessRepository.recordModelRequest(userId, new ModelCallAudit(
                 requestId,
-                "INTERVENTION_GENERATE",
+                "INTERVENTION_GENERATE_LANGCHAIN4J",
                 response == null ? null : response.modelVersion,
                 "SUCCESS",
                 null,
@@ -255,11 +333,13 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
         requireSoftwareDb();
         long startedNanos = System.nanoTime();
         try {
-            AttributionEventsRequestDto authorizedRequest = AttributionRequestAssembler.fromPersistedHistory(
-                    userId,
-                    request,
-                    businessRepository.findAttributionHistory(userId)
-            );
+            AttributionEventsRequestDto authorizedRequest = syntheticQaAttributionHistoryEnabled
+                    ? AttributionRequestAssembler.fromSyntheticQaHistory(userId, request)
+                    : AttributionRequestAssembler.fromPersistedHistory(
+                            userId,
+                            request,
+                            businessRepository.findAttributionHistory(userId)
+                    );
             AttributionResponseDto response = modelServiceClient.evaluateAttribution(authorizedRequest);
             businessRepository.recordAttributionResult(userId, authorizedRequest, response);
             businessRepository.recordModelRequest(userId, new ModelCallAudit(

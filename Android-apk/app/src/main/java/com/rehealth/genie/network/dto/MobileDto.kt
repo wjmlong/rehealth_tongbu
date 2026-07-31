@@ -22,6 +22,7 @@ data class RiskEvaluateResponseDto(
 )
 
 data class InterventionGenerateRequestDto(
+    @SerializedName("request_id") val requestId: String? = null,
     @SerializedName("riskResult") val riskResult: RiskEvaluateResponseDto? = null,
     @SerializedName("featureVector") val featureVector: CvdFeatureVectorDto? = null,
     @SerializedName("patientContext") val patientContext: Map<String, Any>? = null,
@@ -38,6 +39,24 @@ data class InterventionGenerateResponseDto(
     @SerializedName("model_version") val modelVersion: String? = null,
     @SerializedName("is_mock") val isMock: Boolean? = null,
     @SerializedName("medical_disclaimer") val medicalDisclaimer: String? = null,
+    @SerializedName("summary") val summary: String? = null,
+    @SerializedName("items") val items: List<InterventionActionResponseDto>? = null,
+    @SerializedName("focus_date") val focusDate: String? = null,
+    @SerializedName("context_version") val contextVersion: String? = null,
+    @SerializedName("context_generated_at") val contextGeneratedAt: Long? = null,
+    @SerializedName("latest_data_at") val latestDataAt: Long? = null,
+)
+
+data class InterventionActionResponseDto(
+    @SerializedName("id") val id: String? = null,
+    @SerializedName("category") val category: String? = null,
+    @SerializedName("title") val title: String? = null,
+    @SerializedName("action") val action: String? = null,
+    @SerializedName("rationale") val rationale: String? = null,
+    @SerializedName("target") val target: String? = null,
+    @SerializedName("timing") val timing: String? = null,
+    @SerializedName("priority") val priority: Int? = null,
+    @SerializedName("evidenceRefs") val evidenceRefs: List<String>? = null,
 )
 
 data class FeedbackRequestDto(
@@ -86,6 +105,7 @@ data class PatientProfileDto(
 
 @JsonClass(generateAdapter = true)
 data class TelemetryBatchRequestDto(
+    @SerializedName("schemaVersion") val schemaVersion: String? = null,
     @SerializedName("batchId") val batchId: String? = null,
     @SerializedName("deviceId") val deviceId: String? = null,
     @SerializedName("collectedFrom") val collectedFrom: Long? = null,
@@ -94,6 +114,7 @@ data class TelemetryBatchRequestDto(
     @SerializedName("measurements") val measurements: List<Map<String, Any>>? = null,
     @SerializedName("sleepSessions") val sleepSessions: List<Map<String, Any>>? = null,
     @SerializedName("activitySessions") val activitySessions: List<Map<String, Any>>? = null,
+    @SerializedName("dietRecords") val dietRecords: List<Map<String, Any>>? = null,
     @SerializedName("signalChunks") val signalChunks: List<Map<String, Any>>? = null,
     @SerializedName("quality") val quality: Map<String, Any>? = null,
 )
@@ -106,6 +127,7 @@ data class TelemetryBatchResponseDto(
     @SerializedName("accepted") val accepted: Boolean = false,
     @SerializedName("persisted") val persisted: Boolean = false,
     @SerializedName("recordCount") val recordCount: Int = 0,
+    @SerializedName("dietRecordCount") val dietRecordCount: Int = 0,
 )
 
 data class AttributionEventItemDto(

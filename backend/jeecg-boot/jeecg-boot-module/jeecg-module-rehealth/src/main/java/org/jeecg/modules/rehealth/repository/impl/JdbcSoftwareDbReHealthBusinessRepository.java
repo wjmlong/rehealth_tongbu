@@ -851,6 +851,18 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
             target.confidence = target.confidence == null ? legacy.confidence : target.confidence;
             target.medicalDisclaimer = firstText(target.medicalDisclaimer, legacy.medicalDisclaimer);
             target.isMock = target.isMock == null ? legacy.isMock : target.isMock;
+            target.summary = firstText(target.summary, legacy.summary);
+            target.focusDate = firstText(target.focusDate, legacy.focusDate);
+            target.contextVersion = firstText(target.contextVersion, legacy.contextVersion);
+            target.contextGeneratedAt = target.contextGeneratedAt == null
+                    ? legacy.contextGeneratedAt
+                    : target.contextGeneratedAt;
+            target.latestDataAt = target.latestDataAt == null
+                    ? legacy.latestDataAt
+                    : target.latestDataAt;
+            if ((target.items == null || target.items.isEmpty()) && legacy.items != null) {
+                target.items = legacy.items;
+            }
             if ((target.contraindications == null || target.contraindications.isEmpty())
                     && legacy.contraindications != null) {
                 target.contraindications = legacy.contraindications;

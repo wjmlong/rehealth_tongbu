@@ -414,18 +414,24 @@ justauth:
     prefix: 'demo::'
     timeout: 1h
 
-# ReHealth E1 mobile API configuration. The model-service remains the
-# authority for risk evaluation, intervention generation, and attribution.
+# ReHealth mobile API configuration. model-service remains the risk/SHAP
+# authority, PIAS owns attribution, and the explicit personalized wellness-plan
+# path uses Jeecg LangChain4j with authoritative server-side context.
 rehealth:
   runtime:
     mode: ${REHEALTH_RUNTIME_MODE:development}
   demo:
     enabled: ${REHEALTH_DEMO_ENABLED:false}
+  qa:
+    # Disabled by default. Enable only for a local Debug APK full-chain replay.
+    synthetic-attribution-history-enabled: ${REHEALTH_QA_SYNTHETIC_ATTRIBUTION_HISTORY_ENABLED:false}
   software-db:
     enabled: ${REHEALTH_SOFTWARE_DB_ENABLED:false}
   device-service:
     enabled: ${REHEALTH_DEVICE_SERVICE_ENABLED:false}
     base-url: ${REHEALTH_DEVICE_SERVICE_BASE_URL:}
+    internal-token-file: ${REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE:}
+    timeout-seconds: ${REHEALTH_DEVICE_SERVICE_TIMEOUT_SECONDS:5}
   timescale:
     enabled: ${REHEALTH_TIMESCALE_ENABLED:false}
   model-service:

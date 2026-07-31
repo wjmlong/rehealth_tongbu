@@ -10,6 +10,7 @@ import org.jeecg.modules.rehealth.mobile.dto.FeedbackResponseDto;
 import org.jeecg.modules.rehealth.model.ModelServiceClient;
 import org.jeecg.modules.rehealth.model.ModelCallAudit;
 import org.jeecg.modules.rehealth.repository.ReHealthBusinessRepository;
+import org.jeecg.modules.rehealth.service.intervention.PersonalizedInterventionService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -91,6 +92,32 @@ class ReHealthMobileServiceAttributionTest {
         assertEquals("SUCCESS", audit.getValue().outcome());
     }
 
+    @Test
+    void allowsValidatedClientHistoryOnlyWhenSyntheticQaReplayIsExplicitlyEnabled() {
+        ModelServiceClient modelClient = mock(ModelServiceClient.class);
+        ReHealthBusinessRepository repository = mock(ReHealthBusinessRepository.class);
+        AttributionResponseDto downstream = new AttributionResponseDto();
+        downstream.status = "ready";
+        downstream.attributionMode = "pias";
+        downstream.modelVersion = "pias-individual-v2";
+        when(modelClient.evaluateAttribution(any())).thenReturn(downstream);
+        ReHealthMobileServiceImpl service = service(repository, true, modelClient, true);
+        AttributionEventsRequestDto request = new AttributionEventsRequestDto();
+        request.riskHistory.add(historyPoint("2026-07-01", 0.31, 0));
+        request.riskHistory.add(historyPoint("2026-07-02", 0.29, 1));
+        request.riskHistory.add(historyPoint("invalid", 3.0, 4));
+
+        service.recordAttributionEvents("user-a", request);
+
+        ArgumentCaptor<AttributionEventsRequestDto> authorized =
+                ArgumentCaptor.forClass(AttributionEventsRequestDto.class);
+        verify(modelClient).evaluateAttribution(authorized.capture());
+        assertEquals(2, authorized.getValue().riskHistory.size());
+        assertEquals("2026-07-01", authorized.getValue().riskHistory.get(0).date);
+        assertEquals("2026-07-02", authorized.getValue().riskHistory.get(1).date);
+        assertFalse(authorized.getValue().requestId.isBlank());
+    }
+
     private AttributionEventsRequestDto.AttributionHistoryPointDto historyPoint(
             String date,
             double riskScore,
@@ -116,13 +143,24 @@ class ReHealthMobileServiceAttributionTest {
             boolean softwareDbEnabled,
             ModelServiceClient modelClient
     ) {
+        return service(repository, softwareDbEnabled, modelClient, false);
+    }
+
+    private ReHealthMobileServiceImpl service(
+            ReHealthBusinessRepository repository,
+            boolean softwareDbEnabled,
+            ModelServiceClient modelClient,
+            boolean syntheticQaAttributionHistoryEnabled
+    ) {
         return new ReHealthMobileServiceImpl(
                 modelClient,
                 mock(HardwareIngestionPort.class),
                 mock(HardwareTelemetryQuery.class),
                 repository,
                 mock(ReHealthIngestProperties.class),
+                mock(PersonalizedInterventionService.class),
                 softwareDbEnabled,
+                syntheticQaAttributionHistoryEnabled,
                 "Asia/Shanghai"
         );
     }

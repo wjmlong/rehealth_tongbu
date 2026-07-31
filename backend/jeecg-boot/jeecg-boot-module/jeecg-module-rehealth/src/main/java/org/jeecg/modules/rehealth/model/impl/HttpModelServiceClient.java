@@ -1,5 +1,6 @@
 package org.jeecg.modules.rehealth.model.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.jeecg.modules.rehealth.config.AttributionMode;
 import org.jeecg.modules.rehealth.mobile.dto.AttributionEventsRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.AttributionResponseDto;
@@ -130,6 +131,18 @@ public class HttpModelServiceClient implements ModelServiceClient {
             request.requestId = requestId;
         }
         return post("/v1/cvd/risk/evaluate", request, RiskEvaluateResponseDto.class, requestId);
+    }
+
+    @Override
+    public JsonNode evaluateRhi(JsonNode request) {
+        ensureConfigured();
+        String requestId = correlationId(
+                request == null ? null : request.path("requestId").asText(null)
+        );
+        if (request != null && request.isObject()) {
+            ((com.fasterxml.jackson.databind.node.ObjectNode) request).put("requestId", requestId);
+        }
+        return post("/v2/rhi/evaluate", request, JsonNode.class, requestId);
     }
 
     @Override

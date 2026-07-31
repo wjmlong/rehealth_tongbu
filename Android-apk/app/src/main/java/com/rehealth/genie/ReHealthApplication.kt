@@ -8,10 +8,12 @@ import com.rehealth.genie.data.sync.InterventionFeedbackRepository
 import com.rehealth.genie.data.sync.RingCloudRepository
 import com.rehealth.genie.data.sync.SyncRepository
 import com.rehealth.genie.network.AuthenticatedApiClient
+import com.rehealth.genie.network.ApiResult
 import com.rehealth.genie.network.BackendConfig
 import com.rehealth.genie.network.SessionStore
 import com.rehealth.genie.notification.RingNotificationChannels
 import com.rehealth.genie.phm.RemotePhmService
+import com.rehealth.genie.qa.createRuntimeFullChainSimulationRunner
 import com.rehealth.genie.rdi.RdiRepository
 import com.rehealth.genie.rhi.RhiRepository
 import com.rehealth.genie.ring.RingBackgroundCollectionSettings
@@ -110,7 +112,22 @@ class ReHealthApplication : Application() {
             manualInputDao = database.rhiManualHealthInputDao(),
             interventionFeedbackDao = database.interventionFeedbackDao(),
             userIdProvider = { sessionStore.userId },
+            remoteSeriesEvaluator = { request ->
+                when (val result = authenticatedApiClient.evaluateRhiSeries(request)) {
+                    is ApiResult.Success -> result.data
+                    is ApiResult.Unauthorized -> error(result.message)
+                    is ApiResult.Forbidden -> error(result.message)
+                    is ApiResult.InvalidRequest -> error(result.message)
+                    is ApiResult.InvalidResponse -> error(result.message)
+                    is ApiResult.ServiceUnavailable -> error(result.message)
+                    is ApiResult.NetworkError -> error(result.message)
+                }
+            },
         )
+    }
+
+    val fullChainSimulationRunner by lazy {
+        createRuntimeFullChainSimulationRunner(this)
     }
 
     val healthChatRepository by lazy {

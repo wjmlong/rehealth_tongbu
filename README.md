@@ -75,9 +75,9 @@ flowchart LR
 | --- | --- | --- |
 | Android | BLE/厂商 SDK、Room、本地轻量特征、离线队列、用户交互 | CatBoost、SHAP、LLM、云端归因 |
 | Gateway | 统一公网入口、路由、安全头处理、未来限流 | 业务数据持久化、模型推理 |
-| Device Service | 硬件遥测校验、设备授权、TimescaleDB、Outbox | 用户业务档案、模型推理 |
-| JeecgBoot | 账号、租户、设备绑定、业务编排、LangChain4j 健康问答、后台权限、software_db | 直接拥有硬件时序库、运行 CatBoost/SHAP/归因模型 |
-| model-service | CVD 风险、SHAP、干预生成；保留旧健康助手接口用于灰度回退 | 用户认证、设备接入、业务主数据、权威聊天历史 |
+| Device Service | 硬件遥测与饮食行为校验、设备授权、TimescaleDB、Outbox、按租户/用户/自然日提供有界行为摘要 | 用户业务档案、模型推理 |
+| JeecgBoot | 账号、租户、设备绑定、业务编排、LangChain4j 健康问答与结构化生活方式干预、后台权限、software_db | 直接拥有硬件时序库、运行 CatBoost/SHAP/归因模型 |
+| model-service | CVD 风险、SHAP；保留旧干预与健康助手接口用于兼容/灰度回退 | 用户认证、设备接入、业务主数据、权威聊天历史 |
 | PIAS | 生产个体归因 | Android 端计算、静默 Mock 回退 |
 | rehealth-algorithms | 训练、仿真、算法研究及独立 PIAS 实现 | 患者移动端业务入口 |
 
@@ -180,16 +180,26 @@ Android Room
   -> JeecgBoot /features/evaluate
   -> model-service /v1/cvd/risk/evaluate
   -> software_db 持久化风险结果
-  -> 生成干预
+  -> POST JeecgBoot /interventions/generate
+  -> 每次重新读取 software_db 画像/访谈/最新风险
+  -> Device Service 读取 TimescaleDB 今日活动/睡眠/测量/饮食及近 7 日变化
+  -> JeecgBoot LangChain4j 生成 1–5 条结构化保守行动
+  -> software_db 持久化计划
   -> Android 本地反馈队列
   -> JeecgBoot feedback API
 ```
 
-RHI v2 当前是隔离的 research preview，不改变上述生产链路。目标链路是独立
-Feature Pipeline 生成版本化 32 维日快照，由 JeecgBoot 持久化并调用
-`model-service /v2/rhi/evaluate`，同时分别保存临床长期风险、每日 RHI、
-28 日改善动量和数据可信度。APK 目前只具备 v2 DTO 与保守迁移映射，不调用
-未发布的后端路由。算法规划见
+饮食记录自 `telemetry-v2` 起作为 `dietRecords` 随本地持久化后的上传批次进入
+TimescaleDB `hardware_diet_record`。干预生成忽略客户端提交的画像/风险上下文，
+只信任当前认证用户的服务端数据，并将今日行为置于历史趋势之前；趋势仅作为描述性
+证据，不解释为诊断或因果改善。
+
+RHI v2 当前以可回滚的 preview 链路接入，不替代既有临床风险链路。Android
+默认在本地用 32 维可用子集计算 RHI，也可由用户明确选择 JeecgBoot 远程复算：
+`POST /rehealth/mobile/rhi/evaluate-series` 由 JeecgBoot 逐日调用
+`model-service /v2/rhi/evaluate`，Android 不直连 model-service。该 preview
+不把 RHI 当作疾病概率，也不建立云端 RHI 权威缓存；后续仍需由独立 Feature
+Pipeline 生成并持久化版本化日快照。算法规划见
 `rehealth-algorithms/docs/RHI_V2_ALGORITHM_PLAN.md`。
 
 Android 当前保留独立的本地 `RDI rdi-rule-1.0.0` 算法与持久化骨架，但它
@@ -227,8 +237,14 @@ Factor16 字段或暂不可用时，App 使用同版透明规则补齐 16 项并
 该 Debug 回放仍经本机加密档案、Room 临床输入与 Room 活动数据入口提取，
 不会在贡献卡 UI 中直接硬编码字段。
 数据页同样拆分为两条真实链路：风险卡以 RDI-16 名义展示既有 16 特征
-评估接口的非 Mock 返回值（不另改特征提取规则），
+评估接口的非 Mock 返回值（不另改特征提取规则），该值按风险百分比显示，
+不得写成 0–100 的动态影响“分”，
 健康指数圆环展示 RHI-100，并随今日/7/30/90 日选择切换当前值或稳健中位数。
+
+Debug 版仅在“我的 → 设备绑定”提供一次需二次确认的 50 岁男性全链路演练入口；
+Release 对应工厂固定不可用。演练数据统一标记 `synthetic_qa`，先写 Room，再真实
+执行设备绑定、`telemetry-v2` 持久化确认、RHI 本地/远程复算、30 日 RDI-16
+评估和 PIAS 30 点情景预测。它不会在其他页面静默生成模拟数据。
 
 未来若需要持续云端分析，应增加独立 Feature Pipeline 消费遥测持久化事件，
 按事件中的批次/设备引用读取授权范围内的 TimescaleDB 数据，再生成版本化特征；

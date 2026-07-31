@@ -1,5 +1,6 @@
 package org.jeecg.modules.rehealth.model;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.jeecg.modules.rehealth.mobile.dto.AttributionEventsRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.AttributionResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.InterventionGenerateRequestDto;
@@ -13,6 +14,8 @@ public interface ModelServiceClient {
     ModelHealthResponseDto health();
 
     RiskEvaluateResponseDto evaluateRisk(RiskEvaluateRequestDto request);
+
+    JsonNode evaluateRhi(JsonNode request);
 
     InterventionGenerateResponseDto generateIntervention(InterventionGenerateRequestDto request);
 

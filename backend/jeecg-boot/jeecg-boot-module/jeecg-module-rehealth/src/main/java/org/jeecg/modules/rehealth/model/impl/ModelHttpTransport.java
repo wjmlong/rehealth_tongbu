@@ -3,6 +3,9 @@ package org.jeecg.modules.rehealth.model.impl;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONException;
 import com.alibaba.fastjson.JSONObject;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jeecg.modules.rehealth.model.ModelServiceErrorCode;
 import org.jeecg.modules.rehealth.model.ModelServiceException;
 
@@ -16,6 +19,8 @@ import java.time.Duration;
 import java.util.Map;
 
 final class ModelHttpTransport {
+    private static final ObjectMapper JACKSON = new ObjectMapper();
+
     private final HttpClient httpClient;
     private final Duration timeout;
     private final ModelServiceCircuitBreaker circuitBreaker;
@@ -109,16 +114,18 @@ final class ModelHttpTransport {
     private <T> T parseResponse(
             HttpResponse<String> response,
             Class<T> responseType,
-            String requestId
+        String requestId
     ) {
         try {
-            T parsed = JSON.parseObject(response.body(), responseType);
+            T parsed = JsonNode.class.isAssignableFrom(responseType)
+                    ? responseType.cast(JACKSON.readTree(response.body()))
+                    : JSON.parseObject(response.body(), responseType);
             if (parsed == null) {
                 throw new JSONException("empty JSON response");
             }
             circuitBreaker.success();
             return parsed;
-        } catch (JSONException invalidJson) {
+        } catch (JSONException | JsonProcessingException invalidJson) {
             throw new ModelServiceException(
                     ModelServiceErrorCode.INVALID_RESPONSE,
                     "model-service returned an invalid response",

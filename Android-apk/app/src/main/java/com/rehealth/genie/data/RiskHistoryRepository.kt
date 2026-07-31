@@ -14,12 +14,14 @@ class RiskHistoryRepository(
     private val userIdProvider: () -> String?,
     private val nowProvider: () -> Long = { System.currentTimeMillis() },
 ) {
-    suspend fun recordConfirmedRemoteRisk(result: RiskResultDto) {
+    suspend fun recordConfirmedRemoteRisk(
+        result: RiskResultDto,
+        evaluatedAt: Long = nowProvider(),
+    ) {
         val userId = userIdProvider()?.takeIf { it.isNotBlank() } ?: return
         val score = result.normalizedRiskScore ?: return
         if (result.normalizedIsMock != false) return
 
-        val evaluatedAt = nowProvider()
         riskHistoryDao.upsert(
             RiskHistoryEntity(
                 userId = userId,

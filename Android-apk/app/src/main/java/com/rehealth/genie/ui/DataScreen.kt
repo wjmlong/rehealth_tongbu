@@ -110,6 +110,7 @@ internal fun DataScreen(
     val rhiViewModel: RhiViewModel = viewModel(factory = RhiViewModel.Factory(LocalContext.current))
     val rhiPeriodSummary by rhiViewModel.periodSummary.collectAsState()
     val rhiRefreshError by rhiViewModel.refreshError.collectAsState()
+    val rhiCalculationSource by rhiViewModel.calculationSource.collectAsState()
     var showBloodGlucoseCalibration by remember { mutableStateOf(false) }
     var showWomensHealthSetting by remember { mutableStateOf(false) }
     var showEcgDetail by remember { mutableStateOf(false) }
@@ -144,6 +145,7 @@ internal fun DataScreen(
         state.activity?.id,
         state.sleep?.id,
         state.patientMvp?.profile?.updatedAt,
+        rhiCalculationSource,
     ) {
         rhiViewModel.refresh(rhiPeriodDays, AttributionDataProvenance.trustedProfile(state.patientMvp))
     }
@@ -313,6 +315,12 @@ internal fun DataScreen(
                 labels = listOf("今日", "7 天", "30 天", "90 天"),
                 selected = selectedPeriod,
                 onSelected = { selectedPeriod = it },
+            )
+        }
+        item {
+            RhiCalculationSourceSelector(
+                source = rhiCalculationSource,
+                onSourceSelected = rhiViewModel::setCalculationSource,
             )
         }
         item {
@@ -793,10 +801,10 @@ internal fun dataRiskPresentation(status: RemoteFeatureEvaluateStatus?): DataRis
     }
     val confirmed = confirmedScore != null
     return DataRiskPresentation(
-        scoreText = confirmedScore?.let { String.format(Locale.US, "%.1f分", it * 100.0) } ?: "--",
+        scoreText = confirmedScore?.let { String.format(Locale.US, "%.1f%%", it * 100.0) } ?: "--",
         riskLevelText = if (confirmed) status?.riskLevel.riskLevelLabel() else "待评估",
         sourceText = if (confirmed) {
-            "RDI-16"
+            "RDI-16 · 风险概率"
         } else if (status?.isMock == true) {
             "模拟不展示"
         } else if (status?.reachable == false) {
@@ -846,10 +854,21 @@ internal fun dataHealthIndexPresentation(
     } else {
         "${summary.periodDays}日稳健中位数"
     }
+    val sourceText = if (
+        summary.calculationSource == com.rehealth.genie.rhi.RhiCalculationSource.REMOTE
+    ) {
+        "JeecgBoot 远程复算"
+    } else {
+        "本地即时"
+    }
+    val deltaText = summary.trendDelta?.let { delta ->
+        val sign = if (delta > 0.0) "+" else ""
+        " · 期内$sign${String.format(Locale.US, "%.1f", delta)}"
+    }.orEmpty()
     return DataHealthIndexPresentation(
         scoreText = String.format(Locale.US, "%.1f", score),
         statusText = status,
-        supportingText = "RHI-100 · $periodText",
+        supportingText = "RHI-100 · $sourceText · $periodText$deltaText",
         sweepAngle = (score.coerceIn(0.0, 100.0) / 100.0 * 360.0).toFloat(),
     )
 }

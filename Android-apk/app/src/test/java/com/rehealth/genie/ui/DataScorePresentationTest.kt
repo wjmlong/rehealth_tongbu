@@ -21,8 +21,8 @@ class DataScorePresentationTest {
             ),
         )
 
-        assertEquals("2.8分", presentation.scoreText)
-        assertEquals("RDI-16", presentation.sourceText)
+        assertEquals("2.8%", presentation.scoreText)
+        assertEquals("RDI-16 · 风险概率", presentation.sourceText)
         assertEquals("低", presentation.riskLevelText)
     }
 
@@ -73,7 +73,7 @@ class DataScorePresentationTest {
 
         assertEquals("72.4", presentation.scoreText)
         assertEquals("良好", presentation.statusText)
-        assertEquals("RHI-100 · 近7日有效数据", presentation.supportingText)
+        assertEquals("RHI-100 · 本地即时 · 近7日有效数据", presentation.supportingText)
         assertEquals(260.64f, presentation.sweepAngle, absoluteTolerance = 0.01f)
     }
 

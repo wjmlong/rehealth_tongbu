@@ -98,12 +98,18 @@ fun AttributionScreen(
     val rhiViewModel: RhiViewModel = viewModel(factory = RhiViewModel.Factory(LocalContext.current))
     val rhiPeriodSummary by rhiViewModel.periodSummary.collectAsState()
     val rhiRefreshError by rhiViewModel.refreshError.collectAsState()
+    val rhiCalculationSource by rhiViewModel.calculationSource.collectAsState()
     var selectedPeriod by remember { mutableStateOf(AttributionPeriod.DAYS_7) }
     var retryKey by remember { mutableIntStateOf(0) }
     var requestSequence by remember { mutableLongStateOf(0L) }
     var refreshState by remember { mutableStateOf(AttributionRefreshState()) }
 
-    LaunchedEffect(selectedPeriod, ringState.lastSyncAt, ringState.patientMvp?.profile?.updatedAt) {
+    LaunchedEffect(
+        selectedPeriod,
+        ringState.lastSyncAt,
+        ringState.patientMvp?.profile?.updatedAt,
+        rhiCalculationSource,
+    ) {
         rhiViewModel.refresh(
             selectedPeriod.days.toInt(),
             AttributionDataProvenance.trustedProfile(ringState.patientMvp),
@@ -196,8 +202,10 @@ fun AttributionScreen(
         state = uiState,
         rhiSummary = rhiPeriodSummary?.takeIf { it.periodDays == selectedPeriod.days.toInt() },
         rhiError = rhiRefreshError,
+        rhiCalculationSource = rhiCalculationSource,
         feedbackViewModel = feedbackViewModel,
         onPeriodSelected = { selectedPeriod = it },
+        onRhiCalculationSourceSelected = rhiViewModel::setCalculationSource,
         onRetry = {
             retryKey += 1
             rhiViewModel.refresh(
@@ -213,8 +221,10 @@ private fun AttributionContent(
     state: AttributionUiState,
     rhiSummary: RhiPeriodSummary?,
     rhiError: String?,
+    rhiCalculationSource: com.rehealth.genie.rhi.RhiCalculationSource,
     feedbackViewModel: InterventionFeedbackViewModel,
     onPeriodSelected: (AttributionPeriod) -> Unit,
+    onRhiCalculationSourceSelected: (com.rehealth.genie.rhi.RhiCalculationSource) -> Unit,
     onRetry: () -> Unit,
 ) {
     LazyColumn(
@@ -240,6 +250,12 @@ private fun AttributionContent(
         }
         item {
             AttributionPeriodSelector(state.period, onPeriodSelected)
+        }
+        item {
+            RhiCalculationSourceSelector(
+                source = rhiCalculationSource,
+                onSourceSelected = onRhiCalculationSourceSelected,
+            )
         }
         state.refreshMessage?.let { message ->
             item {
@@ -407,10 +423,23 @@ private fun AttributionSummaryCard(
     }
 }
 
-private fun RhiPeriodSummary.summaryText(): String = when {
-    score == null -> "有效数据 $validDays/$requiredValidDays 天，正在积累 RHI"
-    aggregation == RhiPeriodAggregation.CURRENT_7_DAY -> "动态心健康指数 RHI-100 · 基于近7日有效数据"
-    else -> "动态心健康指数 RHI-100 · $validDays 个有效日稳健中位数"
+private fun RhiPeriodSummary.summaryText(): String {
+    val source = if (
+        calculationSource == com.rehealth.genie.rhi.RhiCalculationSource.REMOTE
+    ) {
+        "JeecgBoot 远程复算"
+    } else {
+        "本地即时"
+    }
+    val base = when {
+        score == null -> "有效数据 $validDays/$requiredValidDays 天，正在积累 RHI"
+        aggregation == RhiPeriodAggregation.CURRENT_7_DAY ->
+            "动态心健康指数 RHI-100 · $source · 基于近7日有效数据"
+        else -> "动态心健康指数 RHI-100 · $source · $validDays 个有效日稳健中位数"
+    }
+    val delta = trendDelta ?: return base
+    val sign = if (delta > 0.0) "+" else ""
+    return "$base · 期内动态 $sign${String.format(Locale.US, "%.1f", delta)}"
 }
 
 @Composable

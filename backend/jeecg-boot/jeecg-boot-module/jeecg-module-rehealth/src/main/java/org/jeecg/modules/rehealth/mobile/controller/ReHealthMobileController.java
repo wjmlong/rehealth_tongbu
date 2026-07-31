@@ -1,11 +1,13 @@
 package org.jeecg.modules.rehealth.mobile.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authz.UnauthenticatedException;
 import org.jeecg.common.api.vo.Result;
+import org.jeecg.common.constant.CommonConstant;
 import org.jeecg.common.system.vo.LoginUser;
 import org.jeecg.config.shiro.IgnoreAuth;
 import org.jeecg.modules.rehealth.mobile.dto.AttributionEventsRequestDto;
@@ -25,6 +27,7 @@ import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.RecentTelemetryResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.TelemetryBatchRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.TelemetryBatchResponseDto;
+import org.jeecg.modules.rehealth.model.ModelServiceException;
 import org.jeecg.modules.rehealth.ingest.writer.HardwarePersistenceUnavailableException;
 import org.jeecg.modules.rehealth.service.ReHealthMobileService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,6 +35,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -42,9 +46,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/rehealth/mobile")
 public class ReHealthMobileController {
     private final ReHealthMobileService mobileService;
+    private final AuthenticatedTenantResolver tenantResolver;
 
-    public ReHealthMobileController(ReHealthMobileService mobileService) {
+    public ReHealthMobileController(
+            ReHealthMobileService mobileService,
+            AuthenticatedTenantResolver tenantResolver
+    ) {
         this.mobileService = mobileService;
+        this.tenantResolver = tenantResolver;
     }
 
     @IgnoreAuth
@@ -140,9 +149,13 @@ public class ReHealthMobileController {
     }
 
     private String currentUserId() {
+        return currentUser().getId();
+    }
+
+    private LoginUser currentUser() {
         Object principal = SecurityUtils.getSubject().getPrincipal();
         if (principal instanceof LoginUser loginUser && loginUser.getId() != null && !loginUser.getId().isBlank()) {
-            return loginUser.getId();
+            return loginUser;
         }
         throw new UnauthenticatedException("authenticated ReHealth user is required");
     }
@@ -157,6 +170,18 @@ public class ReHealthMobileController {
         }
     }
 
+    @PostMapping("/rhi/evaluate-series")
+    @Operation(summary = "Recalculate a chronological RHI series through model-service")
+    public Result<JsonNode> evaluateRhiSeries(@RequestBody JsonNode request) {
+        try {
+            return Result.OK(mobileService.evaluateRhiSeries(currentUserId(), request));
+        } catch (IllegalArgumentException e) {
+            return Result.error(400, e.getMessage());
+        } catch (IllegalStateException | ModelServiceException e) {
+            return Result.error(503, "RHI remote evaluation unavailable; retry later");
+        }
+    }
+
     @GetMapping("/risk/latest")
     @Operation(summary = "Get latest persisted CVD risk result when software_db persistence is enabled")
     public Result<RiskEvaluateResponseDto> latestRisk() {
@@ -168,10 +193,18 @@ public class ReHealthMobileController {
     }
 
     @PostMapping("/interventions/generate")
-    @Operation(summary = "Generate conservative intervention through model-service")
-    public Result<InterventionGenerateResponseDto> generateIntervention(@RequestBody InterventionGenerateRequestDto request) {
+    @Operation(summary = "Generate structured intervention from fresh authorized health context")
+    public Result<InterventionGenerateResponseDto> generateIntervention(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
+            @RequestBody InterventionGenerateRequestDto request
+    ) {
         try {
-            return Result.OK(mobileService.generateIntervention(currentUserId(), request));
+            LoginUser user = currentUser();
+            return Result.OK(mobileService.generateIntervention(
+                    tenantResolver.resolve(user, tenantId),
+                    user.getId(),
+                    request
+            ));
         } catch (IllegalStateException e) {
             return Result.error(503, "intervention generation or software_db persistence unavailable; retry later");
         }

@@ -1,5 +1,6 @@
 package org.jeecg.modules.rehealth.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.jeecg.modules.rehealth.mobile.dto.AttributionEventsRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.AttributionResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.DeviceBindRequestDto;
@@ -39,9 +40,15 @@ public interface ReHealthMobileService {
 
     RiskEvaluateResponseDto evaluateFeatures(String userId, RiskEvaluateRequestDto request);
 
+    JsonNode evaluateRhiSeries(String userId, JsonNode request);
+
     RiskEvaluateResponseDto latestRisk(String userId);
 
-    InterventionGenerateResponseDto generateIntervention(String userId, InterventionGenerateRequestDto request);
+    InterventionGenerateResponseDto generateIntervention(
+            String tenantId,
+            String userId,
+            InterventionGenerateRequestDto request
+    );
 
     InterventionGenerateResponseDto latestIntervention(String userId);
 

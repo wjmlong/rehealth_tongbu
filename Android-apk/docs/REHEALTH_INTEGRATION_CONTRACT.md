@@ -1,13 +1,15 @@
 # ReHealth Android / Backend MVP Integration Contract
 
-Status: canonical Android contract, updated 2026-07-30.
+Status: canonical Android contract, updated 2026-07-31.
 
 ## Runtime Boundary
 
 ```text
 productCode -> single active RingRepository Provider -> Android BLE
--> Room -> durable upload queue -> JeecgBoot
-JeecgBoot -> software_db / hardware_db -> LangChain4j health chat or model-service scoring
+-> Room -> durable upload queue -> Gateway
+Gateway -> Device Service / TimescaleDB for telemetry and diet behavior
+Gateway -> JeecgBoot / software_db -> LangChain4j health chat/structured intervention
+JeecgBoot -> model-service for CVD scoring; JeecgBoot -> PIAS for attribution
 ```
 
 BLE collection is independent from network availability. Android must persist a
@@ -59,19 +61,21 @@ queue until the user logs in again; the app does not invent a refresh-token flow
 | Profile | `GET/PUT /rehealth/mobile/profile` | Authenticated, user-scoped typed profile. Preserve returned `version` on PUT; stale edits return `409`; BMI is server-derived. |
 | Interview | `POST /rehealth/mobile/interviews`, `GET /rehealth/mobile/interviews/latest` | Store in the Room durable queue before leaving the result screen, retry through WorkManager, and reload the latest typed record after login/profile entry. The optional `profile` object carries parsed age/height/weight and is merged into the typed profile in the same software-db transaction. |
 | Device binding | `POST /rehealth/mobile/devices/bind` | Send a stable device ID and SHA-256 address hash; never send the raw BLE MAC. |
-| Telemetry | `POST /rehealth/mobile/measurements/batch` | Upload normalized Room records with a stable `batchId`; exclude raw PPG/RRI bytes. |
+| Telemetry | `POST /rehealth/mobile/measurements/batch` | Use `telemetry-v2`; upload locally persisted normalized Room records and optional structured `dietRecords` with a stable `batchId`; exclude raw PPG/RRI and meal-image bytes. |
 | Risk | `POST /rehealth/mobile/features/evaluate`, `GET /risk/latest` | Use the authenticated client and persisted server result. |
-| Intervention | `POST /interventions/generate`, `GET /interventions/today` | Generate only when today's persisted plan is absent. |
+| Intervention | `POST /interventions/generate`, `GET /interventions/today` | Generate only when today's persisted plan is absent. Send only a stable `request_id`; the server reloads profile/interview/risk and tenant-scoped TimescaleDB context and returns ordered structured `items`. |
 | Feedback | `POST /interventions/{id}/feedback` | Mark local feedback complete only when `persisted=true`. |
 | Attribution | `POST /rehealth/mobile/attribution/events` | Authenticated individual attribution only. |
 | Health assistant | `POST /rehealth/mobile/agent/messages`, `GET /rehealth/mobile/agent/conversations/latest` | Persist the user message in Room before sending. `conversationId`, `clientMessageId`, and `requestId` make retries stable; restore the latest user/tenant-scoped server conversation after login. JeecgBoot extracts only explicit self-reported name, gender, age, height and weight, merges changed values into the typed profile before assembling that turn's prompt, and appends a Chinese field-update confirmation to the persisted answer. Hypothetical or third-party values are not profile updates. Provider credentials remain server-only. |
 
-RHI v2 is not yet a canonical Android endpoint. The Android network layer contains
-only draft 32-field DTOs and a conservative CVD-16 migration mapper. No Retrofit
-method or cloud RHI cache may be added until the shared OpenAPI, JeecgBoot durable
-persistence, daily feature snapshot ownership, and research-preview release gate
-are approved. The model-service-only preview route is
-`POST /v2/rhi/evaluate`; Android must never call model-service directly.
+RHI v2 now has an authenticated, non-authoritative preview path:
+`POST /rehealth/mobile/rhi/evaluate-series`. Android sends a bounded series of
+versioned 32-field daily requests to JeecgBoot; JeecgBoot calls
+`model-service POST /v2/rhi/evaluate` for each day and returns the ordered results.
+Android must never call model-service directly. Local RHI remains the offline
+default and the user must explicitly select the remote preview. This route does
+not persist an authoritative cloud RHI snapshot and does not replace the future
+Feature Pipeline ownership or its release gate.
 
 Android does contain a separate local product index named RDI
 (`rdi-rule-1.0.0`). It remains an additive transparent rule and Room persistence
@@ -137,6 +141,14 @@ a score only when the response is reachable, finite, in `[0, 1]`, and explicitly
 Today/7-day selections use the current seven-day RHI, while 30/90-day selections
 use the valid-day median and the same 7/14-day minimums.
 
+The only full synthetic-chain entry is the confirmation-gated Debug action under
+Profile -> Device binding. It writes 90 days of `synthetic_qa` records to Room
+before invoking real device binding, durable telemetry upload, local/remote RHI,
+30 daily RDI-16 evaluations, and PIAS. The Release source-set factory is a no-op.
+No other screen may generate this fixture. `quality.rawSignalExcluded=true`
+declares that raw PPG/RRI samples are absent and is valid control metadata; actual
+raw payload keys and signal chunks remain rejected while raw upload is disabled.
+
 Every durable business endpoint returns a retryable `503` envelope when the
 required database is disabled or unavailable. Android must not interpret an
 HTTP/Jeecg success envelope without a durable acknowledgement as completed.
@@ -196,6 +208,21 @@ evidence text, source-factor ID and version. These tables are local-only and are
 not part of telemetry, public mobile DTOs, PIAS, or clinical-risk persistence.
 
 Feedback and device binding completion require `persisted == true`.
+
+`telemetry-v2` keeps the existing measurement, sleep and activity arrays and
+adds `dietRecords`. A diet record has a stable `id`, `consumedAt`,
+`mealType` (`breakfast`, `lunch`, `dinner`, or `snack`), a bounded
+`description`, and optional non-negative calories, protein, carbohydrate, fat,
+fiber, sodium and source. The response adds `dietRecordCount`. A meal must be
+saved locally before upload; raw food photos are not part of this contract.
+
+`InterventionGenerateResponseDto.items` contains 1–5 actions. Each action has
+`id`, `category`, `title`, `action`, `rationale`, `target`, `timing`,
+`priority`, and `evidenceRefs`. Android sorts by priority and renders these
+items in the personalized-plan card while preserving `plan_id` for feedback.
+The server may also return `summary`, `focus_date`, `context_version`,
+`context_generated_at`, and `latest_data_at`. A failed generation is not
+replaced with client-side medical or mock advice.
 
 ## Data and Privacy Rules
 

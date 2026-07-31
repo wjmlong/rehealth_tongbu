@@ -40,6 +40,29 @@ class RiskHistoryRepositoryTest {
         assertEquals(0.42, history.single().riskScore)
         assertEquals(true, history.single().isInterventionDay)
     }
+
+    @Test
+    fun `stores confirmed historical evaluations on their requested days`() = runTest {
+        val riskDao = FakeRiskHistoryDao()
+        val repository = RiskHistoryRepository(
+            riskHistoryDao = riskDao,
+            feedbackDao = FakeFeedbackDao(),
+            userIdProvider = { "user-1" },
+        )
+
+        repository.recordConfirmedRemoteRisk(
+            RiskResultDto(risk_score = 0.31, is_mock = false),
+            evaluatedAt = 1_699_827_200_000L,
+        )
+        repository.recordConfirmedRemoteRisk(
+            RiskResultDto(risk_score = 0.29, is_mock = false),
+            evaluatedAt = 1_699_913_600_000L,
+        )
+
+        val history = repository.attributionHistory()
+        assertEquals(2, history.size)
+        assertEquals(listOf(0.31, 0.29), history.map { it.riskScore })
+    }
 }
 
 private class FakeRiskHistoryDao : RiskHistoryDao {

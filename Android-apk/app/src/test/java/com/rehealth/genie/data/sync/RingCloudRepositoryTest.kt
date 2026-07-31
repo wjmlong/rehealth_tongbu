@@ -141,4 +141,29 @@ class RingCloudRepositoryTest {
         assertEquals("synthetic_qa", automatic.source)
         assertNotEquals(automatic.batchId, manual.batchId)
     }
+
+    @Test
+    fun `labels debug ring simulation as synthetic qa`() {
+        val payload = RingCloudRepository.telemetryBatchPayload(
+            device = RingDevice("QA:50:M:NORMAL", "QA ring", -42),
+            collectedAt = 2L,
+            trigger = "full_chain_qa_50m",
+            measurements = listOf(
+                RingMeasurementEntity(
+                    id = "ring-sim-heart",
+                    metricType = "HEART_RATE",
+                    measuredAt = 1L,
+                    primaryValue = 68.0,
+                    unit = "bpm",
+                    source = "ring_sim",
+                ),
+            ),
+            sleep = null,
+            activity = null,
+            vendor = WearableVendor.MOCK,
+        )
+
+        assertEquals("synthetic_qa", payload.source)
+        assertTrue(payload.deviceId.orEmpty().startsWith("mock-"))
+    }
 }

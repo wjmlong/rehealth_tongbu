@@ -56,6 +56,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.rehealth.genie.qa.FullChainSimulationReport
+import com.rehealth.genie.qa.SimulationStageStatus
 import com.rehealth.genie.ring.RingConnectionState
 import com.rehealth.genie.ring.RingDevice
 import com.rehealth.genie.ring.RingUiState
@@ -75,6 +77,10 @@ internal fun DeviceBindingScreen(
     onDisconnect: () -> Unit,
     onSync: () -> Unit,
     onSwitchProduct: (String) -> Unit = {},
+    simulationAvailable: Boolean = false,
+    simulationRunning: Boolean = false,
+    simulationReport: FullChainSimulationReport? = null,
+    onRunFullChainSimulation: () -> Unit = {},
     onboarding: Boolean = false,
     onComplete: (() -> Unit)? = null,
 ) {
@@ -84,6 +90,30 @@ internal fun DeviceBindingScreen(
         mutableStateOf(hasBluetoothPermission(context))
     }
     var pendingProductCode by remember { mutableStateOf<String?>(null) }
+    var confirmSimulation by remember { mutableStateOf(false) }
+    if (confirmSimulation) {
+        AlertDialog(
+            onDismissRequest = { confirmSimulation = false },
+            title = { Text("运行 50 岁男性全链路演练") },
+            text = {
+                Text(
+                    "仅限 Debug：将当前测试账号健康档案改为 50 岁男性正常值，写入 90 天 synthetic_qa 数据，" +
+                        "并真实调用设备绑定、遥测上传、RHI、RDI-16 与 PIAS。请勿在真实用户账号运行。",
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        confirmSimulation = false
+                        onRunFullChainSimulation()
+                    },
+                ) { Text("确认运行") }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { confirmSimulation = false }) { Text("取消") }
+            },
+        )
+    }
     pendingProductCode?.let { productCode ->
         val product = state.wearableProducts.firstOrNull { it.productCode == productCode }
         AlertDialog(
@@ -164,6 +194,54 @@ internal fun DeviceBindingScreen(
                         fontSize = 11.sp,
                         modifier = Modifier.padding(top = 6.dp),
                     )
+                }
+            }
+        }
+        if (simulationAvailable) {
+            item {
+                ReHealthCardBlock {
+                    Text("Debug 全链路演练", color = Ink, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "唯一模拟数据入口；结果值仍由真实 RHI / RDI-16 / PIAS 链路计算。",
+                        color = Muted,
+                        fontSize = 10.sp,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                    Button(
+                        onClick = { confirmSimulation = true },
+                        enabled = !simulationRunning,
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(48.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Mint),
+                    ) {
+                        Text(if (simulationRunning) "正在真实跑完整链路…" else "生成 50 岁男性正常数据并运行")
+                    }
+                    if (simulationRunning) {
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                            color = Mint,
+                            trackColor = MintSoft,
+                        )
+                    }
+                    simulationReport?.stages?.forEach { stage ->
+                        val color = when (stage.status) {
+                            SimulationStageStatus.SUCCESS -> Mint
+                            SimulationStageStatus.WARNING -> Color(0xFFD38B18)
+                            SimulationStageStatus.FAILED -> Color(0xFFC94B4B)
+                        }
+                        val marker = when (stage.status) {
+                            SimulationStageStatus.SUCCESS -> "✓"
+                            SimulationStageStatus.WARNING -> "!"
+                            SimulationStageStatus.FAILED -> "×"
+                        }
+                        Text(
+                            "$marker ${stage.label}：${stage.detail}",
+                            color = color,
+                            fontSize = 10.sp,
+                            lineHeight = 15.sp,
+                            modifier = Modifier.padding(top = 7.dp),
+                        )
+                    }
                 }
             }
         }

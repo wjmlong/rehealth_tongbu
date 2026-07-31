@@ -46,6 +46,15 @@ data class RhiLiteCalculation(
     val availableDays: Int,
     val availableFeatureCount: Int,
     val domains: Map<String, Double?>,
+    val features: Map<String, RhiExtractedFeature> = emptyMap(),
+)
+
+data class RhiExtractedFeature(
+    val value: Double,
+    val confidence: Double,
+    val baselineMedian: Double? = null,
+    val baselineMad: Double? = null,
+    val baselineSampleCount: Int = 0,
 )
 
 /**
@@ -289,7 +298,62 @@ object RhiLiteEngine {
             availableDays = currentDates,
             availableFeatureCount = features.size + clinicalContextConfidences.count { it > 0.0 },
             domains = domains,
+            features = (features + clinicalContextFeatures(input)).mapValues { (_, feature) ->
+                feature.toExtractedFeature()
+            },
         )
+    }
+
+    private fun clinicalContextFeatures(
+        input: RhiLiteCalculationInput,
+    ): Map<String, FeatureValue> {
+        val result = mutableMapOf<String, FeatureValue>()
+        val profileConfidence = if (
+            input.context.profileObservedAt.isAvailableOn(input.scoredOn, input.zoneId)
+        ) {
+            0.60
+        } else {
+            0.0
+        }
+        input.context.age?.takeIf { it in 18..120 }?.let {
+            result["age"] = FeatureValue(it.toDouble(), profileConfidence)
+        }
+        input.context.diabetesStatus?.takeIf { it in 0..1 }?.let {
+            result["diabetes_status"] = FeatureValue(it.toDouble(), profileConfidence)
+        }
+        input.context.antihypertensiveMedication?.takeIf { it in 0..1 }?.let {
+            result["antihypertensive_medication"] = FeatureValue(it.toDouble(), profileConfidence)
+        }
+        input.context.lipidLoweringMedication?.takeIf { it in 0..1 }?.let {
+            result["lipid_lowering_medication"] = FeatureValue(it.toDouble(), profileConfidence)
+        }
+        input.context.prematureCvdFamilyHistory?.takeIf { it in 0..1 }?.let {
+            result["premature_cvd_family_history"] = FeatureValue(it.toDouble(), profileConfidence)
+        }
+        val manual = input.context.manual?.takeIf {
+            it.isAvailableOn(input.scoredOn, input.zoneId)
+        }
+        manual?.egfrMlMin173m2?.takeIf { it in 0.0..250.0 }?.let {
+            result["egfr"] = FeatureValue(
+                value = it,
+                confidence = manual.manualConfidence(input.scoredOn, input.zoneId),
+            )
+        }
+        val verifiedLabConfidence = manual
+            ?.takeIf { it.labConfirmed }
+            ?.verifiedLabConfidence(input.scoredOn, input.zoneId)
+            ?.takeIf { it > 0.0 }
+        manual?.takeIf { verifiedLabConfidence != null }
+            ?.totalCholesterolMmolL
+            ?.takeIf { it in 0.1..20.0 }
+            ?.let {
+                result["total_cholesterol"] = FeatureValue(it, verifiedLabConfidence!!)
+            } ?: input.latestMetric(
+            RingMetricType.TOTAL_CHOLESTEROL,
+            normalize = ::normalizeCholesterol,
+            valid = { it in 0.1..20.0 },
+        )?.let { result["total_cholesterol"] = it }
+        return result
     }
 
     private fun activityFeatures(
@@ -715,6 +779,20 @@ private data class FeatureValue(
     val baselineSamples: List<Double> = emptyList(),
     val absoluteScore: Double? = null,
 )
+
+private fun FeatureValue.toExtractedFeature(): RhiExtractedFeature {
+    val baselineMedian = baselineSamples.takeIf { it.size >= 7 }?.median()
+    val baselineMad = baselineMedian?.let { center ->
+        baselineSamples.map { kotlin.math.abs(it - center) }.median()
+    }
+    return RhiExtractedFeature(
+        value = value,
+        confidence = confidence.coerceIn(0.0, 1.0),
+        baselineMedian = baselineMedian,
+        baselineMad = baselineMad,
+        baselineSampleCount = baselineSamples.size,
+    )
+}
 
 private data class ActivityDay(
     val steps: Int,

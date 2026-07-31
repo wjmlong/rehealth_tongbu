@@ -7,7 +7,12 @@ Module: `jeecg-boot/jeecg-boot-module/jeecg-module-rehealth`.
 
 Production ReHealth backend code lives in `jeecg-module-rehealth`; the upstream Demo module is not part of this repository's runtime.
 
-Java backend owns API, persistence boundaries, and orchestration. Python `model-service` remains the authority for risk evaluation, intervention generation, and attribution. Java does not implement CatBoost, SHAP, CVD scoring, clinical diagnosis, treatment logic, or model fallback scoring.
+Java backend owns API, persistence boundaries and orchestration. Python
+`model-service` remains the authority for CVD risk/SHAP, while PIAS remains the
+authority for attribution. The authenticated personalized wellness-plan path is
+an explicit LangChain4j use case in Jeecg: it assembles bounded authoritative
+context and produces structured conservative actions, but does not implement
+CatBoost, SHAP, diagnosis, medication changes or causal attribution.
 
 ## Canonical Risk Path
 
@@ -53,11 +58,13 @@ Only `GET /rehealth/mobile/health` is marked `@IgnoreAuth`. All production-style
 | `POST` | `/rehealth/mobile/interviews` | Persists typed answers and baseline summary under the current authenticated user. |
 | `GET` | `/rehealth/mobile/interviews/latest` | Reads the current authenticated user's latest persisted interview. |
 | `POST` | `/rehealth/mobile/devices/bind` | Persists the current authenticated user's binding when software_db is enabled. |
-| `POST` | `/rehealth/mobile/measurements/batch` | Validates and transactionally writes the D2 batch to the separate `hardware` datasource; duplicate retries return the existing receipt. |
+| `POST` | `/rehealth/mobile/measurements/batch` | Gateway-routed Device Service authority validates `telemetry-v2` and transactionally writes measurement/sleep/activity/diet rows to TimescaleDB; duplicate retries return the existing receipt. |
 | `GET` | `/rehealth/mobile/measurements/recent?limit=50` | Reads only the authenticated user's newest normalized measurement, sleep, and activity rows; `limit` is clamped to 1–200 and raw signal payloads are never returned. |
 | `POST` | `/rehealth/mobile/features/evaluate` | Calls `model-service` `POST /v1/cvd/risk/evaluate`; returns controlled error if unavailable; 透传 model-service 的 model_trace 由 M1 引入的 governance trace 块到 Android 客户端，nullable 字段；详见 model-service/docs/MODEL_REGISTRY.md. |
+| `POST` | `/rehealth/mobile/rhi/evaluate-series` | Authenticated RHI preview. Accepts 1–120 ordered daily RHI v2 requests, calls `model-service POST /v2/rhi/evaluate` sequentially, and returns the same number of ordered evaluations. It does not persist an authoritative RHI snapshot. |
 | `GET` | `/rehealth/mobile/risk/latest` | Reads the authenticated user's latest persisted risk. |
-| `GET` | `/rehealth/mobile/interventions/today` | Reads only the authenticated user's plan generated during the current `rehealth.mobile.time-zone` calendar day. |
+| `POST` | `/rehealth/mobile/interventions/generate` | Ignores client-owned health context, reloads profile/interview/latest risk plus tenant-scoped Device Service telemetry context, generates structured actions through LangChain4j, then persists the versioned JSON plan. |
+| `GET` | `/rehealth/mobile/interventions/today` | Reads only the authenticated user's structured plan generated during the current `rehealth.mobile.time-zone` calendar day. |
 | `POST` | `/rehealth/mobile/interventions/{id}/feedback` | Persists feedback under the authenticated user and returns a typed durable acknowledgement. |
 
 Additional implemented E1 support endpoints:
@@ -65,7 +72,6 @@ Additional implemented E1 support endpoints:
 | Method | Path | E1 behavior |
 | --- | --- | --- |
 | `GET` | `/rehealth/mobile/health` | Dev health check for the ReHealth module. |
-| `POST` | `/rehealth/mobile/interventions/generate` | Calls `model-service` `POST /v1/cvd/intervention/generate`; useful for backend/D1 integration testing. |
 | `POST` | `/rehealth/mobile/attribution/events` | Authenticated proxy to PIAS `POST /api/pias/v2/attribute/individual`; persists request/result under the current user when software_db is enabled. |
 | `POST` | `/rehealth/mobile/agent/messages` | Authenticated health-agent proxy; backend assembles persisted user context, rate limits, and calls model-service. Provider credentials never enter the APK. |
 
@@ -100,6 +106,32 @@ rehealth:
 - `POST /v1/cvd/risk/evaluate`
 - `POST /v1/cvd/intervention/generate`
 - `POST /api/pias/v2/attribute/individual` through the separately configurable `rehealth.attribution-service.base-url`
+
+The retained model-service intervention endpoint is a compatibility path; the
+mobile `POST /interventions/generate` implementation uses Jeecg LangChain4j and
+does not forward client profile/risk fields to it.
+
+## Personalized Intervention Context
+
+Each generation performs fresh, fail-closed reads in this order:
+
+1. authenticated `software_db` profile;
+2. latest health interview;
+3. latest persisted CVD risk;
+4. Device Service current-local-day activity, sleep, measurements and diet,
+   followed by bounded recent/prior 7-day descriptive changes.
+
+The Device Service request includes the resolved tenant, authenticated user and
+`rehealth.mobile.time-zone`, and requires the internal service credential.
+Client `riskResult`, `featureVector` and `patientContext` remain accepted only
+for wire compatibility and are ignored as evidence. The response keeps legacy
+summary fields and adds `summary`, `focus_date`, context freshness fields, and
+1–5 `items` containing category, title, action, rationale, target, timing,
+priority and evidence references. Allowed categories are diet, exercise, sleep,
+blood pressure, metabolic and follow-up.
+
+No deterministic mock plan is returned when Device Service, the provider or
+software persistence is unavailable.
 
 Attribution request shape:
 
@@ -161,9 +193,10 @@ Risk, intervention, and attribution model calls also write minimal audit metadat
 
 ## D1 Notes
 
-Android D2 may mark a batch complete only when the response has
+Android may mark a batch complete only when the response has
 `accepted=true`, `persisted=true`, and an `ACCEPTED_*` status. E2.1 provides
-this durable MySQL MVP contract. A failed Jeecg envelope with `code=503` means
+this durable Device Service/TimescaleDB contract. A failed envelope with
+`code=503` means
 the local queue must retry the same `batchId`.
 
 ## E2.1 Telemetry Separation
@@ -172,6 +205,11 @@ the local queue must retry the same `batchId`.
 trigger risk scoring or call model-service. The request `userId` remains in the
 DTO for Android compatibility, but the backend overwrites it with the current
 Jeecg `LoginUser.id`; clients cannot choose row ownership.
+
+`telemetry-v2` adds optional `dietRecords` and returns `dietRecordCount`; older
+`d2-v1` and `telemetry-v1` batches remain accepted. Diet rows contain structured
+meal text/nutrients only—no raw images—and share the batch transaction,
+idempotency receipt and rollback semantics.
 
 Successful new response:
 
