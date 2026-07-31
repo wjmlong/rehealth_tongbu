@@ -21,8 +21,7 @@ ReHealth 是面向可穿戴设备和健康干预场景的软硬件一体化系�
   -> TimescaleDB + Transactional Outbox
   -> CVD 16 维特征与模型评分
   -> 干预建议
-  -> Android 本地 RDI 近期可干预负荷与证据
-  -> 用户反馈与长期风险趋势
+  -> 用户反馈与风险趋势
 ```
 
 Android 按 `productCode` 选择单一有效 Provider，Release 已注册 MRD、RWFit 和 HBand。
@@ -192,7 +191,8 @@ Feature Pipeline 生成版本化 32 维日快照，由 JeecgBoot 持久化并调
 未发布的后端路由。算法规划见
 `rehealth-algorithms/docs/RHI_V2_ALGORITHM_PLAN.md`。
 
-Android 当前还提供独立的本地 `RDI rdi-rule-1.0.0`：它从 Room 的近
+Android 当前保留独立的本地 `RDI rdi-rule-1.0.0` 算法与持久化骨架，但没有
+接入归因页或模型页。它可从 Room 的近
 7/28 日活动、睡眠及满足同设备/有效天数要求的 HRV 生成近期可干预负荷，
 将可信度直接乘入贡献，并对展示值做 `0.30/0.70` 平滑和普通日 `±3` 限幅。
 数据不足时结果向 50 收缩或冻结上一有效展示值。它不调用新接口、不覆盖

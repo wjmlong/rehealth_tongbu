@@ -44,14 +44,6 @@ internal fun ModelScreen(
 ) {
     val inputs = remember(state.measurements, state.sleep, state.activity) { modelInputsFromRingState(state) }
     val current = canonicalRiskStatus.value
-    val profile = AttributionDataProvenance.trustedProfile(state.patientMvp)
-    val coreFactors = remember(state, current) {
-        AttributionUiMapper.mapCore16Factors(
-            // The model page exposes the 16 input fields and availability, not internal SHAP/contribution values.
-            evaluation = null,
-            values = attributionFactorValues(state, profile),
-        )
-    }
     Page("健康模型", "结合本机健康数据进行云端风险评估") {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             ReHealthCardBlock {
@@ -95,8 +87,6 @@ internal fun ModelScreen(
                     if (index != inputs.lastIndex) HorizontalDivider(color = Line)
                 }
             }
-            SectionTitle("现有 CVD 16 项输入")
-            Core16InputCard(coreFactors)
             SectionTitle("个性化学习状态")
             ReHealthCardBlock {
                 StatusRow("健康档案", if (state.patientMvp?.profile != null) "已读取" else "待补充")
@@ -130,44 +120,6 @@ internal fun ModelScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-    }
-}
-
-@Composable
-private fun Core16InputCard(groups: List<AttributionFactorGroupUi>) {
-    ReHealthCardBlock {
-        groups.forEachIndexed { groupIndex, group ->
-            Text(
-                group.title,
-                color = Ink,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = if (groupIndex == 0) 0.dp else 12.dp, bottom = 3.dp),
-            )
-            group.factors.forEachIndexed { factorIndex, factor ->
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 7.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(factor.label, color = Ink, fontSize = 12.sp, modifier = Modifier.weight(1f))
-                    Text(
-                        factor.value ?: "待补充",
-                        color = if (factor.value == null) Color(0xFFE39A22) else Mint,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
-                }
-                if (factorIndex != group.factors.lastIndex) {
-                    HorizontalDivider(color = Line)
-                }
-            }
-        }
-        Text(
-            "这里只展示模型输入值与缺失状态，不展示内部贡献值。",
-            color = Muted,
-            fontSize = 10.sp,
-            modifier = Modifier.padding(top = 10.dp),
-        )
     }
 }
 

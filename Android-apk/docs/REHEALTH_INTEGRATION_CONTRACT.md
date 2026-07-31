@@ -78,7 +78,8 @@ Android does contain a separate local product index named RDI
 as the RHI v2 clinical/dynamic contract. RDI reads existing Room wearable rows,
 persists local daily snapshots plus calculation evidence, and leaves confirmed
 CVD-16 risk history unchanged. Unverified cuffless blood pressure, missing lab
-values, and inferred LDL/HbA1c are excluded.
+values, and inferred LDL/HbA1c are excluded. The retained RDI ViewModel and
+repository are not bound to the current Attribution or Model UI.
 
 Every durable business endpoint returns a retryable `503` envelope when the
 required database is disabled or unavailable. Android must not interpret an

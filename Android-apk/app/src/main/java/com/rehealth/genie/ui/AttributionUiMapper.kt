@@ -88,16 +88,6 @@ object AttributionUiMapper {
         )
     }
 
-    fun mapCore16Factors(
-        evaluation: AttributionRiskEvaluation?,
-        values: Map<String, String>,
-    ): List<AttributionFactorGroupUi> {
-        val factors = mapFactors(evaluation, values)
-        return sections.map { section ->
-            AttributionFactorGroupUi(section, factors.filter { it.section == section })
-        }
-    }
-
     private fun mapPias(
         result: IndividualAttributionResult?,
         refreshPhase: AttributionRefreshPhase,

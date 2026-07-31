@@ -45,6 +45,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -62,13 +64,11 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rehealth.genie.BuildConfig
+import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.network.PatientProfilePayload
 import com.rehealth.genie.phm.AttributionHistoryPoint
-import com.rehealth.genie.rdi.RdiContributionEntity
-import com.rehealth.genie.rdi.RdiDisplayData
 import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.RingUiState
 import com.rehealth.genie.ui.theme.AttributionDimensions as Dimensions
@@ -80,31 +80,75 @@ import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.CancellationException
 
 @Composable
 fun AttributionScreen(
     ringState: RingUiState,
     evaluation: AttributionRiskEvaluation?,
 ) {
+    val application = LocalContext.current.applicationContext as ReHealthApplication
     val feedbackViewModel: InterventionFeedbackViewModel = viewModel(
         factory = InterventionFeedbackViewModel.Factory(LocalContext.current),
     )
-    val rdiViewModel: RdiViewModel = viewModel(factory = RdiViewModel.Factory(LocalContext.current))
-    val rdi by rdiViewModel.display.collectAsState()
-    val rdiError by rdiViewModel.refreshError.collectAsState()
+    var selectedPeriod by remember { mutableStateOf(AttributionPeriod.DAYS_7) }
+    var retryKey by remember { mutableIntStateOf(0) }
+    var requestSequence by remember { mutableLongStateOf(0L) }
+    var refreshState by remember { mutableStateOf(AttributionRefreshState()) }
 
-    LaunchedEffect(ringState.lastSyncAt) {
-        rdiViewModel.refresh()
+    LaunchedEffect(
+        retryKey,
+        ringState.lastSyncAt,
+        ringState.patientMvp?.updatedAt,
+        evaluation?.riskScore,
+        evaluation?.confirmed,
+    ) {
+        requestSequence += 1
+        val requestId = requestSequence
+        val previousData = refreshState.data
+        refreshState = refreshState.reduce(AttributionRefreshEvent.Started(requestId))
+        try {
+            val history = application.riskHistoryRepository.attributionHistory(limit = 90)
+            val pias = if (history.isEmpty()) {
+                null
+            } else {
+                application.remotePhmService.attributeIndividual(history, forecastDays = 30)
+            }
+            refreshState = refreshState.reduce(
+                AttributionRefreshEvent.Succeeded(
+                    requestId = requestId,
+                    data = AttributionRemoteData(history = history, pias = pias),
+                ),
+            )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            val availableData = previousData ?: runCatching {
+                AttributionRemoteData(
+                    history = application.riskHistoryRepository.attributionHistory(limit = 90),
+                    pias = null,
+                )
+            }.getOrNull()
+            refreshState = refreshState.reduce(
+                AttributionRefreshEvent.Failed(
+                    requestId = requestId,
+                    message = error.message ?: "归因服务暂时不可用，请稍后重试。",
+                    data = availableData,
+                ),
+            )
+        }
     }
+
+    val remote = refreshState.data ?: AttributionRemoteData(emptyList(), null)
     val attributionProfile = AttributionDataProvenance.trustedProfile(ringState.patientMvp)
     val uiState = AttributionUiMapper.map(
         AttributionUiInput(
-            period = AttributionPeriod.DAYS_7,
+            period = selectedPeriod,
             today = LocalDate.now(),
             evaluation = evaluation,
-            remote = AttributionRemoteData(emptyList(), null),
-            refreshPhase = AttributionRefreshPhase.IDLE,
-            refreshError = null,
+            remote = remote,
+            refreshPhase = refreshState.phase,
+            refreshError = refreshState.errorMessage,
             activity = ringState.activity?.let { activity ->
                 AttributionActivityInput(
                     startedAt = activity.startedAt,
@@ -135,19 +179,17 @@ fun AttributionScreen(
 
     AttributionContent(
         state = uiState,
-        rdi = rdi,
-        rdiError = rdiError,
         feedbackViewModel = feedbackViewModel,
-        onRetry = rdiViewModel::refresh,
+        onPeriodSelected = { selectedPeriod = it },
+        onRetry = { retryKey += 1 },
     )
 }
 
 @Composable
 private fun AttributionContent(
     state: AttributionUiState,
-    rdi: RdiDisplayData?,
-    rdiError: String?,
     feedbackViewModel: InterventionFeedbackViewModel,
+    onPeriodSelected: (AttributionPeriod) -> Unit,
     onRetry: () -> Unit,
 ) {
     LazyColumn(
@@ -160,7 +202,7 @@ private fun AttributionContent(
                 Column(Modifier.weight(1f)) {
                     Text("健康归因", color = Palette.TextPrimary, style = Type.PageTitle)
                     Text(
-                        "近期可干预风险负荷 · 每日更新",
+                        "个人改善路径 · 近 ${state.period.selectorLabel}",
                         color = Palette.TextSecondary,
                         style = Type.PageSubtitle,
                         modifier = Modifier.padding(top = Dimensions.PageSubtitleTop),
@@ -171,9 +213,24 @@ private fun AttributionContent(
                 }
             }
         }
-        item { RdiOverviewCard(rdi, rdiError) }
+        item {
+            AttributionPeriodSelector(state.period, onPeriodSelected)
+        }
+        state.refreshMessage?.let { message ->
+            item {
+                AttributionRefreshBanner(
+                    message = message,
+                    loading = state.refreshPhase == AttributionRefreshPhase.LOADING ||
+                        state.refreshPhase == AttributionRefreshPhase.REFRESHING,
+                    canRetry = state.refreshPhase == AttributionRefreshPhase.ERROR,
+                    onRetry = onRetry,
+                )
+            }
+        }
+        item { AttributionSummaryCard(state) }
+        item { AttributionPiasCard(state.pias, onRetry) }
         item { AttributionActivityCard(state.activity) }
-        item { RdiPendingAnchorsCard() }
+        item { AttributionFactorsCard(state.factorGroups) }
         item { AttributionPlanCard(state.interventions, feedbackViewModel) }
         item {
             Row(
@@ -187,8 +244,7 @@ private fun AttributionContent(
                     modifier = Modifier.size(Dimensions.DisclaimerIcon),
                 )
                 Text(
-                    "动态风险影响分基于近期行为、可穿戴设备及最近检验数据生成，" +
-                        "不等同于疾病发生概率，不用于诊断或调整用药。",
+                    "归因结果仅用于健康管理参考。\n不代表医学诊断，也不能替代医生建议。",
                     color = Palette.TextSecondary,
                     style = Type.Body,
                     modifier = Modifier.weight(1f).padding(start = Dimensions.DisclaimerIconGap),
@@ -196,167 +252,6 @@ private fun AttributionContent(
             }
         }
     }
-}
-
-@Composable
-private fun RdiOverviewCard(rdi: RdiDisplayData?, error: String?) {
-    AttributionCard {
-        Text("动态风险影响分 RDI", color = Palette.TextPrimary, style = Type.CardTitle)
-        Text(
-            "0–100，越高表示近期可干预风险负荷越高",
-            color = Palette.TextSecondary,
-            style = Type.Detail,
-            modifier = Modifier.padding(top = 3.dp),
-        )
-        error?.let {
-            Text(
-                it,
-                color = Palette.ContributionRisk,
-                style = Type.Detail,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-        }
-        if (rdi == null) {
-            Text(
-                "正在根据本机 Room 数据建立近期画像",
-                color = Palette.TextSecondary,
-                style = Type.Body,
-                modifier = Modifier.padding(top = 10.dp),
-            )
-            LinearProgressIndicator(
-                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-                color = Palette.Accent,
-            )
-            return@AttributionCard
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-            verticalAlignment = Alignment.Bottom,
-        ) {
-            Text(
-                String.format(Locale.US, "%.1f", rdi.score),
-                color = Palette.Accent,
-                style = Type.SummaryScore,
-            )
-            Text(" / 100", color = Palette.TextSecondary, style = Type.Body)
-            Spacer(Modifier.weight(1f))
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    rdi.delta7d?.let { String.format(Locale.US, "近7天 %+.1f分", it) } ?: "近7天 正在积累",
-                    color = when {
-                        rdi.delta7d == null -> Palette.TextSecondary
-                        rdi.delta7d <= 0.0 -> Palette.Accent
-                        else -> Palette.ContributionRisk
-                    },
-                    style = Type.FactorTitle,
-                )
-                Text(
-                    "数据可信度 ${(rdi.confidence * 100).toInt()}%",
-                    color = Palette.TextSecondary,
-                    style = Type.Detail,
-                    modifier = Modifier.padding(top = 2.dp),
-                )
-            }
-        }
-        HorizontalDivider(
-            color = Palette.Border,
-            modifier = Modifier.padding(vertical = 10.dp),
-        )
-        Text("今天影响最大的因素", color = Palette.TextPrimary, style = Type.CardTitle)
-        if (rdi.topContributions.isEmpty()) {
-            Text(
-                "有效因素不足，正在积累数据；不会用年龄或默认正常值补位。",
-                color = Palette.TextSecondary,
-                style = Type.Body,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-        } else {
-            rdi.topContributions.forEach { contribution ->
-                RdiContributionRow(contribution)
-            }
-            if (rdi.topContributions.size < 3) {
-                Text(
-                    "其余因素仍在积累可信数据",
-                    color = Palette.TextSecondary,
-                    style = Type.Detail,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-            }
-        }
-        Text(
-            "算法 ${rdi.contributions.firstOrNull()?.algorithmVersion ?: "rdi-rule-1.0.0"} · " +
-                rdiStatusLabel(rdi.status),
-            color = Palette.TextSecondary,
-            style = Type.Detail,
-            modifier = Modifier.padding(top = 10.dp),
-        )
-    }
-}
-
-@Composable
-private fun RdiContributionRow(contribution: RdiContributionEntity) {
-    val improving = contribution.finalPoints < 0.0
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Text(
-            if (improving) "↓" else "↑",
-            color = if (improving) Palette.Accent else Palette.ContributionRisk,
-            style = Type.FactorTitle,
-        )
-        Column(Modifier.weight(1f).padding(horizontal = 8.dp)) {
-            Text(rdiFactorLabel(contribution.factorCode), color = Palette.TextPrimary, style = Type.FactorTitle)
-            Text(contribution.evidenceText, color = Palette.TextSecondary, style = Type.Detail)
-        }
-        Text(
-            String.format(Locale.US, "%+.2f分", contribution.finalPoints),
-            color = if (improving) Palette.Accent else Palette.ContributionRisk,
-            style = Type.FactorTitle,
-        )
-    }
-}
-
-@Composable
-private fun RdiPendingAnchorsCard() {
-    AttributionCard {
-        Text("待接入的确认数据", color = Palette.TextPrimary, style = Type.CardTitle)
-        Text(
-            "血检风险锚点：等待医院报告 OCR、逐项确认和单位质控后启用",
-            color = Palette.TextSecondary,
-            style = Type.Body,
-            modifier = Modifier.padding(top = 8.dp),
-        )
-        Text(
-            "今日饮食：等待菜品、份量和营养数据库结果经用户确认后启用",
-            color = Palette.TextSecondary,
-            style = Type.Body,
-            modifier = Modifier.padding(top = 8.dp),
-        )
-        Text(
-            "当前版本不会从手表推算 LDL、HbA1c，也不会把无袖带血压计入正式贡献。",
-            color = Palette.ContributionRisk,
-            style = Type.Detail,
-            modifier = Modifier.padding(top = 10.dp),
-        )
-    }
-}
-
-private fun rdiFactorLabel(code: String): String = when (code) {
-    "steps" -> "运动步数"
-    "verified_activity_minutes" -> "明确运动时长"
-    "sleep_duration" -> "睡眠时长"
-    "sleep_regularity" -> "睡眠规律性"
-    "sleep_efficiency" -> "睡眠效率"
-    "sleep_consistency_reward" -> "连续优质睡眠"
-    "hrv_personal_trend" -> "HRV 个人趋势"
-    else -> code
-}
-
-private fun rdiStatusLabel(status: String): String = when (status) {
-    "confirmed" -> "已确认"
-    "provisional" -> "初步结果"
-    else -> "正在积累"
 }
 
 @Composable
@@ -1167,7 +1062,7 @@ private fun AttributionForecastChart(forecast: AttributionForecastUi, modifier: 
     }
 }
 
-internal fun attributionFactorValues(
+private fun attributionFactorValues(
     state: RingUiState,
     profile: PatientProfilePayload?,
 ): Map<String, String> = buildMap {
