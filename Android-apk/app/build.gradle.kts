@@ -140,6 +140,10 @@ dependencies {
     implementation(files("libs/jl_bt_ota_V1.10.0_10931-release.aar"))
     implementation(files("libs/jl_rcsp_V0.7.2_527-release.aar"))
     implementation(files("libs/JL_Watch_V1.13.1_11214-release.aar"))
+    // VPOperateManager releases its JieLi watch-face stack from every disconnect callback.
+    // These official runtime companions are therefore required even though ReHealth does not expose dials/OTA.
+    implementation(files("libs/BmpConvert_V1.6.0_10604-release.aar"))
+    implementation(files("libs/abpartool-release.aar"))
     // VPOperateManager initializes its Nordic OTA adapter from the BLE connection callback,
     // even though ReHealth does not expose OTA. These are mandatory runtime dependencies.
     implementation("no.nordicsemi.android:mcumgr-core:2.7.4")

@@ -378,8 +378,22 @@ class RingViewModel(
 
     fun disconnect() {
         viewModelScope.launch {
-            repository.disconnect()
-            mutableUiState.update { it.copy(message = "设备已断开") }
+            runCatching { repository.disconnect() }
+                .onSuccess {
+                    mutableUiState.update {
+                        it.copy(isSyncing = false, measuringMetric = null, syncProgress = 0, message = "设备已断开")
+                    }
+                }
+                .onFailure { error ->
+                    mutableUiState.update {
+                        it.copy(
+                            isSyncing = false,
+                            measuringMetric = null,
+                            syncProgress = 0,
+                            message = error.message ?: "设备断开失败，请稍后重试",
+                        )
+                    }
+                }
         }
     }
 
@@ -719,8 +733,9 @@ private val DAILY_SYNC_METRICS = setOf(
     RingMetricType.ACTIVITY,
 )
 internal fun canonicalSleepMinutes(session: RingSleepSessionEntity): Int? {
-    val stagedMinutes = session.deepMinutes + session.lightMinutes + session.awakeMinutes +
-        session.remMinutes
+    session.totalSleepMinutes?.takeIf { it > 0 }?.let { return it }
+    // Awake time is part of the session span, not actual sleep duration.
+    val stagedMinutes = session.deepMinutes + session.lightMinutes + session.remMinutes
     if (stagedMinutes > 0) return stagedMinutes
     return ((session.endedAt - session.startedAt) / 60_000L)
         .toInt()

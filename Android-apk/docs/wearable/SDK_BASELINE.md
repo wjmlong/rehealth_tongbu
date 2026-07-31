@@ -117,6 +117,10 @@ phase.
 
 The HBand Provider follows `connectDevice -> Notify -> confirmDevicePwd ->
 settled aggregate/DeviceFunctionPackage capability merge -> syncPersonInfo -> READY`.
+The pinned runtime includes the vendor-required JieLi `BmpConvert` and Bluechip
+`abpartool` companions. `VPOperateManager` calls `releaseJLSDK()` from the BLE disconnect
+callback even when ReHealth does not expose watch-face or OTA features, so omitting
+`BmpConvert` is a connection-lifecycle crash rather than an optional dial limitation.
 The SDK marks `onFunctionSupportDataChange` deprecated and documents that it may fire
 multiple times before all fields are initialized, so numbered packages override the
 latest aggregate value for their fields. In particular, MT116 ECG and direct app-HRV
@@ -156,6 +160,9 @@ preparation/mother modes, TCM, OTA, dials, and messaging remain outside `RH-HB-E
 Temperature also remains outside `RH-HB-E01` after the current purchased device failed
 physical measurement verification. Sleep and origin history are serialized as dedicated
 `readSleepData` then `readOriginData` commands because the purchased device returned origin
-records but omitted sleep from `readAllHealthData`; five-minute step records are aggregated per local day.
+records but omitted sleep from `readAllHealthData`. The SDK's `allSleepTime` is persisted as
+the authoritative nullable Room v8 total; `sleepDown`/`sleepUp` remain timestamps, and an
+unreported awake duration is not synthesized from the total-minus-stage remainder. Five-minute
+step records are aggregated per local day.
 `SportUtil.getDistance()` divides metre-scale step distance by 1000, so the
 Provider converts the SDK kilometre value back to Room `distanceMeters`.

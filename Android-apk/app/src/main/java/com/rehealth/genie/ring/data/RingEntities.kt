@@ -33,6 +33,8 @@ data class RingSleepSessionEntity(
     @ColumnInfo(name = "interruption_minutes") val interruptionMinutes: Int,
     val source: String,
     @ColumnInfo(name = "raw_payload") val rawPayload: String? = null,
+    /** Vendor-reported sleep duration. Null means the provider did not expose an authoritative total. */
+    @ColumnInfo(name = "total_sleep_minutes") val totalSleepMinutes: Int? = null,
 )
 
 @Entity(tableName = "ring_activities")

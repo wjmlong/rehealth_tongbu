@@ -47,10 +47,13 @@ app/libs/vpprotocol-2.3.73.15.aar
 app/libs/jl_bt_ota_V1.10.0_10931-release.aar
 app/libs/jl_rcsp_V0.7.2_527-release.aar
 app/libs/JL_Watch_V1.13.1_11214-release.aar
+app/libs/BmpConvert_V1.6.0_10604-release.aar
+app/libs/abpartool-release.aar
 app/src/main/jniLibs/{arm64-v8a,armeabi-v7a,x86,x86_64}/libnative-lib.so
 ```
 
-三个 JieLi AAR 仅满足 HBand 核心 SDK 的连接/认证及管理器初始化依赖；应用不提供 OTA、
+五个 JieLi/Bluechip 配套 AAR 满足 HBand 核心 SDK 的连接、认证、管理器初始化和断连释放依赖；
+其中 `BmpConvert` 必须存在，否则 SDK 的 `releaseJLSDK()` 会在断连回调中崩溃。应用不提供 OTA、
 表盘或消息控制入口。
 HBand SDK 还会在 BLE 连接回调中初始化 Nordic OTA 适配器，因此固定引入官方要求的
 `mcumgr-core:2.7.4`、`mcumgr-ble:2.7.4` 和 `scanner:1.4.2`；应用仍不提供 OTA 入口。
@@ -128,7 +131,8 @@ Android 在请求成功后自动填入该值。Release 的签名字段和测试�
 才发送，不再跳转健康初识。服务端 AI 回复使用受限 Markdown 子集渲染；原始 HTML 不执行，
 远程图片不加载，链接目标不自动打开。
 
-Room v7 新增 `health_chat_conversations`，从 v6 消息无损生成会话标题、更新时间和当前会话。
+Room v7 新增 `health_chat_conversations`，从 v6 消息无损生成会话标题、更新时间和当前会话；
+Room v8 为睡眠会话新增可空的 `total_sleep_minutes`，v7→v8 迁移保留已有健康数据。
 首页支持本机会话列表、新建、切换以及经确认的删除/清空；删除使用本地墓碑阻止“最新会话”刷新
 立即恢复，但只影响本机缓存。当前后端只提供最新会话读取，没有列表/删除契约，因此云端
 `software_db` 完整历史不会随本机删除而删除。
@@ -238,9 +242,10 @@ Room v5 同时保存采样率、绘制频率、时长、导联、ECG 类型、�
 血压与 ECG 结果仅用于健康记录，SDK 疾病风险不作为诊断展示，页面固定提示
 “仅供健康参考，不能替代医疗诊断”。
 HBand 体温在当前采购设备上验证不通过，已从 `RH-HB-E01` 商品能力和数据页移除。
-若 HBand 只返回总睡眠时长而没有深睡/浅睡拆分，应用会保存阶段未知的睡眠会话并展示总时长，
-不会把未知时长伪造为深睡、浅睡或 REM。数据页按设备阶段分钟合计睡眠时长，阶段缺失才回退到
-会话起止跨度；“今日”查询按结束时间包含昨夜跨午夜、今日醒来的会话。
+HBand 睡眠把 SDK `allSleepTime` 原值保存到 Room v8 的 `total_sleep_minutes` 并优先用于展示；
+`sleepDown/sleepUp` 只保留实际入睡/起床时刻，不再用二者跨度替代睡眠总时长。SDK 未提供清醒
+分钟数时不会用总时长与深睡/浅睡之差伪造清醒阶段。其他 Provider 没有设备总时长时按
+深睡+浅睡+REM 计算，阶段也缺失才回退会话跨度；“今日”查询按结束时间包含昨夜跨午夜、今日醒来的会话。
 
 数据页默认打开“今日”。每个自然日最多保存一条已确认、非 Mock 风险结果；健康指数按
 `(1 - riskScore) * 100` 计算；今日优先展示 PIAS 个人归因返回的当前风险，7 天/30 天等周期

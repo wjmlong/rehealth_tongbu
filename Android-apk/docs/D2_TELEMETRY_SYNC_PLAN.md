@@ -41,8 +41,11 @@ Status: implemented software path; updated 2026-07-31.
 - Data-card visibility uses App-measurement capability separately from history capability:
   HRV/stress/MET are hidden when only historical sync is available. Dedicated HRV/MET or
   mini-checkup HRV/stress remain visible and measurable.
-- Period sleep aggregation queries sessions by `ended_at`, includes cross-midnight sessions
-  ending today, and uses stage totals before falling back to elapsed session time.
+- Room v8 adds nullable `total_sleep_minutes` through a non-destructive v7→v8 migration.
+  HBand persists the SDK-authoritative `allSleepTime` there and period aggregation uses it
+  before actual sleep stages (`deep + light + REM`) and finally elapsed session time. Awake
+  minutes and the `sleepDown`/`sleepUp` clock span are not counted as HBand sleep duration.
+  Queries still use `ended_at`, so cross-midnight sessions ending today remain included.
 - The Data-screen action is a connected-only daily sync for sleep, steps, and activity. It never
   auto-connects from the UI, and the in-process automatic cycle skips while disconnected. Explicit
   Foreground Service recovery retains bound-device reconnect behavior. For HBand, existing recent

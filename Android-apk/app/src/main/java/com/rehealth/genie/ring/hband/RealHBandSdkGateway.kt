@@ -1692,10 +1692,14 @@ internal class RealHBandSdkGateway(
         if (end <= start) end += ONE_DAY_MILLIS
         val deep = deepSleepTime.coerceAtLeast(0)
         val light = lowSleepTime.coerceAtLeast(0)
-        val total = allSleepTime.coerceAtLeast(deep + light)
+        // allSleepTime is the vendor's authoritative sleep duration. sleepDown/sleepUp
+        // represent the clock span and may include awake periods, so never derive the
+        // displayed duration from that span or inflate the total to match stage fields.
+        val total = allSleepTime.coerceAtLeast(0)
         if (total <= 0) return null
-        val awake = if (deep + light > 0) (total - deep - light).coerceAtLeast(0) else 0
-        return HBandSleepRecord(start, end, deep, light, awake, total)
+        // SleepData exposes wakeCount but not awake duration. The remainder can also be
+        // precise-sleep REM/insomnia, so labelling it as awake would invent a stage.
+        return HBandSleepRecord(start, end, deep, light, awakeMinutes = 0, totalMinutes = total)
     }
 
     private fun TimeData.toEpochMillis(): Long? = runCatching { toCalendar().timeInMillis }.getOrNull()?.takeIf { it > 0 }

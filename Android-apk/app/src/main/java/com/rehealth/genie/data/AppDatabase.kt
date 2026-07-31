@@ -51,7 +51,7 @@ data class AttributionLogEntity(
         HealthChatConversationEntity::class,
         HealthChatMessageEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -62,6 +62,12 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun healthChatDao(): HealthChatDao
 
     companion object {
+        val Migration7To8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE ring_sleep_sessions ADD COLUMN total_sleep_minutes INTEGER")
+            }
+        }
+
         val Migration6To7 = object : Migration(6, 7) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
@@ -327,6 +333,7 @@ abstract class AppDatabase : RoomDatabase() {
                     Migration4To5,
                     Migration5To6,
                     Migration6To7,
+                    Migration7To8,
                 )
                 .build()
     }

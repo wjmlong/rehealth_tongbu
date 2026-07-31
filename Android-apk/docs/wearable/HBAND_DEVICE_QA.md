@@ -76,7 +76,10 @@ For `RH-HB-E01`, validate only device-advertised capabilities:
 - sleep start/end, deep/light duration, cross-midnight handling, and the
   documented absence of a separate REM field in the selected SDK callback. Confirm
   the dedicated sleep read completes before the origin-history command starts. For
-  total-only sleep, verify duration is displayed while deep/light/REM remain unknown;
+  every returned night, compare the displayed duration directly with the watch/vendor
+  app `allSleepTime`; it must not equal the longer `sleepDown`→`sleepUp` span merely by
+  coincidence and must not include synthesized awake minutes. For total-only sleep,
+  verify duration is displayed while deep/light/REM remain unknown;
 - manual blood oxygen only when `getSpo2H()` is true; verify a real `%` value and
   wear-off/failure behavior;
 - when both HRV capability flags are true, verify `startDetectHrv` direct measurement and
@@ -151,6 +154,9 @@ test and has been removed from the product capability and data page.
 
 - Android 8/9, 12, and 14/15 where devices are available;
 - permissions denied, Bluetooth off, device out of range, and password timeout;
+- user-initiated disconnect and out-of-range disconnect after a successful connection;
+  verify the app remains alive and logcat contains no `NoClassDefFoundError` from
+  `releaseJLSDK`, `JLWatchFaceManager`, or `BmpConvert`;
 - app foreground/background, screen locked, process killed, and phone reboot;
 - foreground manual sync overlapping scheduled collection (commands must remain
   serialized);

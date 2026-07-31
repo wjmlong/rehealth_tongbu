@@ -6,7 +6,7 @@ import kotlin.test.assertEquals
 
 class SleepAggregationTest {
     @Test
-    fun `stage total wins over cross midnight wall clock span`() {
+    fun `actual sleep stages exclude awake minutes`() {
         val session = RingSleepSessionEntity(
             id = "sleep-1",
             startedAt = 1_000L,
@@ -19,7 +19,25 @@ class SleepAggregationTest {
             source = "test",
         )
 
-        assertEquals(410, canonicalSleepMinutes(session))
+        assertEquals(390, canonicalSleepMinutes(session))
+    }
+
+    @Test
+    fun `vendor total wins over stages and wall clock span`() {
+        val session = RingSleepSessionEntity(
+            id = "sleep-vendor-total",
+            startedAt = 1_000L,
+            endedAt = 10 * 60 * 60 * 1_000L,
+            deepMinutes = 90,
+            lightMinutes = 230,
+            awakeMinutes = 40,
+            remMinutes = 70,
+            interruptionMinutes = 40,
+            source = "hband_wearable",
+            totalSleepMinutes = 375,
+        )
+
+        assertEquals(375, canonicalSleepMinutes(session))
     }
 
     @Test
