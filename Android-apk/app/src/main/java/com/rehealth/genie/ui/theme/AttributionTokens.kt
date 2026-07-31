@@ -24,9 +24,10 @@ internal object AttributionPalette {
     val ImprovementWorsening = Color(0xFFE36B61)
     val ContributionRisk = Color(0xFFE39A22)
     val ActivityAccent = Color(0xFFE88625)
-    val ForecastNoAction = Color(0xFFF28B82)
+    val ForecastActual = Color(0xFF4E7BFF)
+    val ForecastNoAction = Color(0xFF97A4AA)
     val ForecastReduction = Color(0xFF4E7BFF)
-    val ForecastInterval = Color(0xFF9BAFAA)
+    val ForecastInterval = Color(0xFF9FD7C1)
     val ChartGrid = Color(0xFFE7F0ED)
     val FactorTrack = Color(0xFFF0F5F3)
 }

@@ -239,6 +239,10 @@ git diff --check
    - Confirm response includes `risk_score`, `risk_level`, `feature_contributions`, `model_version`, `is_mock`, `missing_fields`, `quality_warnings`, and `summary`.
    - Confirm Android/backend map snake_case response fields to camelCase DTO properties where needed.
    - Confirm `is_mock=true` is visible and not described as production model output.
+   - In “个人风险趋势”, confirm the solid line uses confirmed RDI-16 history,
+     the gray dashed line uses PIAS `forecast_no_action`, the green dashed line
+     uses `forecast_with_plan`, and the light area uses the returned confidence
+     interval. The card must state that the scenario is not a future disease probability.
 
 12. Intervention retrieval
     - Call `POST /v1/cvd/intervention/generate` through backend support endpoint or model-service directly.

@@ -86,6 +86,30 @@ class AttributionUiStateTest {
     }
 
     @Test
+    fun `keeps confirmed history separate from returned PIAS scenarios`() {
+        val state = map(
+            history = listOf(
+                point("2026-07-20", 0.31),
+                point("2026-07-22", 0.28),
+            ),
+            pias = IndividualAttributionResult(
+                status = "ready",
+                forecastNoAction = listOf(0.28, 0.29, 0.30),
+                forecastWithPlan = listOf(0.28, 0.26, 0.24),
+                forecastCiLower = listOf(0.24, 0.23, 0.21),
+                forecastCiUpper = listOf(0.32, 0.33, 0.34),
+            ),
+        )
+        val pias = assertIs<AttributionPiasUiState.Ready>(state.pias)
+
+        assertEquals(listOf(0.31, 0.28), state.selectedHistory.map { it.riskScore })
+        assertEquals(listOf(0.28, 0.29, 0.30), pias.forecast.noAction)
+        assertEquals(listOf(0.28, 0.26, 0.24), pias.forecast.withPlan)
+        assertEquals(listOf(0.24, 0.23, 0.21), pias.forecast.ciLower)
+        assertEquals(listOf(0.32, 0.33, 0.34), pias.forecast.ciUpper)
+    }
+
+    @Test
     fun `keeps ready PIAS state compact when forecast arrays are empty`() {
         val result = IndividualAttributionResult(status = "ready")
 
