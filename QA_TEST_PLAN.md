@@ -109,6 +109,14 @@ git diff --check
      existing confirmed CVD-16 interface and are separate from RHI. Missing
      wearable data must not be replaced with a normal score, and switching periods quickly
      must not display a result from the previously selected period.
+   - Open “我的 > 编辑健康与归因指标”. Confirm sedentary hours, waist, formal VO₂max,
+     HbA1c and eGFR can be saved and restored after process restart. Clearing any field must
+     persist `NULL`/missing and lower confidence instead of inserting a normal default.
+   - Confirm RHI accepts SBP/DBP only after the user confirms a valid 3–7 day upper-arm cuff
+     mean. Cuffless ring BP remains visible in Data but does not change RHI.
+   - Confirm a hospital lab requires at least one value, a valid report date and explicit
+     confirmation. Verify all five values are entered as mmol/L, and stale reports shrink
+     confidence rather than being silently refreshed or silently unit-converted.
    - Open Data and confirm the RDI-16 risk card displays `riskScore × 100` with one decimal only
      for a reachable, finite, in-range `isMock=false` response from the existing 16-feature
      evaluation path. Mock, failed, invalid, or absent results must
@@ -237,7 +245,15 @@ git diff --check
    - Confirm model-service errors surface an unavailable state without synthetic risk output and do not block BLE collection.
 
 11. Model-service risk result
-   - Confirm response includes `risk_score`, `risk_level`, `feature_contributions`, `model_version`, `is_mock`, `missing_fields`, `quality_warnings`, and `summary`.
+   - Confirm response includes `risk_score`, `risk_level`, `feature_contributions`,
+     `factor_contributions`, `factor_contribution_version`, the two 80/20 component
+     maps, `model_version`, `is_mock`, `missing_fields`, `quality_warnings`, and `summary`.
+   - Confirm the Attribution 16 rows use `factor_contributions`, show the exact vector
+     values sent for evaluation, and label the rule as Factor16 rather than RDI16.
+   - Confirm cuffless wearable BP stays on Data but produces missing/low-confidence
+     Factor16 BP; only a confirmed 3–7 day upper-arm cuff mean unlocks SBP/DBP.
+   - Confirm hospital labs require a report date and explicit source confirmation.
+     Without verified control-support trend the 20% component remains exactly zero.
    - Confirm Android/backend map snake_case response fields to camelCase DTO properties where needed.
    - Confirm `is_mock=true` is visible and not described as production model output.
 

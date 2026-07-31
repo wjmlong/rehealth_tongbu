@@ -78,16 +78,49 @@ Android does contain a separate local product index named RDI
 skeleton, but it does not drive the Attribution health improvement score.
 
 That existing score and chart use the Android RHI Lite evaluator
-(`rhi-deterministic-preview-2.0.0-android-lite`). It ports the governed RHI-100
+(`rhi-deterministic-preview-2.1.0-android-lite`). It ports the governed RHI-100
 preview curves, domain weights, confidence shrinkage, and display smoothing for
-wearable fields that can be derived safely from Room. Unsupported fields remain
-missing/neutral with zero confidence. Seven days uses the current RHI calculated
+fields with explicit provenance from Room, a confirmed clinical report, or the
+trusted user profile. Room schema 9 adds nullable sedentary time, waist,
+formal VO2max, HbA1c, and eGFR inputs; schema 10 adds confirmed upper-arm cuff
+seven-day BP and dated hospital-lab values. Migrations 8→9 and 9→10 are explicit
+and preserve existing health records. Unsupported fields remain missing/neutral
+with zero confidence; blanks are never replaced with normal values. Cuffless ring
+blood pressure remains display-only. Seven days uses the current RHI calculated
 from recent valid data; 30/90 days use the median of valid daily RHI values and
 require 7/14 valid days. The current clinical-risk value and PIAS personal-risk
 trend remain on the confirmed CVD-16 path. The Model UI is unchanged.
 
+Android RHI field provenance is fixed as follows:
+
+| Source | RHI fields |
+| --- | --- |
+| Trusted profile | age, biological sex, BMI fallback, nicotine exposure, diabetes status, medication flags, family history |
+| Health archive manual input | sedentary hours, waist, formal VO₂max, HbA1c, eGFR |
+| Confirmed upper-arm cuff | seven-day SBP and DBP mean plus 3–7 valid-day count |
+| Confirmed dated hospital report | fasting glucose, TC, LDL-C, HDL-C, TG |
+| Room wearable/activity/sleep | resting HR/HRV levels and changes, steps, MVPA, activity regularity, sleep duration/regularity/efficiency, nocturnal SpO₂ burden |
+| Room body composition/feedback | 28-day weight trend and composite adherence |
+
+TC, eGFR, age, sex, diabetes, medication, and family-history fields increase
+clinical-profile completeness but do not directly penalize the daily RHI.
+
+The Attribution 16-factor card is a third, explicitly separated view. It renders
+server-owned `factor_contributions` with rule version `factor16-rule-v1.0.0`;
+it is not RDI16 and does not replace the CVD probability or PIAS causal output.
+`feature_contributions` remains the model/SHAP field. The values shown beside the
+16 rows come from the exact local vector sent in the same evaluation request.
+Factor16 confirmation is keyed by its own rule version, so a deterministic
+Factor16 result may be shown even when `is_mock=true` for the separate CVD scorer;
+the mock CVD risk score itself remains hidden.
+Upper-arm cuff seven-day means require 3–7 valid days and explicit confirmation;
+cuffless wearable BP remains visible on Data but is excluded from this vector.
+Dated, user-confirmed hospital labs feed the five metabolic fields. Blood-pressure
+and lab cards apply the 80/20 display split; absent verified longitudinal
+control-support data stays zero and is never imputed.
+
 The Data UI follows the same separation. Its risk card is labeled RDI-16 and reuses
-the existing CVD-16 feature-evaluation path without changing its extractor. It renders
+the existing CVD-16 feature-evaluation path with the clinical BP source gate above. It renders
 a score only when the response is reachable, finite, in `[0, 1]`, and explicitly
 `isMock=false`; mock or failed output remains unavailable. Its health-index ring renders Android RHI Lite:
 Today/7-day selections use the current seven-day RHI, while 30/90-day selections

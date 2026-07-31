@@ -71,7 +71,6 @@ import com.rehealth.genie.network.PatientProfilePayload
 import com.rehealth.genie.rhi.RhiDailyScore
 import com.rehealth.genie.rhi.RhiPeriodAggregation
 import com.rehealth.genie.rhi.RhiPeriodSummary
-import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.RingUiState
 import com.rehealth.genie.ui.theme.AttributionDimensions as Dimensions
 import com.rehealth.genie.ui.theme.AttributionMotion as Motion
@@ -101,8 +100,11 @@ fun AttributionScreen(
     var requestSequence by remember { mutableLongStateOf(0L) }
     var refreshState by remember { mutableStateOf(AttributionRefreshState()) }
 
-    LaunchedEffect(selectedPeriod, ringState.lastSyncAt) {
-        rhiViewModel.refresh(selectedPeriod.days.toInt())
+    LaunchedEffect(selectedPeriod, ringState.lastSyncAt, ringState.patientMvp?.profile?.updatedAt) {
+        rhiViewModel.refresh(
+            selectedPeriod.days.toInt(),
+            AttributionDataProvenance.trustedProfile(ringState.patientMvp),
+        )
     }
 
     LaunchedEffect(
@@ -171,7 +173,8 @@ fun AttributionScreen(
                 )
             },
             allowDebugReplay = BuildConfig.DEBUG,
-            factorValues = attributionFactorValues(ringState, attributionProfile),
+            factorValues = evaluation?.factorValues?.takeIf { it.isNotEmpty() }
+                ?: attributionFactorValues(attributionProfile),
             interventions = ringState.patientMvp?.interventionPlan.orEmpty().map { intervention ->
                 AttributionInterventionInput(
                     id = intervention.id,
@@ -194,7 +197,10 @@ fun AttributionScreen(
         onPeriodSelected = { selectedPeriod = it },
         onRetry = {
             retryKey += 1
-            rhiViewModel.refresh(selectedPeriod.days.toInt())
+            rhiViewModel.refresh(
+                selectedPeriod.days.toInt(),
+                AttributionDataProvenance.trustedProfile(ringState.patientMvp),
+            )
         },
     )
 }
@@ -722,19 +728,43 @@ private fun AttributionFactorRow(
             ) {
                 Text(
                     if (contribution == null) {
-                        "本次已确认模型结果没有提供该项贡献值，保留该行以维持完整 Core16 输入视图。"
+                        "本次 Factor16 规则结果没有可用的该项贡献；缺失值不会按正常值补齐。"
                     } else {
-                        "模型返回贡献值 ${String.format(Locale.US, "%+.3f", contribution)}；正值表示风险方向，负值表示保护方向。"
+                        "Factor16 规则贡献 ${String.format(Locale.US, "%+.3f", contribution)}；正值表示风险方向，负值表示保护方向。"
                     },
                     color = Palette.TextPrimary,
                     style = Type.Detail,
                 )
                 Text(
-                    "数据来源：已确认云端风险评估与本机健康档案。",
+                    "数据来源：独立 Factor16 规则服务与本机真实入口；不读取 RDI16 或模型 SHAP 作为本卡贡献。",
                     color = Palette.TextSecondary,
                     style = Type.Micro,
                     modifier = Modifier.padding(top = Dimensions.FactorEvidenceTop),
                 )
+                if (factor.measuredComponent != null) {
+                    Text(
+                        "80/20：实测部分 ${String.format(Locale.US, "%+.3f", factor.measuredComponent)}；" +
+                            "控制支持趋势 ${String.format(Locale.US, "%+.3f", factor.controlSupportComponent ?: 0.0)}。" +
+                            " 未取得可验证趋势时不补造 20% 数值。",
+                        color = Palette.TextSecondary,
+                        style = Type.Micro,
+                        modifier = Modifier.padding(top = Dimensions.FactorEvidenceTop),
+                    )
+                }
+                Text(
+                    factorEntryHint(factor.key),
+                    color = Palette.TextSecondary,
+                    style = Type.Micro,
+                    modifier = Modifier.padding(top = Dimensions.FactorEvidenceTop),
+                )
+                factor.contributionRuleVersion?.let { version ->
+                    Text(
+                        "规则版本：$version（归因 16 项，不是 RDI16）",
+                        color = Palette.TextSecondary,
+                        style = Type.Micro,
+                        modifier = Modifier.padding(top = Dimensions.FactorEvidenceTop),
+                    )
+                }
             }
         }
         if (rank != AttributionUiMapper.CANONICAL_FACTOR_KEYS.size) {
@@ -1088,10 +1118,7 @@ private fun AttributionForecastChart(forecast: AttributionForecastUi, modifier: 
     }
 }
 
-private fun attributionFactorValues(
-    state: RingUiState,
-    profile: PatientProfilePayload?,
-): Map<String, String> = buildMap {
+private fun attributionFactorValues(profile: PatientProfilePayload?): Map<String, String> = buildMap {
     profile?.age?.let { put("age", "$it 岁") }
     profile?.gender?.let { gender ->
         put("gender", when (gender.lowercase()) { "male" -> "男"; "female" -> "女"; else -> gender })
@@ -1102,10 +1129,16 @@ private fun attributionFactorValues(
     profile?.diabetesHistory?.let { put("diabetes_history", it.asHistory()) }
     profile?.hypertensionHistory?.let { put("hypertension_history", it.asHistory()) }
     profile?.familyHistory?.let { put("family_history", it.asHistory()) }
-    state.measurements[RingMetricType.BLOOD_PRESSURE]?.let { pressure ->
-        put("sbp", "${pressure.primaryValue.toInt()} mmHg")
-        pressure.secondaryValue?.let { put("dbp", "${it.toInt()} mmHg") }
-    }
+}
+
+private fun factorEntryHint(key: String): String = when (key) {
+    "age", "gender", "bmi", "smoking", "drinking",
+    "diabetes_history", "hypertension_history", "family_history",
+    -> "真实入口：我的 > 编辑个人资料"
+    "sbp", "dbp", "fasting_glucose", "total_cholesterol", "ldl", "hdl", "triglycerides",
+    -> "真实入口：我的 > 编辑健康与归因指标"
+    "exercise_days" -> "真实入口：数据 > 设备活动；中等强度 30 分钟或高强度 15 分钟计入"
+    else -> "真实入口：健康档案"
 }
 
 private fun Boolean.asYesNo(): String = if (this) "是" else "否"

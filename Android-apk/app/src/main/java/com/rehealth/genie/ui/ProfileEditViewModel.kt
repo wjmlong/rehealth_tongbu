@@ -31,9 +31,31 @@ class ProfileEditViewModel(private val context: Context) : ViewModel() {
     private val _uiState = MutableStateFlow(ProfileEditUiState())
     val uiState: StateFlow<ProfileEditUiState> = _uiState.asStateFlow()
 
-    fun save(name: String, gender: String?, age: String, heightCm: String, weightKg: String) {
+    fun save(
+        name: String,
+        gender: String?,
+        age: String,
+        heightCm: String,
+        weightKg: String,
+        smoking: Boolean? = null,
+        drinking: Boolean? = null,
+        diabetesHistory: Boolean? = null,
+        hypertensionHistory: Boolean? = null,
+        familyHistory: Boolean? = null,
+    ) {
         if (_uiState.value.isSaving) return
-        val input = validateProfileEditInput(name, gender, age, heightCm, weightKg)
+        val input = validateProfileEditInput(
+            name,
+            gender,
+            age,
+            heightCm,
+            weightKg,
+            smoking,
+            drinking,
+            diabetesHistory,
+            hypertensionHistory,
+            familyHistory,
+        )
             .getOrElse { error ->
                 _uiState.value = ProfileEditUiState(errorMessage = error.message ?: "个人资料格式不正确")
                 return
@@ -55,6 +77,11 @@ class ProfileEditViewModel(private val context: Context) : ViewModel() {
                 age = input.age,
                 heightCm = input.heightCm,
                 weightKg = input.weightKg,
+                smoking = input.smoking,
+                drinking = input.drinking,
+                diabetesHistory = input.diabetesHistory,
+                hypertensionHistory = input.hypertensionHistory,
+                familyHistory = input.familyHistory,
             )
             when (val result = app.authenticatedApiClient.updateProfile(request)) {
                 is ApiResult.Success -> {

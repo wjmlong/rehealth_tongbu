@@ -23,6 +23,11 @@ data class AttributionRiskEvaluation(
     val riskLevel: String?,
     val contributions: Map<String, Double>,
     val confirmed: Boolean,
+    val factorConfirmed: Boolean = confirmed,
+    val factorValues: Map<String, String> = emptyMap(),
+    val contributionRuleVersion: String? = null,
+    val measuredComponents: Map<String, Double> = emptyMap(),
+    val controlSupportComponents: Map<String, Double> = emptyMap(),
 )
 
 data class AttributionActivityInput(
@@ -70,6 +75,9 @@ data class AttributionFactorUi(
     val section: String,
     val value: String?,
     val contribution: Double?,
+    val contributionRuleVersion: String?,
+    val measuredComponent: Double?,
+    val controlSupportComponent: Double?,
 ) {
     val contributionMissing: Boolean
         get() = contribution == null

@@ -107,6 +107,9 @@ class ReHealthApplication : Application() {
     val rhiRepository by lazy {
         RhiRepository(
             ringDataDao = database.ringDataDao(),
+            manualInputDao = database.rhiManualHealthInputDao(),
+            interventionFeedbackDao = database.interventionFeedbackDao(),
+            userIdProvider = { sessionStore.userId },
         )
     }
 

@@ -11,6 +11,7 @@ import java.time.ZoneOffset
 data class HealthMemorySnapshot(
     val profile: BaselineHealthProfile? = null,
     val labs: ClinicalLabValues? = null,
+    val clinicalBloodPressure: ClinicalBloodPressureValues? = null,
     val ringMeasurements: List<RingMeasurementEntity> = emptyList(),
     val ringActivities: List<RingActivityEntity> = emptyList(),
     val ringSleepSessions: List<RingSleepSessionEntity> = emptyList(),
@@ -24,6 +25,7 @@ data class HealthMemorySnapshot(
         fun fromPatientProfile(
             profile: PatientProfilePayload?,
             labs: ClinicalLabValues? = null,
+            clinicalBloodPressure: ClinicalBloodPressureValues? = null,
             ringMeasurements: List<RingMeasurementEntity> = emptyList(),
             ringActivities: List<RingActivityEntity> = emptyList(),
             ringSleepSessions: List<RingSleepSessionEntity> = emptyList(),
@@ -47,6 +49,7 @@ data class HealthMemorySnapshot(
                     )
                 },
                 labs = labs,
+                clinicalBloodPressure = clinicalBloodPressure,
                 ringMeasurements = ringMeasurements,
                 ringActivities = ringActivities,
                 ringSleepSessions = ringSleepSessions,
@@ -76,6 +79,14 @@ data class ClinicalLabValues(
     val ldl: Double? = null,
     val hdl: Double? = null,
     val triglycerides: Double? = null,
+    val recordedAt: Long? = null,
+)
+
+data class ClinicalBloodPressureValues(
+    val sbp7dMean: Double? = null,
+    val dbp7dMean: Double? = null,
+    val validDays: Int? = null,
+    val confirmedUpperArmCuff: Boolean = false,
     val recordedAt: Long? = null,
 )
 

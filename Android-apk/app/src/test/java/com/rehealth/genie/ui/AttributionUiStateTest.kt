@@ -149,6 +149,26 @@ class AttributionUiStateTest {
     }
 
     @Test
+    fun `shows independently confirmed factor rules when cvd scorer is mock`() {
+        val state = map(
+            evaluation = AttributionRiskEvaluation(
+                riskScore = 0.30,
+                riskLevel = "moderate",
+                contributions = mapOf("ldl" to 0.96),
+                confirmed = false,
+                factorConfirmed = true,
+                contributionRuleVersion = "factor16-rule-v1.0.0",
+                measuredComponents = mapOf("ldl" to 0.96),
+                controlSupportComponents = mapOf("ldl" to 0.0),
+            ),
+        )
+
+        assertEquals("--", state.currentRiskText)
+        assertEquals(0.96, state.factors.single { it.key == "ldl" }.contribution)
+        assertEquals(0.0, state.factors.single { it.key == "ldl" }.controlSupportComponent)
+    }
+
+    @Test
     fun `maps real Room activity and labels debug replay honestly`() {
         val real = map(
             activity = AttributionActivityInput(

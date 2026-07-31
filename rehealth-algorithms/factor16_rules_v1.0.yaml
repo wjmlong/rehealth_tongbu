@@ -1,0 +1,282 @@
+version: "factor16-rule-v1.0.0"
+name: "ReHealth 归因16项贡献规则"
+positioning: "归因页16项因素贡献展示规则；不等同于RDI16、疾病发生概率或因果效应"
+score:
+  base: 50.0
+  min: 0.0
+  max: 100.0
+  direction: "higher_is_worse"
+  formula: "clamp(base + sum(effective_contributions) + therapy_modifier, min, max)"
+  change_formula: "min(q_current, q_previous) * (contribution_current - contribution_previous)"
+  static_features_excluded_from_7d_28d_delta:
+    - age
+    - biological_sex
+    - diabetes_history
+    - hypertension_history
+    - premature_family_history
+
+confidence:
+  source:
+    ehr_or_verified_hospital_report: 1.0
+    validated_upper_arm_cuff: 1.0
+    user_confirmed_lab_ocr: 0.95
+    manual_entry_with_photo: 0.80
+    wearable_activity: 0.80
+    self_report_only: 0.60
+    unconfirmed_ocr: 0.0
+    unvalidated_cuffless_watch_bp: 0.0
+  lab_freshness:
+    days_0_90: 1.0
+    days_91_180: 0.8
+    days_181_365: 0.5
+    days_over_365: 0.2
+  missing_policy: "q=0; contribution is not treated as normal; show missing/stale warning"
+
+features:
+  age:
+    reference_years: 40.0
+    step_years: 5.0
+    points_per_step: 0.8
+    min_points: -2.4
+    max_points: 8.0
+    formula: "clamp((age - 40) / 5 * 0.8, -2.4, 8.0)"
+    daily_delta: false
+
+  biological_sex:
+    mapping:
+      female: 0.0
+      male: 1.5
+      unknown_or_not_applicable: 0.0
+    note: "Use clinical biological sex; unknown lowers applicability confidence rather than being imputed."
+    daily_delta: false
+
+  bmi:
+    reference_range: [18.5, 24.0]
+    formula:
+      underweight: "clamp((18.5 - bmi) * 0.5, 0, 2.0)"
+      normal: "0"
+      overweight: "clamp((bmi - 24.0) * 0.5, 0, 2.0)"
+      obesity: "clamp(2.0 + (bmi - 28.0) * 0.75, 2.0, 5.0)"
+    min_points: 0.0
+    max_points: 5.0
+
+  sbp:
+    reference_mmhg: 120.0
+    step_mmhg: 5.0
+    points_per_step: 0.6
+    min_points: -1.2
+    max_points: 6.0
+    formula: "clamp((sbp_7d_mean - 120) / 5 * 0.6, -1.2, 6.0)"
+    valid_source: "validated upper-arm cuff; minimum 3 valid days, preferably 7"
+    safety:
+      low: "sbp < 90: do not reward; raise low-BP flag"
+      high: "sbp >= 180: cap contribution and raise urgent review flag"
+
+  dbp:
+    reference_mmhg: 80.0
+    step_mmhg: 5.0
+    points_per_step: 0.5
+    min_points: -1.0
+    max_points: 4.0
+    formula: "clamp((dbp_7d_mean - 80) / 5 * 0.5, -1.0, 4.0)"
+    safety:
+      low: "dbp < 60: do not reward; raise low-BP flag"
+      high: "dbp >= 110: cap contribution and raise urgent review flag"
+
+  fasting_glucose:
+    reference_mmol_l:
+      no_diabetes: 6.1
+      known_diabetes_default: 7.0
+      preferred: "clinician_target_when_available"
+    step_mmol_l: 0.5
+    points_per_step: 0.6
+    min_points: -1.2
+    max_points: 4.0
+    formula: "clamp((fpg - target_fpg) / 0.5 * 0.6, -1.2, 4.0)"
+    safety:
+      low: "fpg < 3.9: no protective points; raise hypoglycemia flag"
+      diagnostic: "fpg >= 7.0 without known diabetes: request repeat/clinical confirmation"
+
+  total_cholesterol:
+    reference_mmol_l: 5.2
+    step_mmol_l: 0.5
+    points_per_step: 0.5
+    min_points: -1.0
+    max_points: 2.0
+    formula: "clamp((tc - 5.2) / 0.5 * 0.5, -1.0, 2.0) * redundancy_multiplier"
+    redundancy_multiplier:
+      ldl_available: 0.35
+      ldl_and_non_hdl_missing: 1.0
+
+  ldl_c:
+    target_mmol_l_by_risk_tier:
+      provisional_low_risk: 3.4
+      moderate_or_high_risk: 2.6
+      very_high_risk: 1.8
+      ultra_high_risk: 1.4
+    step_mmol_l: 0.5
+    points_per_step: 1.2
+    min_points: -2.4
+    max_points: 4.0
+    formula: "clamp((ldl - target_ldl) / 0.5 * 1.2, -2.4, 4.0)"
+    safety: "ldl >= 4.9: raise possible severe hypercholesterolemia review flag"
+
+  hdl_c:
+    reference_mmol_l: 1.0
+    step_mmol_l: 0.2
+    points_per_step: 0.4
+    min_points: -1.2
+    max_points: 1.2
+    formula: "clamp((1.0 - hdl) / 0.2 * 0.4, -1.2, 1.2)"
+    note: "Small cap; high HDL is not used to cancel major adverse factors."
+
+  triglycerides:
+    reference_mmol_l: 1.7
+    step_mmol_l: 0.5
+    points_per_step: 0.6
+    min_points: -1.2
+    max_points: 2.4
+    formula: "clamp((tg - 1.7) / 0.5 * 0.6, -1.2, 2.4)"
+    safety: "tg >= 5.7: cap contribution and raise clinical review flag"
+
+  exercise_days:
+    reference_days_per_week: 5.0
+    qualifying_day: ">=30 min moderate activity or >=15 min vigorous activity"
+    step_days: 1.0
+    points_per_step: 0.6
+    min_points: -1.2
+    max_points: 3.0
+    formula: "clamp((5 - qualifying_days_7d) * 0.6, -1.2, 3.0)"
+
+  smoking:
+    mapping:
+      never_or_no_current_exposure: 0.0
+      daily_secondhand_exposure: 1.0
+      former_quit_5y_or_more: 0.5
+      former_quit_1_to_5y: 1.5
+      former_quit_under_1y: 2.5
+      current_occasional_or_1_to_4_cigarettes_day: 3.5
+      current_5_or_more_cigarettes_day_or_daily_heated_tobacco_vape: 5.0
+    binary_fallback:
+      0: 0.0
+      1: 5.0
+    min_points: 0.0
+    max_points: 5.0
+
+  drinking:
+    reference_g_alcohol_day: 0.0
+    step_g_alcohol_day: 15.0
+    points_per_step: 0.6
+    min_points: 0.0
+    max_points: 3.0
+    formula: "clamp((avg_pure_alcohol_g_day / 15) * 0.6 + binge_bonus + chronic_disease_bonus, 0, 3.0)"
+    binge_bonus: "1.0 if >=60 g pure alcohol on one occasion in the last 7 days, else 0"
+    chronic_disease_bonus: "0.5 if known chronic disease and current drinking, else 0"
+    binary_fallback:
+      0: 0.0
+      1: 0.8
+    note: "Never assign protective negative points for alcohol."
+
+  diabetes_history:
+    mapping:
+      no: 0.0
+      prediabetes_only: 1.0
+      verified_diabetes: 3.0
+      uncertain_self_report: 1.5
+    min_points: 0.0
+    max_points: 3.0
+    daily_delta: false
+
+  hypertension_history:
+    mapping:
+      no: 0.0
+      verified_diagnosis: 2.5
+      uncertain_self_report: 1.0
+    min_points: 0.0
+    max_points: 2.5
+    daily_delta: false
+
+  premature_family_history:
+    definition: "first-degree relative with ASCVD before age 55 in male or before age 65 in female"
+    mapping:
+      none: 0.0
+      family_history_age_unknown: 1.0
+      one_premature_first_degree_relative: 2.0
+      two_or_more_or_both_parental_lines: 3.0
+    binary_fallback:
+      0: 0.0
+      1: 2.0
+    min_points: 0.0
+    max_points: 3.0
+    daily_delta: false
+
+cross_feature_caps:
+  bp_domain: "clamp(sbp + dbp + hypertension_history, -2.0, 9.0)"
+  glucose_domain: "clamp(fasting_glucose + diabetes_history, -1.2, 6.0)"
+  lipid_domain: "clamp(total_cholesterol + ldl_c + hdl_c + triglycerides, -4.0, 8.0)"
+
+substitutions_not_extra_features:
+  hba1c:
+    use_when: "confirmed HbA1c is available and is more recent than fasting glucose"
+    target_percent:
+      no_diabetes: 5.7
+      known_diabetes_default: 7.0
+      preferred: "clinician_target_when_available"
+    step_percent_points: 0.5
+    points_per_step: 1.0
+    min_points: -1.5
+    max_points: 3.0
+    formula: "clamp((hba1c - target_hba1c) / 0.5 * 1.0, -1.5, 3.0)"
+    rule: "replace fasting_glucose contribution; never add both at full weight"
+  non_hdl_c:
+    use_when: "LDL-C is missing/unreliable or specifically selected by clinician"
+    target_formula_mmol_l: "target_ldl + 0.8"
+    step_mmol_l: 0.5
+    points_per_step: 0.8
+    min_points: -1.6
+    max_points: 3.0
+    formula: "clamp((non_hdl - target_non_hdl) / 0.5 * 0.8, -1.6, 3.0)"
+    rule: "replace LDL-C contribution; never add both at full weight"
+
+therapy_modifier:
+  positioning: "process/adherence modifier only; objective drug benefit is reflected in BP, LDL-C or glycemia"
+  group_by_domain: [blood_pressure, lipids, glucose]
+  adherence_window_days: 28
+  source_confidence:
+    ehr_or_doctor_prescription: 1.0
+    pharmacy_label_ocr_and_user_confirmed: 0.8
+    self_report_only: 0.5
+  adherence_mapping_per_domain:
+    unknown: 0.0
+    below_50_percent: 0.6
+    50_to_79_percent: 0.3
+    80_to_94_percent: -0.3
+    95_percent_or_more: -0.6
+  persistence_multiplier: "min(days_on_current_regimen / 28, 1.0)"
+  formula_per_domain: "source_confidence * persistence_multiplier * adherence_points"
+  total_cap: [-2.0, 2.0]
+  rules:
+    - "Do not reward a drug merely because its name appears in the medication list."
+    - "Do not count clinician-directed discontinuation as non-adherence."
+    - "Antiplatelet and anticoagulant therapy require indication-specific modules and receive 0 generic Factor16 points."
+    - "Medication changes never generate automatic dose advice."
+
+supplements:
+  default_contribution: 0.0
+  max_negative_process_points: -0.2
+  total_cap: [-0.5, 0.5]
+  eligible_for_small_process_credit_only_if:
+    - "documented indication or deficiency"
+    - "clinician recommendation"
+    - "exact ingredient and dose known"
+    - "interaction screen passed"
+    - "objective follow-up planned"
+  rules:
+    - "No generic cardiovascular prevention points for multivitamins, vitamin E, beta-carotene, herbal mixtures or OTC fish oil."
+    - "Potential interaction/contraindication triggers a safety alert, not a fabricated risk reduction."
+    - "Objective biomarker changes are scored in the relevant 16-factor feature, not again under supplements."
+
+lab_80_20_display_rule:
+  formula: "lab_card = 0.8 * verified_measured_contribution + 0.2 * allocated_control_support"
+  accounting: "The 20% support is a redistribution of already-calculated behavior/adherence contributions, not an extra addition to the total score."
+  prohibition: "Never convert behavior data into a fabricated LDL-C, HbA1c or glucose value."

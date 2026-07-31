@@ -195,6 +195,10 @@ class RiskEvaluateResponse(BaseModel):
     risk_score: float = Field(ge=0.0, le=1.0)
     risk_level: RiskLevel
     feature_contributions: dict[str, float]
+    factor_contributions: dict[str, float] = Field(default_factory=dict)
+    factor_contribution_version: str | None = None
+    factor_measured_components: dict[str, float] = Field(default_factory=dict)
+    factor_control_support_components: dict[str, float] = Field(default_factory=dict)
     model_version: str
     is_mock: bool
     missing_fields: list[str]

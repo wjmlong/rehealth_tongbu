@@ -60,6 +60,14 @@ data class RiskResultDto(
     val riskLevel: String? = null,
     val feature_contributions: Map<String, Double>? = null,
     val featureContributions: Map<String, Double>? = null,
+    val factor_contributions: Map<String, Double>? = null,
+    val factorContributions: Map<String, Double>? = null,
+    val factor_contribution_version: String? = null,
+    val factorContributionVersion: String? = null,
+    val factor_measured_components: Map<String, Double>? = null,
+    val factorMeasuredComponents: Map<String, Double>? = null,
+    val factor_control_support_components: Map<String, Double>? = null,
+    val factorControlSupportComponents: Map<String, Double>? = null,
     val model_version: String? = null,
     val modelVersion: String? = null,
     val is_mock: Boolean? = null,
@@ -80,6 +88,18 @@ data class RiskResultDto(
 
     val normalizedFeatureContributions: Map<String, Double>
         get() = feature_contributions ?: featureContributions ?: emptyMap()
+
+    val normalizedFactorContributions: Map<String, Double>
+        get() = factor_contributions ?: factorContributions ?: emptyMap()
+
+    val normalizedFactorContributionVersion: String?
+        get() = factor_contribution_version ?: factorContributionVersion
+
+    val normalizedFactorMeasuredComponents: Map<String, Double>
+        get() = factor_measured_components ?: factorMeasuredComponents ?: emptyMap()
+
+    val normalizedFactorControlSupportComponents: Map<String, Double>
+        get() = factor_control_support_components ?: factorControlSupportComponents ?: emptyMap()
 
     val normalizedModelVersion: String?
         get() = model_version ?: modelVersion

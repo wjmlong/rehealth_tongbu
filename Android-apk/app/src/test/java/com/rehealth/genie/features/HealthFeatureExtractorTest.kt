@@ -53,7 +53,7 @@ class HealthFeatureExtractorTest {
     }
 
     @Test
-    fun bloodPressurePresentUsesMostRecentPlausibleRingMeasurement() {
+    fun cufflessWearableBloodPressureIsExcludedFromFactorVector() {
         val snapshot = HealthMemorySnapshot(
             ringMeasurements = listOf(
                 bp("older", now - 20_000, 122.0, 80.0),
@@ -63,19 +63,26 @@ class HealthFeatureExtractorTest {
 
         val vector = extractor.extract(snapshot)
 
-        assertEquals(118.0, vector.sbp!!, 0.0)
-        assertEquals(76.0, vector.dbp!!, 0.0)
+        assertNull(vector.sbp)
+        assertNull(vector.dbp)
         assertEquals(FeatureSource.REAL_DEVICE, vector.featureQuality.getValue(CvdFeatureFields.SBP).source)
-        assertEquals(FeatureQualityStatus.VALID, vector.featureQuality.getValue(CvdFeatureFields.DBP).status)
+        assertEquals(FeatureQualityStatus.LOW_CONFIDENCE, vector.featureQuality.getValue(CvdFeatureFields.DBP).status)
     }
 
     @Test
-    fun activityPresentDerivesExerciseDaysFromActivitiesAndSteps() {
+    fun activityPresentUsesThirtyMinuteModerateOrFifteenMinuteVigorousRule() {
         val dayMs = 86_400_000L
         val snapshot = HealthMemorySnapshot(
             ringActivities = listOf(
-                activity("walk", now - dayMs, steps = 4_000, durationMinutes = 25),
-                activity("short", now - (dayMs * 2), steps = 2_000, durationMinutes = 10),
+                activity("walk", now - dayMs, steps = 4_000, durationMinutes = 30),
+                activity(
+                    "run",
+                    now - (dayMs * 2),
+                    steps = 2_000,
+                    durationMinutes = 15,
+                    activityType = "running",
+                ),
+                activity("short", now - (dayMs * 3), steps = 2_000, durationMinutes = 10),
             ),
             ringMeasurements = listOf(
                 steps("steps", now - (dayMs * 3), 8_200.0),
@@ -115,10 +122,17 @@ class HealthFeatureExtractorTest {
     }
 
     @Test
-    fun duplicateMeasurementsDoNotChangeLatestBloodPressureSelection() {
+    fun validatedUpperArmCuffMeanIsUsedInsteadOfWearableDuplicates() {
         val duplicateA = bp("dup-a", now - 5_000, 128.0, 82.0)
         val duplicateB = duplicateA.copy(id = "dup-b")
         val snapshot = HealthMemorySnapshot(
+            clinicalBloodPressure = ClinicalBloodPressureValues(
+                sbp7dMean = 126.0,
+                dbp7dMean = 79.0,
+                validDays = 5,
+                confirmedUpperArmCuff = true,
+                recordedAt = now,
+            ),
             ringMeasurements = listOf(
                 bp("older", now - 50_000, 130.0, 84.0),
                 duplicateA,
@@ -128,8 +142,9 @@ class HealthFeatureExtractorTest {
 
         val vector = extractor.extract(snapshot)
 
-        assertEquals(128.0, vector.sbp!!, 0.0)
-        assertEquals(82.0, vector.dbp!!, 0.0)
+        assertEquals(126.0, vector.sbp!!, 0.0)
+        assertEquals(79.0, vector.dbp!!, 0.0)
+        assertEquals(FeatureSource.CLINICAL_REPORT, vector.featureQuality.getValue(CvdFeatureFields.SBP).source)
         assertEquals(FeatureQualityStatus.VALID, vector.featureQuality.getValue(CvdFeatureFields.SBP).status)
     }
 
@@ -175,12 +190,18 @@ class HealthFeatureExtractorTest {
             source = "ring",
         )
 
-    private fun activity(id: String, startedAt: Long, steps: Int, durationMinutes: Int) =
+    private fun activity(
+        id: String,
+        startedAt: Long,
+        steps: Int,
+        durationMinutes: Int,
+        activityType: String = "walking",
+    ) =
         RingActivityEntity(
             id = id,
             startedAt = startedAt,
             endedAt = startedAt + durationMinutes * 60_000L,
-            activityType = "walking",
+            activityType = activityType,
             steps = steps,
             distanceMeters = steps * 0.7,
             caloriesKcal = 100.0,

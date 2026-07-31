@@ -15,8 +15,8 @@ class HealthFeatureExtractor(
         val quality = mutableMapOf<String, FeatureQuality>()
         val profile = snapshot.profile
         val labs = snapshot.labs
-        val bloodPressure = extractBloodPressure(snapshot.ringMeasurements)
-        val exercise = extractExerciseDays(snapshot.ringActivities, snapshot.ringMeasurements)
+        val bloodPressure = extractBloodPressure(snapshot.clinicalBloodPressure, snapshot.ringMeasurements)
+        val exercise = extractExerciseDays(snapshot.ringActivities)
 
         val age = profile?.age?.takeIf { it in 18..120 }.also {
             quality[CvdFeatureFields.AGE] = qualityForProfileValue(
@@ -111,7 +111,33 @@ class HealthFeatureExtractor(
         )
     }
 
-    private fun extractBloodPressure(measurements: List<RingMeasurementEntity>): BloodPressureFeature {
+    private fun extractBloodPressure(
+        clinical: ClinicalBloodPressureValues?,
+        measurements: List<RingMeasurementEntity>,
+    ): BloodPressureFeature {
+        if (
+            clinical?.confirmedUpperArmCuff == true &&
+            clinical.validDays != null &&
+            clinical.validDays in 3..7 &&
+            clinical.sbp7dMean != null &&
+            clinical.dbp7dMean != null &&
+            clinical.sbp7dMean in 70.0..250.0 &&
+            clinical.dbp7dMean in 40.0..150.0 &&
+            clinical.sbp7dMean > clinical.dbp7dMean
+        ) {
+            val quality = FeatureQuality.valid(
+                source = FeatureSource.CLINICAL_REPORT,
+                observedAt = clinical.recordedAt,
+                reason = "Validated upper-arm cuff 7-day mean from ${clinical.validDays} valid days.",
+            )
+            return BloodPressureFeature(
+                sbp = clinical.sbp7dMean,
+                dbp = clinical.dbp7dMean,
+                sbpQuality = quality,
+                dbpQuality = quality,
+            )
+        }
+
         val bloodPressureRows = measurements
             .filter { it.metricType == RingMetricType.BLOOD_PRESSURE.name }
             .distinctBy { "${it.measuredAt}:${it.primaryValue}:${it.secondaryValue}" }
@@ -119,14 +145,12 @@ class HealthFeatureExtractor(
 
         val latestValid = bloodPressureRows.firstOrNull { it.isValidBloodPressure() }
         if (latestValid != null) {
-            val quality = FeatureQuality.valid(
+            val quality = FeatureQuality.lowConfidence(
                 source = FeatureSource.REAL_DEVICE,
                 observedAt = latestValid.measuredAt,
-                reason = "Most recent plausible ring blood pressure measurement.",
+                reason = "Cuffless wearable blood pressure is visible in Data but excluded from Factor16 contribution.",
             )
             return BloodPressureFeature(
-                sbp = latestValid.primaryValue,
-                dbp = latestValid.secondaryValue,
                 sbpQuality = quality,
                 dbpQuality = quality,
             )
@@ -148,7 +172,6 @@ class HealthFeatureExtractor(
 
     private fun extractExerciseDays(
         activities: List<RingActivityEntity>,
-        measurements: List<RingMeasurementEntity>,
     ): ExerciseFeature {
         val now = nowProvider()
         val today = now.toUtcDate()
@@ -159,29 +182,17 @@ class HealthFeatureExtractor(
                 val date = activity.startedAt.toUtcDate()
                 if (date in startDate..today && activity.qualifiesAsExerciseDay()) date else null
             }
-        val validStepDates = measurements
-            .filter { it.metricType == RingMetricType.STEPS.name && it.measuredAt <= now && it.isPlausibleStepMeasurement() }
-            .mapNotNull { measurement ->
-                val date = measurement.measuredAt.toUtcDate()
-                if (date in startDate..today && measurement.primaryValue >= DAILY_STEP_EXERCISE_THRESHOLD) date else null
-            }
-        val validDataPresent = activities.any { it.startedAt <= now && it.isPlausibleActivity() } ||
-            measurements.any { it.metricType == RingMetricType.STEPS.name && it.measuredAt <= now && it.isPlausibleStepMeasurement() }
-        val invalidDataPresent = activities.any { it.startedAt <= now && !it.isPlausibleActivity() } ||
-            measurements.any { it.metricType == RingMetricType.STEPS.name && it.measuredAt <= now && !it.isPlausibleStepMeasurement() }
+        val validDataPresent = activities.any { it.startedAt <= now && it.isPlausibleActivity() }
+        val invalidDataPresent = activities.any { it.startedAt <= now && !it.isPlausibleActivity() }
 
         if (validDataPresent) {
-            val latestAt = listOf(
-                activities.filter { it.isPlausibleActivity() }.maxOfOrNull { it.startedAt },
-                measurements.filter { it.metricType == RingMetricType.STEPS.name && it.isPlausibleStepMeasurement() }
-                    .maxOfOrNull { it.measuredAt },
-            ).filterNotNull().maxOrNull()
+            val latestAt = activities.filter { it.isPlausibleActivity() }.maxOfOrNull { it.startedAt }
             return ExerciseFeature(
-                days = (validActivityDates + validStepDates).distinct().size.coerceIn(0, EXERCISE_LOOKBACK_DAYS.toInt()),
+                days = validActivityDates.distinct().size.coerceIn(0, EXERCISE_LOOKBACK_DAYS.toInt()),
                 quality = FeatureQuality.valid(
                     source = FeatureSource.REAL_DEVICE,
                     observedAt = latestAt,
-                    reason = "Derived from ring activity rows and/or daily step measurements over the last 7 days.",
+                    reason = "Derived from qualifying ring activity sessions over the last 7 days.",
                 ),
             )
         }
@@ -275,7 +286,6 @@ class HealthFeatureExtractor(
 
     private companion object {
         const val EXERCISE_LOOKBACK_DAYS = 7L
-        const val DAILY_STEP_EXERCISE_THRESHOLD = 7_000.0
         const val MAX_REASONABLE_LAB_VALUE = 1_000.0
     }
 }
@@ -301,9 +311,6 @@ private fun RingMeasurementEntity.isValidBloodPressure(): Boolean {
         primaryValue > dbp
 }
 
-private fun RingMeasurementEntity.isPlausibleStepMeasurement(): Boolean =
-    primaryValue.isFinite() && primaryValue in 0.0..100_000.0
-
 private fun RingActivityEntity.isPlausibleActivity(): Boolean =
     steps in 0..100_000 &&
         distanceMeters.isFinite() &&
@@ -312,8 +319,16 @@ private fun RingActivityEntity.isPlausibleActivity(): Boolean =
         caloriesKcal >= 0.0 &&
         durationMinutes in 0..1_440
 
-private fun RingActivityEntity.qualifiesAsExerciseDay(): Boolean =
-    durationMinutes >= 20 || steps >= 7_000
+private fun RingActivityEntity.qualifiesAsExerciseDay(): Boolean {
+    val vigorous = activityType.lowercase() in setOf(
+        "running",
+        "run",
+        "hiit",
+        "vigorous",
+        "high_intensity",
+    )
+    return durationMinutes >= if (vigorous) 15 else 30
+}
 
 private fun extractBmi(profile: BaselineHealthProfile?): Double? {
     val reported = profile?.bmi

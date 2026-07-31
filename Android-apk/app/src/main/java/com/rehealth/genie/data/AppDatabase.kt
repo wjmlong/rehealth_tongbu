@@ -20,6 +20,8 @@ import com.rehealth.genie.ring.data.RingSleepSessionEntity
 import com.rehealth.genie.rdi.RdiContributionEntity
 import com.rehealth.genie.rdi.RdiDailySnapshotEntity
 import com.rehealth.genie.rdi.RdiDao
+import com.rehealth.genie.rhi.RhiManualHealthInputDao
+import com.rehealth.genie.rhi.RhiManualHealthInputEntity
 
 @Entity(tableName = "health_records")
 data class HealthRecordEntity(
@@ -55,8 +57,9 @@ data class AttributionLogEntity(
         HealthChatMessageEntity::class,
         RdiDailySnapshotEntity::class,
         RdiContributionEntity::class,
+        RhiManualHealthInputEntity::class,
     ],
-    version = 8,
+    version = 10,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -66,8 +69,43 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun riskHistoryDao(): RiskHistoryDao
     abstract fun healthChatDao(): HealthChatDao
     abstract fun rdiDao(): RdiDao
+    abstract fun rhiManualHealthInputDao(): RhiManualHealthInputDao
 
     companion object {
+        val Migration9To10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE rhi_manual_health_inputs ADD COLUMN cuff_sbp_7d_mean REAL")
+                db.execSQL("ALTER TABLE rhi_manual_health_inputs ADD COLUMN cuff_dbp_7d_mean REAL")
+                db.execSQL("ALTER TABLE rhi_manual_health_inputs ADD COLUMN cuff_valid_days INTEGER")
+                db.execSQL("ALTER TABLE rhi_manual_health_inputs ADD COLUMN cuff_confirmed INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE rhi_manual_health_inputs ADD COLUMN fasting_glucose_mmol_l REAL")
+                db.execSQL("ALTER TABLE rhi_manual_health_inputs ADD COLUMN total_cholesterol_mmol_l REAL")
+                db.execSQL("ALTER TABLE rhi_manual_health_inputs ADD COLUMN ldl_mmol_l REAL")
+                db.execSQL("ALTER TABLE rhi_manual_health_inputs ADD COLUMN hdl_mmol_l REAL")
+                db.execSQL("ALTER TABLE rhi_manual_health_inputs ADD COLUMN triglycerides_mmol_l REAL")
+                db.execSQL("ALTER TABLE rhi_manual_health_inputs ADD COLUMN lab_confirmed INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE rhi_manual_health_inputs ADD COLUMN lab_recorded_at INTEGER")
+            }
+        }
+
+        val Migration8To9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS rhi_manual_health_inputs (
+                        user_id TEXT NOT NULL PRIMARY KEY,
+                        sedentary_hours_per_day REAL,
+                        waist_circumference_cm REAL,
+                        vo2_max_ml_kg_min REAL,
+                        hba1c_percent REAL,
+                        egfr_ml_min_1_73m2 REAL,
+                        updated_at INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+            }
+        }
+
         val Migration7To8 = object : Migration(7, 8) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
@@ -398,6 +436,8 @@ abstract class AppDatabase : RoomDatabase() {
                     Migration5To6,
                     Migration6To7,
                     Migration7To8,
+                    Migration8To9,
+                    Migration9To10,
                 )
                 .build()
     }

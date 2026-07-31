@@ -213,6 +213,17 @@ Response 200:
     "hypertension_history": 0.08,
     "family_history": 0.04
   },
+  "factor_contributions": {
+    "age": 1.44,
+    "sbp": 1.92
+  },
+  "factor_contribution_version": "factor16-rule-v1.0.0",
+  "factor_measured_components": {
+    "sbp": 1.92
+  },
+  "factor_control_support_components": {
+    "sbp": 0.0
+  },
   "model_version": "cvd-mock-rules-v1",
   "is_mock": true,
   "missing_fields": [
@@ -238,8 +249,15 @@ Stable response fields:
 - `risk_score`: number in the inclusive range `0.0` to `1.0`.
 - `risk_level`: enum, one of `low`, `moderate`, `high`, `very_high`.
 - `feature_contributions`: object keyed by CVD 16 snake_case field names.
+- `factor_contributions`: quality-gated contribution-card points produced by the
+  independent Factor16 display rules. This is not RDI16 and is not the model probability explanation.
+- `factor_contribution_version`: currently `factor16-rule-v1.0.0`.
+- `factor_measured_components`: the 80% verified-measurement component for BP/lab cards.
+- `factor_control_support_components`: the redistributed 20% longitudinal support
+  component. It remains zero when no verified trend exists; it never fabricates a clinical value.
 - `model_version`: active scorer/model identifier.
-- `is_mock`: boolean; `true` when deterministic mock fallback is used.
+- `is_mock`: boolean; `true` when deterministic CVD scorer fallback is used. It
+  does not invalidate the separately versioned deterministic Factor16 rule fields.
 - `missing_fields`: CVD 16 field names whose value is `null`.
 - `quality_warnings`: entries formatted as `<field>:<status>` for stale or low-confidence inputs.
 - `summary`: conservative explanatory text, not a diagnosis.

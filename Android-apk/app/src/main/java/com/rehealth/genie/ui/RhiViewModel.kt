@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.rhi.RhiPeriodSummary
+import com.rehealth.genie.network.PatientProfilePayload
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,12 +23,12 @@ class RhiViewModel(
     val refreshError: StateFlow<String?> = _refreshError.asStateFlow()
     private var refreshJob: Job? = null
 
-    fun refresh(periodDays: Int = 7) {
+    fun refresh(periodDays: Int = 7, profile: PatientProfilePayload? = null) {
         refreshJob?.cancel()
         _refreshError.value = null
         refreshJob = viewModelScope.launch {
             try {
-                _periodSummary.value = application.rhiRepository.refreshPeriod(periodDays)
+                _periodSummary.value = application.rhiRepository.refreshPeriod(periodDays, profile = profile)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {

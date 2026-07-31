@@ -163,7 +163,8 @@ object AttributionUiMapper {
         evaluation: AttributionRiskEvaluation?,
         values: Map<String, String>,
     ): List<AttributionFactorUi> {
-        val contributions = evaluation?.takeIf { it.confirmed }?.contributions.orEmpty()
+        val factorEvaluation = evaluation?.takeIf { it.factorConfirmed }
+        val contributions = factorEvaluation?.contributions.orEmpty()
             .mapNotNull { (key, value) -> normalizeKey(key)?.let { it to value.takeIf(Double::isFinite) } }
             .filter { it.second != null }
             .associate { it.first to requireNotNull(it.second) }
@@ -177,6 +178,9 @@ object AttributionUiMapper {
                 section = factor.section,
                 value = normalizedValues[factor.key],
                 contribution = contributions[factor.key],
+                contributionRuleVersion = factorEvaluation?.contributionRuleVersion,
+                measuredComponent = factorEvaluation?.measuredComponents?.get(factor.key),
+                controlSupportComponent = factorEvaluation?.controlSupportComponents?.get(factor.key),
             )
         }
     }

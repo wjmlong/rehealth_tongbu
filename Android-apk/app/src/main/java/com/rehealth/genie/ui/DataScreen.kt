@@ -138,8 +138,14 @@ internal fun DataScreen(
         3 -> 90
         else -> 7
     }
-    LaunchedEffect(rhiPeriodDays, state.lastSyncAt, state.activity?.id, state.sleep?.id) {
-        rhiViewModel.refresh(rhiPeriodDays)
+    LaunchedEffect(
+        rhiPeriodDays,
+        state.lastSyncAt,
+        state.activity?.id,
+        state.sleep?.id,
+        state.patientMvp?.profile?.updatedAt,
+    ) {
+        rhiViewModel.refresh(rhiPeriodDays, AttributionDataProvenance.trustedProfile(state.patientMvp))
     }
     val currentRhi = rhiPeriodSummary?.takeIf { it.periodDays == rhiPeriodDays }
 

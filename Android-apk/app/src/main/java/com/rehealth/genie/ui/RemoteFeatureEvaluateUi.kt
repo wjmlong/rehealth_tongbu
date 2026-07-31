@@ -22,6 +22,9 @@ import androidx.compose.ui.unit.sp
 import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.features.HealthFeatureExtractor
 import com.rehealth.genie.features.HealthMemorySnapshot
+import com.rehealth.genie.features.CvdFeatureVector
+import com.rehealth.genie.rhi.toClinicalBloodPressureValues
+import com.rehealth.genie.rhi.toClinicalLabValues
 import com.rehealth.genie.ring.RingUiState
 import com.rehealth.genie.ui.theme.Ink
 import com.rehealth.genie.ui.theme.Mint
@@ -53,6 +56,11 @@ internal data class RemoteFeatureEvaluateStatus(
     val riskLevel: String?,
     val riskScore: Double?,
     val featureContributions: Map<String, Double> = emptyMap(),
+    val factorContributions: Map<String, Double> = emptyMap(),
+    val factorContributionVersion: String? = null,
+    val factorMeasuredComponents: Map<String, Double> = emptyMap(),
+    val factorControlSupportComponents: Map<String, Double> = emptyMap(),
+    val factorValues: Map<String, String> = emptyMap(),
     val requestId: String? = null,
     val fallbackReason: String? = null,
     val missingFields: List<String> = emptyList(),
@@ -71,8 +79,14 @@ internal fun RemoteFeatureEvaluateStatus.toAttributionRiskEvaluation(): Attribut
     AttributionRiskEvaluation(
         riskScore = riskScore,
         riskLevel = riskLevel,
-        contributions = featureContributions,
+        contributions = factorContributions,
         confirmed = reachable && isMock == false,
+        factorConfirmed = reachable &&
+            factorContributionVersion == "factor16-rule-v1.0.0",
+        factorValues = factorValues,
+        contributionRuleVersion = factorContributionVersion,
+        measuredComponents = factorMeasuredComponents,
+        controlSupportComponents = factorControlSupportComponents,
     )
 
 internal suspend fun refreshRemoteFeatureEvaluateStatus(
@@ -85,9 +99,14 @@ internal suspend fun refreshRemoteFeatureEvaluateStatus(
     val dao = application.database.ringDataDao()
     val measurements = runCatching { dao.getMeasurementsSince(since) }.getOrDefault(emptyList())
     val activities = runCatching { dao.getActivitiesSince(since) }.getOrDefault(emptyList())
+    val manualInput = application.sessionStore.userId?.let { userId ->
+        runCatching { application.database.rhiManualHealthInputDao().get(userId) }.getOrNull()
+    }
     val vector = HealthFeatureExtractor(nowProvider = { now }).extract(
         HealthMemorySnapshot.fromPatientProfile(
             profile = AttributionDataProvenance.trustedProfile(state.patientMvp),
+            labs = manualInput?.toClinicalLabValues(),
+            clinicalBloodPressure = manualInput?.toClinicalBloodPressureValues(),
             ringMeasurements = measurements,
             ringActivities = activities,
             ringSleepSessions = state.sleep?.let { listOf(it) }.orEmpty(),
@@ -105,6 +124,11 @@ internal suspend fun refreshRemoteFeatureEvaluateStatus(
             riskLevel = result.normalizedRiskLevel,
             riskScore = result.normalizedRiskScore,
             featureContributions = result.normalizedFeatureContributions,
+            factorContributions = result.normalizedFactorContributions,
+            factorContributionVersion = result.normalizedFactorContributionVersion,
+            factorMeasuredComponents = result.normalizedFactorMeasuredComponents,
+            factorControlSupportComponents = result.normalizedFactorControlSupportComponents,
+            factorValues = vector.toAttributionFactorValues(),
             requestId = result.normalizedRequestId ?: outcome.requestId,
             missingFields = result.normalizedMissingFields,
             qualityWarnings = result.normalizedQualityWarnings,
@@ -120,10 +144,30 @@ internal suspend fun refreshRemoteFeatureEvaluateStatus(
             requestId = outcome.requestId,
             fallbackReason = outcome.failureReason,
             missingFields = vector.missingFields,
+            factorValues = vector.toAttributionFactorValues(),
             summary = "暂时无法完成风险评估，请检查网络和登录状态后重试。" +
                 "（${outcome.error?.eventName ?: "unavailable"}）",
         )
     }
+}
+
+private fun CvdFeatureVector.toAttributionFactorValues(): Map<String, String> = buildMap {
+    age?.let { put("age", "$it 岁") }
+    gender?.let { put("gender", if (it == 1) "男" else "女") }
+    bmi?.let { put("bmi", String.format(java.util.Locale.US, "%.1f", it)) }
+    sbp?.let { put("sbp", String.format(java.util.Locale.US, "%.1f mmHg", it)) }
+    dbp?.let { put("dbp", String.format(java.util.Locale.US, "%.1f mmHg", it)) }
+    fastingGlucose?.let { put("fasting_glucose", String.format(java.util.Locale.US, "%.2f mmol/L", it)) }
+    totalCholesterol?.let { put("total_cholesterol", String.format(java.util.Locale.US, "%.2f mmol/L", it)) }
+    ldl?.let { put("ldl", String.format(java.util.Locale.US, "%.2f mmol/L", it)) }
+    hdl?.let { put("hdl", String.format(java.util.Locale.US, "%.2f mmol/L", it)) }
+    triglycerides?.let { put("triglycerides", String.format(java.util.Locale.US, "%.2f mmol/L", it)) }
+    exerciseDays?.let { put("exercise_days", "$it 天/周") }
+    smoking?.let { put("smoking", if (it == 1) "是" else "否") }
+    drinking?.let { put("drinking", if (it == 1) "是" else "否") }
+    diabetesHistory?.let { put("diabetes_history", if (it == 1) "有" else "无") }
+    hypertensionHistory?.let { put("hypertension_history", if (it == 1) "有" else "无") }
+    familyHistory?.let { put("family_history", if (it == 1) "有" else "无") }
 }
 
 private const val RISK_FEATURE_LOOKBACK_MILLIS = 7L * 24L * 60L * 60L * 1000L

@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.AddAPhoto
@@ -43,6 +45,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rehealth.genie.ReHealthApplication
@@ -61,10 +64,12 @@ import androidx.compose.material.icons.outlined.ExitToApp
 import androidx.compose.material.icons.outlined.QuestionAnswer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -121,6 +126,7 @@ internal fun ProfileScreen(
     val context = LocalContext.current
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
+    var showRhiInputDialog by remember { mutableStateOf(false) }
     val profile = AttributionDataProvenance.trustedProfile(state.patientMvp)
     val latestInterview = state.patientMvp?.latestHealthInterview
     val session = (context.applicationContext as? ReHealthApplication)?.sessionStore
@@ -140,8 +146,13 @@ internal fun ProfileScreen(
     }
     val editViewModel: ProfileEditViewModel = viewModel(factory = ProfileEditViewModel.Factory(context))
     val editState by editViewModel.uiState.collectAsState()
+    val rhiInputViewModel: RhiManualInputViewModel = viewModel(
+        factory = RhiManualInputViewModel.Factory(context),
+    )
+    val rhiInputState by rhiInputViewModel.uiState.collectAsState()
     LaunchedEffect(Unit) {
         onRefreshProfile()
+        rhiInputViewModel.observeCurrentUser()
     }
     LaunchedEffect(editState.saved) {
         if (editState.saved) {
@@ -149,6 +160,9 @@ internal fun ProfileScreen(
             editViewModel.reset()
             onProfileUpdated()
         }
+    }
+    LaunchedEffect(rhiInputState.savedVersion) {
+        if (rhiInputState.savedVersion > 0) showRhiInputDialog = false
     }
     Page("我的") {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -229,10 +243,48 @@ internal fun ProfileScreen(
                     if (state.isPatientMvpLoading) {
                         CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Mint, strokeWidth = 2.dp)
                     }
+                    TextButton(
+                        onClick = {
+                            rhiInputViewModel.clearError()
+                            showRhiInputDialog = true
+                        },
+                    ) {
+                        Text("编辑指标", color = Mint, fontSize = 12.sp)
+                    }
                 }
                 healthArchiveRows(profile, latestInterview).forEach { row ->
                     StatusRow(row.first, row.second)
                 }
+                StatusRow(
+                    "日均久坐",
+                    rhiInputState.input?.sedentaryHoursPerDay?.let { "%.1f 小时".format(it) } ?: "待补全",
+                )
+                StatusRow(
+                    "腰围",
+                    rhiInputState.input?.waistCircumferenceCm?.let { "%.1f cm".format(it) } ?: "待补全",
+                )
+                StatusRow(
+                    "VO₂max",
+                    rhiInputState.input?.vo2MaxMlKgMin?.let { "%.1f mL/kg/min".format(it) } ?: "待补全",
+                )
+                StatusRow(
+                    "HbA1c",
+                    rhiInputState.input?.hba1cPercent?.let { "%.1f%%".format(it) } ?: "待补全",
+                )
+                StatusRow(
+                    "eGFR",
+                    rhiInputState.input?.egfrMlMin173m2?.let { "%.1f mL/min/1.73m²".format(it) } ?: "待补全",
+                )
+                StatusRow(
+                    "上臂袖带血压",
+                    rhiInputState.input?.takeIf { it.cuffConfirmed }
+                        ?.let { "${it.cuffSbp7dMean ?: "--"}/${it.cuffDbp7dMean ?: "--"} mmHg · ${it.cuffValidDays ?: 0}天" }
+                        ?: "待核对",
+                )
+                StatusRow(
+                    "医院血检",
+                    rhiInputState.input?.takeIf { it.labConfirmed }?.let { "已核对报告" } ?: "待核对",
+                )
                 val updatedAt = listOfNotNull(profile?.updatedAt, latestInterview?.generatedAt).maxOrNull()
                 StatusRow("最近更新", updatedAt?.let { formatSyncTime(it) } ?: "待同步")
             }
@@ -254,6 +306,10 @@ internal fun ProfileScreen(
                     editViewModel.reset()
                     showEditDialog = true
                 }
+                MenuRow(Icons.Outlined.EditNote, "编辑健康与归因指标") {
+                    rhiInputViewModel.clearError()
+                    showRhiInputDialog = true
+                }
                 MenuRow(Icons.Outlined.QuestionAnswer, "更新健康问答", onStartInterview)
                 MenuRow(Icons.Outlined.Devices, "设备绑定", onDeviceBinding)
                 MenuRow(Icons.Outlined.Lock, "隐私中心")
@@ -273,15 +329,45 @@ internal fun ProfileScreen(
             initialAge = profile?.age?.toString().orEmpty(),
             initialHeight = profile?.heightCm?.toString().orEmpty(),
             initialWeight = profile?.weightKg?.toString().orEmpty(),
+            initialSmoking = profile?.smoking,
+            initialDrinking = profile?.drinking,
+            initialDiabetesHistory = profile?.diabetesHistory,
+            initialHypertensionHistory = profile?.hypertensionHistory,
+            initialFamilyHistory = profile?.familyHistory,
             isSaving = editState.isSaving,
             errorMessage = editState.errorMessage,
-            onSave = { name, gender, age, height, weight ->
-                editViewModel.save(name, gender, age, height, weight)
+            onSave = { name, gender, age, height, weight, smoking, drinking, diabetes, hypertension, family ->
+                editViewModel.save(
+                    name,
+                    gender,
+                    age,
+                    height,
+                    weight,
+                    smoking,
+                    drinking,
+                    diabetes,
+                    hypertension,
+                    family,
+                )
             },
             onDismiss = {
                 if (!editState.isSaving) {
                     showEditDialog = false
                     editViewModel.reset()
+                }
+            },
+        )
+    }
+    if (showRhiInputDialog) {
+        RhiManualInputDialog(
+            current = rhiInputState.input,
+            isSaving = rhiInputState.isSaving,
+            errorMessage = rhiInputState.errorMessage,
+            onSave = rhiInputViewModel::save,
+            onDismiss = {
+                if (!rhiInputState.isSaving) {
+                    showRhiInputDialog = false
+                    rhiInputViewModel.clearError()
                 }
             },
         )
@@ -307,6 +393,147 @@ internal fun ProfileScreen(
     }
 }
 
+@Composable
+private fun RhiManualInputDialog(
+    current: com.rehealth.genie.rhi.RhiManualHealthInputEntity?,
+    isSaving: Boolean,
+    errorMessage: String?,
+    onSave: (RhiManualInputDraft) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var sedentary by remember(current) { mutableStateOf(current?.sedentaryHoursPerDay?.toString().orEmpty()) }
+    var waist by remember(current) { mutableStateOf(current?.waistCircumferenceCm?.toString().orEmpty()) }
+    var vo2Max by remember(current) { mutableStateOf(current?.vo2MaxMlKgMin?.toString().orEmpty()) }
+    var hba1c by remember(current) { mutableStateOf(current?.hba1cPercent?.toString().orEmpty()) }
+    var egfr by remember(current) { mutableStateOf(current?.egfrMlMin173m2?.toString().orEmpty()) }
+    var cuffSbp by remember(current) { mutableStateOf(current?.cuffSbp7dMean?.toString().orEmpty()) }
+    var cuffDbp by remember(current) { mutableStateOf(current?.cuffDbp7dMean?.toString().orEmpty()) }
+    var cuffDays by remember(current) { mutableStateOf(current?.cuffValidDays?.toString().orEmpty()) }
+    var cuffConfirmed by remember(current) { mutableStateOf(current?.cuffConfirmed == true) }
+    var fastingGlucose by remember(current) { mutableStateOf(current?.fastingGlucoseMmolL?.toString().orEmpty()) }
+    var totalCholesterol by remember(current) { mutableStateOf(current?.totalCholesterolMmolL?.toString().orEmpty()) }
+    var ldl by remember(current) { mutableStateOf(current?.ldlMmolL?.toString().orEmpty()) }
+    var hdl by remember(current) { mutableStateOf(current?.hdlMmolL?.toString().orEmpty()) }
+    var triglycerides by remember(current) { mutableStateOf(current?.triglyceridesMmolL?.toString().orEmpty()) }
+    var labConfirmed by remember(current) { mutableStateOf(current?.labConfirmed == true) }
+    var labDate by remember(current) {
+        mutableStateOf(
+            current?.labRecordedAt?.let {
+                java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate().toString()
+            }.orEmpty(),
+        )
+    }
+    val numericOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("健康与归因指标") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(9.dp),
+            ) {
+                Text(
+                    "请填写真实测量值。留空表示缺失并降低数据可信度，不会自动填入正常值。",
+                    color = Muted,
+                    fontSize = 11.sp,
+                )
+                RhiManualField(sedentary, { sedentary = it }, "日均久坐（小时）", "范围 0–24", numericOptions)
+                RhiManualField(waist, { waist = it }, "腰围（cm）", "范围 40–200", numericOptions)
+                RhiManualField(vo2Max, { vo2Max = it }, "VO₂max（mL/kg/min）", "范围 5–100", numericOptions)
+                RhiManualField(hba1c, { hba1c = it }, "HbA1c（%）", "范围 3–20", numericOptions)
+                RhiManualField(egfr, { egfr = it }, "eGFR（mL/min/1.73m²）", "范围 0–250", numericOptions)
+                Text("归因 16 项 · 上臂袖带血压", color = Ink, fontWeight = FontWeight.SemiBold)
+                RhiManualField(cuffSbp, { cuffSbp = it }, "7日平均收缩压（mmHg）", "范围 70–250", numericOptions)
+                RhiManualField(cuffDbp, { cuffDbp = it }, "7日平均舒张压（mmHg）", "范围 40–150", numericOptions)
+                RhiManualField(cuffDays, { cuffDays = it }, "有效测量天数", "至少 3 天，建议 7 天", numericOptions)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = cuffConfirmed, onCheckedChange = { cuffConfirmed = it })
+                    Text("确认数据来自经验证的上臂袖带血压计", color = Muted, fontSize = 11.sp)
+                }
+                Text("归因 16 项 · 医院血检", color = Ink, fontWeight = FontWeight.SemiBold)
+                RhiManualField(fastingGlucose, { fastingGlucose = it }, "空腹血糖（mmol/L）", "填写医院报告实测值", numericOptions)
+                RhiManualField(totalCholesterol, { totalCholesterol = it }, "总胆固醇（mmol/L）", "填写医院报告实测值", numericOptions)
+                RhiManualField(ldl, { ldl = it }, "LDL-C（mmol/L）", "填写医院报告实测值", numericOptions)
+                RhiManualField(hdl, { hdl = it }, "HDL-C（mmol/L）", "填写医院报告实测值", numericOptions)
+                RhiManualField(triglycerides, { triglycerides = it }, "甘油三酯（mmol/L）", "填写医院报告实测值", numericOptions)
+                OutlinedTextField(
+                    value = labDate,
+                    onValueChange = { labDate = it.filter { ch -> ch.isDigit() || ch == '-' }.take(10) },
+                    label = { Text("血检报告日期") },
+                    supportingText = { Text("格式 YYYY-MM-DD，用于 90/180/365 天新鲜度") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = labConfirmed, onCheckedChange = { labConfirmed = it })
+                    Text("确认已逐项核对医院报告原件", color = Muted, fontSize = 11.sp)
+                }
+                Text(
+                    "血压与代谢卡按 80% 实测贡献 + 20% 控制支持趋势展示；缺少可验证趋势时，20% 保持为 0，不补造数值。",
+                    color = Muted,
+                    fontSize = 11.sp,
+                )
+                errorMessage?.let { Text(it, color = Color(0xFFD94C4C), fontSize = 12.sp) }
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = !isSaving,
+                onClick = {
+                    onSave(
+                        RhiManualInputDraft(
+                            sedentaryHoursPerDay = sedentary,
+                            waistCircumferenceCm = waist,
+                            vo2MaxMlKgMin = vo2Max,
+                            hba1cPercent = hba1c,
+                            egfrMlMin173m2 = egfr,
+                            cuffSbp7dMean = cuffSbp,
+                            cuffDbp7dMean = cuffDbp,
+                            cuffValidDays = cuffDays,
+                            cuffConfirmed = cuffConfirmed,
+                            fastingGlucoseMmolL = fastingGlucose,
+                            totalCholesterolMmolL = totalCholesterol,
+                            ldlMmolL = ldl,
+                            hdlMmolL = hdl,
+                            triglyceridesMmolL = triglycerides,
+                            labConfirmed = labConfirmed,
+                            labRecordedDate = labDate,
+                        ),
+                    )
+                },
+            ) {
+                if (isSaving) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
+                } else {
+                    Text("保存")
+                }
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !isSaving) { Text("取消") } },
+    )
+}
+
+@Composable
+private fun RhiManualField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    supportingText: String,
+    keyboardOptions: KeyboardOptions,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = { updated ->
+            onValueChange(updated.filter { it.isDigit() || it == '.' }.take(8))
+        },
+        label = { Text(label) },
+        supportingText = { Text(supportingText) },
+        keyboardOptions = keyboardOptions,
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
 /** D3 logout: cancel the sync worker, clear the auth session, and pause the upload queue. */
 private fun performLogout(context: Context) {
     val app = context.applicationContext as ReHealthApplication
@@ -322,9 +549,25 @@ private fun ProfileEditDialog(
     initialAge: String,
     initialHeight: String,
     initialWeight: String,
+    initialSmoking: Boolean?,
+    initialDrinking: Boolean?,
+    initialDiabetesHistory: Boolean?,
+    initialHypertensionHistory: Boolean?,
+    initialFamilyHistory: Boolean?,
     isSaving: Boolean,
     errorMessage: String?,
-    onSave: (name: String, gender: String, age: String, height: String, weight: String) -> Unit,
+    onSave: (
+        name: String,
+        gender: String,
+        age: String,
+        height: String,
+        weight: String,
+        smoking: Boolean?,
+        drinking: Boolean?,
+        diabetesHistory: Boolean?,
+        hypertensionHistory: Boolean?,
+        familyHistory: Boolean?,
+    ) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var name by remember { mutableStateOf(initialName) }
@@ -332,11 +575,19 @@ private fun ProfileEditDialog(
     var age by remember { mutableStateOf(initialAge) }
     var height by remember { mutableStateOf(initialHeight) }
     var weight by remember { mutableStateOf(initialWeight) }
+    var smoking by remember { mutableStateOf(initialSmoking) }
+    var drinking by remember { mutableStateOf(initialDrinking) }
+    var diabetesHistory by remember { mutableStateOf(initialDiabetesHistory) }
+    var hypertensionHistory by remember { mutableStateOf(initialHypertensionHistory) }
+    var familyHistory by remember { mutableStateOf(initialFamilyHistory) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("编辑个人资料") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it.take(32) },
@@ -344,6 +595,12 @@ private fun ProfileEditDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                Text("归因 16 项档案", color = Ink, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                BooleanFactorSelector("当前吸烟", smoking) { smoking = it }
+                BooleanFactorSelector("当前饮酒", drinking) { drinking = it }
+                BooleanFactorSelector("糖尿病史", diabetesHistory) { diabetesHistory = it }
+                BooleanFactorSelector("高血压史", hypertensionHistory) { hypertensionHistory = it }
+                BooleanFactorSelector("早发心血管家族史", familyHistory) { familyHistory = it }
                 Text("性别", color = Ink, fontSize = 12.sp)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -390,7 +647,22 @@ private fun ProfileEditDialog(
         },
         confirmButton = {
             Button(
-                onClick = { gender?.let { onSave(name, it, age, height, weight) } },
+                onClick = {
+                    gender?.let {
+                        onSave(
+                            name,
+                            it,
+                            age,
+                            height,
+                            weight,
+                            smoking,
+                            drinking,
+                            diabetesHistory,
+                            hypertensionHistory,
+                            familyHistory,
+                        )
+                    }
+                },
                 enabled = !isSaving && name.isNotBlank() && gender != null,
             ) {
                 if (isSaving) {
@@ -404,6 +676,28 @@ private fun ProfileEditDialog(
             TextButton(onClick = onDismiss, enabled = !isSaving) { Text("取消") }
         },
     )
+}
+
+@Composable
+private fun BooleanFactorSelector(
+    label: String,
+    value: Boolean?,
+    onValueChange: (Boolean) -> Unit,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = Ink, fontSize = 12.sp, modifier = Modifier.weight(1f))
+        FilterChip(
+            selected = value == false,
+            onClick = { onValueChange(false) },
+            label = { Text("否") },
+        )
+        FilterChip(
+            selected = value == true,
+            onClick = { onValueChange(true) },
+            label = { Text("是") },
+            modifier = Modifier.padding(start = 6.dp),
+        )
+    }
 }
 
 @Composable

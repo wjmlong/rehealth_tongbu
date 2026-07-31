@@ -13,6 +13,14 @@ public class RiskEvaluateResponseDto {
     public String riskLevel;
     @JSONField(name = "feature_contributions")
     public Map<String, Double> featureContributions = new LinkedHashMap<>();
+    @JSONField(name = "factor_contributions")
+    public Map<String, Double> factorContributions = new LinkedHashMap<>();
+    @JSONField(name = "factor_contribution_version")
+    public String factorContributionVersion;
+    @JSONField(name = "factor_measured_components")
+    public Map<String, Double> factorMeasuredComponents = new LinkedHashMap<>();
+    @JSONField(name = "factor_control_support_components")
+    public Map<String, Double> factorControlSupportComponents = new LinkedHashMap<>();
     @JSONField(name = "model_version")
     public String modelVersion;
     @JSONField(name = "is_mock")

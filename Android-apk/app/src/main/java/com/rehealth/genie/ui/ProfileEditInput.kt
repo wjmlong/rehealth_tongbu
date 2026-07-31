@@ -6,6 +6,11 @@ internal data class ValidatedProfileEditInput(
     val age: Int,
     val heightCm: Double,
     val weightKg: Double,
+    val smoking: Boolean? = null,
+    val drinking: Boolean? = null,
+    val diabetesHistory: Boolean? = null,
+    val hypertensionHistory: Boolean? = null,
+    val familyHistory: Boolean? = null,
 )
 
 internal fun normalizeProfileGender(value: String?): String? = when (value?.trim()?.lowercase()) {
@@ -20,6 +25,11 @@ internal fun validateProfileEditInput(
     age: String,
     heightCm: String,
     weightKg: String,
+    smoking: Boolean? = null,
+    drinking: Boolean? = null,
+    diabetesHistory: Boolean? = null,
+    hypertensionHistory: Boolean? = null,
+    familyHistory: Boolean? = null,
 ): Result<ValidatedProfileEditInput> = runCatching {
     val normalizedName = name.trim().take(32)
     require(normalizedName.isNotBlank()) { "请输入姓名/昵称" }
@@ -37,5 +47,10 @@ internal fun validateProfileEditInput(
         age = normalizedAge,
         heightCm = normalizedHeight,
         weightKg = normalizedWeight,
+        smoking = smoking,
+        drinking = drinking,
+        diabetesHistory = diabetesHistory,
+        hypertensionHistory = hypertensionHistory,
+        familyHistory = familyHistory,
     )
 }

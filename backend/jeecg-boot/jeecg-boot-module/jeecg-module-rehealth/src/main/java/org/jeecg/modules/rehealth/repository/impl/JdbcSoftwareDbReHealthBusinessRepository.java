@@ -408,9 +408,10 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
                 INSERT INTO rehealth_cvd_risk_result (
                     id, feature_vector_id, user_id, request_id, feature_schema_version,
                     model_version, scorer_mode, is_mock, artifact_name, fallback_reason, contribution_method,
-                    risk_score, risk_level, contribution_json, missing_fields_json,
+                    factor_contribution_version, risk_score, risk_level, contribution_json,
+                    factor_contribution_json, factor_measured_component_json, factor_control_support_json, missing_fields_json,
                     quality_warnings_json, summary, response_json, evaluated_at, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, UUID.randomUUID().toString(), featureId, userId, effectiveRequestId,
                 featureSchemaVersion, modelVersion,
                 response.modelTrace == null ? null : response.modelTrace.scorerMode,
@@ -418,9 +419,13 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
                 response.modelTrace == null ? null : response.modelTrace.artifactName,
                 response.modelTrace == null ? null : response.modelTrace.fallbackReason,
                 null,
+                response.factorContributionVersion,
                 response.riskScore,
                 response.riskLevel,
                 json(response.featureContributions),
+                json(response.factorContributions),
+                json(response.factorMeasuredComponents),
+                json(response.factorControlSupportComponents),
                 json(response.missingFields),
                 json(response.qualityWarnings),
                 response.summary,
@@ -433,7 +438,9 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
         List<RiskEvaluateResponseDto> rows = jdbcTemplate.query("""
                         SELECT request_id, feature_schema_version, model_version, scorer_mode,
                                is_mock, artifact_name, fallback_reason, risk_score, risk_level,
-                               contribution_json, missing_fields_json, quality_warnings_json, summary
+                               contribution_json, factor_contribution_version, factor_contribution_json,
+                               factor_measured_component_json, factor_control_support_json,
+                               missing_fields_json, quality_warnings_json, summary
                         FROM rehealth_cvd_risk_result
                         WHERE user_id = ?
                         ORDER BY evaluated_at DESC, id DESC
@@ -760,6 +767,22 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
         response.summary = resultSet.getString("summary");
         response.featureContributions = readJson(
                 resultSet.getString("contribution_json"),
+                new TypeReference<Map<String, Double>>() {},
+                new LinkedHashMap<>()
+        );
+        response.factorContributionVersion = resultSet.getString("factor_contribution_version");
+        response.factorContributions = readJson(
+                resultSet.getString("factor_contribution_json"),
+                new TypeReference<Map<String, Double>>() {},
+                new LinkedHashMap<>()
+        );
+        response.factorMeasuredComponents = readJson(
+                resultSet.getString("factor_measured_component_json"),
+                new TypeReference<Map<String, Double>>() {},
+                new LinkedHashMap<>()
+        );
+        response.factorControlSupportComponents = readJson(
+                resultSet.getString("factor_control_support_json"),
                 new TypeReference<Map<String, Double>>() {},
                 new LinkedHashMap<>()
         );

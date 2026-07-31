@@ -15,6 +15,7 @@ from catboost import Pool
 logger = logging.getLogger(__name__)
 
 from app.model_registry import ModelRegistry
+from app.factor16_contribution import Factor16ContributionEngine
 from app.schemas import (
     FEATURE_FIELDS,
     CvdFeatureVector,
@@ -227,10 +228,15 @@ class MockRiskScorer(RiskScorer):
         score = min(max(score + min(len(missing) * 0.01, 0.08), 0.01), 0.95)
         warnings = self._quality_warnings(vector)
 
+        factor_result = Factor16ContributionEngine().evaluate(vector)
         return RiskEvaluateResponse(
             risk_score=round(score, 4),
             risk_level=self._risk_level(score),
             feature_contributions={key: round(value, 4) for key, value in contributions.items()},
+            factor_contributions=factor_result.contributions,
+            factor_contribution_version=factor_result.rule_version,
+            factor_measured_components=factor_result.measured_components,
+            factor_control_support_components=factor_result.control_support_components,
             model_version=self.model_version,
             is_mock=self.is_mock,
             missing_fields=missing,
@@ -416,10 +422,15 @@ class RealCatBoostRiskScorer(RiskScorer):
         contributions, base_value = self._shap_feature_contributions(vector)
         self._base_value = base_value
         contribution_method = self._contribution_method if base_value is not None else REAL_CONTRIBUTION_FALLBACK
+        factor_result = Factor16ContributionEngine().evaluate(vector)
         return RiskEvaluateResponse(
             risk_score=round(probability, 4),
             risk_level=self._risk_level(probability),
             feature_contributions=contributions,
+            factor_contributions=factor_result.contributions,
+            factor_contribution_version=factor_result.rule_version,
+            factor_measured_components=factor_result.measured_components,
+            factor_control_support_components=factor_result.control_support_components,
             model_version=self.model_version,
             is_mock=self.is_mock,
             missing_fields=vector.missing_fields(),
