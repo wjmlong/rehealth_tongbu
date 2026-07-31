@@ -74,8 +74,6 @@ import com.rehealth.genie.network.PatientProfilePayload
 import com.rehealth.genie.network.dto.BehaviorRecordDto
 import com.rehealth.genie.phm.AttributionHistoryPoint
 import com.rehealth.genie.rhi.RhiDailyScore
-import com.rehealth.genie.rhi.RhiPeriodAggregation
-import com.rehealth.genie.rhi.RhiPeriodSummary
 import com.rehealth.genie.ring.RingUiState
 import com.rehealth.genie.ui.theme.AttributionDimensions as Dimensions
 import com.rehealth.genie.ui.theme.AttributionMotion as Motion
@@ -117,13 +115,12 @@ fun AttributionScreen(
     var refreshState by remember { mutableStateOf(AttributionRefreshState()) }
 
     LaunchedEffect(
-        selectedPeriod,
         ringState.lastSyncAt,
         ringState.patientMvp?.profile?.updatedAt,
         rhiCalculationSource,
     ) {
         rhiViewModel.refresh(
-            selectedPeriod.days.toInt(),
+            AttributionPeriod.DAYS_90.days.toInt(),
             AttributionDataProvenance.trustedProfile(ringState.patientMvp),
         )
     }
@@ -209,10 +206,15 @@ fun AttributionScreen(
             interventionSourceMode = ringState.patientMvp?.risk?.mode,
         ),
     )
+    val rhiImprovement = AttributionUiMapper.mapRhiImprovement(
+        summary = rhiPeriodSummary,
+        period = selectedPeriod,
+        today = LocalDate.now(),
+    )
 
     AttributionContent(
         state = uiState,
-        rhiSummary = rhiPeriodSummary?.takeIf { it.periodDays == selectedPeriod.days.toInt() },
+        rhiImprovement = rhiImprovement,
         rhiError = rhiRefreshError,
         rhiCalculationSource = rhiCalculationSource,
         feedbackViewModel = feedbackViewModel,
@@ -222,7 +224,7 @@ fun AttributionScreen(
         onRetry = {
             retryKey += 1
             rhiViewModel.refresh(
-                selectedPeriod.days.toInt(),
+                AttributionPeriod.DAYS_90.days.toInt(),
                 AttributionDataProvenance.trustedProfile(ringState.patientMvp),
             )
             behaviorViewModel.refreshToday()
@@ -233,7 +235,7 @@ fun AttributionScreen(
 @Composable
 private fun AttributionContent(
     state: AttributionUiState,
-    rhiSummary: RhiPeriodSummary?,
+    rhiImprovement: AttributionRhiImprovementUi,
     rhiError: String?,
     rhiCalculationSource: com.rehealth.genie.rhi.RhiCalculationSource,
     feedbackViewModel: InterventionFeedbackViewModel,
@@ -283,8 +285,15 @@ private fun AttributionContent(
                 )
             }
         }
-        item { AttributionSummaryCard(state, rhiSummary, rhiError) }
-        item { AttributionPiasCard(state.pias, state.selectedHistory, onRetry) }
+        item { AttributionSummaryCard(state, rhiImprovement, rhiError) }
+        item {
+            AttributionRiskTrendCard(
+                scenarios = state.pias,
+                history = state.selectedHistory,
+                riskLevel = state.riskLevel,
+                onRetry = onRetry,
+            )
+        }
         item { AttributionActivityCard(state.activity, behaviorRecords) }
         item { AttributionFactorsCard(state.factorGroups) }
         item { AttributionPlanCard(state.interventions, feedbackViewModel) }
@@ -378,33 +387,32 @@ private fun AttributionRefreshBanner(
 @Composable
 private fun AttributionSummaryCard(
     state: AttributionUiState,
-    rhiSummary: RhiPeriodSummary?,
+    rhiImprovement: AttributionRhiImprovementUi,
     rhiError: String?,
 ) {
     AttributionCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("健康改善得分", color = Palette.TextPrimary, style = Type.CardTitle)
-                val rhiScore = rhiSummary?.score
                 Text(
-                    rhiScore?.let { String.format(Locale.US, "%.1f", it) } ?: "--",
+                    rhiImprovement.improvementText,
                     color = when {
-                        rhiScore == null -> Palette.TextSecondary
-                        rhiScore >= 50.0 -> Palette.Accent
+                        rhiImprovement.improvementPoints == null -> Palette.TextSecondary
+                        rhiImprovement.improvementPoints >= 0.0 -> Palette.Accent
                         else -> Palette.ImprovementWorsening
                     },
                     style = Type.SummaryScore,
                     modifier = Modifier.padding(top = Dimensions.SummaryScoreTop),
                 )
                 Text(
-                    rhiSummary?.summaryText() ?: rhiError ?: "正在计算动态心健康指数 RHI-100",
+                    rhiError ?: rhiImprovement.comparisonText,
                     color = Palette.TextSecondary,
                     style = Type.Detail,
                     modifier = Modifier.padding(top = Dimensions.SummarySupportingTop),
                 )
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("当前风险", color = Palette.TextSecondary, style = Type.Body)
+                Text("风险指数", color = Palette.TextSecondary, style = Type.Body)
                 Text(
                     state.currentRiskText,
                     color = Palette.TextPrimary,
@@ -419,9 +427,9 @@ private fun AttributionSummaryCard(
                 )
             }
         }
-        if (rhiSummary != null && rhiSummary.history.size >= 2) {
+        if (rhiImprovement.selectedHistory.size >= 2) {
             RhiHistoryChart(
-                history = rhiSummary.history,
+                history = rhiImprovement.selectedHistory,
                 modifier = Modifier.fillMaxWidth().height(Dimensions.HistoryChartHeight)
                     .padding(top = Dimensions.HistoryChartTop),
             )
@@ -438,44 +446,36 @@ private fun AttributionSummaryCard(
     }
 }
 
-private fun RhiPeriodSummary.summaryText(): String {
-    val source = if (
-        calculationSource == com.rehealth.genie.rhi.RhiCalculationSource.REMOTE
-    ) {
-        "JeecgBoot 远程复算"
-    } else {
-        "本地即时"
-    }
-    val base = when {
-        score == null -> "有效数据 $validDays/$requiredValidDays 天，正在积累 RHI"
-        aggregation == RhiPeriodAggregation.CURRENT_7_DAY ->
-            "动态心健康指数 RHI-100 · $source · 基于近7日有效数据"
-        else -> "动态心健康指数 RHI-100 · $source · $validDays 个有效日稳健中位数"
-    }
-    val delta = trendDelta ?: return base
-    val sign = if (delta > 0.0) "+" else ""
-    return "$base · 期内动态 $sign${String.format(Locale.US, "%.1f", delta)}"
-}
-
 @Composable
-private fun AttributionPiasCard(
-    pias: AttributionPiasUiState,
+private fun AttributionRiskTrendCard(
+    scenarios: AttributionPiasUiState,
     history: List<AttributionHistoryPoint>,
+    riskLevel: String?,
     onRetry: () -> Unit,
 ) {
     AttributionCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("个人风险趋势", color = Palette.TextPrimary, style = Type.CardTitle)
+                val readyForecast = (scenarios as? AttributionPiasUiState.Ready)?.forecast
+                val planImproves = readyForecast?.d30WithPlan != null &&
+                    readyForecast.d30NoAction != null &&
+                    readyForecast.d30WithPlan < readyForecast.d30NoAction
                 Text(
-                    "真实 RDI-16 历史 · PIAS 30 天情景预测",
+                    if (planImproves) {
+                        "当前风险指数越低越好；执行计划后预计下降更快"
+                    } else if (scenarios is AttributionPiasUiState.Ready) {
+                        "当前风险指数越低越好；下方展示 30 天情景"
+                    } else {
+                        "真实 RDI-16 历史 · 30 天情景模拟"
+                    },
                     color = Palette.TextSecondary,
                     style = Type.Detail,
                 )
             }
             Text(
-                when (pias) {
-                    is AttributionPiasUiState.Ready -> trendLabel(pias.trend)
+                when (scenarios) {
+                    is AttributionPiasUiState.Ready -> riskLevelLabel(riskLevel)
                     is AttributionPiasUiState.Accumulating -> "积累中"
                     is AttributionPiasUiState.Failed -> "暂不可用"
                     AttributionPiasUiState.Empty -> "待生成"
@@ -490,27 +490,30 @@ private fun AttributionPiasCard(
                     ),
             )
         }
-        when (pias) {
-            AttributionPiasUiState.Empty -> AttributionCompactMessage("完成已确认风险评估后生成 30 天预测。")
-            AttributionPiasUiState.Loading -> AttributionLoadingMessage("正在请求 PIAS 个人归因…")
+        when (scenarios) {
+            AttributionPiasUiState.Empty -> AttributionCompactMessage("完成已确认 RDI-16 风险评估后生成 30 天预测。")
+            AttributionPiasUiState.Loading -> AttributionLoadingMessage("正在生成风险情景…")
             is AttributionPiasUiState.Failed -> {
-                AttributionCompactMessage(pias.message)
+                AttributionCompactMessage(scenarios.message)
                 TextButton(onClick = onRetry, modifier = Modifier.align(Alignment.End)) {
                     Text("重新计算", color = Palette.Accent, style = Type.Body)
                 }
             }
             is AttributionPiasUiState.Accumulating -> {
                 AttributionCompactMessage(
-                    "已有 ${pias.historyDays} 天记录，还需 ${pias.remainingDays} 天才能生成完整预测。",
+                    "已有 ${scenarios.historyDays} 天 RDI-16 记录，还需 ${scenarios.remainingDays} 天才能生成完整预测。",
                 )
                 LinearProgressIndicator(
-                    progress = { (pias.historyDays.toFloat() / pias.minHistoryDays.coerceAtLeast(1)).coerceIn(0f, 1f) },
+                    progress = {
+                        (scenarios.historyDays.toFloat() / scenarios.minHistoryDays.coerceAtLeast(1))
+                            .coerceIn(0f, 1f)
+                    },
                     modifier = Modifier.fillMaxWidth().height(Dimensions.AccumulationProgressHeight).clip(CircleShape),
                     color = Palette.Accent,
                     trackColor = Palette.AccentSoft,
                 )
             }
-            is AttributionPiasUiState.Ready -> AttributionPiasReadyContent(pias, history)
+            is AttributionPiasUiState.Ready -> AttributionRiskTrendReadyContent(scenarios, history)
         }
         Text(
             "情景模拟基于近期健康状态，不代表未来疾病发生概率。",
@@ -522,19 +525,19 @@ private fun AttributionPiasCard(
 }
 
 @Composable
-private fun AttributionPiasReadyContent(
-    pias: AttributionPiasUiState.Ready,
+private fun AttributionRiskTrendReadyContent(
+    scenarios: AttributionPiasUiState.Ready,
     history: List<AttributionHistoryPoint>,
 ) {
-    if (pias.forecast.chartAvailable) {
+    if (scenarios.forecast.chartAvailable) {
         AttributionForecastChart(
             history = history,
-            forecast = pias.forecast,
+            forecast = scenarios.forecast,
             modifier = Modifier.fillMaxWidth().height(Dimensions.ForecastChartHeight)
                 .padding(top = Dimensions.ForecastChartTop),
         )
     } else {
-        AttributionCompactMessage("PIAS 已完成分析，本次未返回可绘制的预测序列。")
+        AttributionCompactMessage("情景分析已完成，本次未返回可绘制的预测序列。")
     }
     Column(modifier = Modifier.fillMaxWidth().padding(top = Dimensions.LegendTop)) {
         Row(
@@ -543,12 +546,12 @@ private fun AttributionPiasReadyContent(
         ) {
             AttributionTrendLegend(
                 color = Palette.ForecastActual,
-                label = "已发生的动态心健康指数",
+                label = "已发生的 RDI-16 风险指数",
                 modifier = Modifier.weight(1f),
             )
             AttributionTrendLegend(
                 color = Palette.ForecastNoAction,
-                label = "按当前习惯继续",
+                label = "维持现状",
                 dashed = true,
                 modifier = Modifier.weight(1f),
             )
@@ -559,16 +562,21 @@ private fun AttributionPiasReadyContent(
         ) {
             AttributionTrendLegend(
                 color = Palette.Accent,
-                label = "完成计划后",
+                label = "执行计划",
                 dashed = true,
                 modifier = Modifier.weight(1f),
             )
-            AttributionTrendLegend(
-                color = Palette.ForecastInterval,
-                label = "预测区间",
-                interval = true,
-                modifier = Modifier.weight(1f),
-            )
+            if (
+                scenarios.forecast.ciLower.size >= 2 &&
+                scenarios.forecast.ciUpper.size >= 2
+            ) {
+                AttributionTrendLegend(
+                    color = Palette.ForecastInterval,
+                    label = "95% 参考区间",
+                    interval = true,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
     Row(
@@ -576,40 +584,24 @@ private fun AttributionPiasReadyContent(
         horizontalArrangement = Arrangement.spacedBy(Dimensions.ForecastMetricGap),
     ) {
         AttributionForecastMetric(
-            label = "当前习惯",
-            value = pias.forecast.d30NoAction.asPercent(),
+            label = "维持现状",
+            value = scenarios.forecast.d30NoAction.asRiskIndex(),
             color = Palette.ForecastNoAction,
             modifier = Modifier.weight(1f),
         )
         AttributionForecastMetric(
-            label = "完成计划",
-            value = pias.forecast.d30WithPlan.asPercent(),
+            label = "执行计划",
+            value = scenarios.forecast.d30WithPlan.asRiskIndex(),
             color = Palette.Accent,
             modifier = Modifier.weight(1f),
         )
         AttributionForecastMetric(
             label = "预计降低",
-            value = pias.forecast.riskReduction.asPercent(signed = true),
+            value = scenarios.forecast.riskReduction.asRiskIndexDelta(),
             color = Palette.ForecastReduction,
             modifier = Modifier.weight(1f),
         )
     }
-    val attText = when (val att = pias.att) {
-        is AttributionAttUiState.Available -> buildString {
-            append("个体 ATT ${att.value.asPercent(signed = true)}")
-            if (att.ciLower != null && att.ciUpper != null) {
-                append(" · 95% CI [${att.ciLower.asPercent(signed = true)}, ${att.ciUpper.asPercent(signed = true)}]")
-            }
-            att.pValue?.let { append(" · p=${String.format(Locale.US, "%.3f", it)}") }
-        }
-        is AttributionAttUiState.Unavailable -> "个体 ATT 暂不可用：${att.reason}"
-    }
-    Text(
-        attText,
-        color = Palette.TextSecondary,
-        style = Type.Detail,
-        modifier = Modifier.padding(top = Dimensions.AttTop),
-    )
 }
 
 @Composable
@@ -1287,8 +1279,12 @@ private fun Boolean.asYesNo(): String = if (this) "是" else "否"
 
 private fun Boolean.asHistory(): String = if (this) "有" else "无"
 
-private fun Double?.asPercent(signed: Boolean = false): String = this?.let {
-    String.format(Locale.US, if (signed) "%+.2f%%" else "%.2f%%", it * 100.0)
+private fun Double?.asRiskIndex(): String = this?.let {
+    String.format(Locale.US, "%.1f", it * 100.0)
+} ?: "--"
+
+private fun Double?.asRiskIndexDelta(): String = this?.let {
+    String.format(Locale.US, "%.1f", it * 100.0)
 } ?: "--"
 
 private fun riskLevelLabel(level: String?): String = when (level?.lowercase()) {
@@ -1298,14 +1294,6 @@ private fun riskLevelLabel(level: String?): String = when (level?.lowercase()) {
     "very_high", "very high" -> "极高风险"
     null -> "等待已确认评估"
     else -> level
-}
-
-private fun trendLabel(trend: String?): String = when (trend?.lowercase()) {
-    "improving" -> "趋势改善"
-    "worsening" -> "趋势上升"
-    "stable" -> "趋势平稳"
-    null -> "已完成"
-    else -> trend
 }
 
 private fun activityTypeLabel(type: String): String = when (type.lowercase()) {

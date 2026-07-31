@@ -91,10 +91,13 @@ formal VO2max, HbA1c, and eGFR inputs; schema 10 adds confirmed upper-arm cuff
 seven-day BP and dated hospital-lab values. Migrations 8→9 and 9→10 are explicit
 and preserve existing health records. Unsupported fields remain missing/neutral
 with zero confidence; blanks are never replaced with normal values. Cuffless ring
-blood pressure remains display-only. Seven days uses the current RHI calculated
-from recent valid data; 30/90 days use the median of valid daily RHI values and
-require 7/14 valid days. The current clinical-risk value and PIAS personal-risk
-trend remain on the confirmed CVD-16 path. The Model UI is unchanged.
+blood pressure remains display-only. The Attribution improvement score is the
+signed difference between the latest valid RHI and the earliest valid personal
+baseline in the trailing 90-day window; when full 90-day coverage is unavailable,
+the UI says "earliest valid baseline". Its chart filters the same real RHI history
+for the selected 7/30/90-day view. The current risk index only uses a confirmed
+RDI-16 `risk_score`, rendered as `risk_score * 100` out of 100. Scenario output
+never replaces that current RDI-16 value. The Model UI is unchanged.
 
 Android RHI field provenance is fixed as follows:
 

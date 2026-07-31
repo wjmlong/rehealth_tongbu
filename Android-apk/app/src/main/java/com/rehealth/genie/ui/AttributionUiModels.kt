@@ -2,6 +2,7 @@ package com.rehealth.genie.ui
 
 import com.rehealth.genie.phm.AttributionHistoryPoint
 import com.rehealth.genie.phm.IndividualAttributionResult
+import com.rehealth.genie.rhi.RhiDailyScore
 import java.time.LocalDate
 
 enum class AttributionPeriod(val days: Long, val selectorLabel: String) {
@@ -160,15 +161,19 @@ data class AttributionUiState(
     val currentRisk: Double?,
     val currentRiskText: String,
     val riskLevel: String?,
-    val improvementPoints: Double?,
-    val improvementText: String,
-    val improvementMessage: String,
     val selectedHistory: List<AttributionHistoryPoint>,
     val pias: AttributionPiasUiState,
     val activity: AttributionActivityUi?,
     val factors: List<AttributionFactorUi>,
     val factorGroups: List<AttributionFactorGroupUi>,
     val interventions: List<AttributionInterventionUi>,
+)
+
+data class AttributionRhiImprovementUi(
+    val improvementPoints: Double?,
+    val improvementText: String,
+    val comparisonText: String,
+    val selectedHistory: List<RhiDailyScore>,
 )
 
 data class AttributionRefreshState(

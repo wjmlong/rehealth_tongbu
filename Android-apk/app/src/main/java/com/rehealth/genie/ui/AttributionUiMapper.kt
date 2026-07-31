@@ -2,6 +2,7 @@ package com.rehealth.genie.ui
 
 import com.rehealth.genie.phm.AttributionHistoryPoint
 import com.rehealth.genie.phm.IndividualAttributionResult
+import com.rehealth.genie.rhi.RhiPeriodSummary
 import java.time.LocalDate
 import java.util.Locale
 
@@ -58,9 +59,6 @@ object AttributionUiMapper {
             ?.riskScore
             ?.takeIf(::validRisk)
             ?: validHistory.lastOrNull()?.second?.riskScore
-        val improvement = selectedHistory.takeIf { it.size >= 2 }?.let {
-            (it.first().riskScore - it.last().riskScore) * 100.0
-        }
         val factors = mapFactors(input.evaluation, input.factorValues)
 
         return AttributionUiState(
@@ -68,15 +66,8 @@ object AttributionUiMapper {
             refreshPhase = input.refreshPhase,
             refreshMessage = refreshMessage(input.refreshPhase, input.refreshError),
             currentRisk = currentRisk,
-            currentRiskText = currentRisk?.let { String.format(Locale.US, "%.2f%%", it * 100) } ?: "--",
+            currentRiskText = currentRisk?.let { String.format(Locale.US, "%.1f/100", it * 100) } ?: "--/100",
             riskLevel = input.evaluation?.takeIf { it.confirmed }?.riskLevel,
-            improvementPoints = improvement,
-            improvementText = improvement?.let { String.format(Locale.US, "%+.1f", it) } ?: "--",
-            improvementMessage = if (improvement == null) {
-                "所选周期至少需要 2 次已确认风险评估"
-            } else {
-                "最早与最新已确认风险的百分点变化"
-            },
             selectedHistory = selectedHistory,
             pias = mapPias(input.remote.pias, input.refreshPhase, input.refreshError),
             activity = mapActivity(input.activity, input.allowDebugReplay),
@@ -88,6 +79,49 @@ object AttributionUiMapper {
         )
     }
 
+    fun mapRhiImprovement(
+        summary: RhiPeriodSummary?,
+        period: AttributionPeriod,
+        today: LocalDate,
+    ): AttributionRhiImprovementUi {
+        val ninetyDayCutoff = today.minusDays(89)
+        val history = summary?.history.orEmpty()
+            .filter {
+                !it.date.isBefore(ninetyDayCutoff) &&
+                    !it.date.isAfter(today) &&
+                    it.score.isFinite() &&
+                    it.score in 0.0..100.0
+            }
+            .sortedBy { it.date }
+        val selectedCutoff = today.minusDays(period.days - 1)
+        val selectedHistory = history.filter { !it.date.isBefore(selectedCutoff) }
+        val baseline = history.firstOrNull()
+        val current = history.lastOrNull()
+        val improvement = if (baseline != null && current != null && baseline.date != current.date) {
+            current.score - baseline.score
+        } else {
+            null
+        }
+        val comparisonText = when {
+            improvement == null -> "RHI-100 需要至少 2 个有效日建立个人基准"
+            requireNotNull(baseline).date <= ninetyDayCutoff ->
+                "RHI-100 · 较 90 天基准改善 · 最近 ${period.selectorLabel}"
+            else -> {
+                val observedDays = java.time.temporal.ChronoUnit.DAYS.between(
+                    baseline.date,
+                    requireNotNull(current).date,
+                ) + 1
+                "RHI-100 · 较最早有效基准改善 · 已积累 ${observedDays} 天"
+            }
+        }
+        return AttributionRhiImprovementUi(
+            improvementPoints = improvement,
+            improvementText = improvement?.let { String.format(Locale.US, "%+.1f 分", it) } ?: "-- 分",
+            comparisonText = comparisonText,
+            selectedHistory = selectedHistory,
+        )
+    }
+
     private fun mapPias(
         result: IndividualAttributionResult?,
         refreshPhase: AttributionRefreshPhase,
@@ -96,7 +130,7 @@ object AttributionUiMapper {
         if (result == null) {
             return when (refreshPhase) {
                 AttributionRefreshPhase.LOADING, AttributionRefreshPhase.REFRESHING -> AttributionPiasUiState.Loading
-                AttributionRefreshPhase.ERROR -> AttributionPiasUiState.Failed(refreshError ?: "PIAS 暂时不可用")
+                AttributionRefreshPhase.ERROR -> AttributionPiasUiState.Failed(refreshError ?: "情景模拟暂时不可用")
                 AttributionRefreshPhase.IDLE, AttributionRefreshPhase.READY -> AttributionPiasUiState.Empty
             }
         }
@@ -105,7 +139,7 @@ object AttributionUiMapper {
                 historyDays = result.historyDays ?: 0,
                 minHistoryDays = result.minHistoryDays ?: 14,
             )
-            "error", "failed" -> AttributionPiasUiState.Failed("PIAS 分析未完成，请重试")
+            "error", "failed" -> AttributionPiasUiState.Failed("情景模拟未完成，请重试")
             else -> mapReadyPias(result)
         }
     }
@@ -140,7 +174,7 @@ object AttributionUiMapper {
             result.attUnavailableReason ?: if (result.interventionDataSufficient == false) {
                 "干预与对照记录不足，暂不能计算 ATT"
             } else {
-                "本次 PIAS 未提供 ATT"
+                "本次情景分析未提供 ATT"
             },
         )
         return AttributionPiasUiState.Ready(
