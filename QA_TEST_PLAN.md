@@ -100,11 +100,13 @@ git diff --check
    - Open the Attribution and Model tabs and compare with the `fc1f6d5` baseline. Attribution
      must retain period selection, improvement summary, PIAS, activity, 16-factor groups and
      intervention plan. Model must retain its existing compact risk/input cards.
-   - In Attribution, confirm “健康改善得分” shows the local RDI value without “百分点”.
-     For 7 days, verify the value is the current RDI calculated from recent seven-day valid
-     Room data. For 30/90 days, verify the value and chart use the median/history of valid
-     daily RDI values; fewer than 7/14 valid days must show an accumulating state.
-   - Confirm the right-side current clinical risk and PIAS remain separate from RDI. Missing
+   - In Attribution, confirm “健康改善得分” shows RHI-100 without “百分点”, and verify
+     that a healthier input direction raises the score. For 7 days, verify the value is the
+     current RHI calculated from recent seven-day valid Room data. For 30/90 days, verify
+     the value and chart use the median/history of valid daily RHI values; fewer than 7/14
+     valid days must show an accumulating state.
+   - Confirm the right-side current clinical risk and PIAS personal-risk trend remain on the
+     existing confirmed CVD-16 interface and are separate from RHI. Missing
      wearable data must not be replaced with a normal score, and switching periods quickly
      must not display a result from the previously selected period.
    - Open “我的”, tap the avatar, and select an image through the Android system picker.

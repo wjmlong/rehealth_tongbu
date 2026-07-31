@@ -159,8 +159,12 @@ POST /v2/rhi/evaluate
 China-PAR；临床概率只能由审核后的独立模型作为 `clinicalRisk` 锚点传入。
 当前接口只在 development/demo 运行模式开放，production/staging 失败关闭。
 
-Android 当前只包含 DTO 和 v1→v2 草稿映射器，不声明 Retrofit 路由，不切换
-首页，不把研究预览当生产结果。正式接入顺序：
+Android 网络层当前只包含 DTO 和 v1→v2 草稿映射器，不声明 Retrofit 路由，
+也不把研究预览当成经验证临床结果。归因页“健康改善得分”可在端侧运行
+`rhi-deterministic-preview-2.0.0-android-lite`：仅使用 Room 中可安全推导的
+Lite 可穿戴字段，复用本节阈值曲线、域权重、可信度收缩与平滑；不支持的字段
+保持缺失/中性。7 日显示当前 RHI，30/90 日显示有效日 RHI 稳健中位数。
+云端正式接入顺序：
 
 1. 冻结共享 OpenAPI 和 `rhi-core32-v2` 字段单位；
 2. Device Service/Feature Pipeline 生成版本化日特征快照；

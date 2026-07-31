@@ -66,22 +66,25 @@ queue until the user logs in again; the app does not invent a refresh-token flow
 | Attribution | `POST /rehealth/mobile/attribution/events` | Authenticated individual attribution only. |
 | Health assistant | `POST /rehealth/mobile/agent/messages`, `GET /rehealth/mobile/agent/conversations/latest` | Persist the user message in Room before sending. `conversationId`, `clientMessageId`, and `requestId` make retries stable; restore the latest user/tenant-scoped server conversation after login. JeecgBoot extracts only explicit self-reported name, gender, age, height and weight, merges changed values into the typed profile before assembling that turn's prompt, and appends a Chinese field-update confirmation to the persisted answer. Hypothetical or third-party values are not profile updates. Provider credentials remain server-only. |
 
-RHI v2 is not yet a canonical Android endpoint. The APK contains only draft
-32-field DTOs and a conservative CVD-16 migration mapper. No Retrofit method,
-cloud RHI cache, or canonical RHI UI switch may be added until the shared OpenAPI, JeecgBoot durable
+RHI v2 is not yet a canonical Android endpoint. The Android network layer contains
+only draft 32-field DTOs and a conservative CVD-16 migration mapper. No Retrofit
+method or cloud RHI cache may be added until the shared OpenAPI, JeecgBoot durable
 persistence, daily feature snapshot ownership, and research-preview release gate
 are approved. The model-service-only preview route is
 `POST /v2/rhi/evaluate`; Android must never call model-service directly.
 
 Android does contain a separate local product index named RDI
-(`rdi-rule-1.0.0`). It does not call a backend endpoint and must not be interpreted
-as the RHI v2 clinical/dynamic contract. RDI reads existing Room wearable rows,
-persists local daily snapshots plus calculation evidence, and leaves confirmed
-CVD-16 risk history unchanged. Unverified cuffless blood pressure, missing lab
-values, and inferred LDL/HbA1c are excluded. The Attribution UI binds only its
-existing “health improvement score” and chart to local RDI: 7 days uses the
-current score calculated from recent seven-day valid data; 30/90 days use the
-median of valid daily RDI values. The Model UI is unchanged.
+(`rdi-rule-1.0.0`). It remains an additive transparent rule and Room persistence
+skeleton, but it does not drive the Attribution health improvement score.
+
+That existing score and chart use the Android RHI Lite evaluator
+(`rhi-deterministic-preview-2.0.0-android-lite`). It ports the governed RHI-100
+preview curves, domain weights, confidence shrinkage, and display smoothing for
+wearable fields that can be derived safely from Room. Unsupported fields remain
+missing/neutral with zero confidence. Seven days uses the current RHI calculated
+from recent valid data; 30/90 days use the median of valid daily RHI values and
+require 7/14 valid days. The current clinical-risk value and PIAS personal-risk
+trend remain on the confirmed CVD-16 path. The Model UI is unchanged.
 
 Every durable business endpoint returns a retryable `503` envelope when the
 required database is disabled or unavailable. Android must not interpret an

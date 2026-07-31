@@ -13,6 +13,7 @@ import com.rehealth.genie.network.SessionStore
 import com.rehealth.genie.notification.RingNotificationChannels
 import com.rehealth.genie.phm.RemotePhmService
 import com.rehealth.genie.rdi.RdiRepository
+import com.rehealth.genie.rhi.RhiRepository
 import com.rehealth.genie.ring.RingBackgroundCollectionSettings
 import com.rehealth.genie.ring.RingRepository
 import com.rehealth.genie.ring.createRuntimeRingProviderFactories
@@ -100,6 +101,12 @@ class ReHealthApplication : Application() {
             rdiDao = database.rdiDao(),
             ringDataDao = database.ringDataDao(),
             userIdProvider = { sessionStore.userId },
+        )
+    }
+
+    val rhiRepository by lazy {
+        RhiRepository(
+            ringDataDao = database.ringDataDao(),
         )
     }
 

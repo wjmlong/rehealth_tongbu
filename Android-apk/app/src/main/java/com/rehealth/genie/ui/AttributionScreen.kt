@@ -68,9 +68,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rehealth.genie.BuildConfig
 import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.network.PatientProfilePayload
-import com.rehealth.genie.rdi.RdiDailyScore
-import com.rehealth.genie.rdi.RdiPeriodAggregation
-import com.rehealth.genie.rdi.RdiPeriodSummary
+import com.rehealth.genie.rhi.RhiDailyScore
+import com.rehealth.genie.rhi.RhiPeriodAggregation
+import com.rehealth.genie.rhi.RhiPeriodSummary
 import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.RingUiState
 import com.rehealth.genie.ui.theme.AttributionDimensions as Dimensions
@@ -93,16 +93,16 @@ fun AttributionScreen(
     val feedbackViewModel: InterventionFeedbackViewModel = viewModel(
         factory = InterventionFeedbackViewModel.Factory(LocalContext.current),
     )
-    val rdiViewModel: RdiViewModel = viewModel(factory = RdiViewModel.Factory(LocalContext.current))
-    val rdiPeriodSummary by rdiViewModel.periodSummary.collectAsState()
-    val rdiRefreshError by rdiViewModel.refreshError.collectAsState()
+    val rhiViewModel: RhiViewModel = viewModel(factory = RhiViewModel.Factory(LocalContext.current))
+    val rhiPeriodSummary by rhiViewModel.periodSummary.collectAsState()
+    val rhiRefreshError by rhiViewModel.refreshError.collectAsState()
     var selectedPeriod by remember { mutableStateOf(AttributionPeriod.DAYS_7) }
     var retryKey by remember { mutableIntStateOf(0) }
     var requestSequence by remember { mutableLongStateOf(0L) }
     var refreshState by remember { mutableStateOf(AttributionRefreshState()) }
 
     LaunchedEffect(selectedPeriod, ringState.lastSyncAt) {
-        rdiViewModel.refresh(selectedPeriod.days.toInt())
+        rhiViewModel.refresh(selectedPeriod.days.toInt())
     }
 
     LaunchedEffect(
@@ -188,13 +188,13 @@ fun AttributionScreen(
 
     AttributionContent(
         state = uiState,
-        rdiSummary = rdiPeriodSummary?.takeIf { it.periodDays == selectedPeriod.days.toInt() },
-        rdiError = rdiRefreshError,
+        rhiSummary = rhiPeriodSummary?.takeIf { it.periodDays == selectedPeriod.days.toInt() },
+        rhiError = rhiRefreshError,
         feedbackViewModel = feedbackViewModel,
         onPeriodSelected = { selectedPeriod = it },
         onRetry = {
             retryKey += 1
-            rdiViewModel.refresh(selectedPeriod.days.toInt())
+            rhiViewModel.refresh(selectedPeriod.days.toInt())
         },
     )
 }
@@ -202,8 +202,8 @@ fun AttributionScreen(
 @Composable
 private fun AttributionContent(
     state: AttributionUiState,
-    rdiSummary: RdiPeriodSummary?,
-    rdiError: String?,
+    rhiSummary: RhiPeriodSummary?,
+    rhiError: String?,
     feedbackViewModel: InterventionFeedbackViewModel,
     onPeriodSelected: (AttributionPeriod) -> Unit,
     onRetry: () -> Unit,
@@ -243,7 +243,7 @@ private fun AttributionContent(
                 )
             }
         }
-        item { AttributionSummaryCard(state, rdiSummary, rdiError) }
+        item { AttributionSummaryCard(state, rhiSummary, rhiError) }
         item { AttributionPiasCard(state.pias, onRetry) }
         item { AttributionActivityCard(state.activity) }
         item { AttributionFactorsCard(state.factorGroups) }
@@ -338,26 +338,26 @@ private fun AttributionRefreshBanner(
 @Composable
 private fun AttributionSummaryCard(
     state: AttributionUiState,
-    rdiSummary: RdiPeriodSummary?,
-    rdiError: String?,
+    rhiSummary: RhiPeriodSummary?,
+    rhiError: String?,
 ) {
     AttributionCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("健康改善得分", color = Palette.TextPrimary, style = Type.CardTitle)
-                val rdiScore = rdiSummary?.score
+                val rhiScore = rhiSummary?.score
                 Text(
-                    rdiScore?.let { String.format(Locale.US, "%.1f", it) } ?: "--",
+                    rhiScore?.let { String.format(Locale.US, "%.1f", it) } ?: "--",
                     color = when {
-                        rdiScore == null -> Palette.TextSecondary
-                        rdiScore <= 50.0 -> Palette.Accent
+                        rhiScore == null -> Palette.TextSecondary
+                        rhiScore >= 50.0 -> Palette.Accent
                         else -> Palette.ImprovementWorsening
                     },
                     style = Type.SummaryScore,
                     modifier = Modifier.padding(top = Dimensions.SummaryScoreTop),
                 )
                 Text(
-                    rdiSummary?.summaryText() ?: rdiError ?: "正在计算动态风险影响分 RDI",
+                    rhiSummary?.summaryText() ?: rhiError ?: "正在计算动态心健康指数 RHI-100",
                     color = Palette.TextSecondary,
                     style = Type.Detail,
                     modifier = Modifier.padding(top = Dimensions.SummarySupportingTop),
@@ -379,9 +379,9 @@ private fun AttributionSummaryCard(
                 )
             }
         }
-        if (rdiSummary != null && rdiSummary.history.size >= 2) {
-            RdiHistoryChart(
-                history = rdiSummary.history,
+        if (rhiSummary != null && rhiSummary.history.size >= 2) {
+            RhiHistoryChart(
+                history = rhiSummary.history,
                 modifier = Modifier.fillMaxWidth().height(Dimensions.HistoryChartHeight)
                     .padding(top = Dimensions.HistoryChartTop),
             )
@@ -392,16 +392,16 @@ private fun AttributionSummaryCard(
                     .clip(RoundedCornerShape(Dimensions.ContentRadius)).background(Palette.SurfaceSubtle),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("动态风险影响分趋势正在积累", color = Palette.TextSecondary, style = Type.Body)
+                Text("动态心健康指数趋势正在积累", color = Palette.TextSecondary, style = Type.Body)
             }
         }
     }
 }
 
-private fun RdiPeriodSummary.summaryText(): String = when {
-    score == null -> "有效数据 $validDays/$requiredValidDays 天，正在积累 RDI"
-    aggregation == RdiPeriodAggregation.CURRENT_7_DAY -> "动态风险影响分 RDI · 基于近7日有效数据"
-    else -> "动态风险影响分 RDI · $validDays 个有效日稳健中位数"
+private fun RhiPeriodSummary.summaryText(): String = when {
+    score == null -> "有效数据 $validDays/$requiredValidDays 天，正在积累 RHI"
+    aggregation == RhiPeriodAggregation.CURRENT_7_DAY -> "动态心健康指数 RHI-100 · 基于近7日有效数据"
+    else -> "动态心健康指数 RHI-100 · $validDays 个有效日稳健中位数"
 }
 
 @Composable
@@ -1002,7 +1002,7 @@ private fun AttributionForecastMetric(label: String, value: String, color: Color
 }
 
 @Composable
-private fun RdiHistoryChart(history: List<RdiDailyScore>, modifier: Modifier) {
+private fun RhiHistoryChart(history: List<RhiDailyScore>, modifier: Modifier) {
     Canvas(modifier) {
         if (history.size < 2) return@Canvas
         val values = history.map { it.score.toFloat() }
