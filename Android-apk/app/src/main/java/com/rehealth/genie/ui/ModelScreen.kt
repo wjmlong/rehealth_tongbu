@@ -42,43 +42,30 @@ internal fun ModelScreen(
     state: RingUiState,
     canonicalRiskStatus: androidx.compose.runtime.State<RemoteFeatureEvaluateStatus?>,
 ) {
-    val inputs = remember(state.measurements, state.sleep, state.activity) { modelInputsFromRingState(state) }
-    val current = canonicalRiskStatus.value
-    Page("健康模型", "结合本机健康数据进行云端风险评估") {
+    val inputs = remember { modelPreviewInputs() }
+    Page("端侧健康模型", "你的健康 AI 正在本机运行") {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             ReHealthCardBlock {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(48.dp).clip(CircleShape).background(MintSoft), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Outlined.SmartToy, null, tint = Mint)
+                    Box(
+                        modifier = Modifier.size(48.dp).clip(CircleShape).background(MintSoft),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Outlined.SmartToy, null, tint = Mint, modifier = Modifier.size(24.dp))
                     }
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                        Text("规范风险评估", color = Mint, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                        Text(
-                            "${state.collectedMetricCount} 项戒指数据 · ${current?.modeLabel ?: "评估中"}",
-                            color = Muted,
-                            fontSize = 11.sp,
-                        )
+                        Text("本机运行中", color = Mint, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        Text("5 项健康数据 · 2 项设备功能", color = Muted, fontSize = 11.sp)
                     }
-                    Text(current?.riskScore.riskScoreLabel(), color = Mint, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    Text("7 项", color = Mint, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                 }
             }
+            SectionTitle("端侧学习流程")
             ReHealthCardBlock {
-                StatusRow("风险等级", current?.riskLevel.riskLevelLabel())
-                StatusRow("风险分数", current?.riskScore.riskScoreLabel())
-                StatusRow("模型版本", current?.modelVersion ?: "待返回")
-                Text(
-                    current?.summary ?: "正在整理本机健康数据，评估完成后将在这里展示结果。",
-                    color = Muted,
-                    fontSize = 11.sp,
-                    lineHeight = 16.sp,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-            }
-            SectionTitle("健康评估进度")
-            ReHealthCardBlock {
-                ModelPipelineRow("1", "健康数据采集", "${state.collectedMetricCount} 项数据", state.collectedMetricCount > 0)
-                ModelPipelineRow("2", "风险评估", current?.riskScore?.let { "今日已完成" } ?: "等待足够数据", current?.riskScore != null)
-                ModelPipelineRow("3", "个性化建议", current?.summary?.let { "已生成" } ?: "等待评估结果", current?.summary != null)
+                ModelPipelineRow("1", "戒指数据采集", "5 项健康数据", true)
+                ModelPipelineRow("2", "本地特征工程", "趋势与个人基线", true)
+                ModelPipelineRow("3", "风险模型推理", "今日已完成", true)
+                ModelPipelineRow("4", "个性化学习", "夜间持续更新", false)
             }
             SectionTitle("戒指健康数据输入")
             ReHealthCardBlock {
@@ -89,15 +76,18 @@ internal fun ModelScreen(
             }
             SectionTitle("个性化学习状态")
             ReHealthCardBlock {
-                StatusRow("健康档案", if (state.patientMvp?.profile != null) "已读取" else "待补充")
-                StatusRow("可穿戴数据", if (state.collectedMetricCount > 0) "已读取 ${state.collectedMetricCount} 项" else "待同步")
-                StatusRow("今日评估", if (current?.riskScore != null) "已完成" else "等待结果")
+                StatusRow("健康基线", "已建立")
+                StatusRow("近 7 日有效数据", "86%")
+                StatusRow("已参考用户反馈", "18 次")
+                StatusRow("最近学习时间", "今天 08:32")
+                StatusRow("下次夜间更新", "今晚 23:00")
             }
             SectionTitle("隐私与数据状态")
             ReHealthCardBlock {
-                StatusRow("原始健康信号上传", "否")
-                StatusRow("规范化健康指标", "按授权同步")
-                StatusRow("模型服务连接", "由云端安全管理")
+                StatusRow("原始健康数据上传", "否")
+                StatusRow("图片原图上传", "否")
+                StatusRow("本地数据加密", "已开启")
+                StatusRow("匿名模型改进", "未开启")
             }
             Row(
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
@@ -113,7 +103,7 @@ internal fun ModelScreen(
                 )
             }
             Text(
-                "当前模型版本：${current?.modelVersion ?: "等待评估"}",
+                "PHM Core 1.0.0 · 特征引擎 0.1.0 · 风险模型 0.1.0",
                 color = Muted,
                 fontSize = 11.sp,
                 textAlign = TextAlign.Center,
@@ -122,6 +112,40 @@ internal fun ModelScreen(
         }
     }
 }
+
+private fun modelPreviewInputs(): List<ModelInputStatus> =
+    listOf(
+        ModelInputStatus(
+            RingMetricType.HEART_RATE,
+            "心率",
+            "静息心率、日内波动",
+            ModelInputStage.LEARNING,
+        ),
+        ModelInputStatus(
+            RingMetricType.BLOOD_OXYGEN,
+            "血氧",
+            "均值、低值时长",
+            ModelInputStage.FEATURE_EXTRACTED,
+        ),
+        ModelInputStatus(
+            RingMetricType.BLOOD_PRESSURE,
+            "血压",
+            "收缩压、舒张压趋势",
+            ModelInputStage.LEARNING,
+        ),
+        ModelInputStatus(
+            RingMetricType.SLEEP,
+            "睡眠",
+            "时长、阶段、连续性",
+            ModelInputStage.LEARNING,
+        ),
+        ModelInputStatus(
+            RingMetricType.STEPS,
+            "步数",
+            "总量、时段分布",
+            ModelInputStage.LEARNING,
+        ),
+    )
 
 @Composable
 private fun ModelPipelineRow(step: String, title: String, status: String, complete: Boolean) {
