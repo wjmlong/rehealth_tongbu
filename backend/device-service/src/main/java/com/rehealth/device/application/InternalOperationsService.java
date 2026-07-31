@@ -1,6 +1,5 @@
 package com.rehealth.device.application;
 
-import com.rehealth.device.application.UserHealthSummary;
 import com.rehealth.device.config.ServiceCredentialProvider;
 import com.rehealth.device.port.TelemetryReadPort;
 import org.springframework.http.HttpStatus;
@@ -8,6 +7,8 @@ import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.DateTimeException;
+import java.time.ZoneId;
 import java.util.Map;
 
 @Service
@@ -34,6 +35,29 @@ public class InternalOperationsService {
             throw new DeviceRequestException(HttpStatus.BAD_REQUEST, "USER_ID_REQUIRED");
         }
         return telemetryReader.healthSummaryForUser(userId);
+    }
+
+    public InterventionTelemetryContext interventionContext(
+            String suppliedCredential,
+            String tenantId,
+            String userId,
+            String timeZone
+    ) {
+        validateCredential(suppliedCredential);
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new DeviceRequestException(HttpStatus.BAD_REQUEST, "TENANT_ID_REQUIRED");
+        }
+        if (userId == null || userId.isBlank()) {
+            throw new DeviceRequestException(HttpStatus.BAD_REQUEST, "USER_ID_REQUIRED");
+        }
+        try {
+            ZoneId zoneId = ZoneId.of(timeZone == null || timeZone.isBlank()
+                    ? "Asia/Shanghai"
+                    : timeZone);
+            return telemetryReader.interventionContext(tenantId, userId, zoneId);
+        } catch (DateTimeException invalidTimeZone) {
+            throw new DeviceRequestException(HttpStatus.BAD_REQUEST, "INVALID_TIME_ZONE");
+        }
     }
 
     private void validateCredential(String suppliedCredential) {

@@ -1,7 +1,35 @@
-# ReHealth Hardware Ingest Architecture E2.1
+# ReHealth Hardware Ingest Architecture
 
-Date: 2026-07-13
-Module: `jeecg-boot/jeecg-boot-module/jeecg-module-rehealth`
+Date: 2026-07-31
+Current module: `device-service`
+
+## Current Device Service Flow
+
+```text
+authenticated Android batch (telemetry-v2)
+  -> Gateway telemetry authority route
+  -> Device Service identity/device authorization
+  -> shared TelemetryContractValidator
+  -> one TimescaleDB transaction
+       -> upload receipt + measurement + sleep + activity + diet
+       -> reconciliation + Transactional Outbox
+  -> durable ACCEPTED_PERSISTED / idempotent ACCEPTED_DUPLICATE
+```
+
+`dietRecords` is optional for backward compatibility. Each record requires a
+stable ID, `consumedAt`, one of `breakfast|lunch|dinner|snack`, and a bounded
+description; present nutrient values must be finite and non-negative. Raw meal
+images are outside this contract. Android must persist a captured meal locally
+before it enters the retryable telemetry batch.
+
+Personalized intervention generation is a separate read path and never runs
+inside ingestion. Jeecg calls the credential-protected Device Service
+`/rehealth/internal/v1/operations/users/{userId}/intervention-context` endpoint,
+which reads only the authenticated tenant/user's current natural day and
+bounded recent trends. Upload success therefore does not depend on the LLM,
+software_db, or intervention availability.
+
+## Legacy Jeecg/MySQL E2.1 Reference
 
 ## Scope
 

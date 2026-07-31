@@ -34,7 +34,8 @@ final class TimescaleBatchRepository {
     StoredTelemetryBatch findReplay(DeviceClaims claims, String batchId) {
         List<StoredTelemetryBatch> matches = jdbc.query("""
                         SELECT receipt_id::text, measurement_count, sleep_session_count,
-                               activity_count, signal_metadata_count, quality_summary
+                               activity_count, signal_metadata_count, diet_record_count,
+                               quality_summary
                         FROM hardware_upload_batch
                         WHERE tenant_id = ? AND user_id = ? AND device_id = ? AND batch_id = ?
                         """,
@@ -45,7 +46,8 @@ final class TimescaleBatchRepository {
                                 row.getInt("measurement_count"),
                                 row.getInt("sleep_session_count"),
                                 row.getInt("activity_count"),
-                                row.getInt("signal_metadata_count")),
+                                row.getInt("signal_metadata_count"),
+                                row.getInt("diet_record_count")),
                         payloads.rejectedCount(row.getString("quality_summary"))),
                 claims.tenantId(), claims.userId(), claims.deviceId(), batchId);
         return matches.isEmpty() ? null : matches.get(0);
@@ -64,8 +66,8 @@ final class TimescaleBatchRepository {
                           id, receipt_id, tenant_id, user_id, device_id, batch_id,
                           source, collected_from, collected_to, received_at, status,
                           record_count, measurement_count, sleep_session_count,
-                          activity_count, signal_metadata_count, quality_summary
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'RECEIVED', ?, ?, ?, ?, ?, ?::jsonb)
+                          activity_count, signal_metadata_count, diet_record_count, quality_summary
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'RECEIVED', ?, ?, ?, ?, ?, ?, ?::jsonb)
                         ON CONFLICT (tenant_id, user_id, device_id, batch_id) DO NOTHING
                         """,
                 batchDatabaseId, receiptId, claims.tenantId(), claims.userId(), claims.deviceId(),
@@ -73,6 +75,7 @@ final class TimescaleBatchRepository {
                 payloads.timestamp(request.collectedTo), Timestamp.from(receivedAt), validation.recordCount(),
                 validation.measurementCount(), validation.sleepSessionCount(),
                 validation.activitySessionCount(), validation.signalChunkCount(),
+                validation.dietRecordCount(),
                 payloads.json(request.quality == null ? Map.of() : request.quality));
         return inserted != 0;
     }

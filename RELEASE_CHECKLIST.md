@@ -52,6 +52,7 @@
 - [ ] 断网不阻塞 BLE，待上传数据保留在 durable queue。
 - [ ] 恢复网络后遥测、特征和反馈按幂等语义同步。
 - [ ] 风险、干预、反馈和趋势页面显示真实来源与模型版本。
+- [ ] 归因页干预计划来自服务端结构化 `items`；每次生成重新读取当前用户画像、最新访谈/风险、TimescaleDB 今日活动/睡眠/测量/饮食和近 7 日变化，客户端上下文不能覆盖权威数据，失败时不生成伪计划。
 - [ ] 权限拒绝、蓝牙关闭、设备离线和后端失败均有可恢复提示。
 - [ ] 进程恢复只重连当前加密绑定；HBand 画像缓存按用户哈希隔离，登出停止采集并断开设备。
 
@@ -94,6 +95,7 @@
 - [ ] telemetry contracts、Device Service 和 Jeecg ReHealth 测试通过。
 - [ ] OpenAPI/DTO characterization 门禁通过且检查数大于零。
 - [ ] software_db 与 TimescaleDB migrations 在目标版本数据库验证。
+- [ ] TimescaleDB V4 `hardware_diet_record` 为 hypertable，`telemetry-v2` 混合批次的饮食计数、幂等、同事务回滚、7 日压缩和配置化保留策略验证通过。
 - [ ] `software-V20260729.1` 已回填档案/访谈/干预结构化字段，旧 JSON 无效行已审计且新旧记录数一致。
 - [ ] `software-V20260730.1` 已创建 `rehealth_ai_conversation`/`rehealth_ai_message`，用户+租户隔离、请求幂等、数据库重启恢复和保留/删除策略已验证。
 - [ ] 用户/租户/设备所有权检查和重复批次幂等通过。

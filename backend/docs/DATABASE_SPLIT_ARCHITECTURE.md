@@ -16,12 +16,20 @@ ReHealth backend needs two database ownership domains:
 
 Android never writes directly to either database. Android persists locally first, then uploads through backend APIs. Model-service never owns JeecgBoot databases.
 
+Current implementation update (2026-07-31): `software_db` remains Jeecg/MySQL,
+while `hardware_db` authority has completed its move to Device
+Service/TimescaleDB. The earlier Jeecg dual-datasource/MySQL text below is
+historical MVP design context, not the active write path. TimescaleDB V4 adds
+the `hardware_diet_record` hypertable; other services consume tenant/user-scoped
+summaries through Device Service APIs rather than direct SQL or cross-database
+joins.
+
 ## Database Responsibilities
 
 | Database | Owns | Does not own |
 | --- | --- | --- |
 | `software_db` | Users, roles, permissions, device binding, user profile, health interview, CVD feature vectors, risk results, intervention plans, intervention feedback, upload status, admin/business records, model request metadata. | Raw high-frequency telemetry samples, PPG/RRI chunks, raw upload payloads beyond operational logs, time-series retention. |
-| `hardware_db` | Wearable telemetry batches, heart rate, blood oxygen, blood pressure, temperature, sleep, steps/activity, HRV, RRI/PPG metadata if legally/clinically allowed, raw upload batch logs, data quality flags, ingestion events, idempotency records. | User account authority, roles/permissions, intervention plans, model risk outputs, admin/doctor workflows. |
+| `hardware_db` | Wearable telemetry batches, heart rate, blood oxygen, blood pressure, temperature, sleep, steps/activity, structured diet behavior, HRV, RRI/PPG metadata if legally/clinically allowed, raw upload batch logs, data quality flags, ingestion events, idempotency records. | User account authority, roles/permissions, intervention plans, model risk outputs, admin/doctor workflows. |
 
 ## `software_db` Design
 
@@ -179,7 +187,9 @@ Android CVD feature extractor
   -> software_db.rehealth_cvd_feature_vector
   -> ModelServiceClient POST /v1/cvd/risk/evaluate
   -> software_db.rehealth_cvd_risk_result
-  -> ModelServiceClient POST /v1/cvd/intervention/generate
+  -> reload software_db profile/interview/latest risk
+  -> Device Service tenant/user-scoped TimescaleDB intervention context
+  -> Jeecg LangChain4j structured wellness-plan generation
   -> software_db.rehealth_intervention_plan
   -> response to Android
 ```
@@ -236,8 +246,10 @@ Intervention:
 
 ```text
 backend
-  -> POST model-service /v1/cvd/intervention/generate
-  -> persist plan_id, generated_at, action, rationale, contraindications, confidence, model_version, is_mock, disclaimer
+  -> reload authenticated profile, latest interview and risk from software_db
+  -> GET Device Service /rehealth/internal/v1/operations/users/{userId}/intervention-context
+  -> Jeecg LangChain4j validates 1–5 evidence-linked actions
+  -> persist plan_id, structured JSON items, context freshness, disclaimer and model version
 ```
 
 Attribution later:

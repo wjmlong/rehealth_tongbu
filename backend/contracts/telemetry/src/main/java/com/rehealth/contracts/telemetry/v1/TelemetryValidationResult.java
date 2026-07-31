@@ -7,8 +7,26 @@ public record TelemetryValidationResult(
         int measurementCount,
         int sleepSessionCount,
         int activitySessionCount,
-        int signalChunkCount
+        int signalChunkCount,
+        int dietRecordCount
 ) {
+    public TelemetryValidationResult(
+            List<TelemetryValidationError> errors,
+            int measurementCount,
+            int sleepSessionCount,
+            int activitySessionCount,
+            int signalChunkCount
+    ) {
+        this(
+                errors,
+                measurementCount,
+                sleepSessionCount,
+                activitySessionCount,
+                signalChunkCount,
+                0
+        );
+    }
+
     public TelemetryValidationResult {
         errors = List.copyOf(errors);
     }
@@ -18,6 +36,10 @@ public record TelemetryValidationResult(
     }
 
     public int recordCount() {
-        return measurementCount + sleepSessionCount + activitySessionCount + signalChunkCount;
+        return measurementCount
+                + sleepSessionCount
+                + activitySessionCount
+                + signalChunkCount
+                + dietRecordCount;
     }
 }

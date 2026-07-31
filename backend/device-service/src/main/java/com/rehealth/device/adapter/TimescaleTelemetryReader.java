@@ -5,6 +5,7 @@ import com.rehealth.contracts.telemetry.v1.MeasurementRecord;
 import com.rehealth.contracts.telemetry.v1.RecentTelemetryResponse;
 import com.rehealth.contracts.telemetry.v1.SleepSessionRecord;
 import com.rehealth.device.application.DeviceRequestException;
+import com.rehealth.device.application.InterventionTelemetryContext;
 import com.rehealth.device.application.MetricSummary;
 import com.rehealth.device.application.UserHealthSummary;
 import com.rehealth.device.domain.DeviceClaims;
@@ -20,6 +21,11 @@ import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Component
@@ -51,6 +57,97 @@ public class TimescaleTelemetryReader implements TelemetryReadPort {
             WHERE tenant_id = ? AND user_id = ? AND device_id = ?
             ORDER BY started_at DESC
             LIMIT ?
+            """;
+    private static final String TODAY_ACTIVITY_SQL = """
+            SELECT COALESCE(sum(steps), 0) AS steps,
+                   COALESCE(sum(duration_minutes), 0) AS active_minutes,
+                   COALESCE(sum(calories_kcal), 0) AS calories_kcal,
+                   avg(average_heart_rate) AS average_heart_rate,
+                   max(started_at) AS latest_at
+            FROM hardware_activity
+            WHERE tenant_id = ? AND user_id = ?
+              AND started_at >= ? AND started_at < ?
+            """;
+    private static final String TODAY_SLEEP_SQL = """
+            SELECT round(extract(epoch FROM (ended_at - started_at)) / 60.0)::integer AS sleep_minutes,
+                   ended_at
+            FROM hardware_sleep_session
+            WHERE tenant_id = ? AND user_id = ?
+              AND ended_at >= ? AND ended_at < ?
+            ORDER BY ended_at DESC
+            LIMIT 1
+            """;
+    private static final String TODAY_MEASUREMENTS_SQL = """
+            SELECT metric_type,
+                   (array_agg(primary_value ORDER BY observed_at DESC))[1] AS latest_value,
+                   avg(primary_value) AS average_value,
+                   min(primary_value) AS minimum_value,
+                   max(primary_value) AS maximum_value,
+                   (array_agg(unit ORDER BY observed_at DESC))[1] AS unit,
+                   count(*) AS sample_count,
+                   max(observed_at) AS latest_at
+            FROM hardware_measurement
+            WHERE tenant_id = ? AND user_id = ?
+              AND observed_at >= ? AND observed_at < ?
+            GROUP BY metric_type
+            ORDER BY metric_type
+            """;
+    private static final String TODAY_DIET_SQL = """
+            SELECT meal_type, description, consumed_at, calories_kcal,
+                   protein_grams, carbohydrate_grams, fat_grams,
+                   fiber_grams, sodium_milligrams, source
+            FROM hardware_diet_record
+            WHERE tenant_id = ? AND user_id = ?
+              AND consumed_at >= ? AND consumed_at < ?
+            ORDER BY consumed_at ASC
+            LIMIT 12
+            """;
+    private static final String RECENT_MEASUREMENT_CHANGES_SQL = """
+            SELECT metric_type,
+                   (array_agg(unit ORDER BY observed_at DESC))[1] AS unit,
+                   avg(primary_value) FILTER (WHERE observed_at >= ?) AS recent_average,
+                   avg(primary_value) FILTER (
+                       WHERE observed_at >= ? AND observed_at < ?
+                   ) AS previous_average,
+                   count(*) FILTER (WHERE observed_at >= ?) AS recent_count,
+                   count(*) FILTER (
+                       WHERE observed_at >= ? AND observed_at < ?
+                   ) AS previous_count
+            FROM hardware_measurement
+            WHERE tenant_id = ? AND user_id = ?
+              AND observed_at >= ? AND observed_at < ?
+            GROUP BY metric_type
+            HAVING count(*) FILTER (WHERE observed_at >= ?) > 0
+               AND count(*) FILTER (
+                   WHERE observed_at >= ? AND observed_at < ?
+               ) > 0
+            ORDER BY metric_type
+            """;
+    private static final String ACTIVITY_CHANGE_SQL = """
+            SELECT sum(steps) FILTER (WHERE started_at >= ?) / 7.0 AS recent_steps,
+                   sum(steps) FILTER (WHERE started_at >= ? AND started_at < ?) / 7.0 AS previous_steps,
+                   sum(duration_minutes) FILTER (WHERE started_at >= ?) / 7.0 AS recent_minutes,
+                   sum(duration_minutes) FILTER (
+                       WHERE started_at >= ? AND started_at < ?
+                   ) / 7.0 AS previous_minutes,
+                   count(*) FILTER (WHERE started_at >= ?) AS recent_count,
+                   count(*) FILTER (
+                       WHERE started_at >= ? AND started_at < ?
+                   ) AS previous_count
+            FROM hardware_activity
+            WHERE tenant_id = ? AND user_id = ?
+              AND started_at >= ? AND started_at < ?
+            """;
+    private static final String SLEEP_CHANGE_SQL = """
+            SELECT avg(extract(epoch FROM (ended_at - started_at)) / 60.0)
+                       FILTER (WHERE ended_at >= ?) AS recent_average,
+                   avg(extract(epoch FROM (ended_at - started_at)) / 60.0)
+                       FILTER (WHERE ended_at >= ? AND ended_at < ?) AS previous_average,
+                   count(*) FILTER (WHERE ended_at >= ?) AS recent_count,
+                   count(*) FILTER (WHERE ended_at >= ? AND ended_at < ?) AS previous_count
+            FROM hardware_sleep_session
+            WHERE tenant_id = ? AND user_id = ?
+              AND ended_at >= ? AND ended_at < ?
             """;
 
     private final JdbcTemplate jdbc;
@@ -131,6 +228,311 @@ public class TimescaleTelemetryReader implements TelemetryReadPort {
         }
     }
 
+    @Override
+    public InterventionTelemetryContext interventionContext(
+            String tenantId,
+            String userId,
+            ZoneId timeZone
+    ) {
+        LocalDate today = LocalDate.now(timeZone);
+        Instant todayStart = today.atStartOfDay(timeZone).toInstant();
+        Instant tomorrowStart = today.plusDays(1).atStartOfDay(timeZone).toInstant();
+        Instant recentStart = today.minusDays(6).atStartOfDay(timeZone).toInstant();
+        Instant previousStart = today.minusDays(13).atStartOfDay(timeZone).toInstant();
+        Timestamp todayTimestamp = Timestamp.from(todayStart);
+        Timestamp tomorrowTimestamp = Timestamp.from(tomorrowStart);
+        Timestamp recentTimestamp = Timestamp.from(recentStart);
+        Timestamp previousTimestamp = Timestamp.from(previousStart);
+        try {
+            ActivityAggregate activity = jdbc.queryForObject(
+                    TODAY_ACTIVITY_SQL,
+                    (result, rowNumber) -> new ActivityAggregate(
+                            result.getInt("steps"),
+                            result.getInt("active_minutes"),
+                            decimal(result, "calories_kcal"),
+                            decimal(result, "average_heart_rate"),
+                            epochMillis(result.getTimestamp("latest_at"))
+                    ),
+                    tenantId,
+                    userId,
+                    todayTimestamp,
+                    tomorrowTimestamp
+            );
+            List<SleepAggregate> sleepRows = jdbc.query(
+                    TODAY_SLEEP_SQL,
+                    (result, rowNumber) -> new SleepAggregate(
+                            integer(result, "sleep_minutes"),
+                            epochMillis(result.getTimestamp("ended_at"))
+                    ),
+                    tenantId,
+                    userId,
+                    todayTimestamp,
+                    tomorrowTimestamp
+            );
+            SleepAggregate sleep = sleepRows.isEmpty() ? null : sleepRows.get(0);
+            List<InterventionTelemetryContext.MetricSnapshot> measurements = jdbc.query(
+                    TODAY_MEASUREMENTS_SQL,
+                    (result, rowNumber) -> new InterventionTelemetryContext.MetricSnapshot(
+                            result.getString("metric_type"),
+                            decimal(result, "latest_value"),
+                            decimal(result, "average_value"),
+                            decimal(result, "minimum_value"),
+                            decimal(result, "maximum_value"),
+                            result.getString("unit"),
+                            result.getInt("sample_count"),
+                            epochMillis(result.getTimestamp("latest_at"))
+                    ),
+                    tenantId,
+                    userId,
+                    todayTimestamp,
+                    tomorrowTimestamp
+            );
+            List<InterventionTelemetryContext.DietSnapshot> dietRecords = jdbc.query(
+                    TODAY_DIET_SQL,
+                    (result, rowNumber) -> new InterventionTelemetryContext.DietSnapshot(
+                            result.getString("meal_type"),
+                            result.getString("description"),
+                            epochMillis(result.getTimestamp("consumed_at")),
+                            decimal(result, "calories_kcal"),
+                            decimal(result, "protein_grams"),
+                            decimal(result, "carbohydrate_grams"),
+                            decimal(result, "fat_grams"),
+                            decimal(result, "fiber_grams"),
+                            decimal(result, "sodium_milligrams"),
+                            result.getString("source")
+                    ),
+                    tenantId,
+                    userId,
+                    todayTimestamp,
+                    tomorrowTimestamp
+            );
+            List<InterventionTelemetryContext.RecentChange> changes =
+                    new ArrayList<>(measurementChanges(
+                            tenantId,
+                            userId,
+                            previousTimestamp,
+                            recentTimestamp,
+                            tomorrowTimestamp
+                    ));
+            appendActivityChanges(
+                    changes,
+                    tenantId,
+                    userId,
+                    previousTimestamp,
+                    recentTimestamp,
+                    tomorrowTimestamp
+            );
+            appendSleepChange(
+                    changes,
+                    tenantId,
+                    userId,
+                    previousTimestamp,
+                    recentTimestamp,
+                    tomorrowTimestamp
+            );
+            changes.sort(Comparator.comparing(InterventionTelemetryContext.RecentChange::metricType));
+
+            long generatedAt = Instant.now().toEpochMilli();
+            Long latestDataAt = measurements.stream()
+                    .map(InterventionTelemetryContext.MetricSnapshot::latestObservedAt)
+                    .filter(value -> value != null)
+                    .max(Long::compareTo)
+                    .orElse(null);
+            latestDataAt = maximum(
+                    latestDataAt,
+                    activity == null ? null : activity.latestAt(),
+                    sleep == null ? null : sleep.endedAt(),
+                    dietRecords.stream()
+                            .map(InterventionTelemetryContext.DietSnapshot::consumedAt)
+                            .filter(value -> value != null)
+                            .max(Long::compareTo)
+                            .orElse(null)
+            );
+            InterventionTelemetryContext.TodayBehavior todayBehavior =
+                    new InterventionTelemetryContext.TodayBehavior(
+                            activity == null ? 0 : activity.steps(),
+                            activity == null ? 0 : activity.activeMinutes(),
+                            activity == null || activity.caloriesKcal() == null
+                                    ? 0.0
+                                    : activity.caloriesKcal(),
+                            activity == null ? null : activity.averageHeartRate(),
+                            sleep == null ? null : sleep.sleepMinutes(),
+                            sleep == null ? null : sleep.endedAt(),
+                            List.copyOf(dietRecords),
+                            List.copyOf(measurements)
+                    );
+            return new InterventionTelemetryContext(
+                    generatedAt,
+                    today.toString(),
+                    timeZone.getId(),
+                    latestDataAt,
+                    todayBehavior,
+                    List.copyOf(changes)
+            );
+        } catch (DataAccessException exception) {
+            throw unavailable(exception);
+        }
+    }
+
+    private List<InterventionTelemetryContext.RecentChange> measurementChanges(
+            String tenantId,
+            String userId,
+            Timestamp previousStart,
+            Timestamp recentStart,
+            Timestamp windowEnd
+    ) {
+        return jdbc.query(
+                RECENT_MEASUREMENT_CHANGES_SQL,
+                (result, rowNumber) -> change(
+                        result.getString("metric_type"),
+                        result.getString("unit"),
+                        decimal(result, "recent_average"),
+                        decimal(result, "previous_average"),
+                        result.getInt("recent_count"),
+                        result.getInt("previous_count")
+                ),
+                recentStart,
+                previousStart,
+                recentStart,
+                recentStart,
+                previousStart,
+                recentStart,
+                tenantId,
+                userId,
+                previousStart,
+                windowEnd,
+                recentStart,
+                previousStart,
+                recentStart
+        );
+    }
+
+    private void appendActivityChanges(
+            List<InterventionTelemetryContext.RecentChange> changes,
+            String tenantId,
+            String userId,
+            Timestamp previousStart,
+            Timestamp recentStart,
+            Timestamp windowEnd
+    ) {
+        ActivityChanges activity = jdbc.queryForObject(
+                ACTIVITY_CHANGE_SQL,
+                (result, rowNumber) -> new ActivityChanges(
+                        decimal(result, "recent_steps"),
+                        decimal(result, "previous_steps"),
+                        decimal(result, "recent_minutes"),
+                        decimal(result, "previous_minutes"),
+                        result.getInt("recent_count"),
+                        result.getInt("previous_count")
+                ),
+                recentStart,
+                previousStart,
+                recentStart,
+                recentStart,
+                previousStart,
+                recentStart,
+                recentStart,
+                previousStart,
+                recentStart,
+                tenantId,
+                userId,
+                previousStart,
+                windowEnd
+        );
+        if (activity == null || activity.recentCount() == 0 || activity.previousCount() == 0) {
+            return;
+        }
+        changes.add(change(
+                "daily_steps",
+                "steps/day",
+                activity.recentSteps(),
+                activity.previousSteps(),
+                activity.recentCount(),
+                activity.previousCount()
+        ));
+        changes.add(change(
+                "daily_active_minutes",
+                "min/day",
+                activity.recentMinutes(),
+                activity.previousMinutes(),
+                activity.recentCount(),
+                activity.previousCount()
+        ));
+    }
+
+    private void appendSleepChange(
+            List<InterventionTelemetryContext.RecentChange> changes,
+            String tenantId,
+            String userId,
+            Timestamp previousStart,
+            Timestamp recentStart,
+            Timestamp windowEnd
+    ) {
+        SleepChanges sleep = jdbc.queryForObject(
+                SLEEP_CHANGE_SQL,
+                (result, rowNumber) -> new SleepChanges(
+                        decimal(result, "recent_average"),
+                        decimal(result, "previous_average"),
+                        result.getInt("recent_count"),
+                        result.getInt("previous_count")
+                ),
+                recentStart,
+                previousStart,
+                recentStart,
+                recentStart,
+                previousStart,
+                recentStart,
+                tenantId,
+                userId,
+                previousStart,
+                windowEnd
+        );
+        if (sleep != null && sleep.recentCount() > 0 && sleep.previousCount() > 0) {
+            changes.add(change(
+                    "sleep_minutes",
+                    "min/session",
+                    sleep.recentAverage(),
+                    sleep.previousAverage(),
+                    sleep.recentCount(),
+                    sleep.previousCount()
+            ));
+        }
+    }
+
+    private InterventionTelemetryContext.RecentChange change(
+            String metricType,
+            String unit,
+            Double recent,
+            Double previous,
+            int recentCount,
+            int previousCount
+    ) {
+        Double delta = recent == null || previous == null ? null : recent - previous;
+        String trend = delta == null || Math.abs(delta) < 0.000001
+                ? "stable"
+                : delta > 0.0 ? "up" : "down";
+        return new InterventionTelemetryContext.RecentChange(
+                metricType,
+                unit,
+                recent,
+                previous,
+                delta,
+                trend,
+                recentCount,
+                previousCount
+        );
+    }
+
+    private Long maximum(Long... values) {
+        Long maximum = null;
+        for (Long value : values) {
+            if (value != null && (maximum == null || value > maximum)) {
+                maximum = value;
+            }
+        }
+        return maximum;
+    }
+
     private MeasurementRecord measurement(ResultSet result, int rowNumber) throws SQLException {
         MeasurementRecord record = new MeasurementRecord();
         record.id = result.getString("source_record_id");
@@ -193,5 +595,35 @@ public class TimescaleTelemetryReader implements TelemetryReadPort {
                 "HARDWARE_PERSISTENCE_UNAVAILABLE",
                 cause
         );
+    }
+
+    private record ActivityAggregate(
+            int steps,
+            int activeMinutes,
+            Double caloriesKcal,
+            Double averageHeartRate,
+            Long latestAt
+    ) {
+    }
+
+    private record SleepAggregate(Integer sleepMinutes, Long endedAt) {
+    }
+
+    private record ActivityChanges(
+            Double recentSteps,
+            Double previousSteps,
+            Double recentMinutes,
+            Double previousMinutes,
+            int recentCount,
+            int previousCount
+    ) {
+    }
+
+    private record SleepChanges(
+            Double recentAverage,
+            Double previousAverage,
+            int recentCount,
+            int previousCount
+    ) {
     }
 }

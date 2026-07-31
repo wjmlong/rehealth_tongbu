@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 public class TelemetryBatchRequestDto {
+    public String schemaVersion;
     public String batchId;
     public String userId;
     public String deviceId;
@@ -15,6 +16,7 @@ public class TelemetryBatchRequestDto {
     public List<Map<String, Object>> measurements = new ArrayList<>();
     public List<Map<String, Object>> sleepSessions = new ArrayList<>();
     public List<Map<String, Object>> activitySessions = new ArrayList<>();
+    public List<Map<String, Object>> dietRecords = new ArrayList<>();
     public List<Map<String, Object>> signalChunks = new ArrayList<>();
     public Map<String, Object> quality = new LinkedHashMap<>();
 }

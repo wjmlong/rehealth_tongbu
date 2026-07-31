@@ -54,7 +54,19 @@ Calls:
 - `POST /v1/cvd/intervention/generate`
 - `POST /v1/cvd/attribution/individual`
 
-Java backend does not implement CatBoost, SHAP, CVD scoring, intervention generation, or attribution logic.
+Java backend does not implement CatBoost, SHAP, CVD scoring or attribution
+logic. The mobile intervention endpoint is the explicit exception requested for
+LangChain4j: Jeecg assembles authoritative persisted context and generates
+structured conservative wellness actions. It does not diagnose, modify
+medication or infer causal treatment effects.
+
+Before every `POST /rehealth/mobile/interventions/generate`, Jeecg reloads the
+authenticated user's profile, latest interview and risk from `software_db`, and
+calls Device Service
+`GET /rehealth/internal/v1/operations/users/{userId}/intervention-context`
+with tenant, time zone and the internal credential. Device Service reads today's
+activity/sleep/measurements/diet and bounded recent changes from TimescaleDB.
+Client-provided profile/risk context is ignored.
 
 ## Database Split Status
 

@@ -5,12 +5,15 @@ import com.rehealth.contracts.telemetry.v1.TelemetryBatchRequest;
 import com.rehealth.contracts.telemetry.v1.TelemetryBatchResponse;
 import com.rehealth.contracts.telemetry.v1.TelemetryValidationResult;
 import com.rehealth.device.application.DeviceRequestException;
+import com.rehealth.device.application.InterventionTelemetryContext;
 import com.rehealth.device.application.UserHealthSummary;
 import com.rehealth.device.domain.DeviceClaims;
 import com.rehealth.device.port.TelemetryReadPort;
 import com.rehealth.device.port.TelemetryWritePort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+
+import java.time.ZoneId;
 
 @Component
 public class UnavailableTelemetryStore implements TelemetryWritePort, TelemetryReadPort {
@@ -30,6 +33,15 @@ public class UnavailableTelemetryStore implements TelemetryWritePort, TelemetryR
 
     @Override
     public UserHealthSummary healthSummaryForUser(String userId) {
+        throw unavailable();
+    }
+
+    @Override
+    public InterventionTelemetryContext interventionContext(
+            String tenantId,
+            String userId,
+            ZoneId timeZone
+    ) {
         throw unavailable();
     }
 

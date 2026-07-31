@@ -157,6 +157,7 @@ public class TimescaleTelemetryStore implements TelemetryWritePort {
         response.measurementCount = counts.measurementCount();
         response.sleepSessionCount = counts.sleepSessionCount();
         response.activitySessionCount = counts.activitySessionCount();
+        response.dietRecordCount = counts.dietRecordCount();
         response.signalChunkCount = counts.signalChunkCount();
         response.rejectedCount = rejectedCount;
         if (duplicate) {

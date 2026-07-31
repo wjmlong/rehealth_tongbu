@@ -20,6 +20,7 @@ public class TelemetryBatchResponseDto {
     public int measurementCount;
     public int sleepSessionCount;
     public int activitySessionCount;
+    public int dietRecordCount;
     public int signalChunkCount;
     public int rejectedCount;
     public List<String> warnings = new ArrayList<>();

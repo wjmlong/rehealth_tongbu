@@ -2,7 +2,11 @@
 
 `rehealth-telemetry-contract` is the dependency-free business contract shared by Jeecg compatibility tests and the Device Service. It contains only versioned request/response DTOs and boundary validation; persistence, authentication, Kafka and Spring wiring remain in their owning services.
 
-The public Android shape remains compatible with `d2-v1`. New producers may send top-level `schemaVersion: telemetry-v1`. A client-supplied `userId` is rejected: Gateway/service authentication establishes ownership after client validation.
+The public Android shape remains compatible with `d2-v1` and `telemetry-v1`.
+New producers use top-level `schemaVersion: telemetry-v2`; v2 adds bounded
+`dietRecords` with meal type, consumed time, description, energy/macronutrients,
+fiber, sodium and source. A client-supplied `userId` is rejected:
+Gateway/service authentication establishes ownership after client validation.
 
 Run:
 

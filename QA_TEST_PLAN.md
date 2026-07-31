@@ -266,9 +266,19 @@ git diff --check
      interval. The card must state that the scenario is not a future disease probability.
 
 12. Intervention retrieval
-    - Call `POST /v1/cvd/intervention/generate` through backend support endpoint or model-service directly.
-    - Confirm intervention text is conservative wellness support only.
-    - Confirm `medical_disclaimer` is present.
+    - Apply TimescaleDB V4, upload a `telemetry-v2` batch containing today's
+      `dietRecords` plus activity/sleep/measurement rows, then call
+      `POST /rehealth/mobile/interventions/generate` with only a stable `request_id`.
+    - Confirm Jeecg reloads the authenticated user's profile, latest interview,
+      latest persisted risk and tenant-scoped Device Service context on every generation;
+      client `riskResult`, `featureVector` and `patientContext` must not override them.
+    - Confirm the response contains 1–5 ordered `items` with `category`, `title`,
+      `action`, `rationale`, `target`, `timing`, `priority` and `evidenceRefs`;
+      today’s recorded meal is reflected ahead of older trends.
+    - Confirm intervention text is conservative wellness support only, contains no
+      diagnosis or medication change, `is_mock=false`, and `medical_disclaimer` is present.
+    - Confirm a Device Service/LLM/software_db failure returns controlled failure and
+      does not persist or display a fabricated fallback plan.
 
 13. Feedback submission
     - Submit `POST /rehealth/mobile/interventions/{id}/feedback`.

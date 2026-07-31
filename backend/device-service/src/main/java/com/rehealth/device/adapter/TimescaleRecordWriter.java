@@ -1,6 +1,7 @@
 package com.rehealth.device.adapter;
 
 import com.rehealth.contracts.telemetry.v1.ActivitySessionRecord;
+import com.rehealth.contracts.telemetry.v1.DietRecord;
 import com.rehealth.contracts.telemetry.v1.MeasurementRecord;
 import com.rehealth.contracts.telemetry.v1.SleepSessionRecord;
 import com.rehealth.contracts.telemetry.v1.TelemetryBatchRequest;
@@ -30,6 +31,7 @@ final class TimescaleRecordWriter {
         writeMeasurements(batchId, claims, request);
         writeSleep(batchId, claims, request);
         writeActivities(batchId, claims, request);
+        writeDiet(batchId, claims, request);
         return writeQualityEvents(batchId, claims, request, receivedAt);
     }
 
@@ -97,6 +99,37 @@ final class TimescaleRecordWriter {
                     payloads.value(record.steps), payloads.value(record.distanceMeters),
                     payloads.value(record.caloriesKcal), payloads.value(record.durationMinutes),
                     record.averageHeartRate, record.source);
+        }
+    }
+
+    private void writeDiet(UUID batchId, DeviceClaims claims, TelemetryBatchRequest request) {
+        List<DietRecord> records = request.dietRecords == null ? List.of() : request.dietRecords;
+        for (int index = 0; index < records.size(); index++) {
+            DietRecord record = records.get(index);
+            jdbc.update("""
+                            INSERT INTO hardware_diet_record (
+                              id, upload_batch_id, tenant_id, user_id, device_id,
+                              source_record_id, consumed_at, meal_type, description,
+                              calories_kcal, protein_grams, carbohydrate_grams,
+                              fat_grams, fiber_grams, sodium_milligrams, source
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                    UUID.randomUUID(),
+                    batchId,
+                    claims.tenantId(),
+                    claims.userId(),
+                    claims.deviceId(),
+                    payloads.sourceId(record.id, request.batchId, "diet", index),
+                    payloads.timestamp(record.consumedAt),
+                    record.mealType.toLowerCase(java.util.Locale.ROOT),
+                    record.description,
+                    record.caloriesKcal,
+                    record.proteinGrams,
+                    record.carbohydrateGrams,
+                    record.fatGrams,
+                    record.fiberGrams,
+                    record.sodiumMilligrams,
+                    record.source);
         }
     }
 

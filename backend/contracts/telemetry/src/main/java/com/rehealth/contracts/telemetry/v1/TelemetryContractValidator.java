@@ -16,7 +16,7 @@ public final class TelemetryContractValidator {
         List<TelemetryValidationError> errors = new ArrayList<>();
         if (request == null) {
             errors.add(error("request.required", "$", "request body is required"));
-            return result(errors, 0, 0, 0, 0);
+            return result(errors, 0, 0, 0, 0, 0);
         }
 
         requireText(errors, request.batchId, "batchId");
@@ -33,8 +33,17 @@ public final class TelemetryContractValidator {
         int measurementCount = sizeOf(request.measurements);
         int sleepCount = sizeOf(request.sleepSessions);
         int activityCount = sizeOf(request.activitySessions);
+        int dietCount = sizeOf(request.dietRecords);
         int signalCount = sizeOf(request.signalChunks);
-        int recordCount = measurementCount + sleepCount + activityCount + signalCount;
+        if (dietCount > 0
+                && !TelemetryContractVersions.CURRENT.equals(request.resolvedSchemaVersion())) {
+            errors.add(error(
+                    "schema.feature_requires_v2",
+                    "dietRecords",
+                    "dietRecords require schemaVersion telemetry-v2"
+            ));
+        }
+        int recordCount = measurementCount + sleepCount + activityCount + dietCount + signalCount;
         if (recordCount == 0) {
             errors.add(error("batch.empty", "$", "batch must contain normalized telemetry records"));
         }
@@ -48,10 +57,11 @@ public final class TelemetryContractValidator {
         validateMeasurements(errors, values(request.measurements));
         validateSleep(errors, values(request.sleepSessions));
         validateActivities(errors, values(request.activitySessions));
+        validateDiet(errors, values(request.dietRecords));
         if (!policy.rawSignalUploadEnabled() && containsRawSignalValue(request.quality)) {
             errors.add(error("raw_signal.disabled", "quality", "raw signal payload fields are disabled"));
         }
-        return result(errors, measurementCount, sleepCount, activityCount, signalCount);
+        return result(errors, measurementCount, sleepCount, activityCount, signalCount, dietCount);
     }
 
     private void validateMeasurements(List<TelemetryValidationError> errors, List<MeasurementRecord> records) {
@@ -108,6 +118,51 @@ public final class TelemetryContractValidator {
             requireNonNegative(errors, record.durationMinutes, path + ".durationMinutes");
             requireNonNegative(errors, record.distanceMeters, path + ".distanceMeters");
             requireNonNegative(errors, record.caloriesKcal, path + ".caloriesKcal");
+            rejectRawExtensions(errors, record, path);
+        }
+    }
+
+    private void validateDiet(List<TelemetryValidationError> errors, List<DietRecord> records) {
+        for (int index = 0; index < records.size(); index++) {
+            DietRecord record = records.get(index);
+            String path = "dietRecords[" + index + "]";
+            if (record == null) {
+                errors.add(error("record.required", path, "diet record must not be null"));
+                continue;
+            }
+            requirePositive(errors, record.consumedAt, path + ".consumedAt");
+            requireText(errors, record.mealType, path + ".mealType");
+            if (record.mealType != null
+                    && !List.of("breakfast", "lunch", "dinner", "snack")
+                    .contains(record.mealType.toLowerCase(Locale.ROOT))) {
+                errors.add(error(
+                        "diet.meal_type.invalid",
+                        path + ".mealType",
+                        "mealType must be breakfast, lunch, dinner, or snack"
+                ));
+            }
+            requireText(errors, record.description, path + ".description");
+            if (record.description != null && record.description.length() > 256) {
+                errors.add(error(
+                        "field.too_long",
+                        path + ".description",
+                        "diet description must not exceed 256 characters"
+                ));
+            }
+            requireOptionalNonNegativeFinite(errors, record.caloriesKcal, path + ".caloriesKcal");
+            requireOptionalNonNegativeFinite(errors, record.proteinGrams, path + ".proteinGrams");
+            requireOptionalNonNegativeFinite(
+                    errors,
+                    record.carbohydrateGrams,
+                    path + ".carbohydrateGrams"
+            );
+            requireOptionalNonNegativeFinite(errors, record.fatGrams, path + ".fatGrams");
+            requireOptionalNonNegativeFinite(errors, record.fiberGrams, path + ".fiberGrams");
+            requireOptionalNonNegativeFinite(
+                    errors,
+                    record.sodiumMilligrams,
+                    path + ".sodiumMilligrams"
+            );
             rejectRawExtensions(errors, record, path);
         }
     }
@@ -181,6 +236,16 @@ public final class TelemetryContractValidator {
         }
     }
 
+    private void requireOptionalNonNegativeFinite(
+            List<TelemetryValidationError> errors,
+            Double value,
+            String path
+    ) {
+        if (value != null && (!Double.isFinite(value) || value < 0.0)) {
+            errors.add(error("number.invalid", path, path + " must be a finite non-negative number"));
+        }
+    }
+
     private void validateRange(List<TelemetryValidationError> errors, Long from, Long to, String fromPath, String toPath) {
         if (from != null && to != null && from > to) {
             errors.add(error("timestamp.range", toPath, fromPath + " must be before " + toPath));
@@ -204,8 +269,16 @@ public final class TelemetryContractValidator {
             int measurements,
             int sleep,
             int activities,
-            int signals
+            int signals,
+            int dietRecords
     ) {
-        return new TelemetryValidationResult(errors, measurements, sleep, activities, signals);
+        return new TelemetryValidationResult(
+                errors,
+                measurements,
+                sleep,
+                activities,
+                signals,
+                dietRecords
+        );
     }
 }

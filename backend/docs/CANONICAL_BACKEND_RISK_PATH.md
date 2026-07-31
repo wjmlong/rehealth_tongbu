@@ -25,12 +25,15 @@ attribution, or Java-side fallback scoring.
 
 `ModelServiceClient` is the backend boundary for algorithm calls.
 
-Required model-service targets:
+Required production risk target:
 
 - `GET /health`
 - `POST /v1/cvd/risk/evaluate`
-- `POST /v1/cvd/intervention/generate`
-- `POST /v1/cvd/attribution/individual`
+
+`POST /v1/cvd/intervention/generate` remains available only as a compatibility
+target. The canonical mobile personalized-plan endpoint now assembles fresh
+authorized context in Jeecg and uses LangChain4j. PIAS, not model-service, owns
+production attribution.
 
 Dev configuration uses:
 
@@ -53,7 +56,7 @@ The following paths are not production backend risk or intervention paths:
 | --- | --- |
 | `POST /rehealth/mobile/ring/snapshots` | Retired from backend production risk scoring. It does not exist in `jeecg-module-rehealth`; Android legacy/debug references must not be treated as production risk upload. |
 | `GET /rehealth/mobile/patient/risk-score` | Retired. It does not exist in `jeecg-module-rehealth`; use `POST /features/evaluate` for evaluation and `GET /risk/latest` only for persisted latest result reads. |
-| `GET /rehealth/mobile/patient/intervention-plan` | Retired. It does not exist in `jeecg-module-rehealth`; use `POST /interventions/generate` for model-service generation and `GET /interventions/today` only for persisted latest plan reads. |
+| `GET /rehealth/mobile/patient/intervention-plan` | Retired. It does not exist in `jeecg-module-rehealth`; use authenticated `POST /interventions/generate` for fresh server-context LangChain4j generation and `GET /interventions/today` only for persisted latest plan reads. |
 | `POST /api/pias/predict` | Retired from backend production use. This was a prototype `rehealth-algorithms` path and does not match the model-service API contract. |
 | `POST /api/pias/v2/predict` | Retired from backend production use. Backend must use `ModelServiceClient` and the model-service `/v1/cvd/**` contract instead. |
 
@@ -80,7 +83,9 @@ P0c source inspection confirmed:
 
 - `/rehealth/mobile/features/evaluate` exists in `jeecg-module-rehealth`.
 - `HttpModelServiceClient` posts risk evaluation to `/v1/cvd/risk/evaluate`.
-- `HttpModelServiceClient` posts intervention generation to `/v1/cvd/intervention/generate`.
+- `HttpModelServiceClient` retains `/v1/cvd/intervention/generate` only for
+  compatibility; the mobile generation service does not use client health
+  context or that compatibility call.
 - The unused `jeecg-module-demo` runtime was removed; ReHealth routes exist only in `jeecg-module-rehealth`.
 - `application-dev.yml` uses `rehealth.model-service.base-url`, not the old algorithm URL.
 - Legacy route strings are historical/docs-only and are not active production backend paths.
