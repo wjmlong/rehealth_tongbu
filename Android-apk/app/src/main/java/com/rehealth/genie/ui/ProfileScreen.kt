@@ -264,15 +264,15 @@ internal fun ProfileScreen(
                     rhiInputState.input?.waistCircumferenceCm?.let { "%.1f cm".format(it) } ?: "待补全",
                 )
                 StatusRow(
-                    "VO₂max",
+                    "最大摄氧量（VO₂max）",
                     rhiInputState.input?.vo2MaxMlKgMin?.let { "%.1f mL/kg/min".format(it) } ?: "待补全",
                 )
                 StatusRow(
-                    "HbA1c",
+                    "糖化血红蛋白（HbA1c）",
                     rhiInputState.input?.hba1cPercent?.let { "%.1f%%".format(it) } ?: "待补全",
                 )
                 StatusRow(
-                    "eGFR",
+                    "估算肾小球滤过率（eGFR）",
                     rhiInputState.input?.egfrMlMin173m2?.let { "%.1f mL/min/1.73m²".format(it) } ?: "待补全",
                 )
                 StatusRow(
@@ -439,9 +439,9 @@ private fun RhiManualInputDialog(
                 )
                 RhiManualField(sedentary, { sedentary = it }, "日均久坐（小时）", "范围 0–24", numericOptions)
                 RhiManualField(waist, { waist = it }, "腰围（cm）", "范围 40–200", numericOptions)
-                RhiManualField(vo2Max, { vo2Max = it }, "VO₂max（mL/kg/min）", "范围 5–100", numericOptions)
-                RhiManualField(hba1c, { hba1c = it }, "HbA1c（%）", "范围 3–20", numericOptions)
-                RhiManualField(egfr, { egfr = it }, "eGFR（mL/min/1.73m²）", "范围 0–250", numericOptions)
+                RhiManualField(vo2Max, { vo2Max = it }, "最大摄氧量（VO₂max，mL/kg/min）", "范围 5–100", numericOptions)
+                RhiManualField(hba1c, { hba1c = it }, "糖化血红蛋白（HbA1c，%）", "范围 3–20", numericOptions)
+                RhiManualField(egfr, { egfr = it }, "估算肾小球滤过率（eGFR，mL/min/1.73m²）", "范围 0–250", numericOptions)
                 Text("归因 16 项 · 上臂袖带血压", color = Ink, fontWeight = FontWeight.SemiBold)
                 RhiManualField(cuffSbp, { cuffSbp = it }, "7日平均收缩压（mmHg）", "范围 70–250", numericOptions)
                 RhiManualField(cuffDbp, { cuffDbp = it }, "7日平均舒张压（mmHg）", "范围 40–150", numericOptions)
