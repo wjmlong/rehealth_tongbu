@@ -1,6 +1,45 @@
 version: "factor16-rule-v1.0.0"
 name: "ReHealth 归因16项贡献规则"
 positioning: "归因页16项因素贡献展示规则；不等同于RDI16、疾病发生概率或因果效应"
+document_notice:
+  rule_family: "Factor16 contribution display"
+  canonical_purpose: "归因页贡献因素卡片的16项透明贡献规则与周期变化解释"
+  explicitly_not:
+    - "RDI16"
+    - "RHI-100"
+    - "CVD疾病发生概率"
+    - "模型SHAP贡献"
+    - "PIAS因果效应"
+  runtime_boundary:
+    production: "由model-service计算并通过factor_contributions返回；Android不执行生产归因"
+    debug_mock: "仅显式Debug Mock允许同版本透明规则回放，必须标记factor16-rule-v1.0.0-debug-mock"
+    app_display: "Android归因页只展示同次CVD-16送评估向量的字段值和版本匹配的Factor16结果"
+
+app_integration:
+  request_vector: "CVD-16 /features/evaluate"
+  response_fields:
+    contributions: "factor_contributions"
+    rule_version: "factor_contribution_version"
+    measured_80_percent: "factor_measured_components"
+    control_support_20_percent: "factor_control_support_components"
+  input_fields:
+    age: {app_key: age, entry: "可信个人档案；Debug Mock为按用户隔离的加密档案缓存"}
+    biological_sex: {app_key: gender, entry: "可信个人档案中的生理性别"}
+    bmi: {app_key: bmi, entry: "可信个人档案；缺失时由身高和体重推导"}
+    sbp: {app_key: sbp, entry: "Room健康档案中已确认上臂袖带3至7日均值"}
+    dbp: {app_key: dbp, entry: "Room健康档案中已确认上臂袖带3至7日均值"}
+    fasting_glucose: {app_key: fasting_glucose, entry: "Room健康档案中带日期且用户确认的医院报告"}
+    total_cholesterol: {app_key: total_cholesterol, entry: "Room健康档案中带日期且用户确认的医院报告"}
+    ldl_c: {app_key: ldl, entry: "Room健康档案中带日期且用户确认的医院报告"}
+    hdl_c: {app_key: hdl, entry: "Room健康档案中带日期且用户确认的医院报告"}
+    triglycerides: {app_key: triglycerides, entry: "Room健康档案中带日期且用户确认的医院报告"}
+    exercise_days: {app_key: exercise_days, entry: "Room近7日真实设备活动记录"}
+    smoking: {app_key: smoking, entry: "可信个人档案"}
+    drinking: {app_key: drinking, entry: "可信个人档案"}
+    diabetes_history: {app_key: diabetes_history, entry: "可信个人档案"}
+    hypertension_history: {app_key: hypertension_history, entry: "可信个人档案"}
+    premature_family_history: {app_key: family_history, entry: "可信个人档案"}
+  missing_policy: "入口缺失、未确认、过期或质量门禁失败时保持缺失，不补正常值"
 score:
   base: 50.0
   min: 0.0
@@ -276,7 +315,19 @@ supplements:
     - "Potential interaction/contraindication triggers a safety alert, not a fabricated risk reduction."
     - "Objective biomarker changes are scored in the relevant 16-factor feature, not again under supplements."
 
-lab_80_20_display_rule:
-  formula: "lab_card = 0.8 * verified_measured_contribution + 0.2 * allocated_control_support"
+clinical_80_20_display_rule:
+  applies_to:
+    - sbp
+    - dbp
+    - fasting_glucose
+    - total_cholesterol
+    - ldl_c
+    - hdl_c
+    - triglycerides
+  formula: "clinical_card = 0.8 * verified_measured_contribution + 0.2 * allocated_control_support"
   accounting: "The 20% support is a redistribution of already-calculated behavior/adherence contributions, not an extra addition to the total score."
-  prohibition: "Never convert behavior data into a fabricated LDL-C, HbA1c or glucose value."
+  current_behavior: "Until verified longitudinal control-support evidence exists, the 20% component is 0."
+  prohibition: "Never convert behavior data into a fabricated blood-pressure, LDL-C, HbA1c or glucose value."
+
+lab_80_20_display_rule:
+  status: "兼容旧文档名称；实际适用范围以clinical_80_20_display_rule为准，包含血压与五项血检"
