@@ -2,6 +2,10 @@ package com.rehealth.genie.ui
 
 import com.rehealth.genie.phm.AttributionHistoryPoint
 import com.rehealth.genie.phm.IndividualAttributionResult
+import com.rehealth.genie.rhi.RhiCalculationSource
+import com.rehealth.genie.rhi.RhiDailyScore
+import com.rehealth.genie.rhi.RhiPeriodAggregation
+import com.rehealth.genie.rhi.RhiPeriodSummary
 import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -14,7 +18,7 @@ class AttributionUiStateTest {
     private val today = LocalDate.of(2026, 7, 22)
 
     @Test
-    fun `maps confirmed risk and signed percentage point improvement for each period`() {
+    fun `maps confirmed RDI sixteen risk as a score out of one hundred`() {
         val history = listOf(
             point("2026-04-25", 0.40),
             point("2026-06-25", 0.35),
@@ -26,30 +30,55 @@ class AttributionUiStateTest {
         val thirtyDays = map(history = history, period = AttributionPeriod.DAYS_30)
         val ninetyDays = map(history = history, period = AttributionPeriod.DAYS_90)
 
-        assertEquals("2.19%", sevenDays.currentRiskText)
-        assertEquals("+22.8", sevenDays.improvementText)
-        assertEquals("+32.8", thirtyDays.improvementText)
-        assertEquals("+37.8", ninetyDays.improvementText)
+        assertEquals("2.2/100", sevenDays.currentRiskText)
         assertEquals(2, sevenDays.selectedHistory.size)
         assertEquals(3, thirtyDays.selectedHistory.size)
         assertEquals(4, ninetyDays.selectedHistory.size)
     }
 
     @Test
-    fun `reports negative improvement without hiding the sign`() {
-        val state = map(
-            history = listOf(point("2026-07-20", 0.20), point("2026-07-22", 0.30)),
+    fun `maps RHI improvement against the ninety day baseline`() {
+        val improvement = AttributionUiMapper.mapRhiImprovement(
+            summary = rhiSummary(
+                RhiDailyScore(LocalDate.of(2026, 4, 24), 55.0, 0.8),
+                RhiDailyScore(LocalDate.of(2026, 7, 18), 69.0, 0.8),
+                RhiDailyScore(today, 71.0, 0.8),
+            ),
+            period = AttributionPeriod.DAYS_7,
+            today = today,
         )
 
-        assertEquals("-10.0", state.improvementText)
+        assertEquals(16.0, improvement.improvementPoints)
+        assertEquals("+16.0 分", improvement.improvementText)
+        assertEquals("RHI-100 · 较 90 天基准改善 · 最近 7 天", improvement.comparisonText)
+        assertEquals(2, improvement.selectedHistory.size)
     }
 
     @Test
-    fun `requires two selected confirmed risks for improvement`() {
-        val state = map(history = listOf(point("2026-07-22", 0.30)))
+    fun `reports negative RHI improvement without hiding the sign`() {
+        val improvement = AttributionUiMapper.mapRhiImprovement(
+            summary = rhiSummary(
+                RhiDailyScore(LocalDate.of(2026, 7, 20), 71.0, 0.8),
+                RhiDailyScore(today, 65.0, 0.8),
+            ),
+            period = AttributionPeriod.DAYS_7,
+            today = today,
+        )
 
-        assertEquals("--", state.improvementText)
-        assertTrue(state.improvementMessage.contains("2"))
+        assertEquals("-6.0 分", improvement.improvementText)
+        assertTrue(improvement.comparisonText.contains("最早有效基准"))
+    }
+
+    @Test
+    fun `requires two valid RHI days for improvement`() {
+        val improvement = AttributionUiMapper.mapRhiImprovement(
+            summary = rhiSummary(RhiDailyScore(today, 71.0, 0.8)),
+            period = AttributionPeriod.DAYS_7,
+            today = today,
+        )
+
+        assertEquals("-- 分", improvement.improvementText)
+        assertTrue(improvement.comparisonText.contains("至少 2 个有效日"))
     }
 
     @Test
@@ -63,7 +92,6 @@ class AttributionUiStateTest {
         )
 
         assertEquals(listOf("2026-07-22"), state.selectedHistory.map { it.date })
-        assertEquals("--", state.improvementText)
     }
 
     @Test
@@ -187,7 +215,7 @@ class AttributionUiStateTest {
             ),
         )
 
-        assertEquals("--", state.currentRiskText)
+        assertEquals("--/100", state.currentRiskText)
         assertEquals(0.96, state.factors.single { it.key == "ldl" }.contribution)
         assertEquals(0.0, state.factors.single { it.key == "ldl" }.controlSupportComponent)
     }
@@ -297,6 +325,17 @@ class AttributionUiStateTest {
         date = date,
         riskScore = score,
         isInterventionDay = false,
+    )
+
+    private fun rhiSummary(vararg history: RhiDailyScore) = RhiPeriodSummary(
+        periodDays = 90,
+        score = history.lastOrNull()?.score,
+        confidence = history.lastOrNull()?.confidence,
+        validDays = history.size,
+        requiredValidDays = 14,
+        aggregation = RhiPeriodAggregation.ROBUST_MEDIAN,
+        history = history.toList(),
+        calculationSource = RhiCalculationSource.LOCAL,
     )
 
     private fun replayActivity() = AttributionActivityInput(
