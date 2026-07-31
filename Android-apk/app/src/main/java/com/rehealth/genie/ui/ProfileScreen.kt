@@ -19,7 +19,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
-import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Devices
@@ -200,19 +199,6 @@ internal fun ProfileScreen(
                                     strokeWidth = 2.dp,
                                 )
                             }
-                        } else {
-                            Box(
-                                modifier = Modifier.align(Alignment.BottomEnd).size(21.dp)
-                                    .clip(CircleShape).background(Mint),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    Icons.Outlined.AddAPhoto,
-                                    "更换头像",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(13.dp),
-                                )
-                            }
                         }
                     }
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
@@ -264,15 +250,15 @@ internal fun ProfileScreen(
                     rhiInputState.input?.waistCircumferenceCm?.let { "%.1f cm".format(it) } ?: "待补全",
                 )
                 StatusRow(
-                    "最大摄氧量（VO₂max）",
+                    "最大摄氧量",
                     rhiInputState.input?.vo2MaxMlKgMin?.let { "%.1f mL/kg/min".format(it) } ?: "待补全",
                 )
                 StatusRow(
-                    "糖化血红蛋白（HbA1c）",
+                    "糖化血红蛋白",
                     rhiInputState.input?.hba1cPercent?.let { "%.1f%%".format(it) } ?: "待补全",
                 )
                 StatusRow(
-                    "估算肾小球滤过率（eGFR）",
+                    "估算肾小球滤过率",
                     rhiInputState.input?.egfrMlMin173m2?.let { "%.1f mL/min/1.73m²".format(it) } ?: "待补全",
                 )
                 StatusRow(
@@ -439,9 +425,9 @@ private fun RhiManualInputDialog(
                 )
                 RhiManualField(sedentary, { sedentary = it }, "日均久坐（小时）", "范围 0–24", numericOptions)
                 RhiManualField(waist, { waist = it }, "腰围（cm）", "范围 40–200", numericOptions)
-                RhiManualField(vo2Max, { vo2Max = it }, "最大摄氧量（VO₂max，mL/kg/min）", "范围 5–100", numericOptions)
-                RhiManualField(hba1c, { hba1c = it }, "糖化血红蛋白（HbA1c，%）", "范围 3–20", numericOptions)
-                RhiManualField(egfr, { egfr = it }, "估算肾小球滤过率（eGFR，mL/min/1.73m²）", "范围 0–250", numericOptions)
+                RhiManualField(vo2Max, { vo2Max = it }, "最大摄氧量（mL/kg/min）", "范围 5–100", numericOptions)
+                RhiManualField(hba1c, { hba1c = it }, "糖化血红蛋白（%）", "范围 3–20", numericOptions)
+                RhiManualField(egfr, { egfr = it }, "估算肾小球滤过率（mL/min/1.73m²）", "范围 0–250", numericOptions)
                 Text("归因 16 项 · 上臂袖带血压", color = Ink, fontWeight = FontWeight.SemiBold)
                 RhiManualField(cuffSbp, { cuffSbp = it }, "7日平均收缩压（mmHg）", "范围 70–250", numericOptions)
                 RhiManualField(cuffDbp, { cuffDbp = it }, "7日平均舒张压（mmHg）", "范围 40–150", numericOptions)

@@ -109,8 +109,8 @@ git diff --check
      existing confirmed CVD-16 interface and are separate from RHI. Missing
      wearable data must not be replaced with a normal score, and switching periods quickly
      must not display a result from the previously selected period.
-   - Open “我的 > 编辑健康与归因指标”. Confirm sedentary hours, waist, formal VO₂max,
-     HbA1c and eGFR can be saved and restored after process restart. Clearing any field must
+   - Open “我的 > 编辑健康与归因指标”. Confirm sedentary hours, waist, 最大摄氧量,
+     糖化血红蛋白 and 估算肾小球滤过率 can be saved and restored after process restart. Clearing any field must
      persist `NULL`/missing and lower confidence instead of inserting a normal default.
    - Confirm RHI accepts SBP/DBP only after the user confirms a valid 3–7 day upper-arm cuff
      mean. Cuffless ring BP remains visible in Data but does not change RHI.
@@ -124,7 +124,8 @@ git diff --check
    - Confirm the Data health-index ring is not a fixed value: Today/7 days display the
      current RHI, 30/90 days display the valid-day median, the arc follows the score, and
      insufficient data displays the RHI accumulating state.
-   - Open “我的”, tap the avatar, and select an image through the Android system picker.
+   - Open “我的” and confirm the avatar has no bottom-right camera badge. Tap the avatar and
+     select an image through the Android system picker.
      Confirm the preview updates, survives app restart and same-user re-login, and is not visible
      to another user. Verify no avatar upload request is sent and no new media permission is asked.
    - Ask for a diagnosis/prescription and enter urgent chest-pain/breathing wording.
