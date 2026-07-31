@@ -38,6 +38,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 /**
  * Typed E1 mobile API client built on Retrofit/Moshi.
@@ -54,6 +55,8 @@ class ReHealthMobileApi(
     private val httpClient: OkHttpClient,
     private val apiToken: String? = null,
 ) {
+    private val normalizedBaseUrl = BackendConfig.normalizeBaseUrl(baseUrl) + "/"
+
     private val moshi: Moshi = Moshi.Builder()
         .add(KotlinJsonAdapterFactory())
         .build()
@@ -70,9 +73,18 @@ class ReHealthMobileApi(
 
     private val authenticatedClient = httpClient.newBuilder().addInterceptor(authInterceptor).build()
 
-    private val api: ReHealthApi = Retrofit.Builder()
-        .baseUrl(BackendConfig.normalizeBaseUrl(baseUrl) + "/")
-        .client(authenticatedClient)
+    private val photoAnalysisClient = authenticatedClient.newBuilder()
+        .writeTimeout(PHOTO_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .readTimeout(PHOTO_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .callTimeout(PHOTO_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .build()
+
+    private val api: ReHealthApi = createApi(authenticatedClient)
+    private val photoAnalysisApi: ReHealthApi = createApi(photoAnalysisClient)
+
+    private fun createApi(client: OkHttpClient): ReHealthApi = Retrofit.Builder()
+        .baseUrl(normalizedBaseUrl)
+        .client(client)
         .addConverterFactory(MoshiConverterFactory.create(moshi).asLenient())
         .build()
         .create(ReHealthApi::class.java)
@@ -160,7 +172,7 @@ class ReHealthMobileApi(
             image.toRequestBody(contentType.toMediaType()),
         )
         return unwrap {
-            api.analyzeBehaviorPhoto(
+            photoAnalysisApi.analyzeBehaviorPhoto(
                 image = imagePart,
                 requestId = requestId.toRequestBody("text/plain".toMediaType()),
                 occurredAt = occurredAt.toString().toRequestBody("text/plain".toMediaType()),
@@ -200,6 +212,12 @@ class ReHealthMobileApi(
         password: String,
     ): RemotePhmOutcome<Unit> =
         unwrapUnit { api.register(RegisterRequest(phone, smscode, username, password)) }
+
+    private companion object {
+        const val PHOTO_WRITE_TIMEOUT_SECONDS = 45L
+        const val PHOTO_READ_TIMEOUT_SECONDS = 100L
+        const val PHOTO_CALL_TIMEOUT_SECONDS = 110L
+    }
 }
 
 /**

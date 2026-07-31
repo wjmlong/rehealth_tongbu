@@ -265,7 +265,7 @@ class AuthenticatedApiClient(
                     is RemotePhmError.MissingFeatureFields ->
                         ApiResult.InvalidRequest("Missing fields: ${error.fields.joinToString()}")
                     is RemotePhmError.Timeout ->
-                        ApiResult.NetworkError(error.message)
+                        ApiResult.NetworkError(error.message, isTimeout = true)
                     is RemotePhmError.Unknown ->
                         ApiResult.NetworkError(error.message)
                     else ->
@@ -295,5 +295,8 @@ sealed class ApiResult<out T> {
     data class InvalidRequest(val message: String) : ApiResult<Nothing>()
     data class InvalidResponse(val message: String) : ApiResult<Nothing>()
     data class ServiceUnavailable(val message: String) : ApiResult<Nothing>()
-    data class NetworkError(val message: String) : ApiResult<Nothing>()
+    data class NetworkError(
+        val message: String,
+        val isTimeout: Boolean = false,
+    ) : ApiResult<Nothing>()
 }

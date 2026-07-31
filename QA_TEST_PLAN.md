@@ -148,6 +148,10 @@ git diff --check
    - Reuse the same `requestId` and expect the existing owner-scoped record without a second model
      call. Log in as another user/tenant and confirm the first user's record is absent. Disable the
      network or provider and confirm a controlled error is shown without a fake behavior record.
+   - Delay a valid vision response beyond the shared 20-second API read timeout but within the
+     configured 75-second provider timeout. Confirm photo analysis continues and persists exactly
+     one record. Delay it past the provider timeout and confirm the app shows “图片识别超时” instead
+     of “网络连接失败”, creates no placeholder record, and JeecgBoot does not repeat the model call.
    - Open the Data tab and confirm “今日” is selected. Sync a sleep session that starts before
      midnight and ends today; verify today's duration equals valid stage totals (or elapsed time
      only when stages are absent). Verify 7/30-day risk and health index use only confirmed daily

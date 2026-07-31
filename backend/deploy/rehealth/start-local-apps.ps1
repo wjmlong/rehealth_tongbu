@@ -103,6 +103,7 @@ if (Test-Path -LiteralPath $providerCredentialFile) {
 $env:REHEALTH_VISION_ENABLED = Read-LocalSetting 'REHEALTH_VISION_ENABLED' 'false'
 $env:REHEALTH_VISION_BASE_URL = Read-LocalSetting 'REHEALTH_VISION_BASE_URL' 'https://api.openai.com/v1'
 $env:REHEALTH_VISION_MODEL = Read-LocalSetting 'REHEALTH_VISION_MODEL' 'gpt-5.6-luna'
+$env:REHEALTH_VISION_TIMEOUT_SECONDS = Read-LocalSetting 'REHEALTH_VISION_TIMEOUT_SECONDS' '75'
 if ($env:REHEALTH_VISION_ENABLED -eq 'true') {
     Require-File $visionCredentialFile
     $env:REHEALTH_VISION_API_KEY_FILE = $visionCredentialFile

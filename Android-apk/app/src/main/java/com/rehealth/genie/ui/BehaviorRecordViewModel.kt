@@ -81,6 +81,10 @@ private fun ApiResult<*>.userMessage(fallback: String): String = when (this) {
     is ApiResult.InvalidRequest -> message.ifBlank { fallback }
     is ApiResult.InvalidResponse -> fallback
     is ApiResult.ServiceUnavailable -> "图片分析服务暂时不可用，请稍后重试"
-    is ApiResult.NetworkError -> "网络连接失败，请检查网络后重试"
+    is ApiResult.NetworkError -> if (isTimeout) {
+        "图片识别超时，请稍后重新拍摄"
+    } else {
+        "网络连接失败，请检查网络后重试"
+    }
     is ApiResult.Success -> fallback
 }

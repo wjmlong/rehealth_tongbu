@@ -48,7 +48,7 @@ public class BehaviorPhotoAnalysisService {
             @Value("${rehealth.vision.api-key:}") String apiKey,
             @Value("${rehealth.vision.api-key-file:}") String apiKeyFile,
             @Value("${rehealth.vision.model:gpt-5.6-luna}") String modelName,
-            @Value("${rehealth.vision.timeout-seconds:45}") long timeoutSeconds,
+            @Value("${rehealth.vision.timeout-seconds:75}") long timeoutSeconds,
             @Value("${rehealth.vision.max-tokens:1200}") int maxTokens,
             @Value("${rehealth.vision.max-image-bytes:4194304}") int maxImageBytes,
             ObjectMapper objectMapper
@@ -159,7 +159,7 @@ public class BehaviorPhotoAnalysisService {
                         .modelName(modelName)
                         .maxTokens(maxTokens)
                         .timeout(timeout)
-                        .maxRetries(1)
+                        .maxRetries(0)
                         .logRequests(false)
                         .logResponses(false)
                         .build();
