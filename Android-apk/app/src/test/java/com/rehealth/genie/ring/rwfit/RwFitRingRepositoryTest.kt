@@ -237,4 +237,8 @@ private class TrackingRingDataDao : RingDataDao {
     override suspend fun getLatestMeasurement(metricType: String): RingMeasurementEntity? = null
     override suspend fun getActivitiesSince(since: Long): List<RingActivityEntity> = emptyList()
     override suspend fun getSleepSessionsSince(since: Long): List<RingSleepSessionEntity> = emptyList()
+    override suspend fun deleteMeasurementsBySource(source: String) { measurements.removeAll { it.source == source } }
+    override suspend fun deleteSleepSessionsBySource(source: String) { sleep.removeAll { it.source == source } }
+    override suspend fun deleteActivitiesBySource(source: String) { activities.removeAll { it.source == source } }
+    override suspend fun deleteSignalChunksBySource(source: String) { signals.removeAll { it.source == source } }
 }

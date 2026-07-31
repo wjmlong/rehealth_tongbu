@@ -399,4 +399,8 @@ private class FakeHBandDao : RingDataDao {
     override suspend fun getLatestMeasurement(metricType: String): RingMeasurementEntity? = null
     override suspend fun getActivitiesSince(since: Long) = emptyList<RingActivityEntity>()
     override suspend fun getSleepSessionsSince(since: Long) = emptyList<RingSleepSessionEntity>()
+    override suspend fun deleteMeasurementsBySource(source: String) { measurements.removeAll { it.source == source } }
+    override suspend fun deleteSleepSessionsBySource(source: String) { sleep.removeAll { it.source == source } }
+    override suspend fun deleteActivitiesBySource(source: String) = Unit
+    override suspend fun deleteSignalChunksBySource(source: String) = Unit
 }
