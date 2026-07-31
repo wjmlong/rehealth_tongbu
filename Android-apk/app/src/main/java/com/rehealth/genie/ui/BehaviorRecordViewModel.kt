@@ -1,7 +1,6 @@
 package com.rehealth.genie.ui
 
 import android.app.Application
-import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -9,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.network.ApiResult
 import com.rehealth.genie.network.dto.BehaviorRecordDto
+import java.io.File
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,11 +31,11 @@ class BehaviorRecordViewModel(application: Application) : AndroidViewModel(appli
         refreshToday()
     }
 
-    fun analyzePhoto(uri: Uri) {
+    fun analyzePhoto(photoFile: File) {
         if (_state.value.isUploading) return
         viewModelScope.launch {
             _state.value = _state.value.copy(isUploading = true, message = null, error = null)
-            when (val result = repository.analyzeCameraPhoto(uri)) {
+            when (val result = repository.analyzeCameraPhoto(photoFile)) {
                 is ApiResult.Success -> {
                     _state.value = _state.value.copy(
                         records = listOf(result.data) + _state.value.records.filterNot { it.id == result.data.id },

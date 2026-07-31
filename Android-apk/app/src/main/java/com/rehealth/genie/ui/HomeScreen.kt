@@ -112,7 +112,7 @@ internal fun HomeScreen() {
     var showConversationManager by remember { mutableStateOf(false) }
     var conversationToDelete by remember { mutableStateOf<HealthChatConversationEntity?>(null) }
     var showClearConversationsConfirmation by remember { mutableStateOf(false) }
-    var pendingPhotoUriValue by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingPhotoPath by rememberSaveable { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val application = context.applicationContext as ReHealthApplication
     val chatOwnerKey = remember(application.sessionStore.userId, application.sessionStore.username) {
@@ -206,25 +206,26 @@ internal fun HomeScreen() {
         }
     }
 
-    fun createPhotoUri(): Uri {
+    fun createPhotoTarget(): Pair<File, Uri> {
         val directory = File(context.cacheDir, "behavior-photos").apply { mkdirs() }
         val file = File.createTempFile("behavior-", ".jpg", directory)
-        return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        return file to uri
     }
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { captured ->
-        val uri = pendingPhotoUriValue?.let(Uri::parse)
-        pendingPhotoUriValue = null
-        if (captured && uri != null) {
-            behaviorViewModel.analyzePhoto(uri)
-        } else if (uri != null) {
-            runCatching { context.contentResolver.delete(uri, null, null) }
+        val photoFile = pendingPhotoPath?.let(::File)
+        pendingPhotoPath = null
+        if (captured && photoFile != null) {
+            behaviorViewModel.analyzePhoto(photoFile)
+        } else if (photoFile != null) {
+            runCatching { photoFile.delete() }
             voiceMessage = "已取消拍照"
         }
     }
     fun startCamera() {
         runCatching {
-            createPhotoUri().also { uri ->
-                pendingPhotoUriValue = uri.toString()
+            createPhotoTarget().also { (photoFile, uri) ->
+                pendingPhotoPath = photoFile.absolutePath
                 cameraLauncher.launch(uri)
             }
         }.onFailure {

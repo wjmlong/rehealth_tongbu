@@ -142,7 +142,7 @@ class ReHealthApplication : Application() {
     }
 
     val behaviorRecordRepository by lazy {
-        BehaviorRecordRepository(this, authenticatedApiClient)
+        BehaviorRecordRepository(authenticatedApiClient)
     }
 
     val mrdProtocolAdapter by lazy { MrdProtocolAdapter(this) }

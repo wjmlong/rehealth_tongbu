@@ -138,6 +138,10 @@ git diff --check
      app-private `FileProvider` URI. Cancel once and confirm no upload or record is created. Capture
      one meal and one text document; confirm upload progress is visible and FOOD/OCR results appear
      in “今日行为记录” on both Home and Data with the correct local time.
+   - On a MIUI device, capture immediately after the camera opens and confirm the app waits for the
+     private file write to stabilize before decoding. Repeat after an Activity recreation; neither
+     case may show “照片读取失败” for a valid non-empty JPEG. Confirm high-resolution input is sampled
+     before scaling and does not cause an out-of-memory crash.
    - Confirm nutrition values are labeled as estimates, the complete OCR text is present in the
      returned record, and no raw photo, provider key, access token, or image base64 appears in Room,
      `software_db`, logcat, or JeecgBoot logs. Confirm the temporary camera file is removed.
