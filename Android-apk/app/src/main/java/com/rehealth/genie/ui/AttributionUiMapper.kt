@@ -274,7 +274,7 @@ object AttributionUiMapper {
     private fun aliasKey(key: String): String = key.filter(Char::isLetterOrDigit).lowercase(Locale.US)
 
     private fun refreshMessage(phase: AttributionRefreshPhase, error: String?): String? = when (phase) {
-        AttributionRefreshPhase.LOADING -> "正在读取已确认风险历史与 PIAS"
+        AttributionRefreshPhase.LOADING -> "正在读取已确认的 RDI-16 风险历史与情景数据"
         AttributionRefreshPhase.REFRESHING -> "正在刷新，当前显示上次成功结果"
         AttributionRefreshPhase.ERROR -> error ?: "刷新失败，当前显示上次成功结果"
         AttributionRefreshPhase.IDLE, AttributionRefreshPhase.READY -> null

@@ -1,8 +1,5 @@
 package com.rehealth.genie.ui
 
-import com.rehealth.genie.rdi.RdiContributionEntity
-import com.rehealth.genie.rdi.RdiDisplayData
-import com.rehealth.genie.rdi.RdiStatus
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -74,6 +71,8 @@ import com.rehealth.genie.BuildConfig
 import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.network.PatientProfilePayload
 import com.rehealth.genie.phm.AttributionHistoryPoint
+import com.rehealth.genie.rdi.RdiContributionEntity
+import com.rehealth.genie.rdi.RdiDisplayData
 import com.rehealth.genie.rhi.RhiDailyScore
 import com.rehealth.genie.ring.RingUiState
 import com.rehealth.genie.ui.theme.AttributionDimensions as Dimensions
@@ -231,6 +230,7 @@ fun AttributionScreen(
                 AttributionPeriod.DAYS_90.days.toInt(),
                 AttributionDataProvenance.trustedProfile(ringState.patientMvp),
             )
+            rdiViewModel.refresh()
         },
         rdiDisplayData = rdiDisplayData,
     )
@@ -271,9 +271,6 @@ private fun AttributionContent(
             }
         }
         item {
-            RdiOverviewCard(rdiDisplayData)
-        }
-        item {
             AttributionPeriodSelector(state.period, onPeriodSelected)
         }
         state.refreshMessage?.let { message ->
@@ -296,6 +293,7 @@ private fun AttributionContent(
                 onRetry = onRetry,
             )
         }
+        item { RdiImpactCard(rdiDisplayData) }
         item {
             AttributionDietCard(
                 state = dietEntryState,
@@ -611,6 +609,112 @@ private fun AttributionRiskTrendReadyContent(
             modifier = Modifier.weight(1f),
         )
     }
+}
+
+@Composable
+private fun RdiImpactCard(data: RdiDisplayData?) {
+    AttributionCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("近期风险影响分", color = Palette.TextPrimary, style = Type.CardTitle)
+                Text(
+                    "越低越好",
+                    color = Palette.TextSecondary,
+                    style = Type.Micro,
+                    modifier = Modifier.padding(top = Dimensions.PageSubtitleTop),
+                )
+            }
+            Text(
+                rdiImpactStatusLabel(data?.status),
+                color = Palette.Accent,
+                style = Type.Detail,
+                modifier = Modifier.clip(CircleShape).background(Palette.AccentSoft)
+                    .padding(
+                        horizontal = Dimensions.StatusHorizontalPadding,
+                        vertical = Dimensions.StatusVerticalPadding,
+                    ),
+            )
+        }
+        Text(
+            data?.score?.let { String.format(Locale.US, "%.1f", it) } ?: "--",
+            color = if (data == null) Palette.TextSecondary else Palette.TextPrimary,
+            style = Type.SummaryScore,
+            modifier = Modifier.padding(top = Dimensions.SummaryScoreTop),
+        )
+        Text(
+            data?.let {
+                "数据可信度 ${String.format(Locale.US, "%.0f%%", it.confidence * 100.0)} · " +
+                    "状态：${rdiImpactStatusLabel(it.status)}"
+            } ?: "正在读取本地 Room 的近期有效数据",
+            color = Palette.TextSecondary,
+            style = Type.Detail,
+            modifier = Modifier.padding(top = Dimensions.FactorSupportingTop),
+        )
+        val contributions = data?.topContributions.orEmpty()
+        if (contributions.isNotEmpty()) {
+            Text(
+                "本周期影响最大的 ${contributions.size} 项",
+                color = Palette.TextPrimary,
+                style = Type.CardTitle,
+                modifier = Modifier.padding(top = Dimensions.FactorRowTop),
+            )
+            contributions.forEachIndexed { index, contribution ->
+                RdiImpactContributionRow(index + 1, contribution)
+            }
+        } else {
+            Text(
+                "正在积累更多有效数据",
+                color = Palette.TextSecondary,
+                style = Type.Detail,
+                modifier = Modifier.padding(top = Dimensions.FactorRowTop),
+            )
+        }
+    }
+}
+
+@Composable
+private fun RdiImpactContributionRow(
+    rank: Int,
+    contribution: RdiContributionEntity,
+) {
+    val points = contribution.finalPoints
+    val improvesRisk = points < 0.0
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = Dimensions.FactorRowTop),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier.size(Dimensions.FactorRankSize).clip(CircleShape).background(Palette.AccentSoft),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                rank.toString(),
+                color = Palette.Accent,
+                style = Type.Selector,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        Text(
+            contribution.evidenceText.ifBlank { contribution.factorCode },
+            color = Palette.TextPrimary,
+            style = Type.FactorTitle,
+            modifier = Modifier.weight(1f).padding(start = Dimensions.FactorContentGap),
+        )
+        Text(
+            String.format(Locale.US, "%s %+.1f 分", if (improvesRisk) "↓" else "↑", points),
+            color = if (improvesRisk) Palette.Accent else Palette.ContributionRisk,
+            style = Type.FactorScore,
+            modifier = Modifier.padding(start = Dimensions.LegendLabelGap),
+        )
+    }
+}
+
+internal fun rdiImpactStatusLabel(status: String?): String = when (status?.lowercase(Locale.US)) {
+    "confirmed" -> "已建立个人基线"
+    "provisional" -> "初步结果"
+    "accumulating" -> "基线建立中"
+    null -> "计算中"
+    else -> "状态待确认"
 }
 
 @Composable
@@ -1293,180 +1397,3 @@ private fun activityTypeLabel(type: String): String = when (type.lowercase()) {
 
 private fun formatActivityTime(timestamp: Long): String =
     SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(timestamp))
-
-/**
- * 健康归因页 RDI 总览卡（设计要求 5.1 / 5.2）：
- * 展示近期风险影响分、状态、数据可信度、近 7 天变化，以及本周期影响最大的前 3 项贡献。
- * 演示数据（is_mock）必须醒目标记，禁止导出为正式报告。
- */
-@Composable
-private fun RdiOverviewCard(data: RdiDisplayData?) {
-    val disclaimer = "该指数反映近期可干预因素的综合影响，不等同于疾病发生概率，不用于诊断、用药调整或替代医生意见。"
-
-    Card(
-        Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(Dimensions.ContentRadius))
-            .background(Palette.Surface),
-        colors = CardDefaults.cardColors(containerColor = Palette.Surface),
-    ) {
-        Column(Modifier.fillMaxWidth().padding(Dimensions.CardPadding)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("近期风险影响分", color = Palette.TextPrimary, style = Type.CardTitle)
-                    Text(
-                        "越低越好",
-                        color = Palette.TextSecondary,
-                        style = Type.Micro,
-                        modifier = Modifier.padding(top = Dimensions.PageSubtitleTop),
-                    )
-                }
-                if (data != null) {
-                    val statusLabel = RdiStatus.label(data.status).let {
-                        if (data.status == RdiStatus.DEBUG_MOCK) "$it（禁止导出）" else it
-                    }
-                    Box(
-                        Modifier
-                            .clip(RoundedCornerShape(Dimensions.ContentRadius))
-                            .background(
-                                if (data.status == RdiStatus.DEBUG_MOCK) {
-                                    Palette.SurfaceWarning
-                                } else {
-                                    Palette.AccentSoft
-                                },
-                            )
-                            .padding(
-                                horizontal = Dimensions.ForecastMetricHorizontalPadding,
-                                vertical = Dimensions.ForecastMetricVerticalPadding,
-                            ),
-                    ) {
-                        Text(
-                            statusLabel,
-                            color = if (data.status == RdiStatus.DEBUG_MOCK) Palette.ContributionRisk else Palette.Accent,
-                            style = Type.Micro,
-                        )
-                    }
-                }
-            }
-
-            if (data == null) {
-                Text(
-                    "正在计算近期风险影响分…",
-                    color = Palette.TextSecondary,
-                    style = Type.Detail,
-                    modifier = Modifier.padding(top = Dimensions.FactorSupportingTop),
-                )
-            } else {
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        String.format(Locale.US, "%.1f", data.score),
-                        color = Palette.TextPrimary,
-                        style = Type.PageTitle,
-                    )
-                    data.delta7d?.let {
-                        Text(
-                            "近7天 %+.1f分".format(it),
-                            color = if (it <= 0) Palette.Accent else Palette.ContributionRisk,
-                            style = Type.Detail,
-                            modifier = Modifier.padding(start = Dimensions.LegendLabelGap, bottom = Dimensions.PageSubtitleTop),
-                        )
-                    }
-                }
-                Text(
-                    "数据可信度 %d%% · 状态：%s".format((data.confidence * 100).toInt(), RdiStatus.label(data.status)),
-                    color = Palette.TextSecondary,
-                    style = Type.Detail,
-                    modifier = Modifier.padding(top = Dimensions.FactorSupportingTop),
-                )
-            }
-
-            if (data?.status == RdiStatus.NO_DATA) {
-                Text(
-                    "尚无设备或有效记录，无法计算指数。",
-                    color = Palette.TextSecondary,
-                    style = Type.Detail,
-                    modifier = Modifier.padding(top = Dimensions.FactorSupportingTop),
-                )
-            } else if (data?.status == RdiStatus.BASELINE_BUILDING) {
-                Text(
-                    "基线建立中（已积累 1–6 个有效日），以下为临时分。",
-                    color = Palette.TextSecondary,
-                    style = Type.Detail,
-                    modifier = Modifier.padding(top = Dimensions.FactorSupportingTop),
-                )
-            }
-
-            if (data != null && data.topContributions.isNotEmpty()) {
-                Text(
-                    "本周期影响最大的 3 项",
-                    color = Palette.TextPrimary,
-                    style = Type.CardTitle,
-                    modifier = Modifier.padding(top = Dimensions.FactorRowTop),
-                )
-                data.topContributions.forEachIndexed { index, contribution ->
-                    RdiContributionRow(rank = index + 1, contribution = contribution)
-                }
-            } else if (data != null) {
-                Text(
-                    "正在积累更多有效数据",
-                    color = Palette.TextSecondary,
-                    style = Type.Detail,
-                    modifier = Modifier.padding(top = Dimensions.FactorSupportingTop),
-                )
-            }
-        }
-    }
-
-    Card(
-        Modifier.fillMaxWidth()
-            .padding(top = Dimensions.SectionGap)
-            .clip(RoundedCornerShape(Dimensions.ContentRadius))
-            .background(Palette.AccentSoft),
-        colors = CardDefaults.cardColors(containerColor = Palette.AccentSoft),
-    ) {
-        Row(Modifier.fillMaxWidth().padding(Dimensions.CardPadding)) {
-            Icon(
-                Icons.Outlined.Shield,
-                "免责声明",
-                tint = Palette.TextSecondary,
-                modifier = Modifier.size(Dimensions.DisclaimerIcon).padding(end = Dimensions.LegendLabelGap),
-            )
-            Text(disclaimer, color = Palette.TextSecondary, style = Type.Micro)
-        }
-    }
-}
-
-@Composable
-private fun RdiContributionRow(rank: Int, contribution: RdiContributionEntity) {
-    val points = contribution.finalPoints
-    val color = if (points >= 0.0) Palette.ContributionRisk else Palette.Accent
-    val arrow = if (points >= 0.0) "↑" else "↓"
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = Dimensions.FactorRowTop)
-            .clickable(
-                role = Role.Button,
-                onClickLabel = "查看计算依据",
-                onClick = { /* TODO: 跳转计算依据详情（设计方案 5.4） */ },
-            ),
-    ) {
-        Box(
-            Modifier.size(Dimensions.FactorRankSize).clip(CircleShape).background(Palette.AccentSoft),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(rank.toString(), color = Palette.Accent, style = Type.Selector, fontWeight = FontWeight.Bold)
-        }
-        Text(
-            contribution.evidenceText.ifBlank { contribution.factorCode },
-            color = Palette.TextPrimary,
-            style = Type.FactorTitle,
-            modifier = Modifier.weight(1f).padding(start = Dimensions.FactorContentGap),
-        )
-        Text(
-            "%s %+.1f 分".format(arrow, points),
-            color = color,
-            style = Type.FactorScore,
-        )
-    }
-}

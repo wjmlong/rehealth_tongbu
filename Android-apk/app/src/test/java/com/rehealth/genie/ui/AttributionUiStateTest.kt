@@ -18,6 +18,15 @@ class AttributionUiStateTest {
     private val today = LocalDate.of(2026, 7, 22)
 
     @Test
+    fun `labels local risk impact baseline states conservatively`() {
+        assertEquals("已建立个人基线", rdiImpactStatusLabel("confirmed"))
+        assertEquals("初步结果", rdiImpactStatusLabel("provisional"))
+        assertEquals("基线建立中", rdiImpactStatusLabel("accumulating"))
+        assertEquals("计算中", rdiImpactStatusLabel(null))
+        assertEquals("状态待确认", rdiImpactStatusLabel("unexpected"))
+    }
+
+    @Test
     fun `maps confirmed RDI sixteen risk as a score out of one hundred`() {
         val history = listOf(
             point("2026-04-25", 0.40),
