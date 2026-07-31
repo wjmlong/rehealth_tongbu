@@ -109,6 +109,13 @@ git diff --check
      existing confirmed CVD-16 interface and are separate from RHI. Missing
      wearable data must not be replaced with a normal score, and switching periods quickly
      must not display a result from the previously selected period.
+   - Open Data and confirm the RDI-16 risk card displays `riskScore × 100` with one decimal only
+     for a reachable, finite, in-range `isMock=false` response from the existing 16-feature
+     evaluation path. Mock, failed, invalid, or absent results must
+     display `--`; no local fallback risk may be invented.
+   - Confirm the Data health-index ring is not a fixed value: Today/7 days display the
+     current RHI, 30/90 days display the valid-day median, the arc follows the score, and
+     insufficient data displays the RHI accumulating state.
    - Open “我的”, tap the avatar, and select an image through the Android system picker.
      Confirm the preview updates, survives app restart and same-user re-login, and is not visible
      to another user. Verify no avatar upload request is sent and no new media permission is asked.

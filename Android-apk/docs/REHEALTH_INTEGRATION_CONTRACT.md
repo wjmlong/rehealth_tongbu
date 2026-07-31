@@ -86,6 +86,13 @@ from recent valid data; 30/90 days use the median of valid daily RHI values and
 require 7/14 valid days. The current clinical-risk value and PIAS personal-risk
 trend remain on the confirmed CVD-16 path. The Model UI is unchanged.
 
+The Data UI follows the same separation. Its risk card is labeled RDI-16 and reuses
+the existing CVD-16 feature-evaluation path without changing its extractor. It renders
+a score only when the response is reachable, finite, in `[0, 1]`, and explicitly
+`isMock=false`; mock or failed output remains unavailable. Its health-index ring renders Android RHI Lite:
+Today/7-day selections use the current seven-day RHI, while 30/90-day selections
+use the valid-day median and the same 7/14-day minimums.
+
 Every durable business endpoint returns a retryable `503` envelope when the
 required database is disabled or unavailable. Android must not interpret an
 HTTP/Jeecg success envelope without a durable acknowledgement as completed.

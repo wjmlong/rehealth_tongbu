@@ -43,6 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -64,7 +65,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rehealth.genie.R
+import com.rehealth.genie.rhi.RhiPeriodAggregation
+import com.rehealth.genie.rhi.RhiPeriodSummary
 import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.RingFeatureType
 import com.rehealth.genie.ring.RingUiState
@@ -103,6 +107,9 @@ internal fun DataScreen(
     onSync: () -> Unit,
 ) {
     var selectedPeriod by remember { mutableIntStateOf(1) }
+    val rhiViewModel: RhiViewModel = viewModel(factory = RhiViewModel.Factory(LocalContext.current))
+    val rhiPeriodSummary by rhiViewModel.periodSummary.collectAsState()
+    val rhiRefreshError by rhiViewModel.refreshError.collectAsState()
     var showBloodGlucoseCalibration by remember { mutableStateOf(false) }
     var showWomensHealthSetting by remember { mutableStateOf(false) }
     var showEcgDetail by remember { mutableStateOf(false) }
@@ -126,6 +133,15 @@ internal fun DataScreen(
         val windowDays = when (selectedPeriod) { 0 -> 0; 1 -> 7; 2 -> 30; 3 -> 90; else -> 7 }
         aggregate = ringViewModel.loadPeriodAggregate(windowDays)
     }
+    val rhiPeriodDays = when (selectedPeriod) {
+        2 -> 30
+        3 -> 90
+        else -> 7
+    }
+    LaunchedEffect(rhiPeriodDays, state.lastSyncAt, state.activity?.id, state.sleep?.id) {
+        rhiViewModel.refresh(rhiPeriodDays)
+    }
+    val currentRhi = rhiPeriodSummary?.takeIf { it.periodDays == rhiPeriodDays }
 
     fun measurement(type: RingMetricType): String {
         val record = state.measurements[type] ?: return "--"
@@ -306,7 +322,11 @@ internal fun DataScreen(
                 modifier = Modifier.fillMaxWidth().height(178.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                HealthScoreCard(Modifier.weight(1f))
+                HealthScoreCard(
+                    summary = currentRhi,
+                    error = rhiRefreshError,
+                    modifier = Modifier.weight(1f),
+                )
                 SmartRingOverviewCard(state, Modifier.weight(1f))
             }
         }
@@ -671,7 +691,7 @@ private fun DataStatusCard(
 private fun RiskScoreCard(
     canonicalRiskStatus: androidx.compose.runtime.State<RemoteFeatureEvaluateStatus?>,
 ) {
-    val current = canonicalRiskStatus.value
+    val presentation = dataRiskPresentation(canonicalRiskStatus.value)
     Row(
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
             .background(Brush.horizontalGradient(listOf(Color.White, Color(0xFFEAF8F4))))
@@ -683,9 +703,9 @@ private fun RiskScoreCard(
             Icon(Icons.Outlined.Shield, null, tint = Mint, modifier = Modifier.size(24.dp))
         }
         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-            Text("今日风险分", color = Ink, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text("当前风险分", color = Ink, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             Text(
-                current?.summary ?: "正在从本机特征生成云端风险参考",
+                presentation.summary,
                 color = Muted,
                 fontSize = 10.sp,
                 lineHeight = 14.sp,
@@ -694,15 +714,20 @@ private fun RiskScoreCard(
             )
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text(current?.riskScore.riskScoreLabel(), color = Mint, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text(current?.riskLevel.riskLevelLabel(), color = Muted, fontSize = 10.sp)
-            Text(current?.modeLabel ?: "评估中", color = Muted, fontSize = 9.sp)
+            Text(presentation.scoreText, color = Mint, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Text(presentation.riskLevelText, color = Muted, fontSize = 10.sp)
+            Text(presentation.sourceText, color = Muted, fontSize = 9.sp)
         }
     }
 }
 
 @Composable
-private fun HealthScoreCard(modifier: Modifier) {
+private fun HealthScoreCard(
+    summary: RhiPeriodSummary?,
+    error: String?,
+    modifier: Modifier,
+) {
+    val presentation = dataHealthIndexPresentation(summary, error)
     Column(
         modifier = modifier.fillMaxHeight(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -717,7 +742,7 @@ private fun HealthScoreCard(modifier: Modifier) {
                         listOf(Color(0xFF0DA47C), Color(0xFF13D4A7), Color(0xFF0DA47C)),
                     ),
                     startAngle = -90f,
-                    sweepAngle = 313f,
+                    sweepAngle = presentation.sweepAngle,
                     useCenter = false,
                     style = androidx.compose.ui.graphics.drawscope.Stroke(stroke, cap = StrokeCap.Round),
                 )
@@ -729,9 +754,9 @@ private fun HealthScoreCard(modifier: Modifier) {
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("健康指数", color = Muted, fontSize = 10.sp)
-                Text("87", color = Ink, fontSize = 38.sp, fontWeight = FontWeight.Bold)
+                Text(presentation.scoreText, color = Ink, fontSize = 38.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    "良好",
+                    presentation.statusText,
                     color = Mint,
                     fontSize = 10.sp,
                     modifier = Modifier.clip(CircleShape).background(MintSoft)
@@ -739,8 +764,88 @@ private fun HealthScoreCard(modifier: Modifier) {
                 )
             }
         }
-        Text("身体状态良好，继续保持 ›", color = Muted, fontSize = 9.sp, modifier = Modifier.padding(top = 4.dp))
+        Text(
+            presentation.supportingText,
+            color = Muted,
+            fontSize = 9.sp,
+            maxLines = 1,
+            modifier = Modifier.padding(top = 4.dp),
+        )
     }
+}
+
+internal data class DataRiskPresentation(
+    val scoreText: String,
+    val riskLevelText: String,
+    val sourceText: String,
+    val summary: String,
+)
+
+internal fun dataRiskPresentation(status: RemoteFeatureEvaluateStatus?): DataRiskPresentation {
+    val confirmedScore = status?.riskScore?.takeIf {
+        status.reachable && status.isMock == false && it.isFinite() && it in 0.0..1.0
+    }
+    val confirmed = confirmedScore != null
+    return DataRiskPresentation(
+        scoreText = confirmedScore?.let { String.format(Locale.US, "%.1f分", it * 100.0) } ?: "--",
+        riskLevelText = if (confirmed) status?.riskLevel.riskLevelLabel() else "待评估",
+        sourceText = if (confirmed) {
+            "RDI-16"
+        } else if (status?.isMock == true) {
+            "模拟不展示"
+        } else if (status?.reachable == false) {
+            "不可用"
+        } else {
+            "评估中"
+        },
+        summary = when {
+            confirmed -> status?.summary ?: "RDI-16 风险评估已完成"
+            status?.isMock == true -> "当前仅返回模拟结果，未作为真实风险分展示"
+            status != null -> status.summary
+            else -> "正在请求 RDI-16 风险评估"
+        },
+    )
+}
+
+internal data class DataHealthIndexPresentation(
+    val scoreText: String,
+    val statusText: String,
+    val supportingText: String,
+    val sweepAngle: Float,
+)
+
+internal fun dataHealthIndexPresentation(
+    summary: RhiPeriodSummary?,
+    error: String?,
+): DataHealthIndexPresentation {
+    val score = summary?.score
+    if (score == null) {
+        return DataHealthIndexPresentation(
+            scoreText = "--",
+            statusText = "积累中",
+            supportingText = error ?: summary?.let {
+                "RHI 有效数据 ${it.validDays}/${it.requiredValidDays} 天"
+            } ?: "正在计算 RHI-100",
+            sweepAngle = 0f,
+        )
+    }
+    val status = when {
+        score >= 80.0 -> "优秀"
+        score >= 60.0 -> "良好"
+        score >= 50.0 -> "平稳"
+        else -> "待改善"
+    }
+    val periodText = if (summary.aggregation == RhiPeriodAggregation.CURRENT_7_DAY) {
+        "近7日有效数据"
+    } else {
+        "${summary.periodDays}日稳健中位数"
+    }
+    return DataHealthIndexPresentation(
+        scoreText = String.format(Locale.US, "%.1f", score),
+        statusText = status,
+        supportingText = "RHI-100 · $periodText",
+        sweepAngle = (score.coerceIn(0.0, 100.0) / 100.0 * 360.0).toFloat(),
+    )
 }
 
 @Composable
