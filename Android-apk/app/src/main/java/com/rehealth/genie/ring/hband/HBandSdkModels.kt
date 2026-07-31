@@ -324,6 +324,12 @@ internal data class HBandPayload(
     )
 }
 
+internal data class HBandSyncOptions(
+    val historyDays: Int? = null,
+    val includeOriginHistory: Boolean = true,
+    val onProgress: (Int) -> Unit = {},
+)
+
 internal interface HBandSdkGateway {
     val connectionState: StateFlow<RingConnectionState>
     val connectedDevice: StateFlow<RingDevice?>
@@ -333,7 +339,10 @@ internal interface HBandSdkGateway {
     suspend fun scan(): List<RingDevice>
     suspend fun connect(device: RingDevice, profile: HBandUserProfile): HBandConnectionInfo?
     suspend fun disconnect()
-    suspend fun sync(metrics: Set<RingMetricType>): HBandPayload
+    suspend fun sync(
+        metrics: Set<RingMetricType>,
+        options: HBandSyncOptions = HBandSyncOptions(),
+    ): HBandPayload
     suspend fun measure(type: RingMetricType, allowHistoryFallback: Boolean = false): HBandPayload
     suspend fun setBloodGlucoseCalibration(config: BloodGlucoseCalibration): Boolean = false
     suspend fun setMenstrualCycle(config: MenstrualCycleConfig): Boolean = false

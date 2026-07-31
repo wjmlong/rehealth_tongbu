@@ -1,6 +1,6 @@
 # D2 Telemetry Sync Status and Remaining QA
 
-Status: implemented software path; updated 2026-07-29.
+Status: implemented software path; updated 2026-07-31.
 
 ## Implemented
 
@@ -43,6 +43,13 @@ Status: implemented software path; updated 2026-07-29.
   mini-checkup HRV/stress remain visible and measurable.
 - Period sleep aggregation queries sessions by `ended_at`, includes cross-midnight sessions
   ending today, and uses stage totals before falling back to elapsed session time.
+- The Data-screen action is a connected-only daily sync for sleep, steps, and activity. It never
+  auto-connects from the UI, and the in-process automatic cycle skips while disconnected. Explicit
+  Foreground Service recovery retains bound-device reconnect behavior. For HBand, existing recent
+  Room sleep/activity rows select a two-day-or-greater overlap window; origin history is skipped
+  when activity has no gap, while first sync or a gap retains origin-history recovery. Vendor sleep
+  and origin callbacks feed monotonic target progress, and Compose smooths toward that target without
+  delaying persistence or upload completion.
 
 ## Software-Only Validation
 

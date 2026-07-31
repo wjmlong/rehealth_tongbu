@@ -77,5 +77,6 @@ internal interface RwFitSdkGateway {
     suspend fun connect(device: RingDevice): RwFitConnectionInfo?
     suspend fun disconnect()
     suspend fun syncSupported(): RwFitPayload
+    suspend fun sync(metrics: Set<RingMetricType>): RwFitPayload = syncSupported()
     suspend fun measure(type: RingMetricType): RwFitPayload
 }

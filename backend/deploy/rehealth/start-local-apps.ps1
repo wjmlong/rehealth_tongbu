@@ -91,7 +91,7 @@ $localAiConfig = Join-Path $repoRoot 'model-service\config\ai-chat.local.yml'
 $env:REHEALTH_RUNTIME_MODE = 'development'
 $env:REHEALTH_MODEL_DIR = Join-Path $repoRoot 'model-service\models'
 $env:REHEALTH_AGENT_INTERNAL_TOKEN_FILE = $internalCredentialFile
-$env:REHEALTH_HEALTH_AGENT_ENGINE = Read-LocalSetting 'REHEALTH_HEALTH_AGENT_ENGINE' 'model-service'
+$env:REHEALTH_HEALTH_AGENT_ENGINE = Read-LocalSetting 'REHEALTH_HEALTH_AGENT_ENGINE' 'langchain4j'
 $env:REHEALTH_LLM_BASE_URL = Read-LocalSetting 'REHEALTH_LLM_BASE_URL' 'https://api.deepseek.com'
 $env:REHEALTH_LLM_MODEL = Read-LocalSetting 'REHEALTH_LLM_MODEL' 'deepseek-v4-flash'
 if (Test-Path -LiteralPath $providerCredentialFile) {

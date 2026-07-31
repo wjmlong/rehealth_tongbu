@@ -19,6 +19,7 @@ import com.rehealth.genie.ring.data.RingDataDao
 import com.rehealth.genie.ring.provider.ActiveWearableBindingStore
 import com.rehealth.genie.ring.provider.WearableVendor
 import kotlin.math.roundToInt
+import kotlin.math.ceil
 import kotlinx.coroutines.flow.StateFlow
 
 class HBandRingRepository internal constructor(
@@ -93,6 +94,21 @@ class HBandRingRepository internal constructor(
         return persist(gateway.sync(supportedMetrics))
     }
 
+    override suspend fun sync(
+        metrics: Set<RingMetricType>,
+        onProgress: (Int) -> Unit,
+    ): RingSyncResult {
+        if (connectionState.value != RingConnectionState.CONNECTED) return emptyResult()
+        val requested = metrics intersect supportedMetrics
+        if (requested.isEmpty()) return emptyResult()
+        val options = if (requested.all { it in DAILY_SYNC_METRICS }) {
+            incrementalDailyOptions(onProgress)
+        } else {
+            HBandSyncOptions(onProgress = onProgress)
+        }
+        return persist(gateway.sync(requested, options))
+    }
+
     override suspend fun measure(type: RingMetricType): RingSyncResult {
         if (type !in supportedMetrics || type !in MANUAL_METRICS) return emptyResult()
         return persist(
@@ -135,6 +151,26 @@ class HBandRingRepository internal constructor(
         .takeIf { it.vendor == WearableVendor.HBAND }
         ?.address
 
+    private suspend fun incrementalDailyOptions(onProgress: (Int) -> Unit): HBandSyncOptions {
+        val now = System.currentTimeMillis()
+        val floor = now - MAX_INCREMENTAL_LOOKBACK_MILLIS
+        val latestActivity = dao.getActivitiesSince(floor).firstOrNull()?.startedAt
+        val latestSleep = dao.getSleepSessionsSince(floor).firstOrNull()?.endedAt
+        val lastCompleteDailyAt = listOfNotNull(latestActivity, latestSleep).minOrNull()
+        if (latestActivity == null || latestSleep == null || lastCompleteDailyAt == null) {
+            return HBandSyncOptions(onProgress = onProgress)
+        }
+        val elapsedDays = ceil((now - lastCompleteDailyAt).coerceAtLeast(0L) / DAY_MILLIS.toDouble())
+            .toInt()
+        val historyDays = (elapsedDays + OVERLAP_DAYS).coerceIn(MIN_INCREMENTAL_DAYS, MAX_INCREMENTAL_DAYS)
+        val activityGapDays = ceil((now - latestActivity).coerceAtLeast(0L) / DAY_MILLIS.toDouble()).toInt()
+        return HBandSyncOptions(
+            historyDays = historyDays,
+            includeOriginHistory = activityGapDays > ORIGIN_REFRESH_GAP_DAYS,
+            onProgress = onProgress,
+        )
+    }
+
     private fun BaselineHealthProfile?.toHBandProfile(): HBandUserProfile? {
         val source = this ?: return null
         val age = source.age?.takeIf { it in 1..120 } ?: return null
@@ -151,6 +187,17 @@ class HBandRingRepository internal constructor(
     private companion object {
         // A product control setting required by PersonInfoData, not generated health telemetry.
         const val DEFAULT_STEP_GOAL = 10_000
+        const val DAY_MILLIS = 86_400_000L
+        const val MAX_INCREMENTAL_LOOKBACK_MILLIS = 30L * DAY_MILLIS
+        const val MIN_INCREMENTAL_DAYS = 2
+        const val MAX_INCREMENTAL_DAYS = 30
+        const val OVERLAP_DAYS = 1
+        const val ORIGIN_REFRESH_GAP_DAYS = 1
+        val DAILY_SYNC_METRICS = setOf(
+            RingMetricType.SLEEP,
+            RingMetricType.STEPS,
+            RingMetricType.ACTIVITY,
+        )
         val MANUAL_METRICS = setOf(
             RingMetricType.HEART_RATE,
             RingMetricType.BLOOD_OXYGEN,

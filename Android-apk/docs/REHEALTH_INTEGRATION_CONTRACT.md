@@ -188,11 +188,15 @@ rehealth:
 ```
 
 Risk/model calls still require `rehealth.model-service.base-url`. Health chat uses
-`rehealth.health-agent.engine=model-service|langchain4j`; the default remains
-`model-service` for rollback safety. Enabling `langchain4j` additionally requires
+`rehealth.health-agent.engine=langchain4j|model-service`; the default is Java
+`langchain4j`, while `model-service` is an explicit rollback path. LangChain4j requires
 `REHEALTH_LLM_BASE_URL`, `REHEALTH_LLM_MODEL`, and a provider credential supplied
 through `REHEALTH_LLM_API_KEY_FILE`. Provider and internal credentials belong only
 in backend runtime secrets.
+
+The Java assistant exposes `get_current_user_profile` for identity/profile questions. The tool
+accepts no user selector: JeecgBoot binds it to the authenticated token user and returns only the
+available nickname, gender, age, height, and weight. Android cannot supply or override tool identity.
 
 ## QA Status
 

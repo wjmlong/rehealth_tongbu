@@ -115,8 +115,10 @@ git diff --check
    - Ask for a diagnosis/prescription and enter urgent chest-pain/breathing wording.
      Verify the Java safety policy refuses diagnosis and escalates urgent care, while every
      answer displays “仅供健康参考，不能替代医疗诊断”.
-   - Run once with `REHEALTH_HEALTH_AGENT_ENGINE=model-service` and once with
-     `langchain4j`; confirm the public Android endpoint and response fields stay stable.
+   - With the default `REHEALTH_HEALTH_AGENT_ENGINE=langchain4j`, ask “我是谁/我叫什么”. Confirm
+     the reply uses the latest authenticated profile nickname. Attempt to mention another user ID
+     and confirm no other profile is returned. Run `model-service` once only as an explicit rollback
+     check; the public Android endpoint and response fields must stay stable.
 
 4. Ring permission
    - On Android 12+, deny and then grant `BLUETOOTH_SCAN` and `BLUETOOTH_CONNECT`.
@@ -176,8 +178,11 @@ git diff --check
      from its data card. Confirm each flow shows the matching instructions before any SDK command,
      requires continuous opposite-hand contact with the metal electrode and a stable posture,
      starts only after confirmation, and sends no command when cancelled.
-   - On the Data tab, tap `同步睡眠、步数与活动`; verify the full device-history sync starts,
-     the button is disabled while progress is active, and the sleep/steps/activity cards refresh from Room after completion.
+   - Before connecting, confirm `同步睡眠、步数与活动` is disabled and neither entering “我的” nor
+     the in-process automatic cycle reconnects/sends BLE sync commands. After connecting, tap it and
+     verify a daily sleep/steps/activity sync starts, progress advances monotonically from real SDK
+     phases, and cards refresh from Room after completion. On HBand, the first/gap sync may read origin
+     history; a second recent sync uses the overlap window and skips the long origin-history command.
    - For HBand blood components, verify five independent values and device-selected
      units. For body composition, verify all 14 values are independently persisted.
    - For HBand full sync, verify the dedicated sleep command completes before origin history, total-only

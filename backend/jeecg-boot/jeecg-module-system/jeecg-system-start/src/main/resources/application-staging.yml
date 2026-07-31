@@ -14,7 +14,7 @@ rehealth:
     base-url: ${REHEALTH_MODEL_SERVICE_BASE_URL:}
     require-real-model: ${REHEALTH_REQUIRE_REAL_MODEL:false}
   health-agent:
-    engine: ${REHEALTH_HEALTH_AGENT_ENGINE:model-service}
+    engine: ${REHEALTH_HEALTH_AGENT_ENGINE:langchain4j}
     internal-token-file: ${REHEALTH_AGENT_INTERNAL_TOKEN_FILE:${REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE:}}
     langchain4j:
       base-url: ${REHEALTH_LLM_BASE_URL:https://api.deepseek.com}

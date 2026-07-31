@@ -268,6 +268,60 @@ class HBandRingRepositoryTest {
     }
 
     @Test
+    fun foregroundDailySyncNeverReconnectsWhenDeviceIsDisconnected() = runTest {
+        val gateway = FakeHBandGateway()
+        val repository = repository(FakeHBandDao(), HBandBindingStore(), gateway)
+
+        val result = repository.sync(
+            setOf(RingMetricType.SLEEP, RingMetricType.STEPS, RingMetricType.ACTIVITY),
+        )
+
+        assertEquals(0, result.recordsWritten)
+        assertEquals(0, gateway.connectCalls)
+        assertEquals(0, gateway.syncCalls)
+    }
+
+    @Test
+    fun recentDailyDataUsesTwoDayOverlapAndSkipsLongOriginHistory() = runTest {
+        val now = System.currentTimeMillis()
+        val dao = FakeHBandDao().apply {
+            activities += RingActivityEntity(
+                id = "activity",
+                startedAt = now - 60_000,
+                endedAt = now,
+                activityType = "daily",
+                steps = 100,
+                distanceMeters = 50.0,
+                caloriesKcal = 10.0,
+                durationMinutes = 1,
+                averageHeartRate = null,
+                source = "hband_wearable",
+            )
+            sleep += RingSleepSessionEntity(
+                id = "sleep",
+                startedAt = now - 8 * 60 * 60 * 1_000,
+                endedAt = now - 60_000,
+                deepMinutes = 60,
+                lightMinutes = 240,
+                awakeMinutes = 10,
+                remMinutes = 0,
+                interruptionMinutes = 0,
+                source = "hband_wearable",
+            )
+        }
+        val gateway = FakeHBandGateway(capabilitiesValue = HBandCapabilities(ecg = true))
+        val repository = repository(dao, HBandBindingStore(), gateway).apply {
+            wearableUserProfile = BaselineHealthProfile(35, "female", 165.0, 55.0)
+        }
+        repository.connect(DEVICE)
+
+        repository.sync(setOf(RingMetricType.SLEEP, RingMetricType.STEPS, RingMetricType.ACTIVITY))
+
+        assertEquals(2, gateway.lastSyncOptions?.historyDays)
+        assertEquals(false, gateway.lastSyncOptions?.includeOriginHistory)
+    }
+
+    @Test
     fun featureSettingsAreCapabilityGatedBeforeReachingSdk() = runTest {
         val gateway = FakeHBandGateway(
             capabilitiesValue = HBandCapabilities(
@@ -349,8 +403,10 @@ private class FakeHBandGateway(
         return HBandConnectionInfo(device, "device:1", "1.0", capabilityState.value)
     }
     override suspend fun disconnect() { device.value = null; state.value = RingConnectionState.DISCONNECTED }
-    override suspend fun sync(metrics: Set<RingMetricType>): HBandPayload {
+    var lastSyncOptions: HBandSyncOptions? = null
+    override suspend fun sync(metrics: Set<RingMetricType>, options: HBandSyncOptions): HBandPayload {
         syncCalls++
+        lastSyncOptions = options
         return payload
     }
     override suspend fun measure(type: RingMetricType, allowHistoryFallback: Boolean): HBandPayload {
@@ -383,9 +439,10 @@ private class HBandBindingStore : ActiveWearableBindingStore {
 private class FakeHBandDao : RingDataDao {
     val measurements = mutableListOf<RingMeasurementEntity>()
     val sleep = mutableListOf<RingSleepSessionEntity>()
+    val activities = mutableListOf<RingActivityEntity>()
     override suspend fun insertMeasurements(records: List<RingMeasurementEntity>) { measurements += records }
     override suspend fun insertSleepSessions(records: List<RingSleepSessionEntity>) { sleep += records }
-    override suspend fun insertActivities(records: List<RingActivityEntity>) = Unit
+    override suspend fun insertActivities(records: List<RingActivityEntity>) { activities += records }
     override suspend fun insertSignalChunks(records: List<RingSignalChunkEntity>) = Unit
     override fun observeMeasurements(metricType: String, limit: Int): Flow<List<RingMeasurementEntity>> = emptyFlow()
     override fun observeSleepSessions(limit: Int): Flow<List<RingSleepSessionEntity>> = emptyFlow()
@@ -397,6 +454,6 @@ private class FakeHBandDao : RingDataDao {
     override fun observeLatestSignalChunks(): Flow<List<RingSignalChunkEntity>> = emptyFlow()
     override suspend fun getMeasurementsSince(since: Long) = emptyList<RingMeasurementEntity>()
     override suspend fun getLatestMeasurement(metricType: String): RingMeasurementEntity? = null
-    override suspend fun getActivitiesSince(since: Long) = emptyList<RingActivityEntity>()
-    override suspend fun getSleepSessionsSince(since: Long) = emptyList<RingSleepSessionEntity>()
+    override suspend fun getActivitiesSince(since: Long) = activities.filter { it.startedAt >= since }.sortedByDescending { it.startedAt }
+    override suspend fun getSleepSessionsSince(since: Long) = sleep.filter { it.endedAt >= since }.sortedByDescending { it.startedAt }
 }

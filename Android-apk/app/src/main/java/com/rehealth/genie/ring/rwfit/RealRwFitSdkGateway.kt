@@ -134,6 +134,10 @@ internal class RealRwFitSdkGateway(
     }
 
     override suspend fun syncSupported(): RwFitPayload {
+        return sync(mutableCapabilities.value.supportedMetrics)
+    }
+
+    override suspend fun sync(metrics: Set<RingMetricType>): RwFitPayload {
         if (!sdk.isBleConnected()) {
             mutableConnectionState.value = RingConnectionState.DISCONNECTED
             return RwFitPayload()
@@ -142,11 +146,15 @@ internal class RealRwFitSdkGateway(
         return try {
             val supported = mutableCapabilities.value
             var payload = RwFitPayload()
-            if (supported.steps) payload += syncType(Constants.RingHealthType.STEP)
-            if (supported.sleep) payload += syncType(Constants.RingHealthType.SLEEP)
-            if (supported.heartRate) payload += syncType(Constants.RingHealthType.HR)
-            if (supported.bloodOxygen) payload += syncType(Constants.RingHealthType.BLOOD_OXY)
-            if (supported.hrv) payload += syncType(Constants.RingHealthType.HRV)
+            if (supported.steps && metrics.any { it == RingMetricType.STEPS || it == RingMetricType.ACTIVITY }) {
+                payload += syncType(Constants.RingHealthType.STEP)
+            }
+            if (supported.sleep && RingMetricType.SLEEP in metrics) payload += syncType(Constants.RingHealthType.SLEEP)
+            if (supported.heartRate && RingMetricType.HEART_RATE in metrics) payload += syncType(Constants.RingHealthType.HR)
+            if (supported.bloodOxygen && RingMetricType.BLOOD_OXYGEN in metrics) {
+                payload += syncType(Constants.RingHealthType.BLOOD_OXY)
+            }
+            if (supported.hrv && RingMetricType.HRV in metrics) payload += syncType(Constants.RingHealthType.HRV)
             mutableConnectionState.value = RingConnectionState.CONNECTED
             payload
         } catch (_: RwFitSdkException) {

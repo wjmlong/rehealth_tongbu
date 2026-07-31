@@ -111,7 +111,7 @@ services:
       REHEALTH_ATTRIBUTION_SERVICE_INTERNAL_TOKEN_FILE: /run/secrets/internal_service_credential
       REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE: /run/secrets/internal_service_credential
       REHEALTH_AGENT_INTERNAL_TOKEN_FILE: /run/secrets/internal_service_credential
-      REHEALTH_HEALTH_AGENT_ENGINE: ${REHEALTH_HEALTH_AGENT_ENGINE:-model-service}
+      REHEALTH_HEALTH_AGENT_ENGINE: ${REHEALTH_HEALTH_AGENT_ENGINE:-langchain4j}
       REHEALTH_LLM_BASE_URL: ${REHEALTH_LLM_BASE_URL:-https://api.deepseek.com}
       REHEALTH_LLM_API_KEY_FILE: /run/secrets/provider_credential
       REHEALTH_LLM_MODEL: ${REHEALTH_LLM_MODEL:-deepseek-v4-flash}

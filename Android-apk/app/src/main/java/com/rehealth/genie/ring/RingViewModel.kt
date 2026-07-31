@@ -269,12 +269,16 @@ class RingViewModel(
 
     private suspend fun runAutoCollectionCycle() {
         if (mutableUiState.value.isSyncing) return
+        if (mutableUiState.value.connectionState != RingConnectionState.CONNECTED) {
+            Log.i(TAG, "auto collection skipped because device is disconnected")
+            return
+        }
         Log.i(TAG, "auto collection cycle start")
         mutableUiState.update {
             it.copy(isSyncing = true, measuringMetric = null, syncProgress = 12, message = "正在自动采集戒指数据")
         }
         val totalRecords = runCatching {
-            var records = repository.syncAll().recordsWritten
+            var records = repository.sync(DAILY_SYNC_METRICS).recordsWritten
             listOf(
                 RingMetricType.HEART_RATE,
                 RingMetricType.BLOOD_OXYGEN,
@@ -289,7 +293,6 @@ class RingViewModel(
                     )
                 }
                 records += repository.measure(type).recordsWritten
-                delay(800)
             }
             records
         }
@@ -382,16 +385,32 @@ class RingViewModel(
 
     fun syncAll() {
         viewModelScope.launch {
-            mutableUiState.update {
-                it.copy(isSyncing = true, syncProgress = 8, message = "正在读取戒指数据")
+            if (mutableUiState.value.connectionState != RingConnectionState.CONNECTED) {
+                mutableUiState.update {
+                    it.copy(isSyncing = false, syncProgress = 0, message = "请先连接设备，再同步睡眠、步数与活动")
+                }
+                return@launch
             }
+            mutableUiState.update {
+                it.copy(isSyncing = true, syncProgress = 5, message = "正在同步睡眠、步数与活动")
+            }
+            val targetProgress = MutableStateFlow(5)
             val progressJob = launch {
-                listOf(16, 25, 35, 46, 58, 69, 79, 87, 93).forEach { progress ->
-                    delay(650)
-                    mutableUiState.update { it.copy(syncProgress = progress) }
+                while (true) {
+                    delay(SYNC_PROGRESS_TICK_MILLIS)
+                    mutableUiState.update { state ->
+                        state.copy(
+                            syncProgress = (state.syncProgress + 1)
+                                .coerceAtMost(targetProgress.value.coerceAtMost(95)),
+                        )
+                    }
                 }
             }
-            runCatching { repository.syncAll() }
+            runCatching {
+                repository.sync(DAILY_SYNC_METRICS) { progress ->
+                    targetProgress.update { current -> maxOf(current, progress.coerceIn(5, 95)) }
+                }
+            }
                 .onSuccess { result ->
                     progressJob.cancel()
                     val uploadMessage = if (result.recordsWritten > 0) {
@@ -692,7 +711,13 @@ private data class CloudUploadUiStatus(
 
 private const val TAG = "RingViewModel"
 private const val AUTO_COLLECTION_INTERVAL_MS = 15 * 60 * 1000L
+private const val SYNC_PROGRESS_TICK_MILLIS = 180L
 private const val ECG_HISTORY_LIMIT = 10
+private val DAILY_SYNC_METRICS = setOf(
+    RingMetricType.SLEEP,
+    RingMetricType.STEPS,
+    RingMetricType.ACTIVITY,
+)
 internal fun canonicalSleepMinutes(session: RingSleepSessionEntity): Int? {
     val stagedMinutes = session.deepMinutes + session.lightMinutes + session.awakeMinutes +
         session.remMinutes

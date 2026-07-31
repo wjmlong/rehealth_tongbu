@@ -85,6 +85,11 @@ class ActiveRingRepository(
 
     override suspend fun syncAll(): RingSyncResult = operationMutex.withLock { provider().syncAll() }
 
+    override suspend fun sync(
+        metrics: Set<RingMetricType>,
+        onProgress: (Int) -> Unit,
+    ): RingSyncResult = operationMutex.withLock { provider().sync(metrics, onProgress) }
+
     override suspend fun measure(type: RingMetricType): RingSyncResult = operationMutex.withLock {
         provider().measure(type)
     }

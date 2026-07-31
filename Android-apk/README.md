@@ -15,6 +15,8 @@
 - 心率、HRV、血氧、血压、血糖、压力、MET、ECG、睡眠、步数、活动、血液成分和身体成分等本地记录与数据卡片；能力门控的血糖校准与经期设置。
 - Room 本地优先持久化及显式数据库迁移。
 - Foreground Service 后台低频采集与 WorkManager 恢复任务。
+- 数据页已连接时执行睡眠/步数/活动日常增量同步；断连时按钮禁用且自动采集跳过，不触发静默重连。
+  HBand 首次/缺口同步补读原始历史，近期重复同步使用两天重叠窗口并跳过无缺口的长历史命令。
 - 认证感知的 durable upload queue；401 时暂停，重新登录后恢复。
 - 遥测批量上传、设备绑定、访谈、CVD 16 特征评估和 typed intervention feedback。
 - Debug 环境可连接本机 JeecgBoot，Release 环境强制 HTTPS 后端地址。

@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.sp
 import com.rehealth.genie.R
 import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.phm.IndividualAttributionResult
+import com.rehealth.genie.ring.RingConnectionState
 import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.RingFeatureType
 import com.rehealth.genie.ring.RingUiState
@@ -419,7 +420,7 @@ internal fun DataScreen(
                     title = "血糖校准",
                     description = "使用指尖血糖仪参考值校准设备；不作为医疗诊断依据",
                     supported = RingFeatureType.BLOOD_GLUCOSE_CALIBRATION in state.supportedFeatures,
-                    enabled = !state.isSyncing,
+                    enabled = !state.isSyncing && state.connectionState == RingConnectionState.CONNECTED,
                     onClick = { showBloodGlucoseCalibration = true },
                 )
                 DeviceFeatureCard(
@@ -455,7 +456,11 @@ internal fun DataScreen(
                     )
                 }
                 Text(
-                    "从设备读取历史数据，保存到本机后加入云端同步队列",
+                    if (state.connectionState == RingConnectionState.CONNECTED) {
+                        "增量读取睡眠、步数与活动，保存到本机后加入云端同步队列"
+                    } else {
+                        "连接设备后可同步睡眠、步数与活动"
+                    },
                     color = Muted,
                     fontSize = 10.sp,
                     modifier = Modifier.padding(horizontal = 4.dp),
