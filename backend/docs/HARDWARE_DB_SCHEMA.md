@@ -1,7 +1,38 @@
-# ReHealth Hardware DB Schema E2.1
+# ReHealth Hardware DB Schema
 
-Date: 2026-07-13
-Status: MySQL MVP migration implemented
+Date: 2026-07-31
+Status: Device Service / TimescaleDB is the current telemetry authority
+
+## Current TimescaleDB Authority
+
+The legacy Jeecg/MySQL E2.1 schema below is retained only as historical rollback
+context. After the approved telemetry cutover, Device Service owns `hardware_db`
+and applies Flyway migrations from
+`device-service/src/main/resources/db/migration/timescale/`.
+Jeecg and model code read hardware facts through authenticated Device Service
+APIs; they do not query or join TimescaleDB directly.
+
+TimescaleDB V4 is add-only:
+
+- adds `diet_record_count` to `hardware_upload_batch`;
+- creates the `hardware_diet_record` hypertable keyed by tenant, user, device,
+  source record and `consumed_at`;
+- stores meal type, bounded description, calories, protein, carbohydrate, fat,
+  fiber, sodium and source without names, phone numbers or raw images;
+- compresses chunks after 7 days and uses the configured ordinary telemetry
+  retention period;
+- writes diet rows in the same transaction as the upload receipt, other
+  telemetry children, reconciliation row and Outbox events.
+
+The internal read-only endpoint
+`GET /rehealth/internal/v1/operations/users/{userId}/intervention-context`
+requires `X-ReHealth-Service-Credential`, `tenantId` and a valid `timeZone`.
+Every query is scoped by tenant and user. It returns bounded current-local-day
+activity, sleep, normalized measurements and diet records plus descriptive
+recent/prior 7-day changes; it never returns raw signal payloads and does not
+claim that a trend is a clinical improvement.
+
+## Legacy MySQL E2.1 Reference
 
 ## Ownership
 

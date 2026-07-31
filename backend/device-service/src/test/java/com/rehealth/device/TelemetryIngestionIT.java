@@ -2,6 +2,7 @@ package com.rehealth.device;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rehealth.contracts.telemetry.v1.ActivitySessionRecord;
+import com.rehealth.contracts.telemetry.v1.DietRecord;
 import com.rehealth.contracts.telemetry.v1.MeasurementRecord;
 import com.rehealth.contracts.telemetry.v1.RecentTelemetryResponse;
 import com.rehealth.contracts.telemetry.v1.SleepSessionRecord;
@@ -85,7 +86,9 @@ class TelemetryIngestionIT {
         assertTrue(first.persisted);
         assertEquals(first.receiptId, replay.receiptId);
         assertEquals("ACCEPTED_DUPLICATE", replay.status);
-        assertCounts(store.jdbc(), 1, 1, 1, 1, 2, 1, 2);
+        assertEquals(1, first.dietRecordCount);
+        assertEquals(4, first.recordCount);
+        assertCounts(store.jdbc(), 1, 1, 1, 1, 1, 2, 1, 2);
         assertEquals("EVENT_PENDING", scalarText(store.jdbc(),
                 "SELECT state FROM hardware_reconciliation"));
         assertEquals(1, scalarInt(store.jdbc(),
@@ -175,7 +178,7 @@ class TelemetryIngestionIT {
                 "SELECT operator_actor_id FROM hardware_reconciliation"));
         assertEquals("retry publisher", scalarText(store.jdbc(),
                 "SELECT operator_reason FROM hardware_reconciliation"));
-        assertCounts(store.jdbc(), 1, 1, 1, 1, 2, 1, 2);
+        assertCounts(store.jdbc(), 1, 1, 1, 1, 1, 2, 1, 2);
     }
 
     @Test
@@ -205,7 +208,7 @@ class TelemetryIngestionIT {
         assertEquals(1, responses.stream().map(response -> response.receiptId).distinct().count());
         assertEquals(1, responses.stream()
                 .filter(response -> "ACCEPTED_DUPLICATE".equals(response.status)).count());
-        assertCounts(store.jdbc(), 1, 1, 1, 1, 2, 1, 2);
+        assertCounts(store.jdbc(), 1, 1, 1, 1, 1, 2, 1, 2);
     }
 
     @Test
@@ -224,7 +227,7 @@ class TelemetryIngestionIT {
 
         assertEquals(HttpStatus.SERVICE_UNAVAILABLE, failure.status());
         assertEquals("HARDWARE_PERSISTENCE_UNAVAILABLE", failure.errorCode());
-        assertCounts(store.jdbc(), 0, 0, 0, 0, 0, 0, 0);
+        assertCounts(store.jdbc(), 0, 0, 0, 0, 0, 0, 0, 0);
     }
 
     @Test
@@ -299,7 +302,7 @@ class TelemetryIngestionIT {
 
     private static TelemetryBatchRequest mixedBatch(String batchId) {
         TelemetryBatchRequest request = new TelemetryBatchRequest();
-        request.schemaVersion = "telemetry-v1";
+        request.schemaVersion = "telemetry-v2";
         request.batchId = batchId;
         request.deviceId = "ring-a";
         request.source = "ANDROID_ROOM";
@@ -333,6 +336,21 @@ class TelemetryIngestionIT {
         activity.averageHeartRate = 88.0;
         activity.source = "MRD";
         request.activitySessions.add(activity);
+
+        DietRecord diet = new DietRecord();
+        diet.id = "diet-1";
+        diet.consumedAt = 1784794500000L;
+        diet.mealType = "lunch";
+        diet.description = "红烧牛肉面 + 鸡蛋 + 无糖茶";
+        diet.caloriesKcal = 780.0;
+        diet.proteinGrams = 29.0;
+        diet.carbohydrateGrams = 86.0;
+        diet.fatGrams = 25.0;
+        diet.fiberGrams = 6.0;
+        diet.sodiumMilligrams = 1680.0;
+        diet.source = "MANUAL";
+        request.dietRecords.add(diet);
+
         request.quality.put("rejectedCount", 1);
         request.quality.put("rejectionCode", "OUT_OF_WINDOW");
         return request;
@@ -367,6 +385,7 @@ class TelemetryIngestionIT {
             int measurements,
             int sleep,
             int activity,
+            int diet,
             int quality,
             int reconciliation,
             int outbox
@@ -375,6 +394,7 @@ class TelemetryIngestionIT {
         assertEquals(measurements, scalarInt(jdbc, "SELECT count(*) FROM hardware_measurement"));
         assertEquals(sleep, scalarInt(jdbc, "SELECT count(*) FROM hardware_sleep_session"));
         assertEquals(activity, scalarInt(jdbc, "SELECT count(*) FROM hardware_activity"));
+        assertEquals(diet, scalarInt(jdbc, "SELECT count(*) FROM hardware_diet_record"));
         assertEquals(quality, scalarInt(jdbc, "SELECT count(*) FROM hardware_data_quality_event"));
         assertEquals(reconciliation, scalarInt(jdbc, "SELECT count(*) FROM hardware_reconciliation"));
         assertEquals(outbox, scalarInt(jdbc, "SELECT count(*) FROM hardware_outbox"));

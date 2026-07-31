@@ -67,21 +67,22 @@ class TimescaleMigrationIT {
         clean.flyway().validate();
         MigrateResult second = clean.flyway().migrate();
 
-        assertEquals(3, first.migrationsExecuted);
+        assertEquals(4, first.migrationsExecuted);
         assertEquals(0, second.migrationsExecuted);
         try (Connection connection = clean.connect(); Statement statement = connection.createStatement()) {
-            assertEquals(4, scalarInt(statement, """
+            assertEquals(5, scalarInt(statement, """
                     SELECT count(*) FROM timescaledb_information.hypertables
                     WHERE hypertable_name IN (
                       'hardware_measurement', 'hardware_sleep_session',
-                      'hardware_activity', 'hardware_data_quality_event'
+                      'hardware_activity', 'hardware_data_quality_event',
+                      'hardware_diet_record'
                     )
                     """));
-            assertEquals(4, scalarInt(statement, """
+            assertEquals(5, scalarInt(statement, """
                     SELECT count(*) FROM timescaledb_information.jobs
                     WHERE proc_name = 'policy_compression'
                     """));
-            assertEquals(4, scalarInt(statement, """
+            assertEquals(5, scalarInt(statement, """
                     SELECT count(*) FROM timescaledb_information.jobs
                     WHERE proc_name = 'policy_retention'
                     """));
@@ -100,7 +101,7 @@ class TimescaleMigrationIT {
 
         TimescaleTestDatabase upgraded = createTimescaleDatabase();
         assertEquals(2, upgraded.flywayAtVersion("2").migrate().migrationsExecuted);
-        assertEquals(1, upgraded.flyway().migrate().migrationsExecuted);
+        assertEquals(2, upgraded.flyway().migrate().migrationsExecuted);
         upgraded.flyway().validate();
     }
 

@@ -136,6 +136,17 @@ Before enabling LangChain4j, apply
 Provider URL/model are selected with `REHEALTH_LLM_BASE_URL` and
 `REHEALTH_LLM_MODEL`.
 
+Personalized intervention generation always uses the same server-only
+LangChain4j provider configuration, independently of
+`REHEALTH_HEALTH_AGENT_ENGINE`. Jeecg must also have
+`REHEALTH_DEVICE_SERVICE_ENABLED=true`,
+`REHEALTH_DEVICE_SERVICE_BASE_URL=http://device-service:8091`, and the shared
+`REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE`. Optional intervention-specific
+limits are `REHEALTH_INTERVENTION_LANGCHAIN4J_TIMEOUT_SECONDS` and
+`REHEALTH_INTERVENTION_LANGCHAIN4J_MAX_TOKENS`. If provider credentials,
+Device Service context, or software persistence are unavailable, generation
+fails closed; no mock plan is persisted.
+
 To keep using the legacy model-service health Q&A locally with the YAML-first path:
 
 1. Copy `model-service/config/ai-chat.example.yml` to the ignored

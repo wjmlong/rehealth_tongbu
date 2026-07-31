@@ -4,8 +4,9 @@ import java.util.Set;
 
 public final class TelemetryContractVersions {
     public static final String LEGACY_ANDROID_V1 = "d2-v1";
-    public static final String CURRENT = "telemetry-v1";
-    public static final Set<String> SUPPORTED = Set.of(LEGACY_ANDROID_V1, CURRENT);
+    public static final String PREVIOUS = "telemetry-v1";
+    public static final String CURRENT = "telemetry-v2";
+    public static final Set<String> SUPPORTED = Set.of(LEGACY_ANDROID_V1, PREVIOUS, CURRENT);
 
     private TelemetryContractVersions() {
     }

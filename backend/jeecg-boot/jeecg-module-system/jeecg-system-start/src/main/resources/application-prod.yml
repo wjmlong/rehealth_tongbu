@@ -421,6 +421,8 @@ rehealth:
   device-service:
     enabled: ${REHEALTH_DEVICE_SERVICE_ENABLED:false}
     base-url: ${REHEALTH_DEVICE_SERVICE_BASE_URL:}
+    internal-token-file: ${REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE:}
+    timeout-seconds: ${REHEALTH_DEVICE_SERVICE_TIMEOUT_SECONDS:5}
   timescale:
     enabled: ${REHEALTH_TIMESCALE_ENABLED:false}
   model-service:

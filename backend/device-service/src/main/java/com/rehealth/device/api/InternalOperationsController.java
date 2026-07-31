@@ -1,6 +1,7 @@
 package com.rehealth.device.api;
 
 import com.rehealth.device.application.InternalOperationsService;
+import com.rehealth.device.application.InterventionTelemetryContext;
 import com.rehealth.device.application.UserHealthSummary;
 import io.swagger.v3.oas.annotations.Hidden;
 import org.springframework.http.ResponseEntity;
@@ -8,6 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
@@ -35,5 +37,17 @@ public class InternalOperationsController {
             @PathVariable String userId
     ) {
         return ResponseEntity.ok(ApiEnvelope.ok(operationsService.userHealth(credential, userId)));
+    }
+
+    @GetMapping("/users/{userId}/intervention-context")
+    public ResponseEntity<ApiEnvelope<InterventionTelemetryContext>> interventionContext(
+            @RequestHeader(value = "X-ReHealth-Service-Credential", required = false) String credential,
+            @PathVariable String userId,
+            @RequestParam String tenantId,
+            @RequestParam(defaultValue = "Asia/Shanghai") String timeZone
+    ) {
+        return ResponseEntity.ok(ApiEnvelope.ok(
+                operationsService.interventionContext(credential, tenantId, userId, timeZone)
+        ));
     }
 }

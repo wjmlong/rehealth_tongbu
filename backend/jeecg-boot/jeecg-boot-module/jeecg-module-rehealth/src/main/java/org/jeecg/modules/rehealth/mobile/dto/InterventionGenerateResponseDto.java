@@ -30,4 +30,30 @@ public class InterventionGenerateResponseDto {
     @JSONField(name = "medical_disclaimer")
     @JsonAlias("medical_disclaimer")
     public String medicalDisclaimer;
+    public String summary;
+    public List<InterventionActionDto> items;
+    @JSONField(name = "focus_date")
+    @JsonAlias("focus_date")
+    public String focusDate;
+    @JSONField(name = "context_version")
+    @JsonAlias("context_version")
+    public String contextVersion;
+    @JSONField(name = "context_generated_at")
+    @JsonAlias("context_generated_at")
+    public Long contextGeneratedAt;
+    @JSONField(name = "latest_data_at")
+    @JsonAlias("latest_data_at")
+    public Long latestDataAt;
+
+    public static class InterventionActionDto {
+        public String id;
+        public String category;
+        public String title;
+        public String action;
+        public String rationale;
+        public String target;
+        public String timing;
+        public Integer priority;
+        public List<String> evidenceRefs;
+    }
 }

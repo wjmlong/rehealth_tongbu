@@ -87,6 +87,46 @@ class TelemetryContractRejectionTest {
         assertTrue(result.errors().stream().anyMatch(error -> error.code().equals("raw_signal.disabled")));
     }
 
+    @Test
+    void acceptsVersionedDietRecordAndCountsItAsDurableTelemetry() throws Exception {
+        TelemetryBatchRequest request = mapper.readValue(validJson(""), TelemetryBatchRequest.class);
+        request.schemaVersion = TelemetryContractVersions.CURRENT;
+        request.measurements.clear();
+        DietRecord diet = new DietRecord();
+        diet.id = "meal-1";
+        diet.consumedAt = 1720000010000L;
+        diet.mealType = "lunch";
+        diet.description = "牛肉面、鸡蛋和无糖茶";
+        diet.caloriesKcal = 780.0;
+        diet.proteinGrams = 29.0;
+        diet.carbohydrateGrams = 86.0;
+        diet.fatGrams = 25.0;
+        diet.source = "android_manual";
+        request.dietRecords.add(diet);
+
+        TelemetryValidationResult result = validator.validateClientRequest(request);
+
+        assertTrue(result.valid());
+        assertEquals(1, result.dietRecordCount());
+        assertEquals(1, result.recordCount());
+    }
+
+    @Test
+    void rejectsDietRecordUnlessSchemaIsTelemetryV2() throws Exception {
+        TelemetryBatchRequest request = mapper.readValue(validJson(""), TelemetryBatchRequest.class);
+        DietRecord diet = new DietRecord();
+        diet.consumedAt = 1720000010000L;
+        diet.mealType = "lunch";
+        diet.description = "午餐";
+        request.dietRecords.add(diet);
+
+        TelemetryValidationResult result = validator.validateClientRequest(request);
+
+        assertFalse(result.valid());
+        assertTrue(result.errors().stream()
+                .anyMatch(error -> error.code().equals("schema.feature_requires_v2")));
+    }
+
     private String validJson(String prefix) {
         return "{" + prefix + "\"batchId\":\"batch-1\",\"deviceId\":\"ring-1\"," +
                 "\"collectedFrom\":1720000000000,\"collectedTo\":1720000020000," +

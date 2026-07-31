@@ -5,6 +5,8 @@ import com.rehealth.contracts.telemetry.v1.TelemetryBatchRequest;
 import com.rehealth.contracts.telemetry.v1.TelemetryBatchResponse;
 import com.rehealth.contracts.telemetry.v1.TelemetryValidationResult;
 import com.rehealth.device.domain.DeviceClaims;
+import com.rehealth.device.application.InterventionTelemetryContext;
+import com.rehealth.device.application.UserHealthSummary;
 import com.rehealth.device.port.IdentityAuthorizationPort;
 import com.rehealth.device.port.TelemetryReadPort;
 import com.rehealth.device.port.TelemetryWritePort;
@@ -15,6 +17,9 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+
+import java.time.ZoneId;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
@@ -65,6 +70,29 @@ class DeviceReadyProfileLiveIT {
             response.userId = claims.userId();
             response.limit = limit;
             return response;
+        }
+
+        @Override
+        public UserHealthSummary healthSummaryForUser(String userId) {
+            return new UserHealthSummary(userId, List.of(), null, null, 0, 0, 0, List.of());
+        }
+
+        @Override
+        public InterventionTelemetryContext interventionContext(
+                String tenantId,
+                String userId,
+                ZoneId timeZone
+        ) {
+            return new InterventionTelemetryContext(
+                    0L,
+                    "1970-01-01",
+                    timeZone.getId(),
+                    null,
+                    new InterventionTelemetryContext.TodayBehavior(
+                            0, 0, 0.0, null, null, null, List.of(), List.of()
+                    ),
+                    List.of()
+            );
         }
 
         @Override

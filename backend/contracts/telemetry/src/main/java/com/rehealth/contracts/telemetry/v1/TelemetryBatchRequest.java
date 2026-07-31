@@ -18,6 +18,7 @@ public final class TelemetryBatchRequest {
     public List<MeasurementRecord> measurements = new ArrayList<>();
     public List<SleepSessionRecord> sleepSessions = new ArrayList<>();
     public List<ActivitySessionRecord> activitySessions = new ArrayList<>();
+    public List<DietRecord> dietRecords = new ArrayList<>();
     public List<Map<String, Object>> signalChunks = new ArrayList<>();
     public Map<String, Object> quality = new LinkedHashMap<>();
 
