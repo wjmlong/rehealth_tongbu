@@ -13,11 +13,11 @@ public class RoutingHealthAgentEngine implements HealthAgentEngine {
     private final LangChain4jHealthAgentEngine langChain4j;
 
     public RoutingHealthAgentEngine(
-            @Value("${rehealth.health-agent.engine:model-service}") String engine,
+            @Value("${rehealth.health-agent.engine:langchain4j}") String engine,
             LegacyModelServiceHealthAgentEngine legacy,
             LangChain4jHealthAgentEngine langChain4j
     ) {
-        this.engine = engine == null ? "model-service" : engine.trim().toLowerCase(Locale.ROOT);
+        this.engine = engine == null ? "langchain4j" : engine.trim().toLowerCase(Locale.ROOT);
         this.legacy = legacy;
         this.langChain4j = langChain4j;
     }

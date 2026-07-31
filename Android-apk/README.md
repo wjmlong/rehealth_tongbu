@@ -19,6 +19,8 @@
 - Android RHI Lite 透明计算：使用 Room 可穿戴数据、经核对健康档案和当前用户资料生成 RHI-100；空白字段保持 `NULL`/中性并降低可信度，不补正常值。
 - 数据页风险卡把既有 16 特征评估接口作为 RDI-16 数据源，只展示真实非 Mock 结果；健康指数圆环读取 RHI-100，不再使用硬编码分数。
 - Foreground Service 后台低频采集与 WorkManager 恢复任务。
+- 数据页已连接时执行睡眠/步数/活动日常增量同步；断连时按钮禁用且自动采集跳过，不触发静默重连。
+  HBand 首次/缺口同步补读原始历史，近期重复同步使用两天重叠窗口并跳过无缺口的长历史命令。
 - 认证感知的 durable upload queue；401 时暂停，重新登录后恢复。
 - 遥测批量上传、设备绑定、访谈、CVD 16 特征评估和 typed intervention feedback。
 - 已加入隔离的 RHI v2 32 维 DTO 与 CVD-16 保守迁移映射，便于后续接入；
@@ -53,10 +55,13 @@ app/libs/vpprotocol-2.3.73.15.aar
 app/libs/jl_bt_ota_V1.10.0_10931-release.aar
 app/libs/jl_rcsp_V0.7.2_527-release.aar
 app/libs/JL_Watch_V1.13.1_11214-release.aar
+app/libs/BmpConvert_V1.6.0_10604-release.aar
+app/libs/abpartool-release.aar
 app/src/main/jniLibs/{arm64-v8a,armeabi-v7a,x86,x86_64}/libnative-lib.so
 ```
 
-三个 JieLi AAR 仅满足 HBand 核心 SDK 的连接/认证及管理器初始化依赖；应用不提供 OTA、
+五个 JieLi/Bluechip 配套 AAR 满足 HBand 核心 SDK 的连接、认证、管理器初始化和断连释放依赖；
+其中 `BmpConvert` 必须存在，否则 SDK 的 `releaseJLSDK()` 会在断连回调中崩溃。应用不提供 OTA、
 表盘或消息控制入口。
 HBand SDK 还会在 BLE 连接回调中初始化 Nordic OTA 适配器，因此固定引入官方要求的
 `mcumgr-core:2.7.4`、`mcumgr-ble:2.7.4` 和 `scanner:1.4.2`；应用仍不提供 OTA 入口。
@@ -134,10 +139,14 @@ Android 在请求成功后自动填入该值。Release 的签名字段和测试�
 才发送，不再跳转健康初识。服务端 AI 回复使用受限 Markdown 子集渲染；原始 HTML 不执行，
 远程图片不加载，链接目标不自动打开。
 
-Room v7 新增 `health_chat_conversations`，从 v6 消息无损生成会话标题、更新时间和当前会话。
+Room v7 新增 `health_chat_conversations`，从 v6 消息无损生成会话标题、更新时间和当前会话；
+Room v8 为睡眠会话新增可空的 `total_sleep_minutes`，v7→v8 迁移保留已有健康数据。
 首页支持本机会话列表、新建、切换以及经确认的删除/清空；删除使用本地墓碑阻止“最新会话”刷新
 立即恢复，但只影响本机缓存。当前后端只提供最新会话读取，没有列表/删除契约，因此云端
 `software_db` 完整历史不会随本机删除而删除。
+每次登录或注册成功后都会为当前账号创建新的活动对话；首页展示活动对话的完整可滚动消息，
+滚动时收起大图与问候。新注册账号按用户记录待完成的健康初始问答，既有账号默认直接进入首页，
+不会因另一账号的完成状态被重复引导。AI 授权上下文包含后端个人档案中的姓名/昵称。
 
 Room v8 新增 `rdi_daily_snapshots` 与 `rdi_contribution_records`。`7→8`
 显式迁移只建表和索引，不删除既有健康、设备、队列、风险或健康问答数据。
@@ -178,7 +187,7 @@ Room `ring_activities` 按设备当地自然日聚合的真实活动记录，活
 
 “我的”头像使用 Android 系统照片选择器。所选图片在本机缩放并重新编码为 JPEG（同时去除原图
 元数据），按登录用户 SHA-256 摘要隔离保存到应用私有目录；仅本机预览和持久化，不新增媒体权限，
-也不调用后端上传接口。
+也不调用后端上传接口；每次进入“我的”都会从当前账号的私有文件重新加载。
 
 模拟戒指只存在于 `app/src/debug`，由 Debug 专用工厂和
 `USE_FAKE_RING`/`SEED_FAKE_HEALTH_DATA` 控制。`app/src/release` 的工厂只构造
@@ -250,14 +259,20 @@ HBand 真机联调可生成强制选择 `RH-HB-E01` 的专用 APK：
 SDK 能力报告取交集。新版 `DeviceFunctionPackage1..5` 对相应字段优先，旧版
 `FunctionDeviceSupportData` 仅作为兼容回退；应用等待能力回调稳定后再判定，避免 MT116
 因旧回调首次返回的字段尚未初始化而误报不支持 ECG。血糖校准和经期设置也只在设备报告相应能力时启用。
-HBand 将独立测量能力与历史协议能力分开处理，避免把 `hrvType`/`metType` 误当成独立测量
-开关而触发 SDK 的“不支持”提示。2026-07-30 的 MT116 真机日志进一步确认：固件虽然声明
-HRV、压力、MET 独立能力，三项 `manual_detect_de` 命令仍全部返回 `unknown action`。因此
-HRV、压力在设备报告 `miniCheckup` 时优先走一键体检真实结果，MET 的“获取”按钮优先读取
-设备最新 MET 历史；只有调用方明确禁用真实数据兜底时才允许尝试专用直测接口。连接成功的
+HBand 将独立测量能力与历史协议能力分开处理。HRV 直测要求
+`isSupportHRV && isSupportHrvAppDetect`，MET 直测要求
+`isSupportMet && isSupportMetAppDetect`；双能力位成立时分别调用 SDK 的
+`startDetectHrv` 和 `startDetectMet`，写命令失败或检测失败不会生成健康样本。当前固定的
+`vpprotocol-2.3.73.15.aar` 已包含 2026-04-23 HRV 与 2026-07-02 MET API，因此本次不引入
+仅包含后续 JH58 变更的 SDK 升级。对未声明 App 测量能力的旧固件，HRV、压力继续复用
+一键体检或历史，MET 读取设备最新手动测量历史。2026-07-30 的 MT116 真机证据表明旧版
+三项 `manual_detect_de` 命令返回 `unknown action`，该证据用于覆盖兼容兜底，而不会阻止
+声明新能力的设备使用官方直测 API。连接成功的
 `RH-HB-E01` 也允许对 HRV、压力、MET 发起受控历史读取；失败或无有效值时不写入占位数据。
 `ECG` 是 `RH-HB-E01` 的必需能力；设备未上报 ECG 时连接会明确失败，避免把不兼容型号当作已支持商品。
-不支持的能力在数据页保留禁用入口或静态空卡片，但不会触发测量、写入 0 或生成模拟数据。
+HRV、压力、MET 只有在设备支持 App 主动测量（专用 API 或一键体检）时才展示数据卡片；
+只有历史读取能力时隐藏卡片，避免把历史同步误示为 App 测量。不支持的其他能力保留禁用入口或
+静态空卡片，但不会触发测量、写入 0 或生成模拟数据。
 计步、睡眠、活动属于同步数据，不提供即时测量按钮；数据页“睡眠与活动”区域提供手动同步按钮，
 点击后执行完整设备历史同步，同步期间按钮禁用并显示进度。生命体征和高级指标无记录时显示 `--`。
 血液成分拆分为尿酸、总胆固醇、甘油三酯、HDL、LDL 独立记录，单位读取设备个性化设置；
@@ -279,8 +294,16 @@ Room v5 同时保存采样率、绘制频率、时长、导联、ECG 类型、�
 血压与 ECG 结果仅用于健康记录，SDK 疾病风险不作为诊断展示，页面固定提示
 “仅供健康参考，不能替代医疗诊断”。
 HBand 体温在当前采购设备上验证不通过，已从 `RH-HB-E01` 商品能力和数据页移除。
-若 HBand 只返回总睡眠时长而没有深睡/浅睡拆分，应用会保存阶段未知的睡眠会话并展示总时长，
-不会把未知时长伪造为深睡、浅睡或 REM。
+HBand 睡眠把 SDK `allSleepTime` 原值保存到 Room v8 的 `total_sleep_minutes` 并优先用于展示；
+`sleepDown/sleepUp` 只保留实际入睡/起床时刻，不再用二者跨度替代睡眠总时长。SDK 未提供清醒
+分钟数时不会用总时长与深睡/浅睡之差伪造清醒阶段。其他 Provider 没有设备总时长时按
+深睡+浅睡+REM 计算，阶段也缺失才回退会话跨度；“今日”查询按结束时间包含昨夜跨午夜、今日醒来的会话。
+HBand 同一晚可能回调多条递增的累积睡眠快照，今日及周期统计先按本地结束日选择当天最大（最终）
+总时长，再对每天的最终值取平均，不会把一次睡眠的中间快照当成多晚数据。
+
+数据页默认打开“今日”。每个自然日最多保存一条已确认、非 Mock 风险结果；健康指数按
+`(1 - riskScore) * 100` 计算；今日优先展示 PIAS 个人归因返回的当前风险，7 天/30 天等周期
+只对 PIAS 输入所使用的已确认真实风险日取平均，并展示有效日数。
 
 Debug APK：
 

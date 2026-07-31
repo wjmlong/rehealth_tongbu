@@ -59,8 +59,8 @@ import kotlinx.coroutines.launch
 
 internal enum class AppStage { Splash, Login, Register, InterviewSession, Main }
 
-internal fun stageAfterAuthentication(onboardingComplete: Boolean): AppStage =
-    if (onboardingComplete) AppStage.Main else AppStage.InterviewSession
+internal fun stageAfterAuthentication(requiresOnboarding: Boolean): AppStage =
+    if (requiresOnboarding) AppStage.InterviewSession else AppStage.Main
 
 private enum class Tab(val label: String, val icon: ImageVector) {
     Home("首页", Icons.Outlined.Home),
@@ -73,14 +73,19 @@ private enum class Tab(val label: String, val icon: ImageVector) {
 @Composable
 fun ReHealthApp() {
     val application = LocalContext.current.applicationContext as ReHealthApplication
-    val profilePreferences = remember(application) {
-        application.getSharedPreferences("rehealth_profile", 0)
-    }
-    var onboardingComplete by remember(profilePreferences) {
-        mutableStateOf(profilePreferences.getBoolean("onboarding_complete", false))
-    }
-    var stage by remember {
-        mutableStateOf(if (onboardingComplete) AppStage.Main else AppStage.Splash)
+    var stage by remember(application) {
+        mutableStateOf(
+            if (application.sessionStore.isLoggedIn) {
+                stageAfterAuthentication(
+                    application.onboardingStore.requiresOnboarding(
+                        application.sessionStore.userId,
+                        application.sessionStore.username,
+                    ),
+                )
+            } else {
+                AppStage.Splash
+            },
+        )
     }
     val ringViewModel: RingViewModel = viewModel(
         factory = remember(application) {
@@ -90,6 +95,7 @@ fun ReHealthApp() {
                 application.ringCloudRepository,
                 application.activeWearableManager,
                 BuildConfig.ALLOW_WEARABLE_PRODUCT_SWITCH,
+                application.riskHistoryRepository,
             )
         },
     )
@@ -111,26 +117,28 @@ fun ReHealthApp() {
             AppStage.Splash -> SplashScreen { stage = AppStage.Login }
             AppStage.Login -> LoginScreen(
                 onLoginSuccess = {
-                    // Return to Main if onboarding is already complete (e.g. after re-login),
-                    // otherwise continue the first-run health interview.
-                    stage = stageAfterAuthentication(onboardingComplete)
+                    stage = stageAfterAuthentication(
+                        application.onboardingStore.requiresOnboarding(
+                            application.sessionStore.userId,
+                            application.sessionStore.username,
+                        ),
+                    )
                 },
                 onGoToRegister = { stage = AppStage.Register },
             )
             AppStage.Register -> RegisterScreen(
                 onBackToLogin = { stage = AppStage.Login },
                 onRegistered = {
-                    // New users are not onboarded yet, so continue the first-run flow.
-                    stage = stageAfterAuthentication(onboardingComplete)
+                    stage = AppStage.InterviewSession
                 },
             )
             AppStage.InterviewSession -> HealthInterviewFlow(
                 onBack = { stage = AppStage.Login },
                 onComplete = {
-                    profilePreferences.edit()
-                        .putBoolean("onboarding_complete", true)
-                        .apply()
-                    onboardingComplete = true
+                    application.onboardingStore.markComplete(
+                        application.sessionStore.userId,
+                        application.sessionStore.username,
+                    )
                     stage = AppStage.Main
                 },
                 completionLabel = "进入首页",
@@ -147,10 +155,12 @@ fun ReHealthApp() {
                 },
                 onMeasure = ringViewModel::measure,
                 onRestartOnboarding = {
-                    profilePreferences.edit().clear().apply()
-                    onboardingComplete = false
+                    application.onboardingStore.markRequired(
+                        application.sessionStore.userId,
+                        application.sessionStore.username,
+                    )
                     ringViewModel.disconnect()
-                    stage = AppStage.Splash
+                    stage = AppStage.InterviewSession
                 },
                 onGoToLogin = {
                     ringViewModel.stopBackgroundCollection(application)

@@ -28,6 +28,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -52,11 +54,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Surface
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
@@ -71,6 +76,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rehealth.genie.R
@@ -78,6 +84,7 @@ import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.data.HealthChatMessageEntity
 import com.rehealth.genie.data.HealthChatConversationEntity
 import com.rehealth.genie.data.HealthChatRepository
+import com.rehealth.genie.data.profileAvatarStorageKey
 import com.rehealth.genie.network.PatientInterventionPayload
 import com.rehealth.genie.phm.Intervention
 import com.rehealth.genie.ui.theme.Canvas
@@ -99,7 +106,13 @@ internal fun HomeScreen() {
     var showClearConversationsConfirmation by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val application = context.applicationContext as ReHealthApplication
+    val chatOwnerKey = remember(application.sessionStore.userId, application.sessionStore.username) {
+        profileAvatarStorageKey(
+            application.sessionStore.userId ?: application.sessionStore.username ?: "signed-out",
+        )
+    }
     val chatViewModel: HealthChatViewModel = viewModel(
+        key = "health-chat-$chatOwnerKey",
         factory = remember(application) { HealthChatViewModel.Factory(application) },
     )
     val messages by chatViewModel.messages.collectAsState()
@@ -107,6 +120,16 @@ internal fun HomeScreen() {
     val activeConversationId by chatViewModel.activeConversationId.collectAsState()
     val chatState by chatViewModel.uiState.collectAsState()
     val session = application.sessionStore
+    val displayName = session.realname?.takeIf(String::isNotBlank)
+        ?: session.username?.takeIf(String::isNotBlank)
+    val messageListState = rememberLazyListState()
+    val showHero by remember {
+        derivedStateOf {
+            messageListState.firstVisibleItemIndex == 0 &&
+                messageListState.firstVisibleItemScrollOffset < 16 &&
+                !messageListState.isScrollInProgress
+        }
+    }
     val greetingPrefix = remember {
         val h = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
         when {
@@ -191,61 +214,70 @@ internal fun HomeScreen() {
             }
         }
 
-        Column(
+        LazyColumn(
+            state = messageListState,
             modifier = Modifier.weight(1f).fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Spacer(Modifier.height(6.dp))
-            Box(
-                modifier = Modifier.size(250.dp).clip(CircleShape)
-                    .background(Brush.radialGradient(listOf(Color.White, MintSoft, Color.Transparent))),
-                contentAlignment = Alignment.Center,
-            ) {
-                androidx.compose.foundation.Image(
-                    painter = painterResource(R.drawable.xiaohelin),
-                    contentDescription = "小禾灵",
-                    modifier = Modifier.size(230.dp),
-                    contentScale = ContentScale.Fit,
-                )
-            }
-            Text(
-                if (session?.username.isNullOrBlank()) greetingPrefix else "$greetingPrefix，${session?.username}",
-                color = Ink, fontSize = 24.sp, fontWeight = FontWeight.Bold,
-            )
-            Text("今天想从哪里开始？", color = Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
-
-            val recentMessages = messages.takeLast(2)
-            if (recentMessages.isNotEmpty()) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    recentMessages.forEach { message ->
-                        HomeChatPreview(message)
+            item(key = "hero") {
+                AnimatedVisibility(visible = showHero) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Spacer(Modifier.height(6.dp))
+                        Box(
+                            modifier = Modifier.size(250.dp).clip(CircleShape)
+                                .background(Brush.radialGradient(listOf(Color.White, MintSoft, Color.Transparent))),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            androidx.compose.foundation.Image(
+                                painter = painterResource(R.drawable.xiaohelin),
+                                contentDescription = "小禾灵",
+                                modifier = Modifier.size(230.dp),
+                                contentScale = ContentScale.Fit,
+                            )
+                        }
+                        Text(
+                            displayName?.let { "$greetingPrefix，$it" } ?: greetingPrefix,
+                            color = Ink,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            "今天想从哪里开始？",
+                            color = Muted,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
+                        )
                     }
                 }
-            } else {
-                Spacer(Modifier.height(12.dp))
+            }
+            items(messages, key = { it.messageId }) { message ->
+                Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+                    HomeChatPreview(message)
+                }
             }
             if (chatState.isLoading) {
-                Text(
-                    "小禾灵正在结合你的健康画像思考…",
-                    color = Muted,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(horizontal = 22.dp, vertical = 4.dp),
-                )
+                item(key = "loading") {
+                    Text(
+                        "小禾灵正在结合你的健康画像思考…",
+                        color = Muted,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(horizontal = 22.dp, vertical = 4.dp),
+                    )
+                }
             }
             chatState.errorMessage?.let { error ->
-                Text(
-                    error,
-                    color = Color(0xFFD94C4C),
-                    fontSize = 11.sp,
-                    modifier = Modifier.clickable(onClick = chatViewModel::clearError)
-                        .padding(horizontal = 22.dp, vertical = 4.dp),
-                )
+                item(key = "error") {
+                    Text(
+                        error,
+                        color = Color(0xFFD94C4C),
+                        fontSize = 11.sp,
+                        modifier = Modifier.clickable(onClick = chatViewModel::clearError)
+                            .padding(horizontal = 22.dp, vertical = 4.dp),
+                    )
+                }
             }
-
-            Spacer(Modifier.weight(1f))
+            item(key = "bottom-space") { Spacer(Modifier.height(8.dp)) }
         }
 
         if (showActions) {
@@ -455,21 +487,44 @@ private fun ConversationManagerDialog(
     onClearConversations: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("本机会话") },
-        text = {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = Color.White,
+            tonalElevation = 2.dp,
+        ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "历史对话",
+                        color = Ink,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Outlined.Close, "关闭", tint = Muted)
+                    }
+                }
                 Text(
-                    "会话列表保存在本机；云端目前只提供最新会话恢复。",
+                    "对话保存在当前账号下，切换账号不会混用。",
                     color = Muted,
                     fontSize = 11.sp,
+                    modifier = Modifier.padding(horizontal = 20.dp),
                 )
                 if (conversations.isEmpty()) {
-                    Text("暂无本机会话", color = Muted, modifier = Modifier.padding(vertical = 18.dp))
+                    Text(
+                        "暂无历史对话",
+                        color = Muted,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+                    )
                 } else {
-                    androidx.compose.foundation.lazy.LazyColumn(
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp),
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp)
+                            .padding(horizontal = 14.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         items(conversations.size, key = { conversations[it].conversationId }) { index ->
@@ -509,7 +564,7 @@ private fun ConversationManagerDialog(
                                 IconButton(onClick = { onDeleteConversation(conversation) }) {
                                     Icon(
                                         Icons.Outlined.DeleteOutline,
-                                        "删除本机会话",
+                                        "删除本地对话",
                                         tint = Color(0xFFD94C4C),
                                     )
                                 }
@@ -517,20 +572,23 @@ private fun ConversationManagerDialog(
                         }
                     }
                 }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onNewConversation) { Text("新建对话") }
-        },
-        dismissButton = {
-            Row {
-                TextButton(onClick = onClearConversations, enabled = conversations.isNotEmpty()) {
-                    Text("清空本机", color = Color(0xFFD94C4C))
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = onClearConversations, enabled = conversations.isNotEmpty()) {
+                        Text("清空本地", color = Color(0xFFD94C4C))
+                    }
+                    Button(
+                        onClick = onNewConversation,
+                        colors = ButtonDefaults.buttonColors(containerColor = Mint),
+                    ) {
+                        Text("新建对话")
+                    }
                 }
-                TextButton(onClick = onDismiss) { Text("关闭") }
             }
-        },
-    )
+        }
+    }
 }
 
 @Composable

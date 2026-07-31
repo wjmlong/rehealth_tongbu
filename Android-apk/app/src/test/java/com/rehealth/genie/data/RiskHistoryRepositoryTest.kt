@@ -75,6 +75,9 @@ private class FakeRiskHistoryDao : RiskHistoryDao {
 
     override suspend fun latestForUser(userId: String, limit: Int): List<RiskHistoryEntity> =
         rows.filter { it.userId == userId }.sortedByDescending { it.evaluatedOn }.take(limit)
+
+    override suspend fun sinceForUser(userId: String, since: Long): List<RiskHistoryEntity> =
+        rows.filter { it.userId == userId && it.evaluatedAt >= since }.sortedBy { it.evaluatedOn }
 }
 
 private class FakeFeedbackDao : InterventionFeedbackDao {

@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.rehealth.genie.data.sync.RingCloudRepository
+import com.rehealth.genie.data.RiskHistoryRepository
 import com.rehealth.genie.network.PatientInterventionPayload
 import com.rehealth.genie.network.PatientMvpPayload
 import com.rehealth.genie.network.PatientProfilePayload
@@ -23,6 +24,8 @@ import com.rehealth.genie.ring.data.RingSleepSessionEntity
 import com.rehealth.genie.ring.provider.ActiveWearableManager
 import com.rehealth.genie.service.RingForegroundService
 import java.util.Calendar
+import java.time.Instant
+import java.time.ZoneId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
@@ -61,6 +64,7 @@ data class RingUiState(
     val ecgHistory: List<RingSignalChunkEntity> = emptyList(),
     val liveEcg: RingEcgLiveState = RingEcgLiveState(),
     val supportedMetrics: Set<RingMetricType> = emptySet(),
+    val manuallyMeasurableMetrics: Set<RingMetricType> = emptySet(),
     val supportedFeatures: Set<RingFeatureType> = emptySet(),
     val wearableProducts: List<WearableProductOption> = emptyList(),
     val activeProductCode: String? = null,
@@ -85,6 +89,9 @@ data class PeriodAggregate(
     val avgDailySteps: Double? = null,
     val avgSleepMinutes: Double? = null,
     val daysWithData: Int = 0,
+    val avgRiskScore: Double? = null,
+    val healthIndex: Int? = null,
+    val daysWithRiskScore: Int = 0,
 )
 
 internal fun aggregateLocalDayActivitySteps(
@@ -112,6 +119,7 @@ class RingViewModel(
     private val cloudRepository: RingCloudRepository? = null,
     private val wearableManager: ActiveWearableManager? = null,
     private val allowWearableProductSwitch: Boolean = false,
+    private val riskHistoryRepository: RiskHistoryRepository? = null,
 ) : ViewModel() {
     private val mutableUiState = MutableStateFlow(RingUiState(supportedMetrics = repository.supportedMetrics))
     val uiState: StateFlow<RingUiState> = mutableUiState.asStateFlow()
@@ -150,6 +158,11 @@ class RingViewModel(
                     it.copy(
                         connectedDevice = device,
                         supportedMetrics = if (device == null) emptySet() else repository.supportedMetrics,
+                        manuallyMeasurableMetrics = if (device == null) {
+                            emptySet()
+                        } else {
+                            repository.manuallyMeasurableMetrics
+                        },
                         supportedFeatures = if (device == null) {
                             emptySet()
                         } else {
@@ -256,12 +269,16 @@ class RingViewModel(
 
     private suspend fun runAutoCollectionCycle() {
         if (mutableUiState.value.isSyncing) return
+        if (mutableUiState.value.connectionState != RingConnectionState.CONNECTED) {
+            Log.i(TAG, "auto collection skipped because device is disconnected")
+            return
+        }
         Log.i(TAG, "auto collection cycle start")
         mutableUiState.update {
             it.copy(isSyncing = true, measuringMetric = null, syncProgress = 12, message = "正在自动采集戒指数据")
         }
         val totalRecords = runCatching {
-            var records = repository.syncAll().recordsWritten
+            var records = repository.sync(DAILY_SYNC_METRICS).recordsWritten
             listOf(
                 RingMetricType.HEART_RATE,
                 RingMetricType.BLOOD_OXYGEN,
@@ -276,7 +293,6 @@ class RingViewModel(
                     )
                 }
                 records += repository.measure(type).recordsWritten
-                delay(800)
             }
             records
         }
@@ -362,23 +378,53 @@ class RingViewModel(
 
     fun disconnect() {
         viewModelScope.launch {
-            repository.disconnect()
-            mutableUiState.update { it.copy(message = "设备已断开") }
+            runCatching { repository.disconnect() }
+                .onSuccess {
+                    mutableUiState.update {
+                        it.copy(isSyncing = false, measuringMetric = null, syncProgress = 0, message = "设备已断开")
+                    }
+                }
+                .onFailure { error ->
+                    mutableUiState.update {
+                        it.copy(
+                            isSyncing = false,
+                            measuringMetric = null,
+                            syncProgress = 0,
+                            message = error.message ?: "设备断开失败，请稍后重试",
+                        )
+                    }
+                }
         }
     }
 
     fun syncAll() {
         viewModelScope.launch {
-            mutableUiState.update {
-                it.copy(isSyncing = true, syncProgress = 8, message = "正在读取戒指数据")
+            if (mutableUiState.value.connectionState != RingConnectionState.CONNECTED) {
+                mutableUiState.update {
+                    it.copy(isSyncing = false, syncProgress = 0, message = "请先连接设备，再同步睡眠、步数与活动")
+                }
+                return@launch
             }
+            mutableUiState.update {
+                it.copy(isSyncing = true, syncProgress = 5, message = "正在同步睡眠、步数与活动")
+            }
+            val targetProgress = MutableStateFlow(5)
             val progressJob = launch {
-                listOf(24, 42, 61, 78, 92).forEach { progress ->
-                    delay(220)
-                    mutableUiState.update { it.copy(syncProgress = progress) }
+                while (true) {
+                    delay(SYNC_PROGRESS_TICK_MILLIS)
+                    mutableUiState.update { state ->
+                        state.copy(
+                            syncProgress = (state.syncProgress + 1)
+                                .coerceAtMost(targetProgress.value.coerceAtMost(95)),
+                        )
+                    }
                 }
             }
-            runCatching { repository.syncAll() }
+            runCatching {
+                repository.sync(DAILY_SYNC_METRICS) { progress ->
+                    targetProgress.update { current -> maxOf(current, progress.coerceIn(5, 95)) }
+                }
+            }
                 .onSuccess { result ->
                     progressJob.cancel()
                     val uploadMessage = if (result.recordsWritten > 0) {
@@ -440,7 +486,7 @@ class RingViewModel(
     fun measure(type: RingMetricType) {
         viewModelScope.launch {
             Log.i(TAG, "measure clicked type=$type")
-            val action = if (type == RingMetricType.MET) "获取" else "测量"
+            val action = "测量"
             mutableUiState.update {
                 it.copy(
                     isSyncing = true,
@@ -505,9 +551,10 @@ class RingViewModel(
             return if (values.isEmpty()) null else values.average()
         }
         val totalSteps = activities.sumOf { it.steps.toLong() }
-        val daysWithSteps = activities.map { it.startedAt / DAY_MS }.distinct().size
-        val avgSleep = if (sleep.isEmpty()) null else sleep.map { (it.endedAt - it.startedAt) / 60_000.0 }.average()
-        val daysWithMeasurements = measurements.map { it.measuredAt / DAY_MS }.distinct().size
+        val daysWithSteps = activities.map { localDateAt(it.startedAt) }.distinct().size
+        val avgSleep = averageDailySleepMinutes(sleep)
+        val daysWithMeasurements = measurements.map { localDateAt(it.measuredAt) }.distinct().size
+        val riskSummary = riskHistoryRepository?.periodSummary(windowDays)
 
         return PeriodAggregate(
             windowDays = windowDays,
@@ -520,6 +567,9 @@ class RingViewModel(
             avgDailySteps = if (daysWithSteps > 0) totalSteps.toDouble() / daysWithSteps else null,
             avgSleepMinutes = avgSleep,
             daysWithData = daysWithMeasurements,
+            avgRiskScore = riskSummary?.averageRiskScore,
+            healthIndex = riskSummary?.averageHealthIndex,
+            daysWithRiskScore = riskSummary?.daysWithScore ?: 0,
         )
     }
 
@@ -652,6 +702,7 @@ class RingViewModel(
         private val cloudRepository: RingCloudRepository? = null,
         private val wearableManager: ActiveWearableManager? = null,
         private val allowWearableProductSwitch: Boolean = false,
+        private val riskHistoryRepository: RiskHistoryRepository? = null,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
@@ -661,6 +712,7 @@ class RingViewModel(
                 cloudRepository,
                 wearableManager,
                 allowWearableProductSwitch,
+                riskHistoryRepository,
             ) as T
     }
 }
@@ -672,21 +724,49 @@ private data class CloudUploadUiStatus(
 
 private const val TAG = "RingViewModel"
 private const val AUTO_COLLECTION_INTERVAL_MS = 15 * 60 * 1000L
+private const val SYNC_PROGRESS_TICK_MILLIS = 180L
 private const val ECG_HISTORY_LIMIT = 10
-private const val DAY_MS = 24L * 60 * 60 * 1000
+private val DAILY_SYNC_METRICS = setOf(
+    RingMetricType.SLEEP,
+    RingMetricType.STEPS,
+    RingMetricType.ACTIVITY,
+)
+internal fun canonicalSleepMinutes(session: RingSleepSessionEntity): Int? {
+    session.totalSleepMinutes?.takeIf { it > 0 }?.let { return it }
+    // Awake time is part of the session span, not actual sleep duration.
+    val stagedMinutes = session.deepMinutes + session.lightMinutes + session.remMinutes
+    if (stagedMinutes > 0) return stagedMinutes
+    return ((session.endedAt - session.startedAt) / 60_000L)
+        .toInt()
+        .takeIf { it > 0 }
+}
+
+/**
+ * Vendor SDKs may emit several cumulative snapshots while assembling one night's sleep.
+ * Select the final (largest) duration for each local wake-up day before averaging days,
+ * otherwise one night is incorrectly counted several times.
+ */
+internal fun averageDailySleepMinutes(sessions: List<RingSleepSessionEntity>): Double? {
+    val dailyMinutes = sessions
+        .groupBy { localDateAt(it.endedAt) }
+        .values
+        .mapNotNull { dailySessions ->
+            dailySessions.mapNotNull(::canonicalSleepMinutes).maxOrNull()
+        }
+    return dailyMinutes.takeIf(List<Int>::isNotEmpty)?.average()
+}
+
+private fun localDateAt(timestamp: Long) =
+    Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault()).toLocalDate()
 
 private fun periodStartMillis(windowDays: Int): Long {
-    val now = System.currentTimeMillis()
-    if (windowDays <= 0) {
-        val cal = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        return cal.timeInMillis
-    }
-    return now - windowDays * DAY_MS
+    return Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+        if (windowDays > 1) add(Calendar.DAY_OF_YEAR, -(windowDays - 1))
+    }.timeInMillis
 }
 
 /**

@@ -82,7 +82,7 @@ interface RingDataDao {
     @Query("SELECT * FROM ring_activities WHERE started_at >= :since ORDER BY started_at DESC")
     suspend fun getActivitiesSince(since: Long): List<RingActivityEntity>
 
-    @Query("SELECT * FROM ring_sleep_sessions WHERE started_at >= :since ORDER BY started_at DESC")
+    @Query("SELECT * FROM ring_sleep_sessions WHERE ended_at >= :since ORDER BY started_at DESC")
     suspend fun getSleepSessionsSince(since: Long): List<RingSleepSessionEntity>
 
     @Query("DELETE FROM ring_measurements WHERE source = :source")

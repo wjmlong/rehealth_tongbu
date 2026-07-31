@@ -1,6 +1,6 @@
 # D2 Telemetry Sync Status and Remaining QA
 
-Status: implemented software path; updated 2026-07-29.
+Status: implemented software path; updated 2026-07-31.
 
 ## Implemented
 
@@ -24,11 +24,12 @@ Status: implemented software path; updated 2026-07-29.
   explicitly awaits `readSleepData` before starting `readOriginData`, because physical-device
   validation found firmware that returned origin records but omitted sleep from `readAllHealthData`. Five-minute
   step, distance, and calorie records are aggregated per day before Room persistence;
-  capability-gated manual measurement and body-composition history follow. Direct HBand
-  HRV/MET commands require their dedicated SDK flags, but the purchased MT116 still rejects
-  the advertised HRV/stress/MET direct commands with `unknown action`. `RH-HB-E01` therefore
-  prioritizes the package-4 mini-checkup result for HRV/stress and device history for MET;
-  HRV/stress/MET can all read scoped device manual history as the final real-data fallback.
+  capability-gated manual measurement and body-composition history follow. Direct HBand App
+  HRV/MET measurement uses the vendor's exact double gates: `isSupportHRV &&
+  isSupportHrvAppDetect` and `isSupportMet && isSupportMetAppDetect`. When the relevant pair
+  is true, `RH-HB-E01` prefers the dedicated SDK API; otherwise HRV/stress retain package-4
+  mini-checkup or history fallback and MET retains manual-measurement history fallback. The
+  purchased MT116's 2026-07-30 `unknown action` evidence covers the older generic commands.
   This prevents the SDK's unsupported-feature toast without inventing an instant MET value;
   only positive real SDK results are persisted. Completed
   reads are retained if a later optional SDK operation fails. Unsupported,
@@ -37,6 +38,24 @@ Status: implemented software path; updated 2026-07-29.
   calibrated `FLOAT32_LE` mV plus structured lead/sample/duration/contact metadata,
   while migrated legacy `INT32_LE` rows remain relative-only. Neither representation
   is included in telemetry uploads.
+- Data-card visibility uses App-measurement capability separately from history capability:
+  HRV/stress/MET are hidden when only historical sync is available. Dedicated HRV/MET or
+  mini-checkup HRV/stress remain visible and measurable.
+- Room v8 adds nullable `total_sleep_minutes` through a non-destructive v7→v8 migration.
+  HBand persists the SDK-authoritative `allSleepTime` there and period aggregation uses it
+  before actual sleep stages (`deep + light + REM`) and finally elapsed session time. Awake
+  minutes and the `sleepDown`/`sleepUp` clock span are not counted as HBand sleep duration.
+  Queries still use `ended_at`, so cross-midnight sessions ending today remain included.
+  When one night has several increasing HBand cumulative snapshots, aggregation keeps the
+  largest final duration for that local wake-up day and averages those daily finals across
+  the selected period; it never averages intermediate callbacks as separate nights.
+- The Data-screen action is a connected-only daily sync for sleep, steps, and activity. It never
+  auto-connects from the UI, and the in-process automatic cycle skips while disconnected. Explicit
+  Foreground Service recovery retains bound-device reconnect behavior. For HBand, existing recent
+  Room sleep/activity rows select a two-day-or-greater overlap window; origin history is skipped
+  when activity has no gap, while first sync or a gap retains origin-history recovery. Vendor sleep
+  and origin callbacks feed monotonic target progress, and Compose smooths toward that target without
+  delaying persistence or upload completion.
 
 ## Software-Only Validation
 

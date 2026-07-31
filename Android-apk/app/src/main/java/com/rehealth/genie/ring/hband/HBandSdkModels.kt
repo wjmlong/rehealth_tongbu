@@ -97,6 +97,18 @@ internal fun supportsHBandHrvHistory(deviceFeature: Boolean, hrvType: Int): Bool
 
 internal fun supportsHBandMetricHistory(protocolType: Int): Boolean = protocolType > 0
 
+internal fun HBandCapabilities.withOfficialAppMeasurementCapabilities(
+    hrvFeature: Boolean,
+    hrvAppDetect: Boolean,
+    metFeature: Boolean,
+    metAppDetect: Boolean,
+): HBandCapabilities = copy(
+    // The vendor documents both checks as prerequisites. Do not treat the base
+    // feature or history protocol type as proof that the dedicated command works.
+    hrv = hrvFeature && hrvAppDetect,
+    met = metFeature && metAppDetect,
+)
+
 internal fun HBandCapabilities.apply(patch: HBandCapabilityPatch): HBandCapabilities = copy(
     watchDataDays = patch.watchDataDays ?: watchDataDays,
     temperatureType = patch.temperatureType ?: temperatureType,
@@ -132,9 +144,12 @@ internal fun HBandCapabilities.measurementRoute(
     type: RingMetricType,
     allowHistoryFallback: Boolean,
 ): HBandMeasurementRoute = when {
-    // MT116 advertises the dedicated HRV/stress/MET switches but rejects their
-    // manual_detect_de commands. Prefer the richer one-key checkup and persisted
-    // device data whenever the product allows those real-data fallbacks.
+    // Newer protocol releases expose dedicated HRV/MET App measurement commands.
+    // Prefer them only after the official base + App-detect capability checks pass.
+    type in setOf(RingMetricType.HRV, RingMetricType.MET) && supportsDirectMeasurement(type) ->
+        HBandMeasurementRoute.DIRECT
+    // Keep the MT116 fallback for older firmware that does not advertise the new
+    // App-detect capability. Stress still uses the previously verified route.
     miniCheckup && type in setOf(RingMetricType.HRV, RingMetricType.STRESS) ->
         HBandMeasurementRoute.MINI_CHECKUP
     allowHistoryFallback && type in setOf(RingMetricType.HRV, RingMetricType.STRESS, RingMetricType.MET) ->
@@ -309,6 +324,12 @@ internal data class HBandPayload(
     )
 }
 
+internal data class HBandSyncOptions(
+    val historyDays: Int? = null,
+    val includeOriginHistory: Boolean = true,
+    val onProgress: (Int) -> Unit = {},
+)
+
 internal interface HBandSdkGateway {
     val connectionState: StateFlow<RingConnectionState>
     val connectedDevice: StateFlow<RingDevice?>
@@ -318,7 +339,10 @@ internal interface HBandSdkGateway {
     suspend fun scan(): List<RingDevice>
     suspend fun connect(device: RingDevice, profile: HBandUserProfile): HBandConnectionInfo?
     suspend fun disconnect()
-    suspend fun sync(metrics: Set<RingMetricType>): HBandPayload
+    suspend fun sync(
+        metrics: Set<RingMetricType>,
+        options: HBandSyncOptions = HBandSyncOptions(),
+    ): HBandPayload
     suspend fun measure(type: RingMetricType, allowHistoryFallback: Boolean = false): HBandPayload
     suspend fun setBloodGlucoseCalibration(config: BloodGlucoseCalibration): Boolean = false
     suspend fun setMenstrualCycle(config: MenstrualCycleConfig): Boolean = false

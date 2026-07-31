@@ -123,9 +123,10 @@ environment at startup; never copy them into tracked YAML or source files.
 
 Health chat now supports two server-side engines behind the unchanged mobile API:
 
-- `REHEALTH_HEALTH_AGENT_ENGINE=model-service` keeps the Python provider path for rollback.
-- `REHEALTH_HEALTH_AGENT_ENGINE=langchain4j` runs prompt assembly, bounded conversation
-  memory and the OpenAI-compatible provider call inside JeecgBoot.
+- `REHEALTH_HEALTH_AGENT_ENGINE=langchain4j` is the default and runs prompt assembly, bounded
+  conversation memory, the authenticated current-profile tool and the OpenAI-compatible provider
+  call inside JeecgBoot.
+- `REHEALTH_HEALTH_AGENT_ENGINE=model-service` keeps the Python provider path only for an explicit rollback.
 
 Before enabling LangChain4j, apply
 `V20260730_1__add_health_agent_conversations.sql`, keep
@@ -146,9 +147,8 @@ To keep using the legacy model-service health Q&A locally with the YAML-first pa
    lets model-service load it directly. The API key is read only by `model-service`;
    it must never be copied into the Android project, JeecgBoot YAML, or Git.
 
-For Java LangChain4j local testing, set `REHEALTH_HEALTH_AGENT_ENGINE=langchain4j`
-in the ignored local `.env` and use `secrets/provider_credential`; the startup
-script passes only the secret-file path to JeecgBoot.
+Java LangChain4j is selected when the ignored local `.env` omits the engine setting. Use
+`secrets/provider_credential`; the startup script passes only the secret-file path to JeecgBoot.
 
 The secret-file plus ignored `.env` path remains supported when
 `ai-chat.local.yml` is absent and is still the required pattern for staging and
