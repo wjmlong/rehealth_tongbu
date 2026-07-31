@@ -73,6 +73,8 @@ import com.rehealth.genie.data.profileAvatarStorageKey
 import com.rehealth.genie.network.PatientProfilePayload
 import com.rehealth.genie.network.dto.BehaviorRecordDto
 import com.rehealth.genie.phm.AttributionHistoryPoint
+import com.rehealth.genie.rdi.RdiContributionEntity
+import com.rehealth.genie.rdi.RdiDisplayData
 import com.rehealth.genie.rhi.RhiDailyScore
 import com.rehealth.genie.ring.RingUiState
 import com.rehealth.genie.ui.theme.AttributionDimensions as Dimensions
@@ -99,6 +101,8 @@ fun AttributionScreen(
     val rhiPeriodSummary by rhiViewModel.periodSummary.collectAsState()
     val rhiRefreshError by rhiViewModel.refreshError.collectAsState()
     val rhiCalculationSource by rhiViewModel.calculationSource.collectAsState()
+    val rdiViewModel: RdiViewModel = viewModel(factory = RdiViewModel.Factory(LocalContext.current))
+    val rdiDisplayData by rdiViewModel.display.collectAsState()
     val behaviorOwnerKey = remember(application.sessionStore.userId, application.sessionStore.username) {
         profileAvatarStorageKey(
             application.sessionStore.userId ?: application.sessionStore.username ?: "signed-out",
@@ -123,6 +127,10 @@ fun AttributionScreen(
             AttributionPeriod.DAYS_90.days.toInt(),
             AttributionDataProvenance.trustedProfile(ringState.patientMvp),
         )
+    }
+
+    LaunchedEffect(ringState.lastSyncAt) {
+        rdiViewModel.refresh()
     }
 
     LaunchedEffect(
@@ -217,6 +225,7 @@ fun AttributionScreen(
         rhiImprovement = rhiImprovement,
         rhiError = rhiRefreshError,
         rhiCalculationSource = rhiCalculationSource,
+        rdiDisplayData = rdiDisplayData,
         feedbackViewModel = feedbackViewModel,
         behaviorRecords = behaviorState.records,
         onPeriodSelected = { selectedPeriod = it },
@@ -227,6 +236,7 @@ fun AttributionScreen(
                 AttributionPeriod.DAYS_90.days.toInt(),
                 AttributionDataProvenance.trustedProfile(ringState.patientMvp),
             )
+            rdiViewModel.refresh()
             behaviorViewModel.refreshToday()
         },
     )
@@ -238,6 +248,7 @@ private fun AttributionContent(
     rhiImprovement: AttributionRhiImprovementUi,
     rhiError: String?,
     rhiCalculationSource: com.rehealth.genie.rhi.RhiCalculationSource,
+    rdiDisplayData: RdiDisplayData?,
     feedbackViewModel: InterventionFeedbackViewModel,
     behaviorRecords: List<BehaviorRecordDto>,
     onPeriodSelected: (AttributionPeriod) -> Unit,
@@ -294,6 +305,7 @@ private fun AttributionContent(
                 onRetry = onRetry,
             )
         }
+        item { RdiImpactCard(rdiDisplayData) }
         item { AttributionActivityCard(state.activity, behaviorRecords) }
         item { AttributionFactorsCard(state.factorGroups) }
         item { AttributionPlanCard(state.interventions, feedbackViewModel) }
@@ -602,6 +614,112 @@ private fun AttributionRiskTrendReadyContent(
             modifier = Modifier.weight(1f),
         )
     }
+}
+
+@Composable
+private fun RdiImpactCard(data: RdiDisplayData?) {
+    AttributionCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("近期风险影响分", color = Palette.TextPrimary, style = Type.CardTitle)
+                Text(
+                    "越低越好",
+                    color = Palette.TextSecondary,
+                    style = Type.Micro,
+                    modifier = Modifier.padding(top = Dimensions.PageSubtitleTop),
+                )
+            }
+            Text(
+                rdiImpactStatusLabel(data?.status),
+                color = Palette.Accent,
+                style = Type.Detail,
+                modifier = Modifier.clip(CircleShape).background(Palette.AccentSoft)
+                    .padding(
+                        horizontal = Dimensions.StatusHorizontalPadding,
+                        vertical = Dimensions.StatusVerticalPadding,
+                    ),
+            )
+        }
+        Text(
+            data?.score?.let { String.format(Locale.US, "%.1f", it) } ?: "--",
+            color = if (data == null) Palette.TextSecondary else Palette.TextPrimary,
+            style = Type.SummaryScore,
+            modifier = Modifier.padding(top = Dimensions.SummaryScoreTop),
+        )
+        Text(
+            data?.let {
+                "数据可信度 ${String.format(Locale.US, "%.0f%%", it.confidence * 100.0)} · " +
+                    "状态：${rdiImpactStatusLabel(it.status)}"
+            } ?: "正在读取本地 Room 的近期有效数据",
+            color = Palette.TextSecondary,
+            style = Type.Detail,
+            modifier = Modifier.padding(top = Dimensions.FactorSupportingTop),
+        )
+        val contributions = data?.topContributions.orEmpty()
+        if (contributions.isNotEmpty()) {
+            Text(
+                "本周期影响最大的 ${contributions.size} 项",
+                color = Palette.TextPrimary,
+                style = Type.CardTitle,
+                modifier = Modifier.padding(top = Dimensions.FactorRowTop),
+            )
+            contributions.forEachIndexed { index, contribution ->
+                RdiImpactContributionRow(index + 1, contribution)
+            }
+        } else {
+            Text(
+                "正在积累更多有效数据",
+                color = Palette.TextSecondary,
+                style = Type.Detail,
+                modifier = Modifier.padding(top = Dimensions.FactorRowTop),
+            )
+        }
+    }
+}
+
+@Composable
+private fun RdiImpactContributionRow(
+    rank: Int,
+    contribution: RdiContributionEntity,
+) {
+    val points = contribution.finalPoints
+    val improvesRisk = points < 0.0
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = Dimensions.FactorRowTop),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier.size(Dimensions.FactorRankSize).clip(CircleShape).background(Palette.AccentSoft),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                rank.toString(),
+                color = Palette.Accent,
+                style = Type.Selector,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        Text(
+            contribution.evidenceText.ifBlank { contribution.factorCode },
+            color = Palette.TextPrimary,
+            style = Type.FactorTitle,
+            modifier = Modifier.weight(1f).padding(start = Dimensions.FactorContentGap),
+        )
+        Text(
+            String.format(Locale.US, "%s %+.1f 分", if (improvesRisk) "↓" else "↑", points),
+            color = if (improvesRisk) Palette.Accent else Palette.ContributionRisk,
+            style = Type.FactorScore,
+            modifier = Modifier.padding(start = Dimensions.LegendLabelGap),
+        )
+    }
+}
+
+internal fun rdiImpactStatusLabel(status: String?): String = when (status?.lowercase(Locale.US)) {
+    "confirmed" -> "已建立个人基线"
+    "provisional" -> "初步结果"
+    "accumulating" -> "基线建立中"
+    null -> "计算中"
+    else -> "状态待确认"
 }
 
 @Composable
