@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
@@ -67,6 +68,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.LaunchedEffect
@@ -412,7 +414,12 @@ private fun RhiManualInputDialog(
     val numericOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("健康与归因指标") },
+        shape = RoundedCornerShape(24.dp),
+        containerColor = Color.White,
+        titleContentColor = Ink,
+        textContentColor = Ink,
+        tonalElevation = 0.dp,
+        title = { Text("健康与归因指标", fontWeight = FontWeight.Bold) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -448,23 +455,21 @@ private fun RhiManualInputDialog(
                     label = { Text("血检报告日期") },
                     supportingText = { Text("格式 YYYY-MM-DD，用于 90/180/365 天新鲜度") },
                     singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = reHealthTextFieldColors(),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = labConfirmed, onCheckedChange = { labConfirmed = it })
                     Text("确认已逐项核对医院报告原件", color = Muted, fontSize = 11.sp)
                 }
-                Text(
-                    "血压与代谢卡按 80% 实测贡献 + 20% 控制支持趋势展示；缺少可验证趋势时，20% 保持为 0，不补造数值。",
-                    color = Muted,
-                    fontSize = 11.sp,
-                )
                 errorMessage?.let { Text(it, color = Color(0xFFD94C4C), fontSize = 12.sp) }
             }
         },
         confirmButton = {
             Button(
                 enabled = !isSaving,
+                shape = RoundedCornerShape(14.dp),
                 onClick = {
                     onSave(
                         RhiManualInputDraft(
@@ -516,9 +521,22 @@ private fun RhiManualField(
         supportingText = { Text(supportingText) },
         keyboardOptions = keyboardOptions,
         singleLine = true,
+        shape = RoundedCornerShape(14.dp),
+        colors = reHealthTextFieldColors(),
         modifier = Modifier.fillMaxWidth(),
     )
 }
+
+@Composable
+private fun reHealthTextFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = Mint,
+    unfocusedBorderColor = Line,
+    focusedLabelColor = Mint,
+    unfocusedLabelColor = Muted,
+    cursorColor = Mint,
+    focusedContainerColor = Color.White,
+    unfocusedContainerColor = Color.White,
+)
 
 /** D3 logout: cancel the sync worker, clear the auth session, and pause the upload queue. */
 private fun performLogout(context: Context) {
@@ -568,7 +586,12 @@ private fun ProfileEditDialog(
     var familyHistory by remember { mutableStateOf(initialFamilyHistory) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("编辑个人资料") },
+        shape = RoundedCornerShape(24.dp),
+        containerColor = Color.White,
+        titleContentColor = Ink,
+        textContentColor = Ink,
+        tonalElevation = 0.dp,
+        title = { Text("编辑个人资料", fontWeight = FontWeight.Bold) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -579,6 +602,8 @@ private fun ProfileEditDialog(
                     onValueChange = { name = it.take(32) },
                     label = { Text("姓名 / 昵称") },
                     singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = reHealthTextFieldColors(),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text("归因 16 项档案", color = Ink, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
@@ -610,6 +635,8 @@ private fun ProfileEditDialog(
                     onValueChange = { age = it.filter { c -> c.isDigit() }.take(3) },
                     label = { Text("年龄") },
                     singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = reHealthTextFieldColors(),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
@@ -617,6 +644,8 @@ private fun ProfileEditDialog(
                     onValueChange = { height = it.filter { c -> c.isDigit() || c == '.' }.take(6) },
                     label = { Text("身高 (cm)") },
                     singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = reHealthTextFieldColors(),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
@@ -624,6 +653,8 @@ private fun ProfileEditDialog(
                     onValueChange = { weight = it.filter { c -> c.isDigit() || c == '.' }.take(6) },
                     label = { Text("体重 (kg)") },
                     singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = reHealthTextFieldColors(),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 errorMessage?.let {
@@ -633,6 +664,7 @@ private fun ProfileEditDialog(
         },
         confirmButton = {
             Button(
+                shape = RoundedCornerShape(14.dp),
                 onClick = {
                     gender?.let {
                         onSave(

@@ -112,6 +112,9 @@ git diff --check
    - Open “我的 > 编辑健康与归因指标”. Confirm sedentary hours, waist, 最大摄氧量,
      糖化血红蛋白 and 估算肾小球滤过率 can be saved and restored after process restart. Clearing any field must
      persist `NULL`/missing and lower confidence instead of inserting a normal default.
+   - Confirm “编辑个人资料” and “健康与归因指标” use the app's white rounded dialog,
+     dark title, mint focused input border and mint primary action. The health indicator dialog
+     must not expose internal contribution-weight calculation text.
    - Confirm RHI accepts SBP/DBP only after the user confirms a valid 3–7 day upper-arm cuff
      mean. Cuffless ring BP remains visible in Data but does not change RHI.
    - Confirm a hospital lab requires at least one value, a valid report date and explicit
