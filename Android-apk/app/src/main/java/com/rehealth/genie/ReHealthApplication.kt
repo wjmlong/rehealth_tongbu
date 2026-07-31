@@ -7,6 +7,7 @@ import com.rehealth.genie.data.HealthChatRepository
 import com.rehealth.genie.data.sync.InterventionFeedbackRepository
 import com.rehealth.genie.data.sync.RingCloudRepository
 import com.rehealth.genie.data.sync.SyncRepository
+import com.rehealth.genie.diet.DietRecordRepository
 import com.rehealth.genie.network.AuthenticatedApiClient
 import com.rehealth.genie.network.ApiResult
 import com.rehealth.genie.network.BackendConfig
@@ -95,6 +96,16 @@ class ReHealthApplication : Application() {
         RemotePhmService(
             api = null,
             authenticatedApi = authenticatedApiClient,
+        )
+    }
+
+    val dietRecordRepository by lazy {
+        DietRecordRepository(
+            dao = database.dietRecordDao(),
+            syncRepository = syncRepository,
+            userIdProvider = { sessionStore.userId },
+            wearableBindingProvider = { activeWearableStore.activeBinding.value },
+            triggerSync = { MeasurementSyncWorker.triggerImmediate(this) },
         )
     }
 

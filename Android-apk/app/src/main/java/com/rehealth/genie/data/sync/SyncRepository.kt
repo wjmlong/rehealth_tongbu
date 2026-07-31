@@ -38,6 +38,8 @@ class SyncRepository(
 
     suspend fun enqueue(item: UploadQueueEntity) = dao.insert(item)
 
+    suspend fun queuedItem(id: String): UploadQueueEntity? = dao.getById(id)
+
     suspend fun save(item: UploadQueueEntity) = dao.update(item)
 
     suspend fun pending(): List<UploadQueueEntity> = dao.pending(nowProvider())

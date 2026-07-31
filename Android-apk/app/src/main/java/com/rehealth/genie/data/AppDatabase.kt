@@ -12,6 +12,8 @@ import com.rehealth.genie.data.sync.InterventionFeedbackDao
 import com.rehealth.genie.data.sync.InterventionFeedbackEntity
 import com.rehealth.genie.data.sync.UploadQueueDao
 import com.rehealth.genie.data.sync.UploadQueueEntity
+import com.rehealth.genie.diet.DietRecordDao
+import com.rehealth.genie.diet.DietRecordEntity
 import com.rehealth.genie.ring.data.RingActivityEntity
 import com.rehealth.genie.ring.data.RingDataDao
 import com.rehealth.genie.ring.data.RingMeasurementEntity
@@ -58,8 +60,9 @@ data class AttributionLogEntity(
         RdiDailySnapshotEntity::class,
         RdiContributionEntity::class,
         RhiManualHealthInputEntity::class,
+        DietRecordEntity::class,
     ],
-    version = 10,
+    version = 11,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -70,8 +73,42 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun healthChatDao(): HealthChatDao
     abstract fun rdiDao(): RdiDao
     abstract fun rhiManualHealthInputDao(): RhiManualHealthInputDao
+    abstract fun dietRecordDao(): DietRecordDao
 
     companion object {
+        val Migration10To11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS diet_records (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        user_id TEXT NOT NULL,
+                        consumed_at INTEGER NOT NULL,
+                        meal_type TEXT NOT NULL,
+                        description TEXT NOT NULL,
+                        calories_kcal REAL NOT NULL,
+                        protein_grams REAL,
+                        carbohydrate_grams REAL,
+                        fat_grams REAL,
+                        fiber_grams REAL,
+                        sodium_milligrams REAL,
+                        source TEXT NOT NULL,
+                        created_at INTEGER NOT NULL,
+                        upload_batch_id TEXT
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_diet_records_user_id_consumed_at " +
+                        "ON diet_records(user_id, consumed_at)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_diet_records_upload_batch_id " +
+                        "ON diet_records(upload_batch_id)",
+                )
+            }
+        }
+
         val Migration9To10 = object : Migration(9, 10) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE rhi_manual_health_inputs ADD COLUMN cuff_sbp_7d_mean REAL")
@@ -438,6 +475,7 @@ abstract class AppDatabase : RoomDatabase() {
                     Migration7To8,
                     Migration8To9,
                     Migration9To10,
+                    Migration10To11,
                 )
                 .build()
     }

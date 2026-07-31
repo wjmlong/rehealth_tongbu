@@ -279,6 +279,12 @@ git diff --check
       diagnosis or medication change, `is_mock=false`, and `medical_disclaimer` is present.
     - Confirm a Device Service/LLM/software_db failure returns controlled failure and
       does not persist or display a fabricated fallback plan.
+    - In the Android attribution page, record a meal while offline and confirm it
+      appears immediately from Room with a local-only status. Restore a real device
+      binding and network, then confirm one stable `telemetry-v2` queue item is created,
+      WorkManager retries safely, and the row changes to synced only after durable
+      server persistence. Reopen the app and confirm the current user's meal remains;
+      another authenticated user must not see it.
 
 13. Feedback submission
     - Submit `POST /rehealth/mobile/interventions/{id}/feedback`.

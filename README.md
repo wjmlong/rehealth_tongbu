@@ -257,6 +257,7 @@ Release 对应工厂固定不可用。演练数据统一标记 `synthetic_qa`，
 | Android 本地遥测和待上传任务 | Room | 本地优先、离线可用 |
 | Android 每日 RDI 与贡献证据 | Room v8 | 本地产品趋势；不作为临床概率或云端权威风险 |
 | Android RHI 手填指标与已确认临床输入 | Room v9/v10 | 按用户隔离；空白保存为 `NULL`，当前不是云端权威病历 |
+| Android 手工饮食记录 | Room v11 | 先本地持久化，再通过 durable queue 以 `telemetry-v2 dietRecords` 上传；显式 10→11 迁移保留既有健康数据 |
 | 规范化硬件时序数据 | TimescaleDB | Device Service 独占写入和读取 |
 | 用户、档案、绑定、风险、干预、反馈、健康问答历史 | MySQL `software_db` | JeecgBoot 业务权威；聊天按用户+租户隔离 |
 | 遥测持久化/质量事件 | Kafka | 事件通知，不存原始健康值 |

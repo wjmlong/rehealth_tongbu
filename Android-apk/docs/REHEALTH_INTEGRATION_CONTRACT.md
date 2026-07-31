@@ -216,6 +216,12 @@ adds `dietRecords`. A diet record has a stable `id`, `consumedAt`,
 fiber, sodium and source. The response adds `dietRecordCount`. A meal must be
 saved locally before upload; raw food photos are not part of this contract.
 
+Android Room schema v11 adds the user-scoped `diet_records` table. Migration
+10→11 is explicit, preserves all existing health data, and is covered by
+`DietRecordMigrationTest`. Saving a meal commits the Room row before creating
+its durable `telemetry_batch` queue item; missing device identity leaves the
+row locally pending instead of dropping it.
+
 `InterventionGenerateResponseDto.items` contains 1–5 actions. Each action has
 `id`, `category`, `title`, `action`, `rationale`, `target`, `timing`,
 `priority`, and `evidenceRefs`. Android sorts by priority and renders these

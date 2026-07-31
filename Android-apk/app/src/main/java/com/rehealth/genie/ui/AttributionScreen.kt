@@ -95,6 +95,11 @@ fun AttributionScreen(
     val feedbackViewModel: InterventionFeedbackViewModel = viewModel(
         factory = InterventionFeedbackViewModel.Factory(LocalContext.current),
     )
+    val dietEntryViewModel: DietEntryViewModel = viewModel(
+        factory = DietEntryViewModel.Factory(LocalContext.current),
+    )
+    val dietEntryState by dietEntryViewModel.state.collectAsState()
+    val activeWearableBinding by application.activeWearableStore.activeBinding.collectAsState()
     val rhiViewModel: RhiViewModel = viewModel(factory = RhiViewModel.Factory(LocalContext.current))
     val rhiPeriodSummary by rhiViewModel.periodSummary.collectAsState()
     val rhiRefreshError by rhiViewModel.refreshError.collectAsState()
@@ -103,6 +108,10 @@ fun AttributionScreen(
     var retryKey by remember { mutableIntStateOf(0) }
     var requestSequence by remember { mutableLongStateOf(0L) }
     var refreshState by remember { mutableStateOf(AttributionRefreshState()) }
+
+    LaunchedEffect(activeWearableBinding.address, activeWearableBinding.vendor) {
+        dietEntryViewModel.preparePendingUploads()
+    }
 
     LaunchedEffect(
         selectedPeriod,
@@ -204,6 +213,9 @@ fun AttributionScreen(
         rhiError = rhiRefreshError,
         rhiCalculationSource = rhiCalculationSource,
         feedbackViewModel = feedbackViewModel,
+        dietEntryState = dietEntryState,
+        onSaveDietRecord = dietEntryViewModel::save,
+        onClearDietMessage = dietEntryViewModel::clearMessage,
         onPeriodSelected = { selectedPeriod = it },
         onRhiCalculationSourceSelected = rhiViewModel::setCalculationSource,
         onRetry = {
@@ -223,6 +235,9 @@ private fun AttributionContent(
     rhiError: String?,
     rhiCalculationSource: com.rehealth.genie.rhi.RhiCalculationSource,
     feedbackViewModel: InterventionFeedbackViewModel,
+    dietEntryState: DietEntryUiState,
+    onSaveDietRecord: (com.rehealth.genie.diet.DietRecordDraft) -> Unit,
+    onClearDietMessage: () -> Unit,
     onPeriodSelected: (AttributionPeriod) -> Unit,
     onRhiCalculationSourceSelected: (com.rehealth.genie.rhi.RhiCalculationSource) -> Unit,
     onRetry: () -> Unit,
@@ -270,6 +285,13 @@ private fun AttributionContent(
         }
         item { AttributionSummaryCard(state, rhiSummary, rhiError) }
         item { AttributionPiasCard(state.pias, state.selectedHistory, onRetry) }
+        item {
+            AttributionDietCard(
+                state = dietEntryState,
+                onSave = onSaveDietRecord,
+                onClearMessage = onClearDietMessage,
+            )
+        }
         item { AttributionActivityCard(state.activity) }
         item { AttributionFactorsCard(state.factorGroups) }
         item { AttributionPlanCard(state.interventions, feedbackViewModel) }

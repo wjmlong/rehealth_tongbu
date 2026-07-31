@@ -22,8 +22,8 @@ import com.rehealth.genie.ring.data.RingMeasurementEntity
 import com.rehealth.genie.ring.data.RingSleepSessionEntity
 import com.rehealth.genie.ring.provider.ActiveWearableBinding
 import com.rehealth.genie.ring.provider.WearableVendor
+import com.rehealth.genie.ring.provider.WearableCloudIdentity
 import java.nio.charset.StandardCharsets
-import java.security.MessageDigest
 import java.util.UUID
 import kotlinx.coroutines.flow.first
 
@@ -38,11 +38,11 @@ class RingCloudRepository(
     private val wearableBindingProvider: () -> ActiveWearableBinding? = { null },
 ) {
     suspend fun bindDevice(device: RingDevice): Result<DeviceBindResponseDto> = runCatching {
-        val addressHash = sha256(device.address)
+        val addressHash = WearableCloudIdentity.addressHash(device.address)
         val binding = wearableBindingProvider()
         val vendor = binding?.vendor ?: WearableVendor.MRD
         val request = DeviceBindRequestDto(
-            deviceId = deviceId(addressHash, vendor),
+            deviceId = WearableCloudIdentity.deviceId(device.address, vendor),
             deviceName = device.name,
             manufacturer = vendor.name,
             model = binding?.modelCode ?: binding?.productCode ?: DEFAULT_MRD_MODEL,
@@ -119,8 +119,7 @@ class RingCloudRepository(
         require(measurements.isNotEmpty() || sleep != null || activity != null) {
             "没有可上传的本地健康记录。"
         }
-        val addressHash = sha256(device.address)
-        val effectiveDeviceId = deviceId(addressHash, vendor)
+        val effectiveDeviceId = WearableCloudIdentity.deviceId(device.address, vendor)
         val timestamps = buildList {
             addAll(measurements.map { it.measuredAt })
             sleep?.let { add(it.startedAt); add(it.endedAt) }
@@ -196,14 +195,6 @@ class RingCloudRepository(
             ),
         )
     }
-
-        private fun deviceId(addressHash: String, vendor: WearableVendor): String =
-            "${vendor.name.lowercase()}-${addressHash.take(24)}"
-
-        private fun sha256(value: String): String =
-            MessageDigest.getInstance("SHA-256")
-                .digest(value.toByteArray(StandardCharsets.UTF_8))
-                .joinToString("") { "%02x".format(it) }
 
         private const val DEFAULT_MRD_MODEL = "MR11"
     }

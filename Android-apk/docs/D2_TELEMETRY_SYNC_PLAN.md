@@ -1,6 +1,6 @@
 # D2 Telemetry Sync Status and Remaining QA
 
-Status: implemented software path; updated 2026-07-29.
+Status: implemented software path; updated 2026-07-31.
 
 ## Implemented
 
@@ -12,6 +12,10 @@ Status: implemented software path; updated 2026-07-29.
 - Raw signal bytes and entity `rawPayload` fields are excluded.
 - Device addresses are SHA-256 hashed before cloud binding/upload.
 - Synthetic QA provenance is labelled `synthetic_qa`.
+- Room v11 adds user-scoped `diet_records`. Manual meal entry persists locally
+  before creating a stable `telemetry-v2 dietRecords` queue item. When no real
+  wearable identity is bound, the row remains local and is queued after binding;
+  network availability never blocks entry.
 - Collection is routed through one `productCode`-selected Provider. The Release
   registry contains MRD/RWFit/HBand and all keep the existing Room batch path.
 - Cloud binding and batch provenance derive from the active domain vendor:
@@ -43,6 +47,9 @@ Status: implemented software path; updated 2026-07-29.
 - DTO/route contract tests with MockWebServer.
 - Room-to-telemetry mapping tests, including stable batch identity and raw-data exclusion.
 - Queue retry, durable acknowledgement, malformed payload, and 401 policy tests.
+- Diet repository tests cover local-first save, structured batch mapping and
+  single enqueue after a delayed device binding; migration 10→11 has an
+  instrumentation migration test.
 - Debug Kotlin compilation, JVM unit tests, and debug APK assembly.
 
 ## HARDWARE_QA_PENDING
