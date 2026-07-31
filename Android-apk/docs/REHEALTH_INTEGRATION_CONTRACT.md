@@ -25,6 +25,14 @@ cached in encrypted preferences under a SHA-256-derived user key so process
 recovery does not depend on network availability. They are not Room telemetry,
 are not logged, and do not change backend DTOs or PIAS.
 
+HBand App HRV/MET direct measurement follows the vendor's double gates: HRV
+requires `isSupportHRV && isSupportHrvAppDetect`, and MET requires
+`isSupportMet && isSupportMetAppDetect`. When enabled, the dedicated SDK
+callbacks are used; write failures, detection failures, and absent results are
+not persisted. Devices without the App measurement flags keep the existing
+mini-checkup/history compatibility routes. This changes no Room schema,
+upload DTO, or backend API contract.
+
 `RH-HB-E01` does not advertise `TEMPERATURE` after the current physical-device
 measurement failed acceptance. The domain/telemetry string remains backward-compatible
 for other Providers and existing rows; this changes no endpoint or DTO schema.

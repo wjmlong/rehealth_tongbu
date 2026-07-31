@@ -149,14 +149,15 @@ git diff --check
      but disabled; there is no “查看全部” interaction.
    - Trigger only metrics advertised by the active Provider. RWFit manual measure
      currently supports HR, SpO2 and HRV; BP/temperature/stress are not requested.
-     HBand `RH-HB-E01` manual measure supports HR, SpO2, HRV, BP,
-     blood glucose, stress, MET, ECG, blood component, and body composition. The purchased
-     MT116 advertises HRV/stress/MET direct switches but rejects all three direct commands;
-     HRV/stress therefore prioritize device `miniCheckup`, while MET uses a latest-history
-     “获取” action. Steps, sleep, and activity are sync-only.
-   - On MT116, tap HRV, pressure, and MET. Confirm HRV/pressure use mini-checkup or real history,
-     MET only reads real history, `HBandMetricFlow` reports the selected route, no SDK unsupported-feature
-     toast appears, and an absent/zero result creates no Room row.
+      HBand `RH-HB-E01` manual measure supports HR, SpO2, HRV, BP,
+      blood glucose, stress, MET, ECG, blood component, and body composition. HRV direct
+      measurement requires `isSupportHRV && isSupportHrvAppDetect`; MET direct measurement
+      requires `isSupportMet && isSupportMetAppDetect`. Steps, sleep, and activity are sync-only.
+   - With both HRV or MET flags true, tap “测量” and confirm the dedicated SDK API is selected,
+      progress remains non-terminal, and write/detection failures create no Room row. With an
+      App flag false, confirm HRV/pressure use mini-checkup or real history and MET reads real
+      history. The MT116 older-command `unknown action` evidence covers this fallback;
+      `HBandMetricFlow` must report the route without device identifiers or raw health values.
    - Start ECG from both the data card and the single-lead detail page, and start body composition
      from its data card. Confirm each flow shows the matching instructions before any SDK command,
      requires continuous opposite-hand contact with the metal electrode and a stable posture,

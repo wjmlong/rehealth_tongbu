@@ -99,6 +99,7 @@ import com.veepoo.protocol.model.enums.EDeviceStatus
 import com.veepoo.protocol.model.enums.ETemperatureUnit
 import com.veepoo.protocol.model.enums.EUricAcidUnit
 import com.veepoo.protocol.model.enums.HrvDetectState
+import com.veepoo.protocol.model.enums.MetDetectState
 import com.veepoo.protocol.model.enums.EWomenOprateStatus
 import com.veepoo.protocol.model.enums.EWomenStatus
 import com.veepoo.protocol.model.enums.EMiniCheckupTestErrorCode
@@ -229,7 +230,14 @@ internal class RealHBandSdkGateway(
         check(pwd.success) { "HBand password confirmation failed" }
         stateMachine.readCapabilities()
         publishState()
-        val supported = capabilityReports.awaitSettled()
+        val reportedCapabilities = capabilityReports.awaitSettled()
+        val vendorCapabilities = VpSpGetUtil.getVpSpVariInstance(appContext)
+        val supported = reportedCapabilities.withOfficialAppMeasurementCapabilities(
+            hrvFeature = vendorCapabilities.isSupportHRV,
+            hrvAppDetect = vendorCapabilities.isSupportHrvAppDetect,
+            metFeature = vendorCapabilities.isSupportMet,
+            metAppDetect = vendorCapabilities.isSupportMetAppDetect,
+        )
         debugLog {
             "capabilities hrvDirect=${supported.hrv} hrvHistory=${supported.hrvHistory} " +
                 "stressDirect=${supported.stress} stressHistory=${supported.stressHistory} " +
@@ -464,20 +472,23 @@ internal class RealHBandSdkGateway(
 
     private suspend fun measureHrv(): HBandPayload {
         val result = CompletableDeferred<HBandMetricSample?>()
+        val startResponse = BleWriteResponse { code ->
+            if (code != Code.REQUEST_SUCCESS) result.complete(null)
+        }
         val listener = object : IHrvDetectListener {
             override fun onHrvDetect(hrv: Int) {
                 if (hrv > 0) result.complete(HBandMetricSample(RingMetricType.HRV, clock(), hrv.toDouble(), "ms"))
             }
 
             override fun onDetectFailed(detectState: HrvDetectState) {
-                result.complete(null)
+                if (detectState != HrvDetectState.PROGRESS) result.complete(null)
             }
 
             override fun onDetectStop() {
                 result.complete(null)
             }
         }
-        withContext(Dispatchers.Main.immediate) { manager.startDetectHrv(sdkWriteResponse, listener) }
+        withContext(Dispatchers.Main.immediate) { manager.startDetectHrv(startResponse, listener) }
         return try {
             result.await()?.let { HBandPayload(measurements = listOf(it)) } ?: HBandPayload()
         } finally {
@@ -622,18 +633,21 @@ internal class RealHBandSdkGateway(
 
     private suspend fun measureMet(): HBandPayload {
         val result = CompletableDeferred<HBandMetricSample?>()
+        val startResponse = BleWriteResponse { code ->
+            if (code != Code.REQUEST_SUCCESS) result.complete(null)
+        }
         val listener = object : IMetDetectListener {
             override fun onMetDetect(progress: Int, met: Float) {
                 if (progress >= MEASUREMENT_COMPLETE_PROGRESS && met.isFinite() && met > 0f) {
                     result.complete(HBandMetricSample(RingMetricType.MET, clock(), met.toDouble(), "MET"))
                 }
             }
-            override fun onDetectFailed(detectState: com.veepoo.protocol.model.enums.MetDetectState) {
-                result.complete(null)
+            override fun onDetectFailed(detectState: MetDetectState) {
+                if (detectState != MetDetectState.PROGRESS) result.complete(null)
             }
             override fun onDetectStop() { result.complete(null) }
         }
-        withContext(Dispatchers.Main.immediate) { manager.startDetectMet(sdkWriteResponse, listener) }
+        withContext(Dispatchers.Main.immediate) { manager.startDetectMet(startResponse, listener) }
         return try {
             result.await()?.let { HBandPayload(measurements = listOf(it)) } ?: HBandPayload()
         } finally {

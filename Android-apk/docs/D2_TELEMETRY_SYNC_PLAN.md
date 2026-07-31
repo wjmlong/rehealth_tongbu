@@ -24,11 +24,12 @@ Status: implemented software path; updated 2026-07-29.
   explicitly awaits `readSleepData` before starting `readOriginData`, because physical-device
   validation found firmware that returned origin records but omitted sleep from `readAllHealthData`. Five-minute
   step, distance, and calorie records are aggregated per day before Room persistence;
-  capability-gated manual measurement and body-composition history follow. Direct HBand
-  HRV/MET commands require their dedicated SDK flags, but the purchased MT116 still rejects
-  the advertised HRV/stress/MET direct commands with `unknown action`. `RH-HB-E01` therefore
-  prioritizes the package-4 mini-checkup result for HRV/stress and device history for MET;
-  HRV/stress/MET can all read scoped device manual history as the final real-data fallback.
+  capability-gated manual measurement and body-composition history follow. Direct HBand App
+  HRV/MET measurement uses the vendor's exact double gates: `isSupportHRV &&
+  isSupportHrvAppDetect` and `isSupportMet && isSupportMetAppDetect`. When the relevant pair
+  is true, `RH-HB-E01` prefers the dedicated SDK API; otherwise HRV/stress retain package-4
+  mini-checkup or history fallback and MET retains manual-measurement history fallback. The
+  purchased MT116's 2026-07-30 `unknown action` evidence covers the older generic commands.
   This prevents the SDK's unsupported-feature toast without inventing an instant MET value;
   only positive real SDK results are persisted. Completed
   reads are retained if a later optional SDK operation fails. Unsupported,

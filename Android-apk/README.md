@@ -198,11 +198,15 @@ HBand 真机联调可生成强制选择 `RH-HB-E01` 的专用 APK：
 SDK 能力报告取交集。新版 `DeviceFunctionPackage1..5` 对相应字段优先，旧版
 `FunctionDeviceSupportData` 仅作为兼容回退；应用等待能力回调稳定后再判定，避免 MT116
 因旧回调首次返回的字段尚未初始化而误报不支持 ECG。血糖校准和经期设置也只在设备报告相应能力时启用。
-HBand 将独立测量能力与历史协议能力分开处理，避免把 `hrvType`/`metType` 误当成独立测量
-开关而触发 SDK 的“不支持”提示。2026-07-30 的 MT116 真机日志进一步确认：固件虽然声明
-HRV、压力、MET 独立能力，三项 `manual_detect_de` 命令仍全部返回 `unknown action`。因此
-HRV、压力在设备报告 `miniCheckup` 时优先走一键体检真实结果，MET 的“获取”按钮优先读取
-设备最新 MET 历史；只有调用方明确禁用真实数据兜底时才允许尝试专用直测接口。连接成功的
+HBand 将独立测量能力与历史协议能力分开处理。HRV 直测要求
+`isSupportHRV && isSupportHrvAppDetect`，MET 直测要求
+`isSupportMet && isSupportMetAppDetect`；双能力位成立时分别调用 SDK 的
+`startDetectHrv` 和 `startDetectMet`，写命令失败或检测失败不会生成健康样本。当前固定的
+`vpprotocol-2.3.73.15.aar` 已包含 2026-04-23 HRV 与 2026-07-02 MET API，因此本次不引入
+仅包含后续 JH58 变更的 SDK 升级。对未声明 App 测量能力的旧固件，HRV、压力继续复用
+一键体检或历史，MET 读取设备最新手动测量历史。2026-07-30 的 MT116 真机证据表明旧版
+三项 `manual_detect_de` 命令返回 `unknown action`，该证据用于覆盖兼容兜底，而不会阻止
+声明新能力的设备使用官方直测 API。连接成功的
 `RH-HB-E01` 也允许对 HRV、压力、MET 发起受控历史读取；失败或无有效值时不写入占位数据。
 `ECG` 是 `RH-HB-E01` 的必需能力；设备未上报 ECG 时连接会明确失败，避免把不兼容型号当作已支持商品。
 不支持的能力在数据页保留禁用入口或静态空卡片，但不会触发测量、写入 0 或生成模拟数据。

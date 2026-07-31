@@ -70,6 +70,12 @@ README also describes use as limited to cooperative customers, so commercial
 authorization remains a release gate even though the public repository contains
 an Apache-2.0 license file.
 
+The pinned `vpprotocol-2.3.73.15.aar` has been signature-audited and already
+exposes `startDetectHrv`/`stopDetectHrv`, `startDetectMet`/`stopDetectMet`, and
+the four HRV/MET capability getters. No binary bump is required for the April
+23 HRV or July 2 MET integration; later JH58-only SDK changes are outside this
+scope.
+
 When the Provider references `VPOperateManager`, Release R8 also sees method
 signatures for optional JieLi bitmap/FAT dial helpers. The absent bitmap helper
 is suppressed in `proguard-rules.pro`; its library remains excluded and no
@@ -115,22 +121,21 @@ The SDK marks `onFunctionSupportDataChange` deprecated and documents that it may
 multiple times before all fields are initialized, so numbered packages override the
 latest aggregate value for their fields. In particular, MT116 ECG and direct app-HRV
 support are read from `DeviceFunctionPackage2`; the aggregate callback remains a
-compatibility fallback. Direct HRV requires `hrvAppDetectFunction`; `hrvFunction` or a
-non-zero `hrvType` enables history reads but does not authorize `startDetectHrv`.
-Likewise, direct MET requires `met`, while non-zero `metType` enables history reads only.
+compatibility fallback. Direct HRV requires both `isSupportHRV` and
+`isSupportHrvAppDetect`; a non-zero `hrvType` enables history reads but does not authorize
+`startDetectHrv`. Likewise, direct MET requires both `isSupportMet` and
+`isSupportMetAppDetect`, while non-zero `metType` enables history reads only.
 This distinction is required because the pinned SDK itself rejects unsupported direct
 commands with a user-visible toast.
 Its product intersection
 allows heart rate, daily steps/activity, sleep, blood oxygen, app HRV, blood pressure,
 blood glucose, stress, MET, ECG, blood component, and body composition
 operations. Blood-glucose calibration
-and menstrual-cycle settings use separate feature operations. On 2026-07-30, the purchased
-MT116 was observed to advertise dedicated HRV/stress/MET support while returning an all-zero
-`unknown action` response to all three `manual_detect_de` commands. For `RH-HB-E01`, package
-4 `miniCheckup` therefore has priority over the dedicated HRV/stress commands, and scoped
-manual history has priority over the dedicated MET command. HRV/stress history remains the
-final fallback when mini-checkup is absent; MET uses the UI label “获取”. Dedicated commands
-remain reachable only when the caller explicitly disables these real-data fallbacks.
+and menstrual-cycle settings use separate feature operations. For `RH-HB-E01`, HRV and MET
+prefer the dedicated SDK APIs only after their exact double gates pass. If a pair is absent,
+HRV/stress use package-4 `miniCheckup` or scoped history and MET uses manual-measurement
+history. The purchased MT116's 2026-07-30 all-zero `unknown action` result for the older
+`manual_detect_de` commands remains the expected old-firmware fallback case.
 Failures, timeouts, zeroes, and absent values are not persisted. ECG is a product requirement for `RH-HB-E01`; a device
 that does not report ECG support is rejected instead of silently degrading. The user profile comes from ReHealth profile
 data; the SDK demo's fixed sex/age/height/weight values are not used. Blood
