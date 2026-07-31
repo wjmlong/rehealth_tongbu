@@ -250,6 +250,9 @@ git diff --check
      maps, `model_version`, `is_mock`, `missing_fields`, `quality_warnings`, and `summary`.
    - Confirm the Attribution 16 rows use `factor_contributions`, show the exact vector
      values sent for evaluation, and label the rule as Factor16 rather than RDI16.
+   - Expand all 16 rows. Confirm each explanation contains the row's current value
+     and each row has a conservative field-specific suggestion. The detail card must
+     not display technical source or rule-version text. Missing values must remain explicit.
    - Confirm cuffless wearable BP stays on Data but produces missing/low-confidence
      Factor16 BP; only a confirmed 3–7 day upper-arm cuff mean unlocks SBP/DBP.
    - Confirm hospital labs require a report date and explicit source confirmation.

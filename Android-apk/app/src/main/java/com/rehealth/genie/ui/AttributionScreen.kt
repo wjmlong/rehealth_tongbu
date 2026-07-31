@@ -651,6 +651,7 @@ private fun AttributionFactorRow(
     onClick: () -> Unit,
 ) {
     val contribution = factor.contribution
+    val evidence = attributionFactorEvidence(factor)
     val fraction by animateFloatAsState(
         targetValue = contribution?.let { (kotlin.math.abs(it) / maxContribution).toFloat().coerceIn(0f, 1f) } ?: 0f,
         animationSpec = tween(Motion.ProgressMillis),
@@ -727,16 +728,16 @@ private fun AttributionFactorRow(
                     .background(Palette.SurfaceSubtle).padding(Dimensions.FactorDetailPadding),
             ) {
                 Text(
-                    if (contribution == null) {
-                        "本次 Factor16 规则结果没有可用的该项贡献；缺失值不会按正常值补齐。"
-                    } else {
-                        "Factor16 规则贡献 ${String.format(Locale.US, "%+.3f", contribution)}；正值表示风险方向，负值表示保护方向。"
-                    },
+                    evidence.explanation,
                     color = Palette.TextPrimary,
                     style = Type.Detail,
                 )
                 Text(
-                    "数据来源：独立 Factor16 规则服务与本机真实入口；不读取 RDI16 或模型 SHAP 作为本卡贡献。",
+                    if (contribution == null) {
+                        "规则贡献：当前无可用贡献，缺失值不会按正常值补齐。"
+                    } else {
+                        "规则贡献：${String.format(Locale.US, "%+.3f", contribution)}；正值表示风险方向，负值表示保护方向。"
+                    },
                     color = Palette.TextSecondary,
                     style = Type.Micro,
                     modifier = Modifier.padding(top = Dimensions.FactorEvidenceTop),
@@ -752,19 +753,12 @@ private fun AttributionFactorRow(
                     )
                 }
                 Text(
-                    factorEntryHint(factor.key),
-                    color = Palette.TextSecondary,
-                    style = Type.Micro,
+                    "建议：${evidence.recommendation}",
+                    color = Palette.Accent,
+                    style = Type.Detail,
+                    fontWeight = FontWeight.Medium,
                     modifier = Modifier.padding(top = Dimensions.FactorEvidenceTop),
                 )
-                factor.contributionRuleVersion?.let { version ->
-                    Text(
-                        "规则版本：$version（归因 16 项，不是 RDI16）",
-                        color = Palette.TextSecondary,
-                        style = Type.Micro,
-                        modifier = Modifier.padding(top = Dimensions.FactorEvidenceTop),
-                    )
-                }
             }
         }
         if (rank != AttributionUiMapper.CANONICAL_FACTOR_KEYS.size) {
@@ -1129,16 +1123,6 @@ private fun attributionFactorValues(profile: PatientProfilePayload?): Map<String
     profile?.diabetesHistory?.let { put("diabetes_history", it.asHistory()) }
     profile?.hypertensionHistory?.let { put("hypertension_history", it.asHistory()) }
     profile?.familyHistory?.let { put("family_history", it.asHistory()) }
-}
-
-private fun factorEntryHint(key: String): String = when (key) {
-    "age", "gender", "bmi", "smoking", "drinking",
-    "diabetes_history", "hypertension_history", "family_history",
-    -> "真实入口：我的 > 编辑个人资料"
-    "sbp", "dbp", "fasting_glucose", "total_cholesterol", "ldl", "hdl", "triglycerides",
-    -> "真实入口：我的 > 编辑健康与归因指标"
-    "exercise_days" -> "真实入口：数据 > 设备活动；中等强度 30 分钟或高强度 15 分钟计入"
-    else -> "真实入口：健康档案"
 }
 
 private fun Boolean.asYesNo(): String = if (this) "是" else "否"
