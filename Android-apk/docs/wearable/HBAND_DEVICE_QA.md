@@ -79,7 +79,9 @@ For `RH-HB-E01`, validate only device-advertised capabilities:
   every returned night, compare the displayed duration directly with the watch/vendor
   app `allSleepTime`; it must not equal the longer `sleepDown`→`sleepUp` span merely by
   coincidence and must not include synthesized awake minutes. For total-only sleep,
-  verify duration is displayed while deep/light/REM remain unknown;
+  verify duration is displayed while deep/light/REM remain unknown. If Room contains
+  several increasing callbacks for one wake-up day, verify Today displays the largest
+  final total and 7/30-day views count that day once;
 - manual blood oxygen only when `getSpo2H()` is true; verify a real `%` value and
   wear-off/failure behavior;
 - when both HRV capability flags are true, verify `startDetectHrv` direct measurement and

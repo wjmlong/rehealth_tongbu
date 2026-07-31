@@ -552,8 +552,7 @@ class RingViewModel(
         }
         val totalSteps = activities.sumOf { it.steps.toLong() }
         val daysWithSteps = activities.map { localDateAt(it.startedAt) }.distinct().size
-        val sleepMinutes = sleep.mapNotNull(::canonicalSleepMinutes)
-        val avgSleep = sleepMinutes.takeIf(List<Int>::isNotEmpty)?.average()
+        val avgSleep = averageDailySleepMinutes(sleep)
         val daysWithMeasurements = measurements.map { localDateAt(it.measuredAt) }.distinct().size
         val riskSummary = riskHistoryRepository?.periodSummary(windowDays)
 
@@ -740,6 +739,21 @@ internal fun canonicalSleepMinutes(session: RingSleepSessionEntity): Int? {
     return ((session.endedAt - session.startedAt) / 60_000L)
         .toInt()
         .takeIf { it > 0 }
+}
+
+/**
+ * Vendor SDKs may emit several cumulative snapshots while assembling one night's sleep.
+ * Select the final (largest) duration for each local wake-up day before averaging days,
+ * otherwise one night is incorrectly counted several times.
+ */
+internal fun averageDailySleepMinutes(sessions: List<RingSleepSessionEntity>): Double? {
+    val dailyMinutes = sessions
+        .groupBy { localDateAt(it.endedAt) }
+        .values
+        .mapNotNull { dailySessions ->
+            dailySessions.mapNotNull(::canonicalSleepMinutes).maxOrNull()
+        }
+    return dailyMinutes.takeIf(List<Int>::isNotEmpty)?.average()
 }
 
 private fun localDateAt(timestamp: Long) =

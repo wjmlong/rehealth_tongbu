@@ -46,6 +46,9 @@ Status: implemented software path; updated 2026-07-31.
   before actual sleep stages (`deep + light + REM`) and finally elapsed session time. Awake
   minutes and the `sleepDown`/`sleepUp` clock span are not counted as HBand sleep duration.
   Queries still use `ended_at`, so cross-midnight sessions ending today remain included.
+  When one night has several increasing HBand cumulative snapshots, aggregation keeps the
+  largest final duration for that local wake-up day and averages those daily finals across
+  the selected period; it never averages intermediate callbacks as separate nights.
 - The Data-screen action is a connected-only daily sync for sleep, steps, and activity. It never
   auto-connects from the UI, and the in-process automatic cycle skips while disconnected. Explicit
   Foreground Service recovery retains bound-device reconnect behavior. For HBand, existing recent

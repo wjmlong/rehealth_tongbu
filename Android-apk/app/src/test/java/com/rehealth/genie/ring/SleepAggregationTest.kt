@@ -1,6 +1,8 @@
 package com.rehealth.genie.ring
 
 import com.rehealth.genie.ring.data.RingSleepSessionEntity
+import java.time.LocalDateTime
+import java.time.ZoneId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -56,4 +58,49 @@ class SleepAggregationTest {
 
         assertEquals(420, canonicalSleepMinutes(session))
     }
+
+    @Test
+    fun `cumulative snapshots from one night contribute only the final total`() {
+        val firstWakeDay = LocalDateTime.of(2026, 7, 31, 8, 15)
+            .atZone(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+        val sessions = listOf(
+            sleepSnapshot("first", firstWakeDay - 170 * 60_000L, 299),
+            sleepSnapshot("second", firstWakeDay - 50 * 60_000L, 419),
+            sleepSnapshot("final", firstWakeDay, 469),
+        )
+
+        assertEquals(469.0, averageDailySleepMinutes(sessions))
+    }
+
+    @Test
+    fun `period average is calculated from one final result per wake day`() {
+        val firstWakeDay = LocalDateTime.of(2026, 7, 31, 8, 15)
+            .atZone(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+        val previousWakeDay = firstWakeDay - 24 * 60 * 60_000L
+        val sessions = listOf(
+            sleepSnapshot("today-partial", firstWakeDay - 50 * 60_000L, 419),
+            sleepSnapshot("today-final", firstWakeDay, 469),
+            sleepSnapshot("previous-final", previousWakeDay, 420),
+        )
+
+        assertEquals(444.5, averageDailySleepMinutes(sessions))
+    }
+
+    private fun sleepSnapshot(id: String, endedAt: Long, totalMinutes: Int) =
+        RingSleepSessionEntity(
+            id = id,
+            startedAt = endedAt - 60 * 60_000L,
+            endedAt = endedAt,
+            deepMinutes = 0,
+            lightMinutes = 0,
+            awakeMinutes = 0,
+            remMinutes = 0,
+            interruptionMinutes = 0,
+            source = "hband_wearable",
+            totalSleepMinutes = totalMinutes,
+        )
 }
