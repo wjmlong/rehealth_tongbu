@@ -69,7 +69,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rehealth.genie.BuildConfig
 import com.rehealth.genie.ReHealthApplication
+import com.rehealth.genie.data.profileAvatarStorageKey
 import com.rehealth.genie.network.PatientProfilePayload
+import com.rehealth.genie.network.dto.BehaviorRecordDto
 import com.rehealth.genie.phm.AttributionHistoryPoint
 import com.rehealth.genie.rhi.RhiDailyScore
 import com.rehealth.genie.rhi.RhiPeriodAggregation
@@ -99,6 +101,16 @@ fun AttributionScreen(
     val rhiPeriodSummary by rhiViewModel.periodSummary.collectAsState()
     val rhiRefreshError by rhiViewModel.refreshError.collectAsState()
     val rhiCalculationSource by rhiViewModel.calculationSource.collectAsState()
+    val behaviorOwnerKey = remember(application.sessionStore.userId, application.sessionStore.username) {
+        profileAvatarStorageKey(
+            application.sessionStore.userId ?: application.sessionStore.username ?: "signed-out",
+        )
+    }
+    val behaviorViewModel: BehaviorRecordViewModel = viewModel(
+        key = "behavior-records-$behaviorOwnerKey",
+        factory = remember(application) { BehaviorRecordViewModel.Factory(application) },
+    )
+    val behaviorState by behaviorViewModel.state.collectAsState()
     var selectedPeriod by remember { mutableStateOf(AttributionPeriod.DAYS_7) }
     var retryKey by remember { mutableIntStateOf(0) }
     var requestSequence by remember { mutableLongStateOf(0L) }
@@ -204,6 +216,7 @@ fun AttributionScreen(
         rhiError = rhiRefreshError,
         rhiCalculationSource = rhiCalculationSource,
         feedbackViewModel = feedbackViewModel,
+        behaviorRecords = behaviorState.records,
         onPeriodSelected = { selectedPeriod = it },
         onRhiCalculationSourceSelected = rhiViewModel::setCalculationSource,
         onRetry = {
@@ -212,6 +225,7 @@ fun AttributionScreen(
                 selectedPeriod.days.toInt(),
                 AttributionDataProvenance.trustedProfile(ringState.patientMvp),
             )
+            behaviorViewModel.refreshToday()
         },
     )
 }
@@ -223,6 +237,7 @@ private fun AttributionContent(
     rhiError: String?,
     rhiCalculationSource: com.rehealth.genie.rhi.RhiCalculationSource,
     feedbackViewModel: InterventionFeedbackViewModel,
+    behaviorRecords: List<BehaviorRecordDto>,
     onPeriodSelected: (AttributionPeriod) -> Unit,
     onRhiCalculationSourceSelected: (com.rehealth.genie.rhi.RhiCalculationSource) -> Unit,
     onRetry: () -> Unit,
@@ -270,7 +285,7 @@ private fun AttributionContent(
         }
         item { AttributionSummaryCard(state, rhiSummary, rhiError) }
         item { AttributionPiasCard(state.pias, state.selectedHistory, onRetry) }
-        item { AttributionActivityCard(state.activity) }
+        item { AttributionActivityCard(state.activity, behaviorRecords) }
         item { AttributionFactorsCard(state.factorGroups) }
         item { AttributionPlanCard(state.interventions, feedbackViewModel) }
         item {
@@ -598,15 +613,15 @@ private fun AttributionPiasReadyContent(
 }
 
 @Composable
-private fun AttributionActivityCard(activity: AttributionActivityUi?) {
+private fun AttributionActivityCard(activity: AttributionActivityUi?, behaviorRecords: List<BehaviorRecordDto>) {
     AttributionCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("今日行为记录", color = Palette.TextPrimary, style = Type.CardTitle)
-                Text("本机 Room 中最近一次戒指活动", color = Palette.TextSecondary, style = Type.Detail)
+                Text("戒指活动与拍照生成的饮食/OCR记录", color = Palette.TextSecondary, style = Type.Detail)
             }
             Text(
-                if (activity == null) "待记录" else "已记录",
+                if (activity == null && behaviorRecords.isEmpty()) "待记录" else "已记录",
                 color = Palette.Accent,
                 style = Type.Detail,
                 modifier = Modifier.clip(CircleShape).background(Palette.AccentSoft)
@@ -616,9 +631,9 @@ private fun AttributionActivityCard(activity: AttributionActivityUi?) {
                     ),
             )
         }
-        if (activity == null) {
+        if (activity == null && behaviorRecords.isEmpty()) {
             AttributionCompactMessage("暂无可展示的真实活动记录；同步 MR11 戒指后自动更新。")
-        } else {
+        } else if (activity != null) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = Dimensions.ActivityContentTop)
                     .clip(RoundedCornerShape(Dimensions.ActivityContentRadius))
@@ -665,6 +680,28 @@ private fun AttributionActivityCard(activity: AttributionActivityUi?) {
                     String.format(Locale.US, "%.1f km", activity.distanceMeters / 1_000.0),
                     Modifier.weight(1f),
                 )
+            }
+        }
+        behaviorRecords.take(5).forEach { record ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = Dimensions.ActivityContentTop)
+                    .clip(RoundedCornerShape(Dimensions.ActivityContentRadius))
+                    .background(Palette.ActivitySurface).padding(Dimensions.ActivityContentPadding),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    Modifier.size(Dimensions.ActivityBadgeSize).clip(CircleShape).background(Palette.ActivityBadge),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(if (record.category == "FOOD") "餐" else "文", color = Palette.ActivityAccent, style = Type.ActivityGlyph)
+                }
+                Column(Modifier.weight(1f).padding(start = Dimensions.ActivityTextGap)) {
+                    Text(record.title ?: "照片记录", color = Palette.TextPrimary, style = Type.Selector, fontWeight = FontWeight.SemiBold)
+                    Text(record.summary ?: "已完成图像识别", color = Palette.TextSecondary, style = Type.Micro, maxLines = 2)
+                }
+                record.caloriesKcal?.let {
+                    Text("约 ${it.toInt()} kcal", color = Palette.Accent, style = Type.Micro, textAlign = TextAlign.End)
+                }
             }
         }
     }

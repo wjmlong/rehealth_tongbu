@@ -117,6 +117,10 @@ services:
       REHEALTH_LLM_BASE_URL: ${REHEALTH_LLM_BASE_URL:-https://api.deepseek.com}
       REHEALTH_LLM_API_KEY_FILE: /run/secrets/provider_credential
       REHEALTH_LLM_MODEL: ${REHEALTH_LLM_MODEL:-deepseek-v4-flash}
+      REHEALTH_VISION_ENABLED: ${REHEALTH_VISION_ENABLED:-false}
+      REHEALTH_VISION_BASE_URL: ${REHEALTH_VISION_BASE_URL:-https://api.openai.com/v1}
+      REHEALTH_VISION_API_KEY_FILE: /run/secrets/vision_provider_credential
+      REHEALTH_VISION_MODEL: ${REHEALTH_VISION_MODEL:-gpt-5.6-luna}
       REHEALTH_KAFKA_CONSUMER_ENABLED: "true"
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SPRING_KAFKA_CONSUMER_ENABLE_AUTO_COMMIT: "false"
@@ -138,6 +142,7 @@ services:
       - redis_password
       - internal_service_credential
       - provider_credential
+      - vision_provider_credential
       - kafka_sasl_jaas_config
       - kafka_truststore
       - kafka_truststore_password
@@ -565,6 +570,8 @@ secrets:
     file: ./secrets/model_artifact_public_key.pem
   provider_credential:
     file: ./secrets/provider_credential
+  vision_provider_credential:
+    file: ./secrets/vision_provider_credential
   kafka_sasl_jaas_config:
     file: ./secrets/kafka_sasl_jaas_config
   kafka_truststore:

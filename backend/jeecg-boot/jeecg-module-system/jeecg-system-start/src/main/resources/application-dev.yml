@@ -451,6 +451,15 @@ rehealth:
     rate-limit:
       requests: ${REHEALTH_AGENT_RATE_LIMIT_REQUESTS:20}
       window-seconds: ${REHEALTH_AGENT_RATE_LIMIT_WINDOW_SECONDS:60}
+  vision:
+    enabled: ${REHEALTH_VISION_ENABLED:false}
+    base-url: ${REHEALTH_VISION_BASE_URL:}
+    api-key: ${REHEALTH_VISION_API_KEY:}
+    api-key-file: ${REHEALTH_VISION_API_KEY_FILE:}
+    model: ${REHEALTH_VISION_MODEL:gpt-5.6-luna}
+    timeout-seconds: ${REHEALTH_VISION_TIMEOUT_SECONDS:45}
+    max-tokens: ${REHEALTH_VISION_MAX_TOKENS:1200}
+    max-image-bytes: ${REHEALTH_VISION_MAX_IMAGE_BYTES:4194304}
   attribution-service:
     base-url: http://127.0.0.1:8000
     internal-token-file: ${REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE:}

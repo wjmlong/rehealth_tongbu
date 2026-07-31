@@ -121,6 +121,53 @@ class ReHealthMobileApiRouteContractTest {
     }
 
     @Test
+    fun `uploads camera photo and reads today behavior records`() = runTest {
+        server.start()
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"success":true,"code":200,"result":{"id":"behavior-1","category":"FOOD","title":"午餐","caloriesKcal":520}}""",
+            ),
+        )
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"success":true,"code":200,"result":[{"id":"behavior-1","category":"FOOD","title":"午餐"}]}""",
+            ),
+        )
+        val api = ReHealthMobileApi(
+            baseUrl = server.url("/jeecg-boot/").toString(),
+            httpClient = OkHttpClient(),
+            apiToken = "synthetic-test-token",
+        )
+
+        val analyzed = assertIs<RemotePhmOutcome.Success<*>>(
+            api.analyzeBehaviorPhoto(
+                image = byteArrayOf(1, 2, 3),
+                contentType = "image/jpeg",
+                fileName = "meal.jpg",
+                requestId = "behavior-request-1",
+                occurredAt = 1_785_470_400_000L,
+            ),
+        )
+        assertEquals("午餐", (analyzed.data as com.rehealth.genie.network.dto.BehaviorRecordDto).title)
+        val upload = server.takeRequest()
+        assertEquals("/jeecg-boot/rehealth/mobile/behavior-records/analyze-photo", upload.path)
+        assertEquals("POST", upload.method)
+        assertEquals("synthetic-test-token", upload.getHeader("X-Access-Token"))
+        val multipart = upload.body.readUtf8()
+        assertTrue(multipart.contains("behavior-request-1"))
+        assertTrue(multipart.contains("meal.jpg"))
+
+        val today = assertIs<RemotePhmOutcome.Success<*>>(
+            api.getTodayBehaviorRecords("2026-07-31", 480),
+        )
+        assertEquals(1, (today.data as List<*>).size)
+        assertRequest(
+            "/jeecg-boot/rehealth/mobile/behavior-records/today?date=2026-07-31&zoneOffsetMinutes=480",
+            "GET",
+        )
+    }
+
+    @Test
     fun `uses authenticated software loop routes and parses persistence acknowledgements`() = runTest {
         server.start()
         listOf(

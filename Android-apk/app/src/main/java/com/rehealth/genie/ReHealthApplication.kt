@@ -4,6 +4,7 @@ import android.app.Application
 import com.rehealth.genie.data.AppDatabase
 import com.rehealth.genie.data.RiskHistoryRepository
 import com.rehealth.genie.data.HealthChatRepository
+import com.rehealth.genie.data.BehaviorRecordRepository
 import com.rehealth.genie.data.sync.InterventionFeedbackRepository
 import com.rehealth.genie.data.sync.RingCloudRepository
 import com.rehealth.genie.data.sync.SyncRepository
@@ -138,6 +139,10 @@ class ReHealthApplication : Application() {
             apiClient = authenticatedApiClient,
             userIdProvider = { sessionStore.userId },
         )
+    }
+
+    val behaviorRecordRepository by lazy {
+        BehaviorRecordRepository(this, authenticatedApiClient)
     }
 
     val mrdProtocolAdapter by lazy { MrdProtocolAdapter(this) }

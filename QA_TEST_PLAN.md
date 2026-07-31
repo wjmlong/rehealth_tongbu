@@ -134,6 +134,16 @@ git diff --check
    - Open “我的”, tap the avatar, and select an image through the Android system picker.
      Confirm the preview updates, survives app restart and same-user re-login, and is not visible
      to another user. Verify no avatar upload request is sent and no new media permission is asked.
+   - On Home, tap “拍照记录”, grant camera permission, and confirm the system camera writes to an
+     app-private `FileProvider` URI. Cancel once and confirm no upload or record is created. Capture
+     one meal and one text document; confirm upload progress is visible and FOOD/OCR results appear
+     in “今日行为记录” on both Home and Data with the correct local time.
+   - Confirm nutrition values are labeled as estimates, the complete OCR text is present in the
+     returned record, and no raw photo, provider key, access token, or image base64 appears in Room,
+     `software_db`, logcat, or JeecgBoot logs. Confirm the temporary camera file is removed.
+   - Reuse the same `requestId` and expect the existing owner-scoped record without a second model
+     call. Log in as another user/tenant and confirm the first user's record is absent. Disable the
+     network or provider and confirm a controlled error is shown without a fake behavior record.
    - Open the Data tab and confirm “今日” is selected. Sync a sleep session that starts before
      midnight and ends today; verify today's duration equals valid stage totals (or elapsed time
      only when stages are absent). Verify 7/30-day risk and health index use only confirmed daily

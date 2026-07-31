@@ -111,6 +111,23 @@ class AuthenticatedApiClient(
         mobileApi.getLatestHealthAgentConversation(limit)
     }
 
+    suspend fun analyzeBehaviorPhoto(
+        image: ByteArray,
+        contentType: String,
+        fileName: String,
+        requestId: String,
+        occurredAt: Long,
+    ): ApiResult<BehaviorRecordDto> = executeWithAuth {
+        mobileApi.analyzeBehaviorPhoto(image, contentType, fileName, requestId, occurredAt)
+    }
+
+    suspend fun getTodayBehaviorRecords(
+        date: String,
+        zoneOffsetMinutes: Int,
+    ): ApiResult<List<BehaviorRecordDto>> = executeWithAuth {
+        mobileApi.getTodayBehaviorRecords(date, zoneOffsetMinutes)
+    }
+
     suspend fun getRiskLatest(): ApiResult<RiskResultDto?> = executeWithAuth {
         mobileApi.getRiskLatest()
     }

@@ -7,6 +7,10 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
 import android.speech.RecognizerIntent
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
@@ -55,6 +59,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -63,6 +68,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
@@ -78,6 +84,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rehealth.genie.R
 import com.rehealth.genie.ReHealthApplication
@@ -86,6 +93,7 @@ import com.rehealth.genie.data.HealthChatConversationEntity
 import com.rehealth.genie.data.HealthChatRepository
 import com.rehealth.genie.data.profileAvatarStorageKey
 import com.rehealth.genie.network.PatientInterventionPayload
+import com.rehealth.genie.network.dto.BehaviorRecordDto
 import com.rehealth.genie.phm.Intervention
 import com.rehealth.genie.ui.theme.Canvas
 import com.rehealth.genie.ui.theme.Ink
@@ -104,6 +112,7 @@ internal fun HomeScreen() {
     var showConversationManager by remember { mutableStateOf(false) }
     var conversationToDelete by remember { mutableStateOf<HealthChatConversationEntity?>(null) }
     var showClearConversationsConfirmation by remember { mutableStateOf(false) }
+    var pendingPhotoUriValue by rememberSaveable { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val application = context.applicationContext as ReHealthApplication
     val chatOwnerKey = remember(application.sessionStore.userId, application.sessionStore.username) {
@@ -119,6 +128,11 @@ internal fun HomeScreen() {
     val conversations by chatViewModel.conversations.collectAsState()
     val activeConversationId by chatViewModel.activeConversationId.collectAsState()
     val chatState by chatViewModel.uiState.collectAsState()
+    val behaviorViewModel: BehaviorRecordViewModel = viewModel(
+        key = "behavior-records-$chatOwnerKey",
+        factory = remember(application) { BehaviorRecordViewModel.Factory(application) },
+    )
+    val behaviorState by behaviorViewModel.state.collectAsState()
     val session = application.sessionStore
     val displayName = session.realname?.takeIf(String::isNotBlank)
         ?: session.username?.takeIf(String::isNotBlank)
@@ -192,6 +206,43 @@ internal fun HomeScreen() {
         }
     }
 
+    fun createPhotoUri(): Uri {
+        val directory = File(context.cacheDir, "behavior-photos").apply { mkdirs() }
+        val file = File.createTempFile("behavior-", ".jpg", directory)
+        return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    }
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { captured ->
+        val uri = pendingPhotoUriValue?.let(Uri::parse)
+        pendingPhotoUriValue = null
+        if (captured && uri != null) {
+            behaviorViewModel.analyzePhoto(uri)
+        } else if (uri != null) {
+            runCatching { context.contentResolver.delete(uri, null, null) }
+            voiceMessage = "已取消拍照"
+        }
+    }
+    fun startCamera() {
+        runCatching {
+            createPhotoUri().also { uri ->
+                pendingPhotoUriValue = uri.toString()
+                cameraLauncher.launch(uri)
+            }
+        }.onFailure {
+            voiceMessage = "当前设备无法打开系统相机"
+        }
+    }
+    val cameraPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) startCamera() else voiceMessage = "未授权相机权限，无法拍照记录"
+    }
+    fun requestCamera() {
+        showActions = false
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            startCamera()
+        } else {
+            cameraPermission.launch(Manifest.permission.CAMERA)
+        }
+    }
+
     Column(
         modifier = Modifier.fillMaxSize().background(Canvas).statusBarsPadding(),
     ) {
@@ -251,6 +302,11 @@ internal fun HomeScreen() {
                     }
                 }
             }
+            if (behaviorState.records.isNotEmpty() || behaviorState.isLoading || behaviorState.isUploading) {
+                item(key = "today-behavior") {
+                    HomeTodayBehaviorCard(behaviorState)
+                }
+            }
             items(messages, key = { it.messageId }) { message ->
                 Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
                     HomeChatPreview(message)
@@ -286,8 +342,7 @@ internal fun HomeScreen() {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 HomeQuickAction(Icons.Outlined.AddAPhoto, "拍照记录", Modifier.weight(1f)) {
-                    input = "我想记录饮食或健康报告"
-                    showActions = false
+                    requestCamera()
                 }
                 HomeQuickAction(Icons.Outlined.Assessment, "健康记录", Modifier.weight(1f)) {
                     input = "请结合我的健康记录给出建议"
@@ -306,6 +361,15 @@ internal fun HomeScreen() {
                 color = Muted,
                 fontSize = 10.sp,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp),
+            )
+        }
+        (behaviorState.message ?: behaviorState.error)?.let { message ->
+            Text(
+                message,
+                color = if (behaviorState.error == null) Mint else Color(0xFFD94C4C),
+                fontSize = 10.sp,
+                modifier = Modifier.fillMaxWidth().clickable(onClick = behaviorViewModel::clearNotice)
+                    .padding(horizontal = 22.dp, vertical = 2.dp),
             )
         }
         Row(
@@ -702,6 +766,69 @@ private fun FeedbackButton(
             Spacer(Modifier.width(3.dp))
         }
         Text(label, fontSize = 10.sp)
+    }
+}
+
+@Composable
+private fun HomeTodayBehaviorCard(state: BehaviorRecordUiState) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(18.dp)).background(Color.White)
+            .border(1.dp, Line, RoundedCornerShape(18.dp)).padding(14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("今日行为记录", color = Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text("相机照片由 AI 识别，营养数据仅为估算", color = Muted, fontSize = 9.sp)
+            }
+            if (state.isUploading || state.isLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Mint)
+            } else {
+                Text("${state.records.size} 条", color = Mint, fontSize = 10.sp)
+            }
+        }
+        state.records.take(3).forEach { record ->
+            HomeBehaviorRecordRow(record)
+        }
+        if (state.isUploading) {
+            Text("正在压缩、上传并识别照片…", color = Muted, fontSize = 10.sp, modifier = Modifier.padding(top = 10.dp))
+        }
+    }
+}
+
+@Composable
+private fun HomeBehaviorRecordRow(record: BehaviorRecordDto) {
+    val glyph = when (record.category?.uppercase(Locale.ROOT)) {
+        "FOOD" -> "餐"
+        "OCR" -> "文"
+        else -> "记"
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 10.dp).clip(RoundedCornerShape(12.dp))
+            .background(MintSoft.copy(alpha = 0.55f)).padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(32.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
+            Text(glyph, color = Mint, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        }
+        Column(Modifier.weight(1f).padding(start = 10.dp)) {
+            Text(record.title ?: "照片记录", color = Ink, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                record.ocrText?.takeIf(String::isNotBlank) ?: record.summary ?: "已完成识别",
+                color = Muted,
+                fontSize = 9.sp,
+                maxLines = 2,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+            record.caloriesKcal?.let { calories ->
+                Text("约 ${calories.toInt()} kcal", color = Mint, fontSize = 9.sp, modifier = Modifier.padding(top = 2.dp))
+            }
+        }
+        Text(
+            record.occurredAt?.let { SimpleDateFormat("HH:mm", Locale.CHINA).format(Date(it)) } ?: "今天",
+            color = Muted,
+            fontSize = 9.sp,
+        )
     }
 }
 

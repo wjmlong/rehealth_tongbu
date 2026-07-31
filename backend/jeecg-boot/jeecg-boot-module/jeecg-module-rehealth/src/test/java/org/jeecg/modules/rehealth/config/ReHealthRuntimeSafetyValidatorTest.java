@@ -95,6 +95,20 @@ class ReHealthRuntimeSafetyValidatorTest {
         assertRejected(properties, "EMBEDDED_LLM_SECRET_FORBIDDEN");
     }
 
+    @Test
+    void acceptsProtectedVisionProviderOnlyWithHttpsAndSecretFile() {
+        Map<String, Object> properties = safeConfiguration("production");
+        properties.put("rehealth.vision.enabled", "true");
+        properties.put("rehealth.vision.base-url", "https://vision.example.com/v1");
+        properties.put("rehealth.vision.api-key-file", "/run/secrets/vision-provider");
+        properties.put("rehealth.vision.model", "gpt-5.6-luna");
+
+        assertDoesNotThrow(() -> validate(properties));
+
+        properties.put("rehealth.vision.api-key", "do-not-ship");
+        assertRejected(properties, "EMBEDDED_VISION_SECRET_FORBIDDEN");
+    }
+
     private static Map<String, Object> safeConfiguration(String mode) {
         Map<String, Object> properties = new HashMap<>();
         properties.put("rehealth.runtime.mode", mode);

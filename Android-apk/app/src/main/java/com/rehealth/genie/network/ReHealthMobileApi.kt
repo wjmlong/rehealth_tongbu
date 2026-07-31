@@ -25,12 +25,16 @@ import com.rehealth.genie.network.dto.RhiV2SeriesEvaluateResponseDto
 import com.rehealth.genie.network.dto.SendSmsRequest
 import com.rehealth.genie.network.dto.TelemetryBatchRequestDto
 import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
+import com.rehealth.genie.network.dto.BehaviorRecordDto
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import java.io.IOException
@@ -142,6 +146,33 @@ class ReHealthMobileApi(
         limit: Int = 100,
     ): RemotePhmOutcome<HealthAgentConversation?> =
         unwrapNullable { api.getLatestHealthAgentConversation(limit) }
+
+    suspend fun analyzeBehaviorPhoto(
+        image: ByteArray,
+        contentType: String,
+        fileName: String,
+        requestId: String,
+        occurredAt: Long,
+    ): RemotePhmOutcome<BehaviorRecordDto> {
+        val imagePart = MultipartBody.Part.createFormData(
+            "image",
+            fileName,
+            image.toRequestBody(contentType.toMediaType()),
+        )
+        return unwrap {
+            api.analyzeBehaviorPhoto(
+                image = imagePart,
+                requestId = requestId.toRequestBody("text/plain".toMediaType()),
+                occurredAt = occurredAt.toString().toRequestBody("text/plain".toMediaType()),
+            )
+        }
+    }
+
+    suspend fun getTodayBehaviorRecords(
+        date: String,
+        zoneOffsetMinutes: Int,
+    ): RemotePhmOutcome<List<BehaviorRecordDto>> =
+        unwrap { api.getTodayBehaviorRecords(date, zoneOffsetMinutes) }
 
     /**
      * JeecgBoot system login. No auth token is attached (the auth interceptor only adds

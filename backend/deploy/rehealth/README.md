@@ -161,6 +161,13 @@ To keep using the legacy model-service health Q&A locally with the YAML-first pa
 Java LangChain4j is selected when the ignored local `.env` omits the engine setting. Use
 `secrets/provider_credential`; the startup script passes only the secret-file path to JeecgBoot.
 
+Home camera food/OCR analysis is a separate server-side vision path. Before enabling it, apply
+`V20260731_1__add_behavior_records.sql`, keep `REHEALTH_SOFTWARE_DB_ENABLED=true`, and place the
+vision provider key in the ignored `secrets/vision_provider_credential` file. Configure
+`REHEALTH_VISION_ENABLED=true`, `REHEALTH_VISION_BASE_URL`, and `REHEALTH_VISION_MODEL`; the startup
+script supplies only `REHEALTH_VISION_API_KEY_FILE` to JeecgBoot. Raw camera bytes are forwarded for
+one analysis request and are neither stored in MySQL nor written to application logs.
+
 The secret-file plus ignored `.env` path remains supported when
 `ai-chat.local.yml` is absent and is still the required pattern for staging and
 production.

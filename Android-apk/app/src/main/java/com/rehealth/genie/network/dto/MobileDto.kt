@@ -141,3 +141,22 @@ data class AttributionEventsRequestDto(
     @SerializedName("events") val events: List<AttributionEventItemDto>? = null,
     @SerializedName("baselineRiskScore") val baselineRiskScore: Double? = null,
 )
+
+@JsonClass(generateAdapter = true)
+data class BehaviorRecordDto(
+    val id: String? = null,
+    val requestId: String? = null,
+    val category: String? = null,
+    val title: String? = null,
+    val summary: String? = null,
+    val items: List<String> = emptyList(),
+    val caloriesKcal: Double? = null,
+    val proteinGrams: Double? = null,
+    val carbohydrateGrams: Double? = null,
+    val fatGrams: Double? = null,
+    val ocrText: String? = null,
+    val confidence: Double? = null,
+    val modelVersion: String? = null,
+    val occurredAt: Long? = null,
+    val createdAt: Long? = null,
+)

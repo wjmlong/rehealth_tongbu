@@ -66,6 +66,8 @@ Only `GET /rehealth/mobile/health` is marked `@IgnoreAuth`. All production-style
 | `POST` | `/rehealth/mobile/interventions/generate` | Ignores client-owned health context, reloads profile/interview/latest risk plus tenant-scoped Device Service telemetry context, generates structured actions through LangChain4j, then persists the versioned JSON plan. |
 | `GET` | `/rehealth/mobile/interventions/today` | Reads only the authenticated user's structured plan generated during the current `rehealth.mobile.time-zone` calendar day. |
 | `POST` | `/rehealth/mobile/interventions/{id}/feedback` | Persists feedback under the authenticated user and returns a typed durable acknowledgement. |
+| `POST` | `/rehealth/mobile/behavior-records/analyze-photo` | Accepts one authenticated multipart camera image plus a stable `requestId`, performs server-side food/OCR analysis, persists the structured result, and returns the current user's record. |
+| `GET` | `/rehealth/mobile/behavior-records/today` | Reads only the authenticated user's behavior records for the requested local date and zone offset. |
 
 Additional implemented E1 support endpoints:
 
@@ -73,7 +75,15 @@ Additional implemented E1 support endpoints:
 | --- | --- | --- |
 | `GET` | `/rehealth/mobile/health` | Dev health check for the ReHealth module. |
 | `POST` | `/rehealth/mobile/attribution/events` | Authenticated proxy to PIAS `POST /api/pias/v2/attribute/individual`; persists request/result under the current user when software_db is enabled. |
-| `POST` | `/rehealth/mobile/agent/messages` | Authenticated health-agent proxy; backend assembles persisted user context, rate limits, and calls model-service. Provider credentials never enter the APK. |
+| `POST` | `/rehealth/mobile/agent/messages` | Authenticated health-agent proxy; backend assembles persisted user context, rate limits, and uses Java LangChain4j by default. Provider credentials never enter the APK. |
+
+Photo analysis accepts JPEG, PNG, or WebP up to the configured 4 MB limit. Android
+captures into a private `FileProvider` cache entry, corrects orientation, bounds the
+long edge, and re-encodes before upload. JeecgBoot sends the image to the configured
+vision provider without persisting or logging the raw bytes, validates the structured
+food/OCR result, and stores only that result in `software_db`. Nutrition values are
+estimates, not clinical measurements. Reusing an owner-scoped `requestId` returns the
+existing record instead of invoking the provider twice.
 
 ## Retired Legacy Risk Paths
 
