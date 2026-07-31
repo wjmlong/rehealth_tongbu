@@ -118,7 +118,19 @@ class ActiveWearableStore(
         val gender = preferences.getString("${prefix}_gender", null)?.takeIf { it.isNotBlank() } ?: return null
         val height = preferences.getString("${prefix}_height_cm", null)?.toDoubleOrNull() ?: return null
         val weight = preferences.getString("${prefix}_weight_kg", null)?.toDoubleOrNull() ?: return null
-        return BaselineHealthProfile(age = age, gender = gender, heightCm = height, weightKg = weight)
+        return BaselineHealthProfile(
+            age = age,
+            gender = gender,
+            heightCm = height,
+            weightKg = weight,
+            bmi = preferences.getString("${prefix}_bmi", null)?.toDoubleOrNull(),
+            smoking = preferences.optionalBoolean("${prefix}_smoking"),
+            drinking = preferences.optionalBoolean("${prefix}_drinking"),
+            diabetesHistory = preferences.optionalBoolean("${prefix}_diabetes_history"),
+            hypertensionHistory = preferences.optionalBoolean("${prefix}_hypertension_history"),
+            familyHistory = preferences.optionalBoolean("${prefix}_family_history"),
+            updatedAt = preferences.getLong("${prefix}_updated_at", 0L).takeIf { it > 0L },
+        )
     }
 
     fun saveUserProfile(userId: String?, profile: BaselineHealthProfile?) {
@@ -132,6 +144,13 @@ class ActiveWearableStore(
                 .remove("${prefix}_gender")
                 .remove("${prefix}_height_cm")
                 .remove("${prefix}_weight_kg")
+                .remove("${prefix}_bmi")
+                .remove("${prefix}_smoking")
+                .remove("${prefix}_drinking")
+                .remove("${prefix}_diabetes_history")
+                .remove("${prefix}_hypertension_history")
+                .remove("${prefix}_family_history")
+                .remove("${prefix}_updated_at")
                 .apply()
             return
         }
@@ -140,7 +159,18 @@ class ActiveWearableStore(
             .putString("${prefix}_gender", profile.gender)
             .putString("${prefix}_height_cm", profile.heightCm.toString())
             .putString("${prefix}_weight_kg", profile.weightKg.toString())
-            .apply()
+        editor.putOptionalString("${prefix}_bmi", profile.bmi?.toString())
+        editor.putOptionalBoolean("${prefix}_smoking", profile.smoking)
+        editor.putOptionalBoolean("${prefix}_drinking", profile.drinking)
+        editor.putOptionalBoolean("${prefix}_diabetes_history", profile.diabetesHistory)
+        editor.putOptionalBoolean("${prefix}_hypertension_history", profile.hypertensionHistory)
+        editor.putOptionalBoolean("${prefix}_family_history", profile.familyHistory)
+        if (profile.updatedAt != null) {
+            editor.putLong("${prefix}_updated_at", profile.updatedAt)
+        } else {
+            editor.remove("${prefix}_updated_at")
+        }
+        editor.apply()
     }
 
     private fun profilePrefix(userId: String?): String? {
@@ -195,6 +225,23 @@ class ActiveWearableStore(
         const val KEY_BOUND_AT = "bound_at"
         const val KEY_LAST_DEVICE_CHANGED_AT = "last_device_changed_at"
     }
+}
+
+private fun android.content.SharedPreferences.optionalBoolean(key: String): Boolean? =
+    if (contains(key)) getBoolean(key, false) else null
+
+private fun android.content.SharedPreferences.Editor.putOptionalBoolean(
+    key: String,
+    value: Boolean?,
+) {
+    if (value == null) remove(key) else putBoolean(key, value)
+}
+
+private fun android.content.SharedPreferences.Editor.putOptionalString(
+    key: String,
+    value: String?,
+) {
+    if (value == null) remove(key) else putString(key, value)
 }
 
 internal fun resolveInitialWearableBinding(

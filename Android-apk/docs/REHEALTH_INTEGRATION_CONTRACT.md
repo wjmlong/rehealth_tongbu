@@ -113,6 +113,17 @@ it is not RDI16 and does not replace the CVD probability or PIAS causal output.
 Factor16 confirmation is keyed by its own rule version, so a deterministic
 Factor16 result may be shown even when `is_mock=true` for the separate CVD scorer;
 the mock CVD risk score itself remains hidden.
+For the explicit Debug mock-wearable QA flow only, Android mirrors the same
+transparent V1.0 Factor16 display rule after attempting the real evaluation request
+when the response does not contain all 16 versioned factor contributions or the
+request is unavailable. That fallback is
+identified as `factor16-rule-v1.0.0-debug-mock`, is never persisted as a model
+result, and has a release-source-set no-op implementation. A complete server
+Factor16 response always takes precedence.
+The Debug mock replay still uses the normal app inputs: the encrypted local
+profile cache, Room clinical input, and Room activity data. The profile cache
+retains BMI plus smoking, drinking, diabetes, hypertension, and family-history
+fields so a remote profile outage does not erase the explicit mock fixture.
 Upper-arm cuff seven-day means require 3–7 valid days and explicit confirmation;
 cuffless wearable BP remains visible on Data but is excluded from this vector.
 Dated, user-confirmed hospital labs feed the five metabolic fields. Blood-pressure

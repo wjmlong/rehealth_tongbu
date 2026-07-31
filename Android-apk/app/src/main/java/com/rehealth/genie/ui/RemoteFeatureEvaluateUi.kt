@@ -26,6 +26,7 @@ import com.rehealth.genie.features.CvdFeatureVector
 import com.rehealth.genie.rhi.toClinicalBloodPressureValues
 import com.rehealth.genie.rhi.toClinicalLabValues
 import com.rehealth.genie.ring.RingUiState
+import com.rehealth.genie.ring.provider.WearableVendor
 import com.rehealth.genie.ui.theme.Ink
 import com.rehealth.genie.ui.theme.Mint
 import com.rehealth.genie.ui.theme.MintSoft
@@ -81,8 +82,12 @@ internal fun RemoteFeatureEvaluateStatus.toAttributionRiskEvaluation(): Attribut
         riskLevel = riskLevel,
         contributions = factorContributions,
         confirmed = reachable && isMock == false,
-        factorConfirmed = reachable &&
-            factorContributionVersion == "factor16-rule-v1.0.0",
+        factorConfirmed =
+            (reachable && factorContributionVersion == FACTOR16_RULE_VERSION) ||
+                (
+                    com.rehealth.genie.BuildConfig.DEBUG &&
+                        factorContributionVersion == DEBUG_MOCK_FACTOR16_RULE_VERSION
+                    ),
         factorValues = factorValues,
         contributionRuleVersion = factorContributionVersion,
         measuredComponents = factorMeasuredComponents,
@@ -102,21 +107,47 @@ internal suspend fun refreshRemoteFeatureEvaluateStatus(
     val manualInput = application.sessionStore.userId?.let { userId ->
         runCatching { application.database.rhiManualHealthInputDao().get(userId) }.getOrNull()
     }
-    val vector = HealthFeatureExtractor(nowProvider = { now }).extract(
-        HealthMemorySnapshot.fromPatientProfile(
+    val isDebugMockWearable =
+        application.activeWearableStore.activeBinding.value.vendor == WearableVendor.MOCK
+    val remoteProfile = AttributionDataProvenance.trustedProfile(state.patientMvp)
+    val debugMockProfile = DebugMockFactor16Replay.completeBaselineProfile(
+        profile = application.activeWearableStore.readUserProfile(application.sessionStore.userId),
+        enabled = remoteProfile == null && isDebugMockWearable,
+        nowMillis = now,
+    )
+    val snapshot = HealthMemorySnapshot.fromPatientProfile(
             profile = AttributionDataProvenance.trustedProfile(state.patientMvp),
             labs = manualInput?.toClinicalLabValues(),
             clinicalBloodPressure = manualInput?.toClinicalBloodPressureValues(),
             ringMeasurements = measurements,
             ringActivities = activities,
             ringSleepSessions = state.sleep?.let { listOf(it) }.orEmpty(),
-        ),
+        ).let { base ->
+            if (base.profile == null && debugMockProfile != null) {
+                base.copy(profile = debugMockProfile)
+            } else {
+                base
+            }
+        }
+    val vector = HealthFeatureExtractor(nowProvider = { now }).extract(
+        snapshot,
     )
 
     val outcome = application.remotePhmService.evaluateFeatures(vector)
     val result = outcome.result
+    val debugReplayCandidate = DebugMockFactor16Replay.evaluate(
+        vector = vector,
+        enabled = isDebugMockWearable,
+        nowMillis = now,
+    )
     if (result != null) {
         application.riskHistoryRepository.recordConfirmedRemoteRisk(result)
+        val serverHasCompleteFactor16 =
+            result.normalizedFactorContributionVersion == FACTOR16_RULE_VERSION &&
+                AttributionUiMapper.CANONICAL_FACTOR_KEYS.all(
+                    result.normalizedFactorContributions::containsKey,
+                )
+        val debugReplay = debugReplayCandidate.takeUnless { serverHasCompleteFactor16 }
         target.value = RemoteFeatureEvaluateStatus(
             reachable = true,
             modelVersion = result.normalizedModelVersion,
@@ -124,10 +155,14 @@ internal suspend fun refreshRemoteFeatureEvaluateStatus(
             riskLevel = result.normalizedRiskLevel,
             riskScore = result.normalizedRiskScore,
             featureContributions = result.normalizedFeatureContributions,
-            factorContributions = result.normalizedFactorContributions,
-            factorContributionVersion = result.normalizedFactorContributionVersion,
-            factorMeasuredComponents = result.normalizedFactorMeasuredComponents,
-            factorControlSupportComponents = result.normalizedFactorControlSupportComponents,
+            factorContributions = debugReplay?.contributions ?: result.normalizedFactorContributions,
+            factorContributionVersion =
+                debugReplay?.ruleVersion ?: result.normalizedFactorContributionVersion,
+            factorMeasuredComponents =
+                debugReplay?.measuredComponents ?: result.normalizedFactorMeasuredComponents,
+            factorControlSupportComponents =
+                debugReplay?.controlSupportComponents
+                    ?: result.normalizedFactorControlSupportComponents,
             factorValues = vector.toAttributionFactorValues(),
             requestId = result.normalizedRequestId ?: outcome.requestId,
             missingFields = result.normalizedMissingFields,
@@ -141,6 +176,11 @@ internal suspend fun refreshRemoteFeatureEvaluateStatus(
             isMock = null,
             riskLevel = null,
             riskScore = null,
+            factorContributions = debugReplayCandidate?.contributions.orEmpty(),
+            factorContributionVersion = debugReplayCandidate?.ruleVersion,
+            factorMeasuredComponents = debugReplayCandidate?.measuredComponents.orEmpty(),
+            factorControlSupportComponents =
+                debugReplayCandidate?.controlSupportComponents.orEmpty(),
             requestId = outcome.requestId,
             fallbackReason = outcome.failureReason,
             missingFields = vector.missingFields,
