@@ -65,6 +65,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rehealth.genie.R
+import com.rehealth.genie.ReHealthApplication
+import com.rehealth.genie.phm.IndividualAttributionResult
 import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.RingFeatureType
 import com.rehealth.genie.ring.RingUiState
@@ -79,6 +81,8 @@ import com.rehealth.genie.ui.theme.Muted
 import java.util.Locale
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlin.math.roundToInt
+import kotlinx.coroutines.CancellationException
 
 private data class RingMetricUi(
     val type: RingMetricType,
@@ -102,7 +106,8 @@ internal fun DataScreen(
     onMeasure: (RingMetricType) -> Unit,
     onSync: () -> Unit,
 ) {
-    var selectedPeriod by remember { mutableIntStateOf(1) }
+    val application = LocalContext.current.applicationContext as ReHealthApplication
+    var selectedPeriod by remember { mutableIntStateOf(0) }
     var showBloodGlucoseCalibration by remember { mutableStateOf(false) }
     var showWomensHealthSetting by remember { mutableStateOf(false) }
     var showEcgDetail by remember { mutableStateOf(false) }
@@ -122,9 +127,28 @@ internal fun DataScreen(
     }
     // 真实周期聚合：切换 今日/7天/30天/90天 时从本地 Room 历史重新计算
     var aggregate by remember { mutableStateOf<PeriodAggregate?>(null) }
+    var piasResult by remember { mutableStateOf<IndividualAttributionResult?>(null) }
     LaunchedEffect(selectedPeriod, state.lastSyncAt, state.activity?.id, state.sleep?.id) {
         val windowDays = when (selectedPeriod) { 0 -> 0; 1 -> 7; 2 -> 30; 3 -> 90; else -> 7 }
         aggregate = ringViewModel.loadPeriodAggregate(windowDays)
+    }
+    LaunchedEffect(
+        canonicalRiskStatus.value?.riskScore,
+        canonicalRiskStatus.value?.requestId,
+        state.lastSyncAt,
+    ) {
+        try {
+            val history = application.riskHistoryRepository.attributionHistory(limit = 90)
+            piasResult = if (history.isEmpty()) {
+                null
+            } else {
+                application.remotePhmService.attributeIndividual(history, forecastDays = 30)
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            piasResult = null
+        }
     }
 
     fun measurement(type: RingMetricType): String {
@@ -175,6 +199,11 @@ internal fun DataScreen(
         type !in state.supportedMetrics -> "当前设备不支持"
         else -> fallback
     }
+    val appMeasurementOnlyMetrics = setOf(
+        RingMetricType.HRV,
+        RingMetricType.STRESS,
+        RingMetricType.MET,
+    )
     val vitalMetrics = listOf(
         RingMetricUi(RingMetricType.HEART_RATE, "心率", hrText, "bpm", capabilityStatus(RingMetricType.HEART_RATE, periodLabel), Icons.Outlined.FavoriteBorder, Color(0xFFFF6078), manualMeasure = RingMetricType.HEART_RATE in state.supportedMetrics, showAction = true),
         RingMetricUi(RingMetricType.BLOOD_OXYGEN, "血氧", spo2Text, "%", capabilityStatus(RingMetricType.BLOOD_OXYGEN, periodLabel), Icons.Outlined.DataUsage, Color(0xFF148BFF), manualMeasure = RingMetricType.BLOOD_OXYGEN in state.supportedMetrics, showAction = true),
@@ -196,7 +225,10 @@ internal fun DataScreen(
             measuringLabel = "测量中",
         ),
         RingMetricUi(RingMetricType.ECG, "ECG", ecgText, "bpm", capabilityStatus(RingMetricType.ECG, ecgStatus), Icons.Outlined.Assessment, Color(0xFF009688), manualMeasure = RingMetricType.ECG in state.supportedMetrics, showAction = true),
-    )
+    ).filterNot { metric ->
+        metric.type in appMeasurementOnlyMetrics &&
+            metric.type !in state.manuallyMeasurableMetrics
+    }
     val bloodComponentTypes = listOf(
         RingMetricType.URIC_ACID,
         RingMetricType.TOTAL_CHOLESTEROL,
@@ -294,7 +326,13 @@ internal fun DataScreen(
             )
         }
         item {
-            RiskScoreCard(canonicalRiskStatus)
+            RiskScoreCard(
+                canonicalRiskStatus = canonicalRiskStatus,
+                aggregate = aggregate,
+                periodLabel = periodLabel,
+                isToday = periodDays == 0,
+                piasResult = piasResult,
+            )
         }
         if (state.message != null || state.isSyncing) {
             item {
@@ -306,7 +344,19 @@ internal fun DataScreen(
                 modifier = Modifier.fillMaxWidth().height(178.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                HealthScoreCard(Modifier.weight(1f))
+                val currentRisk = piasResult?.currentRiskScore ?: canonicalRiskStatus.value?.riskScore
+                val healthIndex = if (periodDays == 0) {
+                    aggregate?.healthIndex
+                        ?: currentRisk?.let { ((1.0 - it) * 100.0).roundToInt().coerceIn(0, 100) }
+                } else {
+                    aggregate?.healthIndex
+                }
+                HealthScoreCard(
+                    score = healthIndex,
+                    sampleDays = aggregate?.daysWithRiskScore ?: 0,
+                    periodLabel = periodLabel,
+                    modifier = Modifier.weight(1f),
+                )
                 SmartRingOverviewCard(state, Modifier.weight(1f))
             }
         }
@@ -670,8 +720,18 @@ private fun DataStatusCard(
 @Composable
 private fun RiskScoreCard(
     canonicalRiskStatus: androidx.compose.runtime.State<RemoteFeatureEvaluateStatus?>,
+    aggregate: PeriodAggregate?,
+    periodLabel: String,
+    isToday: Boolean,
+    piasResult: IndividualAttributionResult?,
 ) {
     val current = canonicalRiskStatus.value
+    val displayedScore = if (isToday) {
+        piasResult?.currentRiskScore ?: current?.riskScore
+    } else {
+        aggregate?.avgRiskScore
+    }
+    val scoreLabel = displayedScore?.let { String.format(Locale.getDefault(), "%.1f%%", it * 100.0) } ?: "--"
     Row(
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
             .background(Brush.horizontalGradient(listOf(Color.White, Color(0xFFEAF8F4))))
@@ -683,9 +743,21 @@ private fun RiskScoreCard(
             Icon(Icons.Outlined.Shield, null, tint = Mint, modifier = Modifier.size(24.dp))
         }
         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-            Text("今日风险分", color = Ink, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             Text(
-                current?.summary ?: "正在从本机特征生成云端风险参考",
+                if (isToday) "今日风险分" else "$periodLabel 平均风险分",
+                color = Ink,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                if (isToday) {
+                    piasResult?.headline ?: piasResult?.body ?: current?.summary
+                        ?: "正在从本机特征生成云端风险参考"
+                } else {
+                    aggregate?.daysWithRiskScore?.takeIf { it > 0 }
+                        ?.let { "按 $it 个有效日的已确认风险结果计算；PIAS 归因使用同一风险历史" }
+                        ?: "当前周期暂无已确认风险结果"
+                },
                 color = Muted,
                 fontSize = 10.sp,
                 lineHeight = 14.sp,
@@ -694,15 +766,34 @@ private fun RiskScoreCard(
             )
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text(current?.riskScore.riskScoreLabel(), color = Mint, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text(current?.riskLevel.riskLevelLabel(), color = Muted, fontSize = 10.sp)
-            Text(current?.modeLabel ?: "评估中", color = Muted, fontSize = 9.sp)
+            Text(scoreLabel, color = Mint, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Text(
+                if (isToday) (piasResult?.riskLevel ?: current?.riskLevel).riskLevelLabel() else "周期均值",
+                color = Muted,
+                fontSize = 10.sp,
+            )
+            Text(
+                if (isToday) {
+                    if (piasResult?.currentRiskScore != null) "PIAS 个人风险" else current?.modeLabel ?: "评估中"
+                } else {
+                    "仅统计真实结果"
+                },
+                color = Muted,
+                fontSize = 9.sp,
+            )
         }
     }
 }
 
 @Composable
-private fun HealthScoreCard(modifier: Modifier) {
+private fun HealthScoreCard(
+    score: Int?,
+    sampleDays: Int,
+    periodLabel: String,
+    modifier: Modifier,
+) {
+    val normalizedScore = score?.coerceIn(0, 100)
+    val sweep = normalizedScore?.times(3.6f) ?: 0f
     Column(
         modifier = modifier.fillMaxHeight(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -717,7 +808,7 @@ private fun HealthScoreCard(modifier: Modifier) {
                         listOf(Color(0xFF0DA47C), Color(0xFF13D4A7), Color(0xFF0DA47C)),
                     ),
                     startAngle = -90f,
-                    sweepAngle = 313f,
+                    sweepAngle = sweep,
                     useCenter = false,
                     style = androidx.compose.ui.graphics.drawscope.Stroke(stroke, cap = StrokeCap.Round),
                 )
@@ -729,9 +820,14 @@ private fun HealthScoreCard(modifier: Modifier) {
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("健康指数", color = Muted, fontSize = 10.sp)
-                Text("87", color = Ink, fontSize = 38.sp, fontWeight = FontWeight.Bold)
+                Text(normalizedScore?.toString() ?: "--", color = Ink, fontSize = 38.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    "良好",
+                    when {
+                        normalizedScore == null -> "待评估"
+                        normalizedScore >= 80 -> "良好"
+                        normalizedScore >= 60 -> "关注"
+                        else -> "需改善"
+                    },
                     color = Mint,
                     fontSize = 10.sp,
                     modifier = Modifier.clip(CircleShape).background(MintSoft)
@@ -739,7 +835,12 @@ private fun HealthScoreCard(modifier: Modifier) {
                 )
             }
         }
-        Text("身体状态良好，继续保持 ›", color = Muted, fontSize = 9.sp, modifier = Modifier.padding(top = 4.dp))
+        Text(
+            if (sampleDays > 0) "$periodLabel · $sampleDays 个有效日平均" else "暂无已确认风险数据",
+            color = Muted,
+            fontSize = 9.sp,
+            modifier = Modifier.padding(top = 4.dp),
+        )
     }
 }
 

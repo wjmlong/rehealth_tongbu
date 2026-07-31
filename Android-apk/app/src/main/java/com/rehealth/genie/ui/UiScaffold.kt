@@ -53,10 +53,7 @@ internal fun formatSyncTime(timestamp: Long): String =
 /** Real sleep duration; falls back to the persisted session span when the device omits stage details. */
 internal fun sleepDurationMinutes(entity: RingSleepSessionEntity?): Int? {
     if (entity == null) return null
-    val stagedTotal = entity.deepMinutes + entity.lightMinutes + entity.remMinutes + entity.awakeMinutes
-    val total = stagedTotal.takeIf { it > 0 }
-        ?: ((entity.endedAt - entity.startedAt) / 60_000L).toInt().coerceAtLeast(0)
-    return total.takeIf { it > 0 }
+    return com.rehealth.genie.ring.canonicalSleepMinutes(entity)
 }
 
 internal fun formatSleepMinutes(entity: RingSleepSessionEntity?): String {

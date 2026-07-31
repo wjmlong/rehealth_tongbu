@@ -35,6 +35,10 @@ class SessionStore(context: Context) {
         get() = prefs.getString(KEY_USERNAME, null)
         set(value) = prefs.edit().putString(KEY_USERNAME, value).apply()
 
+    var realname: String?
+        get() = prefs.getString(KEY_REALNAME, null)
+        set(value) = prefs.edit().putString(KEY_REALNAME, value).apply()
+
     val isLoggedIn: Boolean
         get() = !token.isNullOrBlank()
 
@@ -56,6 +60,7 @@ class SessionStore(context: Context) {
         private const val KEY_TOKEN = "token"
         private const val KEY_USER_ID = "user_id"
         private const val KEY_USERNAME = "username"
+        private const val KEY_REALNAME = "realname"
         private const val KEY_FIRST_USE = "first_use_at"
         private const val DAY_MS = 86_400_000L
     }

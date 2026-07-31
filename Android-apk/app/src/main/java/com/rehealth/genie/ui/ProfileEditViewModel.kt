@@ -58,6 +58,7 @@ class ProfileEditViewModel(private val context: Context) : ViewModel() {
             )
             when (val result = app.authenticatedApiClient.updateProfile(request)) {
                 is ApiResult.Success -> {
+                    app.sessionStore.realname = input.name
                     _uiState.value = ProfileEditUiState(saved = true)
                 }
                 is ApiResult.Unauthorized -> {

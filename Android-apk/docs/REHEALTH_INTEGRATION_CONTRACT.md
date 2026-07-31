@@ -124,6 +124,23 @@ deleted cache entry. It does not delete authoritative MySQL history: the public
 backend contract still exposes only latest-conversation restore and has no list or
 delete endpoint.
 
+Each successful authentication creates a new active local conversation for that user.
+Latest-conversation reconciliation may cache server history but must not replace that fresh
+active conversation. The authorized health-agent context may include the bounded profile
+`name` so the assistant can answer identity/nickname questions; it remains server-sourced.
+
+First-run health interviewing is account-scoped. Registration marks only the new account as
+pending; an established account defaults to complete and does not inherit another account's
+state. Completing the interview clears the pending marker for that account.
+
+The Data screen defaults to the local calendar day. A sleep session belongs to a display
+window when it ends inside that window, so a session beginning before midnight and ending
+today is included. Stage totals are authoritative when present; elapsed wall-clock time is
+only a fallback. Today's card prefers PIAS `currentRiskScore` from the authenticated remote
+individual-attribution call. Period health index is `(1 - confirmedRiskScore) * 100`, averaged
+across days with confirmed non-mock results only; those same days are the PIAS history input.
+CatBoost/PIAS execution remains outside the APK.
+
 Feedback and device binding completion require `persisted == true`.
 
 ## Data and Privacy Rules

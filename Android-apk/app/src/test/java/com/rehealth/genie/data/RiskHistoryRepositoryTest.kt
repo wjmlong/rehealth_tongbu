@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 
 class RiskHistoryRepositoryTest {
     @Test
@@ -40,6 +41,27 @@ class RiskHistoryRepositoryTest {
         assertEquals(0.42, history.single().riskScore)
         assertEquals(true, history.single().isInterventionDay)
     }
+
+    @Test
+    fun `period summary averages confirmed daily risk and derives health index`() = runTest {
+        val now = 1_700_000_000_000L
+        val riskDao = FakeRiskHistoryDao().apply {
+            rows += RiskHistoryEntity("user-1", "2023-11-13", 0.20, "low", now - 86_400_000L,)
+            rows += RiskHistoryEntity("user-1", "2023-11-14", 0.40, "moderate", now,)
+        }
+        val repository = RiskHistoryRepository(
+            riskHistoryDao = riskDao,
+            feedbackDao = FakeFeedbackDao(),
+            userIdProvider = { "user-1" },
+            nowProvider = { now },
+        )
+
+        val summary = assertNotNull(repository.periodSummary(7))
+
+        assertEquals(0.30, summary.averageRiskScore, 0.0001)
+        assertEquals(70, summary.averageHealthIndex)
+        assertEquals(2, summary.daysWithScore)
+    }
 }
 
 private class FakeRiskHistoryDao : RiskHistoryDao {
@@ -52,6 +74,9 @@ private class FakeRiskHistoryDao : RiskHistoryDao {
 
     override suspend fun latestForUser(userId: String, limit: Int): List<RiskHistoryEntity> =
         rows.filter { it.userId == userId }.sortedByDescending { it.evaluatedOn }.take(limit)
+
+    override suspend fun sinceForUser(userId: String, since: Long): List<RiskHistoryEntity> =
+        rows.filter { it.userId == userId && it.evaluatedAt >= since }.sortedBy { it.evaluatedOn }
 }
 
 private class FakeFeedbackDao : InterventionFeedbackDao {

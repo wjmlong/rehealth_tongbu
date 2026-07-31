@@ -38,6 +38,11 @@ Status: implemented software path; updated 2026-07-29.
   calibrated `FLOAT32_LE` mV plus structured lead/sample/duration/contact metadata,
   while migrated legacy `INT32_LE` rows remain relative-only. Neither representation
   is included in telemetry uploads.
+- Data-card visibility uses App-measurement capability separately from history capability:
+  HRV/stress/MET are hidden when only historical sync is available. Dedicated HRV/MET or
+  mini-checkup HRV/stress remain visible and measurable.
+- Period sleep aggregation queries sessions by `ended_at`, includes cross-midnight sessions
+  ending today, and uses stage totals before falling back to elapsed session time.
 
 ## Software-Only Validation
 

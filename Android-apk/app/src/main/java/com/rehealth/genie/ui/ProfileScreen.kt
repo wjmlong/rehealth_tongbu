@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.AddAPhoto
@@ -65,9 +66,11 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.window.Dialog
 import com.rehealth.genie.work.MeasurementSyncWorker
 
 internal fun healthArchiveRows(
@@ -80,19 +83,14 @@ internal fun healthArchiveRows(
         .orEmpty()
         .ifBlank { "待补全" }
     add("诊断标签" to diagnoses)
-    add(
-        "性别" to when (normalizeProfileGender(profile?.gender)) {
-            "male" -> "男"
-            "female" -> "女"
-            else -> "待补全"
-        },
-    )
     add("家族史" to profile?.familyHistory.toArchiveBoolean())
     add("高血压史" to profile?.hypertensionHistory.toArchiveBoolean())
     add("糖尿病史" to profile?.diabetesHistory.toArchiveBoolean())
-    interview?.baselineItems.orEmpty().forEach { item ->
-        add("健康问答 · ${item.label}" to item.value)
-    }
+    interview?.baselineItems.orEmpty()
+        .filterNot { it.label == "基本资料" }
+        .forEach { item ->
+        add(item.label to item.value)
+        }
     add(
         "关注方向" to interview?.focusAreas.orEmpty()
             .takeIf { it.isNotEmpty() }
@@ -142,6 +140,7 @@ internal fun ProfileScreen(
     val editState by editViewModel.uiState.collectAsState()
     LaunchedEffect(Unit) {
         onRefreshProfile()
+        avatarViewModel.reload()
     }
     LaunchedEffect(editState.saved) {
         if (editState.saved) {
@@ -202,7 +201,7 @@ internal fun ProfileScreen(
                         }
                     }
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                        Text(profile?.name ?: session?.username ?: "未命名用户", color = Ink, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        Text(profile?.name ?: session?.realname ?: session?.username ?: "未命名用户", color = Ink, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                         Text("${profile?.age ?: "--"}岁 · BMI ${profile?.bmi ?: "--"} · 已陪伴 ${session?.firstUseDays() ?: 0} 天", color = Muted, fontSize = 11.sp)
                         Text(
                             "点击头像从系统相册选择 · 仅保存在本机",
@@ -332,11 +331,18 @@ private fun ProfileEditDialog(
     var age by remember { mutableStateOf(initialAge) }
     var height by remember { mutableStateOf(initialHeight) }
     var weight by remember { mutableStateOf(initialWeight) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("编辑个人资料") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = Color.White,
+            tonalElevation = 3.dp,
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text("编辑个人资料", color = Ink, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("用于健康画像与个性化问答", color = Muted, fontSize = 11.sp)
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it.take(32) },
@@ -386,24 +392,27 @@ private fun ProfileEditDialog(
                 errorMessage?.let {
                     Text(it, color = Color(0xFFD94C4C), fontSize = 12.sp)
                 }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { gender?.let { onSave(name, it, age, height, weight) } },
-                enabled = !isSaving && name.isNotBlank() && gender != null,
-            ) {
-                if (isSaving) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
-                } else {
-                    Text("保存")
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = onDismiss, enabled = !isSaving) { Text("取消") }
+                    Button(
+                        onClick = { gender?.let { onSave(name, it, age, height, weight) } },
+                        enabled = !isSaving && name.isNotBlank() && gender != null,
+                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Mint),
+                    ) {
+                        if (isSaving) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
+                        } else {
+                            Text("保存")
+                        }
+                    }
                 }
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !isSaving) { Text("取消") }
-        },
-    )
+        }
+    }
 }
 
 @Composable

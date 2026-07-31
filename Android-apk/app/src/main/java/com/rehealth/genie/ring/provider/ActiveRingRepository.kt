@@ -67,6 +67,8 @@ class ActiveRingRepository(
 
     override val supportedMetrics: Set<RingMetricType>
         get() = provider().supportedMetrics
+    override val manuallyMeasurableMetrics: Set<RingMetricType>
+        get() = provider().manuallyMeasurableMetrics
 
     override val supportedFeatures: Set<RingFeatureType>
         get() = (provider() as? RingFeatureRepository)?.supportedFeatures.orEmpty()

@@ -122,8 +122,14 @@ class RegisterViewModel(private val context: Context) : ViewModel() {
                     }
                     app.sessionStore.token = token
                     app.sessionStore.userId = resp.userInfo?.id
-                    app.sessionStore.username = resp.userInfo?.username
+                    app.sessionStore.username = resp.userInfo?.username ?: phone
+                    app.sessionStore.realname = resp.userInfo?.realname
                     app.authenticatedApiClient.onLoginSuccess(token)
+                    app.onboardingStore.markRequired(
+                        app.sessionStore.userId,
+                        app.sessionStore.username,
+                    )
+                    app.healthChatRepository.createConversation()
                     app.syncRepository.resumeQueue()
                     MeasurementSyncWorker.schedule(context)
                     MeasurementSyncWorker.triggerImmediate(context)

@@ -44,6 +44,12 @@ class HBandRingRepository internal constructor(
         }
     override val supportedFeatures: Set<RingFeatureType>
         get() = gateway.capabilities.value.supportedFeatures
+    override val manuallyMeasurableMetrics: Set<RingMetricType>
+        get() = MANUAL_METRICS.filterTo(mutableSetOf()) { type ->
+            type in expectedMetrics &&
+                gateway.capabilities.value.measurementRoute(type, allowHistoryFallback = false) !=
+                HBandMeasurementRoute.UNSUPPORTED
+        }
 
     override suspend fun scan(): List<RingDevice> {
         val boundAddress = activeBindingAddress()

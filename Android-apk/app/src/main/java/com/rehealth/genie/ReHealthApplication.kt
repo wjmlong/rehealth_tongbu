@@ -9,6 +9,7 @@ import com.rehealth.genie.data.sync.RingCloudRepository
 import com.rehealth.genie.data.sync.SyncRepository
 import com.rehealth.genie.network.AuthenticatedApiClient
 import com.rehealth.genie.network.BackendConfig
+import com.rehealth.genie.network.OnboardingStore
 import com.rehealth.genie.network.SessionStore
 import com.rehealth.genie.notification.RingNotificationChannels
 import com.rehealth.genie.phm.RemotePhmService
@@ -35,6 +36,7 @@ class ReHealthApplication : Application() {
 
     // D3: Auth and session management
     val sessionStore by lazy { SessionStore(this) }
+    val onboardingStore by lazy { OnboardingStore(this) }
 
     /**
      * D3: Auth-aware API client with 401 detection and queue pause.

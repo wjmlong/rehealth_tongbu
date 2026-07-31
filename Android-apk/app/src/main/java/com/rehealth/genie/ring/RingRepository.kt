@@ -6,6 +6,8 @@ interface RingRepository {
     val connectionState: StateFlow<RingConnectionState>
     val connectedDevice: StateFlow<RingDevice?>
     val supportedMetrics: Set<RingMetricType>
+    val manuallyMeasurableMetrics: Set<RingMetricType>
+        get() = supportedMetrics
 
     suspend fun scan(): List<RingDevice>
     suspend fun connect(device: RingDevice)

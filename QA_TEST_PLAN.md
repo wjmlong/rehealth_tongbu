@@ -53,6 +53,9 @@ git diff --check
      forcing device setup. Open “我的 > 设备绑定” and confirm wearable binding remains available.
      Log out and back in during the same app process and confirm the completed interview is not
      shown again.
+   - Register a second account and confirm only that new account receives the health initial
+     interview. Log into a pre-existing account with no local onboarding marker and confirm it
+     enters Home directly. Interrupt a new account's interview, log in again, and confirm it resumes.
    - Confirm no crash on first run and no production medical diagnosis wording.
 
 2. Voice permission
@@ -87,6 +90,10 @@ git diff --check
    - Send a question from Home, leave and return to the Home tab, and reopen the app as the same
      user. Confirm the Home preview is sourced from the same latest Room conversation rather
      than a temporary one-turn state.
+   - Log out and log in again. Confirm Home starts a fresh active conversation while history
+     remains selectable. Send enough messages to scroll; confirm all current messages are
+     reachable and the large mascot/greeting collapses while scrolling. Ask “我是谁” after
+     saving a nickname and confirm the server-authorized assistant context contains that name.
    - Upgrade an installed v6 database containing two conversations to v7. Confirm both message
      histories remain, the latest conversation is active, and the generated titles are readable.
      From Home, create a conversation, switch between conversations, then verify per-conversation
@@ -98,6 +105,13 @@ git diff --check
    - Open “我的”, tap the avatar, and select an image through the Android system picker.
      Confirm the preview updates, survives app restart and same-user re-login, and is not visible
      to another user. Verify no avatar upload request is sent and no new media permission is asked.
+   - Open the Data tab and confirm “今日” is selected. Sync a sleep session that starts before
+     midnight and ends today; verify today's duration equals valid stage totals (or elapsed time
+     only when stages are absent). Verify 7/30-day risk and health index use only confirmed daily
+     results and show their valid-day count.
+   - On HBand firmware with only HRV/stress/MET history capability, verify those App-measurement
+     cards are hidden. On firmware advertising the dedicated HRV/MET flags or mini-checkup
+     HRV/stress, verify the corresponding card appears and saves only a real callback result.
    - Ask for a diagnosis/prescription and enter urgent chest-pain/breathing wording.
      Verify the Java safety policy refuses diagnosis and escalates urgent care, while every
      answer displays “仅供健康参考，不能替代医疗诊断”.

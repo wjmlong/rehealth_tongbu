@@ -30,17 +30,21 @@ class ProfileHealthArchiveTest {
         )
         val interview = HealthInterviewSubmitRequestDto(
             answers = emptyList(),
-            baselineItems = listOf(HealthInterviewBaselineItemDto("睡眠", "平均 7 小时")),
+            baselineItems = listOf(
+                HealthInterviewBaselineItemDto("基本资料", "35 岁，165 cm，55 kg"),
+                HealthInterviewBaselineItemDto("睡眠", "平均 7 小时"),
+            ),
             focusAreas = listOf("规律作息"),
             generatedAt = 2L,
         )
 
         val rows = healthArchiveRows(profile, interview).toMap()
 
-        assertEquals("女", rows["性别"])
+        assertEquals(false, rows.containsKey("性别"))
+        assertEquals(false, rows.containsKey("基本资料"))
         assertEquals("待补全", rows["家族史"])
         assertEquals("有", rows["高血压史"])
-        assertEquals("平均 7 小时", rows["健康问答 · 睡眠"])
+        assertEquals("平均 7 小时", rows["睡眠"])
         assertEquals("规律作息", rows["关注方向"])
     }
 

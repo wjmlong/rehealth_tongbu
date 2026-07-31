@@ -45,9 +45,13 @@ class LoginViewModel(private val context: Context) : ViewModel() {
                     // D3: persist token + user info
                     app.sessionStore.token = token
                     app.sessionStore.userId = response.userInfo?.id
-                    app.sessionStore.username = response.userInfo?.username
+                    app.sessionStore.username = response.userInfo?.username ?: username
+                    app.sessionStore.realname = response.userInfo?.realname
                     // D3: notify auth client (rebuilds authorized API client)
                     app.authenticatedApiClient.onLoginSuccess(token)
+                    // A fresh local conversation is created exactly once per successful login.
+                    // Remote history remains available and can be selected from the history UI.
+                    app.healthChatRepository.createConversation()
                     // D3: resume queue + schedule/trigger worker
                     app.syncRepository.resumeQueue()
                     MeasurementSyncWorker.schedule(context)
