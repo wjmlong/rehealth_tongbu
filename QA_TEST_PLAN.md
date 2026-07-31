@@ -99,8 +99,14 @@ git diff --check
      Confirm all prior rows remain and the two local RDI tables are created.
    - Open the Attribution and Model tabs and compare with the `fc1f6d5` baseline. Attribution
      must retain period selection, improvement summary, PIAS, activity, 16-factor groups and
-     intervention plan. Model must retain its existing compact risk/input cards. Neither page
-     may display or trigger the retained RDI skeleton.
+     intervention plan. Model must retain its existing compact risk/input cards.
+   - In Attribution, confirm “健康改善得分” shows the local RDI value without “百分点”.
+     For 7 days, verify the value is the current RDI calculated from recent seven-day valid
+     Room data. For 30/90 days, verify the value and chart use the median/history of valid
+     daily RDI values; fewer than 7/14 valid days must show an accumulating state.
+   - Confirm the right-side current clinical risk and PIAS remain separate from RDI. Missing
+     wearable data must not be replaced with a normal score, and switching periods quickly
+     must not display a result from the previously selected period.
    - Open “我的”, tap the avatar, and select an image through the Android system picker.
      Confirm the preview updates, survives app restart and same-user re-login, and is not visible
      to another user. Verify no avatar upload request is sent and no new media permission is asked.

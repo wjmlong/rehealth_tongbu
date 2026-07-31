@@ -6,6 +6,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.rdi.RdiDisplayData
+import com.rehealth.genie.rdi.RdiPeriodSummary
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,14 +23,21 @@ class RdiViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     private val _refreshError = MutableStateFlow<String?>(null)
     val refreshError: StateFlow<String?> = _refreshError.asStateFlow()
+    private val _periodSummary = MutableStateFlow<RdiPeriodSummary?>(null)
+    val periodSummary: StateFlow<RdiPeriodSummary?> = _periodSummary.asStateFlow()
+    private var refreshJob: Job? = null
 
-    fun refresh() {
-        viewModelScope.launch {
+    fun refresh(periodDays: Int = 7) {
+        refreshJob?.cancel()
+        _refreshError.value = null
+        refreshJob = viewModelScope.launch {
             try {
-                application.rdiRepository.refresh()
+                _periodSummary.value = application.rdiRepository.refreshPeriod(periodDays)
                 _refreshError.value = null
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (_: Exception) {
-                _refreshError.value = "本机动态分暂时无法更新，请稍后重试"
+                _refreshError.value = "健康改善得分暂时无法更新，请稍后重试"
             }
         }
     }

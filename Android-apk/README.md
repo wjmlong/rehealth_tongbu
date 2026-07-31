@@ -14,7 +14,7 @@
   注册 Mock 或通过 Gradle 属性生成指定厂商真机测试 APK。
 - 心率、HRV、血氧、血压、血糖、压力、MET、ECG、睡眠、步数、活动、血液成分和身体成分等本地记录与数据卡片；能力门控的血糖校准与经期设置。
 - Room 本地优先持久化及显式数据库迁移。
-- Room v8 本地 RDI 每日快照、逐因素证据、可信度收缩和平滑算法骨架；当前未接入页面。
+- Room v8 本地 RDI 每日快照、逐因素证据、可信度收缩和平滑算法；归因页“健康改善得分”读取该结果。
 - Foreground Service 后台低频采集与 WorkManager 恢复任务。
 - 认证感知的 durable upload queue；401 时暂停，重新登录后恢复。
 - 遥测批量上传、设备绑定、访谈、CVD 16 特征评估和 typed intervention feedback。
@@ -146,9 +146,11 @@ HRV 生成本地近期可干预负荷；每项贡献乘数据可信度，展示�
 与 [AHA Life's Essential 8](https://www.heart.org/en/healthy-living/healthy-lifestyle/lifes-essential-8)；
 `0.35 分/1000 步` 等仍是待纵向验证的 V1 产品参数，不是临床效应量。
 
-归因页与模型页保持 `fc1f6d5` 的既有样式和交互：归因页继续展示周期选择、改善摘要、
-PIAS、活动、16 项因素和干预计划；模型页不新增 RDI 或展开的 CVD 16 项卡片。
-RDI 的 Engine、Repository、ViewModel、Room v8 与测试仅作为后续接入骨架保留。
+归因页与模型页保持 `fc1f6d5` 的既有样式和主要交互。归因页“健康改善得分”
+不再使用风险百分点差：7 日显示由近 7 日有效 Room 数据计算的当前 RDI，
+30/90 日显示窗口内有效日 RDI 的稳健中位数；同卡片折线也使用 RDI 历史。
+右侧当前风险、PIAS、活动、16 项因素和干预计划仍走原有链路，模型页不新增
+RDI 或展开的 CVD 16 项卡片。
 模型页仍不显示接口路径、请求 ID、内部贡献值或体温输入，也不再声称云端模型在端侧运行。“我的”中的每日步数优先使用
 Room `ring_activities` 按设备当地自然日聚合的真实活动记录，活动缺失时才兼容旧 `STEPS` 测量。
 

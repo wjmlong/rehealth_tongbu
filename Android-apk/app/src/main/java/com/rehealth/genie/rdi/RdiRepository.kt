@@ -3,8 +3,10 @@ package com.rehealth.genie.rdi
 import com.rehealth.genie.ring.data.RingDataDao
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 
 data class RdiDisplayData(
     val score: Double,
@@ -104,6 +106,61 @@ class RdiRepository(
             status = snapshot.status,
             scoredOn = snapshot.scoredOn,
             contributions = records,
+        )
+    }
+
+    suspend fun refreshPeriod(
+        periodDays: Int,
+        scoredOn: LocalDate = LocalDate.now(zoneId),
+    ): RdiPeriodSummary {
+        require(periodDays in setOf(7, 30, 90)) { "RDI period must be 7, 30, or 90 days" }
+        val current = refresh(scoredOn)
+        val since = scoredOn.minusDays((periodDays + 27).toLong())
+            .atStartOfDay(zoneId)
+            .toInstant()
+            .toEpochMilli()
+        val activities = ringDataDao.getActivitiesSince(since)
+        val sleepSessions = ringDataDao.getSleepSessionsSince(since)
+        val measurements = ringDataDao.getMeasurementsSince(since)
+        val calculatedDailyScores = withContext(Dispatchers.Default) {
+            (periodDays - 1 downTo 0).mapNotNull { daysAgo ->
+                val date = scoredOn.minusDays(daysAgo.toLong())
+                val calculation = RdiEngine.calculate(
+                    RdiCalculationInput(
+                        scoredOn = date,
+                        zoneId = zoneId,
+                        activities = activities,
+                        sleepSessions = sleepSessions,
+                        measurements = measurements,
+                        previousDisplayScore = null,
+                    ),
+                )
+                calculation.takeIf {
+                    it.confidence >= RdiPeriodAggregator.MIN_VALID_CONFIDENCE &&
+                        it.contributions.isNotEmpty()
+                }?.let {
+                    RdiDailyScore(
+                        date = date,
+                        score = it.displayScore,
+                        confidence = it.confidence,
+                    )
+                }
+            }
+        }
+        val currentIsValid = current.confidence >= RdiPeriodAggregator.MIN_VALID_CONFIDENCE &&
+            current.contributions.isNotEmpty()
+        val dailyScores = calculatedDailyScores.map { point ->
+            if (point.date == scoredOn && currentIsValid) {
+                point.copy(score = current.score, confidence = current.confidence)
+            } else {
+                point
+            }
+        }
+        return RdiPeriodAggregator.summarize(
+            periodDays = periodDays,
+            currentScore = current.score.takeIf { currentIsValid },
+            currentConfidence = current.confidence,
+            dailyScores = dailyScores,
         )
     }
 

@@ -68,7 +68,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rehealth.genie.BuildConfig
 import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.network.PatientProfilePayload
-import com.rehealth.genie.phm.AttributionHistoryPoint
+import com.rehealth.genie.rdi.RdiDailyScore
+import com.rehealth.genie.rdi.RdiPeriodAggregation
+import com.rehealth.genie.rdi.RdiPeriodSummary
 import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.RingUiState
 import com.rehealth.genie.ui.theme.AttributionDimensions as Dimensions
@@ -91,10 +93,17 @@ fun AttributionScreen(
     val feedbackViewModel: InterventionFeedbackViewModel = viewModel(
         factory = InterventionFeedbackViewModel.Factory(LocalContext.current),
     )
+    val rdiViewModel: RdiViewModel = viewModel(factory = RdiViewModel.Factory(LocalContext.current))
+    val rdiPeriodSummary by rdiViewModel.periodSummary.collectAsState()
+    val rdiRefreshError by rdiViewModel.refreshError.collectAsState()
     var selectedPeriod by remember { mutableStateOf(AttributionPeriod.DAYS_7) }
     var retryKey by remember { mutableIntStateOf(0) }
     var requestSequence by remember { mutableLongStateOf(0L) }
     var refreshState by remember { mutableStateOf(AttributionRefreshState()) }
+
+    LaunchedEffect(selectedPeriod, ringState.lastSyncAt) {
+        rdiViewModel.refresh(selectedPeriod.days.toInt())
+    }
 
     LaunchedEffect(
         retryKey,
@@ -179,15 +188,22 @@ fun AttributionScreen(
 
     AttributionContent(
         state = uiState,
+        rdiSummary = rdiPeriodSummary?.takeIf { it.periodDays == selectedPeriod.days.toInt() },
+        rdiError = rdiRefreshError,
         feedbackViewModel = feedbackViewModel,
         onPeriodSelected = { selectedPeriod = it },
-        onRetry = { retryKey += 1 },
+        onRetry = {
+            retryKey += 1
+            rdiViewModel.refresh(selectedPeriod.days.toInt())
+        },
     )
 }
 
 @Composable
 private fun AttributionContent(
     state: AttributionUiState,
+    rdiSummary: RdiPeriodSummary?,
+    rdiError: String?,
     feedbackViewModel: InterventionFeedbackViewModel,
     onPeriodSelected: (AttributionPeriod) -> Unit,
     onRetry: () -> Unit,
@@ -227,7 +243,7 @@ private fun AttributionContent(
                 )
             }
         }
-        item { AttributionSummaryCard(state) }
+        item { AttributionSummaryCard(state, rdiSummary, rdiError) }
         item { AttributionPiasCard(state.pias, onRetry) }
         item { AttributionActivityCard(state.activity) }
         item { AttributionFactorsCard(state.factorGroups) }
@@ -320,24 +336,28 @@ private fun AttributionRefreshBanner(
 }
 
 @Composable
-private fun AttributionSummaryCard(state: AttributionUiState) {
+private fun AttributionSummaryCard(
+    state: AttributionUiState,
+    rdiSummary: RdiPeriodSummary?,
+    rdiError: String?,
+) {
     AttributionCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("健康改善得分", color = Palette.TextPrimary, style = Type.CardTitle)
-                val improvementColor = when {
-                    state.improvementPoints == null -> Palette.TextSecondary
-                    state.improvementPoints >= 0.0 -> Palette.Accent
-                    else -> Palette.ImprovementWorsening
-                }
+                val rdiScore = rdiSummary?.score
                 Text(
-                    if (state.improvementPoints == null) "--" else "${state.improvementText} 个百分点",
-                    color = improvementColor,
+                    rdiScore?.let { String.format(Locale.US, "%.1f", it) } ?: "--",
+                    color = when {
+                        rdiScore == null -> Palette.TextSecondary
+                        rdiScore <= 50.0 -> Palette.Accent
+                        else -> Palette.ImprovementWorsening
+                    },
                     style = Type.SummaryScore,
                     modifier = Modifier.padding(top = Dimensions.SummaryScoreTop),
                 )
                 Text(
-                    state.improvementMessage,
+                    rdiSummary?.summaryText() ?: rdiError ?: "正在计算动态风险影响分 RDI",
                     color = Palette.TextSecondary,
                     style = Type.Detail,
                     modifier = Modifier.padding(top = Dimensions.SummarySupportingTop),
@@ -359,9 +379,9 @@ private fun AttributionSummaryCard(state: AttributionUiState) {
                 )
             }
         }
-        if (state.selectedHistory.size >= 2) {
-            AttributionHistoryChart(
-                history = state.selectedHistory,
+        if (rdiSummary != null && rdiSummary.history.size >= 2) {
+            RdiHistoryChart(
+                history = rdiSummary.history,
                 modifier = Modifier.fillMaxWidth().height(Dimensions.HistoryChartHeight)
                     .padding(top = Dimensions.HistoryChartTop),
             )
@@ -372,10 +392,16 @@ private fun AttributionSummaryCard(state: AttributionUiState) {
                     .clip(RoundedCornerShape(Dimensions.ContentRadius)).background(Palette.SurfaceSubtle),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("已确认风险趋势正在积累", color = Palette.TextSecondary, style = Type.Body)
+                Text("动态风险影响分趋势正在积累", color = Palette.TextSecondary, style = Type.Body)
             }
         }
     }
+}
+
+private fun RdiPeriodSummary.summaryText(): String = when {
+    score == null -> "有效数据 $validDays/$requiredValidDays 天，正在积累 RDI"
+    aggregation == RdiPeriodAggregation.CURRENT_7_DAY -> "动态风险影响分 RDI · 基于近7日有效数据"
+    else -> "动态风险影响分 RDI · $validDays 个有效日稳健中位数"
 }
 
 @Composable
@@ -976,10 +1002,10 @@ private fun AttributionForecastMetric(label: String, value: String, color: Color
 }
 
 @Composable
-private fun AttributionHistoryChart(history: List<AttributionHistoryPoint>, modifier: Modifier) {
+private fun RdiHistoryChart(history: List<RdiDailyScore>, modifier: Modifier) {
     Canvas(modifier) {
         if (history.size < 2) return@Canvas
-        val values = history.map { it.riskScore.toFloat() }
+        val values = history.map { it.score.toFloat() }
         val minimum = values.minOrNull() ?: return@Canvas
         val maximum = values.maxOrNull() ?: return@Canvas
         val range = (maximum - minimum).coerceAtLeast(0.01f)
