@@ -56,6 +56,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
@@ -64,10 +65,12 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rehealth.genie.BuildConfig
 import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.network.PatientProfilePayload
+import com.rehealth.genie.phm.AttributionHistoryPoint
 import com.rehealth.genie.rhi.RhiDailyScore
 import com.rehealth.genie.rhi.RhiPeriodAggregation
 import com.rehealth.genie.rhi.RhiPeriodSummary
@@ -250,7 +253,7 @@ private fun AttributionContent(
             }
         }
         item { AttributionSummaryCard(state, rhiSummary, rhiError) }
-        item { AttributionPiasCard(state.pias, onRetry) }
+        item { AttributionPiasCard(state.pias, state.selectedHistory, onRetry) }
         item { AttributionActivityCard(state.activity) }
         item { AttributionFactorsCard(state.factorGroups) }
         item { AttributionPlanCard(state.interventions, feedbackViewModel) }
@@ -413,6 +416,7 @@ private fun RhiPeriodSummary.summaryText(): String = when {
 @Composable
 private fun AttributionPiasCard(
     pias: AttributionPiasUiState,
+    history: List<AttributionHistoryPoint>,
     onRetry: () -> Unit,
 ) {
     AttributionCard {
@@ -420,7 +424,7 @@ private fun AttributionPiasCard(
             Column(Modifier.weight(1f)) {
                 Text("个人风险趋势", color = Palette.TextPrimary, style = Type.CardTitle)
                 Text(
-                    "PIAS 固定 30 天预测 · 执行计划与维持现状",
+                    "真实 RDI-16 历史 · PIAS 30 天情景预测",
                     color = Palette.TextSecondary,
                     style = Type.Detail,
                 )
@@ -462,15 +466,25 @@ private fun AttributionPiasCard(
                     trackColor = Palette.AccentSoft,
                 )
             }
-            is AttributionPiasUiState.Ready -> AttributionPiasReadyContent(pias)
+            is AttributionPiasUiState.Ready -> AttributionPiasReadyContent(pias, history)
         }
+        Text(
+            "情景模拟基于近期健康状态，不代表未来疾病发生概率。",
+            color = Palette.TextSecondary,
+            style = Type.Micro,
+            modifier = Modifier.padding(top = Dimensions.AttTop),
+        )
     }
 }
 
 @Composable
-private fun AttributionPiasReadyContent(pias: AttributionPiasUiState.Ready) {
+private fun AttributionPiasReadyContent(
+    pias: AttributionPiasUiState.Ready,
+    history: List<AttributionHistoryPoint>,
+) {
     if (pias.forecast.chartAvailable) {
         AttributionForecastChart(
+            history = history,
             forecast = pias.forecast,
             modifier = Modifier.fillMaxWidth().height(Dimensions.ForecastChartHeight)
                 .padding(top = Dimensions.ForecastChartTop),
@@ -478,26 +492,53 @@ private fun AttributionPiasReadyContent(pias: AttributionPiasUiState.Ready) {
     } else {
         AttributionCompactMessage("PIAS 已完成分析，本次未返回可绘制的预测序列。")
     }
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = Dimensions.LegendTop),
-        horizontalArrangement = Arrangement.spacedBy(Dimensions.LegendGap),
-    ) {
-        AttributionLegend(Palette.ForecastNoAction, "维持现状")
-        AttributionLegend(Palette.Accent, "执行计划")
-        AttributionLegend(Palette.ForecastInterval, "95% 参考区间")
+    Column(modifier = Modifier.fillMaxWidth().padding(top = Dimensions.LegendTop)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(Dimensions.LegendGap),
+        ) {
+            AttributionTrendLegend(
+                color = Palette.ForecastActual,
+                label = "已发生的动态心健康指数",
+                modifier = Modifier.weight(1f),
+            )
+            AttributionTrendLegend(
+                color = Palette.ForecastNoAction,
+                label = "按当前习惯继续",
+                dashed = true,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(Dimensions.LegendGap),
+        ) {
+            AttributionTrendLegend(
+                color = Palette.Accent,
+                label = "完成计划后",
+                dashed = true,
+                modifier = Modifier.weight(1f),
+            )
+            AttributionTrendLegend(
+                color = Palette.ForecastInterval,
+                label = "预测区间",
+                interval = true,
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
     Row(
         Modifier.fillMaxWidth().padding(top = Dimensions.ForecastMetricsTop),
         horizontalArrangement = Arrangement.spacedBy(Dimensions.ForecastMetricGap),
     ) {
         AttributionForecastMetric(
-            label = "维持现状",
+            label = "当前习惯",
             value = pias.forecast.d30NoAction.asPercent(),
             color = Palette.ForecastNoAction,
             modifier = Modifier.weight(1f),
         )
         AttributionForecastMetric(
-            label = "执行计划",
+            label = "完成计划",
             value = pias.forecast.d30WithPlan.asPercent(),
             color = Palette.Accent,
             modifier = Modifier.weight(1f),
@@ -974,9 +1015,32 @@ private fun AttributionActivityMetric(label: String, value: String, modifier: Mo
 }
 
 @Composable
-private fun AttributionLegend(color: Color, label: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(Dimensions.LegendDot).clip(CircleShape).background(color))
+private fun AttributionTrendLegend(
+    color: Color,
+    label: String,
+    modifier: Modifier,
+    dashed: Boolean = false,
+    interval: Boolean = false,
+) {
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        Canvas(Modifier.width(20.dp).height(8.dp)) {
+            if (interval) {
+                drawRect(color.copy(alpha = 0.35f))
+            } else {
+                drawLine(
+                    color = color,
+                    start = Offset(0f, size.height / 2f),
+                    end = Offset(size.width, size.height / 2f),
+                    strokeWidth = 2.dp.toPx(),
+                    cap = StrokeCap.Round,
+                    pathEffect = if (dashed) {
+                        PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx()))
+                    } else {
+                        null
+                    },
+                )
+            }
+        }
         Text(
             label,
             color = Palette.TextSecondary,
@@ -1031,11 +1095,18 @@ private fun RhiHistoryChart(history: List<RhiDailyScore>, modifier: Modifier) {
 }
 
 @Composable
-private fun AttributionForecastChart(forecast: AttributionForecastUi, modifier: Modifier) {
+private fun AttributionForecastChart(
+    history: List<AttributionHistoryPoint>,
+    forecast: AttributionForecastUi,
+    modifier: Modifier,
+) {
     Canvas(modifier) {
         val count = minOf(forecast.noAction.size, forecast.withPlan.size)
         if (count < 2) return@Canvas
+        val actualValues = history.map(AttributionHistoryPoint::riskScore)
+            .filter { it.isFinite() && it in 0.0..1.0 }
         val allValues = buildList {
+            addAll(actualValues)
             addAll(forecast.noAction.take(count))
             addAll(forecast.withPlan.take(count))
             addAll(forecast.ciLower.take(count))
@@ -1050,11 +1121,14 @@ private fun AttributionForecastChart(forecast: AttributionForecastUi, modifier: 
         val right = size.width - Dimensions.ForecastChartInset.toPx()
         val top = Dimensions.ForecastChartInset.toPx()
         val bottom = size.height - Dimensions.ForecastChartInset.toPx()
-        fun point(index: Int, value: Double): Offset {
-            val x = left + (right - left) * index / (count - 1)
+        val predictionLeft = if (actualValues.isEmpty()) left else left + (right - left) * 0.34f
+        fun point(index: Int, value: Double, startX: Float, endX: Float, pointCount: Int): Offset {
+            val x = if (pointCount <= 1) endX else startX + (endX - startX) * index / (pointCount - 1)
             val y = bottom - ((value - minimum) / (maximum - minimum)).toFloat() * (bottom - top)
             return Offset(x, y.coerceIn(top, bottom))
         }
+        fun forecastPoint(index: Int, value: Double): Offset =
+            point(index, value, predictionLeft, right, count)
         repeat(4) { index ->
             val y = top + (bottom - top) * index / 3f
             drawLine(
@@ -1067,28 +1141,66 @@ private fun AttributionForecastChart(forecast: AttributionForecastUi, modifier: 
         if (forecast.ciLower.size >= count && forecast.ciUpper.size >= count) {
             val confidencePath = Path()
             forecast.ciUpper.take(count).forEachIndexed { index, value ->
-                val position = point(index, value)
+                val position = forecastPoint(index, value)
                 if (index == 0) confidencePath.moveTo(position.x, position.y) else confidencePath.lineTo(position.x, position.y)
             }
             forecast.ciLower.take(count).asReversed().forEachIndexed { reverseIndex, value ->
                 val index = count - reverseIndex - 1
-                val position = point(index, value)
+                val position = forecastPoint(index, value)
                 confidencePath.lineTo(position.x, position.y)
             }
             confidencePath.close()
             drawPath(confidencePath, Palette.ForecastInterval.copy(alpha = Opacity.ForecastInterval))
         }
-        fun drawSeries(values: List<Double>, color: Color, width: Float) {
+        fun drawForecastSeries(values: List<Double>, color: Color, width: Float) {
             val path = Path()
             values.take(count).forEachIndexed { index, value ->
-                val position = point(index, value)
+                val position = forecastPoint(index, value)
                 if (index == 0) path.moveTo(position.x, position.y) else path.lineTo(position.x, position.y)
-                drawCircle(color, radius = Dimensions.ForecastDotRadius.toPx(), center = position)
             }
-            drawPath(path, color, style = Stroke(width = width, cap = StrokeCap.Round))
+            drawPath(
+                path,
+                color,
+                style = Stroke(
+                    width = width,
+                    cap = StrokeCap.Round,
+                    pathEffect = PathEffect.dashPathEffect(
+                        floatArrayOf(8.dp.toPx(), 5.dp.toPx()),
+                    ),
+                ),
+            )
         }
-        drawSeries(forecast.noAction, Palette.ForecastNoAction, Dimensions.ForecastNoActionStroke.toPx())
-        drawSeries(forecast.withPlan, Palette.Accent, Dimensions.ForecastPlanStroke.toPx())
+        if (actualValues.isNotEmpty()) {
+            val actualPath = Path()
+            actualValues.forEachIndexed { index, value ->
+                val position = point(index, value, left, predictionLeft, actualValues.size)
+                if (index == 0) {
+                    actualPath.moveTo(position.x, position.y)
+                } else {
+                    actualPath.lineTo(position.x, position.y)
+                }
+                drawCircle(
+                    Palette.ForecastActual,
+                    radius = Dimensions.ForecastDotRadius.toPx(),
+                    center = position,
+                )
+            }
+            drawPath(
+                actualPath,
+                Palette.ForecastActual,
+                style = Stroke(width = Dimensions.ForecastPlanStroke.toPx(), cap = StrokeCap.Round),
+            )
+        }
+        drawForecastSeries(
+            forecast.noAction,
+            Palette.ForecastNoAction,
+            Dimensions.ForecastNoActionStroke.toPx(),
+        )
+        drawForecastSeries(
+            forecast.withPlan,
+            Palette.Accent,
+            Dimensions.ForecastPlanStroke.toPx(),
+        )
     }
 }
 
