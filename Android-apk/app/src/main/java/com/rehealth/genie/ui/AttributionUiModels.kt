@@ -104,12 +104,10 @@ data class AttributionForecastUi(
         get() = noAction.size >= 2 && withPlan.size >= 2
 }
 
-/**
- * Reserved RDI-16 scenario fields. The current RDI-16 contract only supplies
- * confirmed historical risk scores, so these values remain null until that
- * contract explicitly returns RDI-16-native forecasts.
- */
+/** RDI-16-native 30-day counterfactual scores; all values stay on the 0-100 scale. */
 data class AttributionRdiScenarioUi(
+    val noAction: List<Double> = emptyList(),
+    val withPlan: List<Double> = emptyList(),
     val noActionScore: Double? = null,
     val withPlanScore: Double? = null,
     val expectedReduction: Double? = null,
@@ -117,7 +115,8 @@ data class AttributionRdiScenarioUi(
     val ciUpper: List<Double> = emptyList(),
 ) {
     val forecastAvailable: Boolean
-        get() = noActionScore != null && withPlanScore != null && expectedReduction != null
+        get() = noAction.size >= 2 && withPlan.size >= 2 &&
+            noActionScore != null && withPlanScore != null && expectedReduction != null
 
     val intervalAvailable: Boolean
         get() = ciLower.size >= 2 && ciUpper.size >= 2

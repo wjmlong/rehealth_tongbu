@@ -3,6 +3,7 @@ package com.rehealth.genie.ui
 import com.rehealth.genie.phm.AttributionHistoryPoint
 import com.rehealth.genie.phm.IndividualAttributionResult
 import com.rehealth.genie.rhi.RhiPeriodSummary
+import com.rehealth.genie.rdi.RdiScenarioForecast
 import java.time.LocalDate
 import java.util.Locale
 
@@ -80,7 +81,7 @@ object AttributionUiMapper {
             currentRiskText = rdiScore?.let { String.format(Locale.US, "%.1f/100", it) } ?: "--/100",
             riskLevel = null,
             selectedHistory = selectedHistory,
-            rdiScenario = AttributionRdiScenarioUi(),
+            rdiScenario = mapRdiScenario(rdiSummary?.scenario),
             pias = mapPias(input.remote.pias, input.refreshPhase, input.refreshError),
             activity = mapActivity(input.activity, input.allowDebugReplay),
             factors = factors,
@@ -90,6 +91,36 @@ object AttributionUiMapper {
             interventions = mapInterventions(input.interventions, input.interventionSourceMode),
         )
     }
+
+    private fun mapRdiScenario(forecast: RdiScenarioForecast?): AttributionRdiScenarioUi {
+        forecast ?: return AttributionRdiScenarioUi()
+        val count = minOf(forecast.noAction.size, forecast.withPlan.size)
+        if (count < 2) return AttributionRdiScenarioUi()
+        val paired = forecast.noAction.take(count).zip(forecast.withPlan.take(count))
+        if (paired.any { (noAction, withPlan) -> !validRdi(noAction) || !validRdi(withPlan) }) {
+            return AttributionRdiScenarioUi()
+        }
+        val interval = if (forecast.ciLower.size >= count && forecast.ciUpper.size >= count) {
+            forecast.ciLower.take(count).zip(forecast.ciUpper.take(count)).takeIf { pairs ->
+                pairs.all { (lower, upper) -> validRdi(lower) && validRdi(upper) && lower <= upper }
+            }
+        } else {
+            null
+        }
+        val noAction = paired.map { it.first }
+        val withPlan = paired.map { it.second }
+        return AttributionRdiScenarioUi(
+            noAction = noAction,
+            withPlan = withPlan,
+            noActionScore = forecast.d30NoAction.takeIf(::validRdi) ?: noAction.last(),
+            withPlanScore = forecast.d30WithPlan.takeIf(::validRdi) ?: withPlan.last(),
+            expectedReduction = forecast.expectedReduction.takeIf(Double::isFinite),
+            ciLower = interval?.map { it.first }.orEmpty(),
+            ciUpper = interval?.map { it.second }.orEmpty(),
+        )
+    }
+
+    private fun validRdi(value: Double): Boolean = value.isFinite() && value in 0.0..100.0
 
     fun mapRhiImprovement(
         summary: RhiPeriodSummary?,

@@ -75,6 +75,7 @@ import com.rehealth.genie.network.dto.BehaviorRecordDto
 import com.rehealth.genie.phm.AttributionHistoryPoint
 import com.rehealth.genie.rdi.RdiContributionEntity
 import com.rehealth.genie.rdi.RdiDisplayData
+import com.rehealth.genie.rdi.RdiScenarioIntervention
 import com.rehealth.genie.rhi.RhiDailyScore
 import com.rehealth.genie.ring.RingUiState
 import com.rehealth.genie.ui.theme.AttributionDimensions as Dimensions
@@ -122,6 +123,17 @@ fun AttributionScreen(
     var retryKey by remember { mutableIntStateOf(0) }
     var requestSequence by remember { mutableLongStateOf(0L) }
     var refreshState by remember { mutableStateOf(AttributionRefreshState()) }
+    val rdiScenarioInterventions = remember(ringState.patientMvp?.interventionPlan) {
+        ringState.patientMvp?.interventionPlan.orEmpty().map { intervention ->
+            RdiScenarioIntervention(
+                id = intervention.id,
+                title = intervention.title,
+                action = intervention.action,
+                duration = intervention.duration,
+                status = intervention.status,
+            )
+        }
+    }
 
     LaunchedEffect(activeWearableBinding.address, activeWearableBinding.vendor) {
         dietEntryViewModel.preparePendingUploads()
@@ -143,8 +155,9 @@ fun AttributionScreen(
         ringState.lastSyncAt,
         activeWearableBinding.address,
         activeWearableBinding.vendor,
+        rdiScenarioInterventions,
     ) {
-        rdiViewModel.refresh(selectedPeriod.days.toInt())
+        rdiViewModel.refresh(selectedPeriod.days.toInt(), rdiScenarioInterventions)
     }
 
     LaunchedEffect(
@@ -245,7 +258,7 @@ fun AttributionScreen(
                 selectedPeriod.days.toInt(),
                 AttributionDataProvenance.trustedProfile(ringState.patientMvp),
             )
-            rdiViewModel.refresh(selectedPeriod.days.toInt())
+            rdiViewModel.refresh(selectedPeriod.days.toInt(), rdiScenarioInterventions)
             behaviorViewModel.refreshToday()
         },
         rdiDisplayData = rdiDisplayData,
@@ -518,12 +531,22 @@ private fun AttributionRdiTrendContent(
     history: List<AttributionHistoryPoint>,
     scenario: AttributionRdiScenarioUi,
 ) {
+    val forecast = scenario.asForecastUi()
     if (history.size >= 2) {
-        AttributionRdiHistoryChart(
-            history = history,
-            modifier = Modifier.fillMaxWidth().height(Dimensions.ForecastChartHeight)
-                .padding(top = Dimensions.ForecastChartTop),
-        )
+        if (forecast != null) {
+            AttributionForecastChart(
+                history = history,
+                forecast = forecast,
+                modifier = Modifier.fillMaxWidth().height(Dimensions.ForecastChartHeight)
+                    .padding(top = Dimensions.ForecastChartTop),
+            )
+        } else {
+            AttributionRdiHistoryChart(
+                history = history,
+                modifier = Modifier.fillMaxWidth().height(Dimensions.ForecastChartHeight)
+                    .padding(top = Dimensions.ForecastChartTop),
+            )
+        }
     } else {
         AttributionCompactMessage("RDI-16 历史不足 2 个有效日，暂不能绘制变化曲线。")
     }
@@ -539,7 +562,7 @@ private fun AttributionRdiTrendContent(
             )
             AttributionTrendLegend(
                 color = Palette.ForecastNoAction,
-                label = "维持现状（暂不可用）",
+                label = if (scenario.forecastAvailable) "维持现状" else "维持现状（暂不可用）",
                 dashed = true,
                 modifier = Modifier.weight(1f),
             )
@@ -550,13 +573,13 @@ private fun AttributionRdiTrendContent(
         ) {
             AttributionTrendLegend(
                 color = Palette.Accent,
-                label = "执行计划（暂不可用）",
+                label = if (scenario.forecastAvailable) "执行计划" else "执行计划（暂不可用）",
                 dashed = true,
                 modifier = Modifier.weight(1f),
             )
             AttributionTrendLegend(
                 color = Palette.ForecastInterval,
-                label = "95% 区间（暂不可用）",
+                label = if (scenario.intervalAvailable) "95% 情景区间" else "95% 区间（暂不可用）",
                 interval = true,
                 modifier = Modifier.weight(1f),
             )
@@ -585,6 +608,21 @@ private fun AttributionRdiTrendContent(
             modifier = Modifier.weight(1f),
         )
     }
+}
+
+private fun AttributionRdiScenarioUi.asForecastUi(): AttributionForecastUi? {
+    if (!forecastAvailable) return null
+    val count = minOf(noAction.size, withPlan.size)
+    if (count < 2) return null
+    return AttributionForecastUi(
+        noAction = noAction.take(count).map { it / 100.0 },
+        withPlan = withPlan.take(count).map { it / 100.0 },
+        ciLower = ciLower.take(count).map { it / 100.0 },
+        ciUpper = ciUpper.take(count).map { it / 100.0 },
+        d30NoAction = noActionScore?.div(100.0),
+        d30WithPlan = withPlanScore?.div(100.0),
+        riskReduction = expectedReduction?.div(100.0),
+    )
 }
 
 @Composable

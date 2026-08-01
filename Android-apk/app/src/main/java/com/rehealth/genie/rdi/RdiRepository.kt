@@ -145,6 +145,7 @@ class RdiRepository(
     suspend fun refreshPeriod(
         periodDays: Int,
         scoredOn: LocalDate = LocalDate.now(zoneId),
+        interventions: List<RdiScenarioIntervention> = emptyList(),
     ): RdiPeriodSummary {
         require(periodDays in setOf(7, 30, 90)) { "RDI period must be 7, 30, or 90 days" }
         val current = refresh(scoredOn)
@@ -215,11 +216,28 @@ class RdiRepository(
                 point
             }
         }
+        val scenario = current.score.takeIf { currentIsValid }?.let { currentScore ->
+            RdiScenarioForecaster.forecast(
+                scoredOn = scoredOn,
+                zoneId = zoneId,
+                activities = activities,
+                sleepSessions = sleepSessions,
+                measurements = measurements,
+                currentScore = currentScore,
+                anchoredBaselines = anchoredBaselines,
+                bloodPressure = bloodPressure,
+                confirmedLabs = confirmedLabs,
+                confirmedMeals = confirmedMeals,
+                interventions = interventions,
+                isMock = isMock,
+            )
+        }
         return RdiPeriodAggregator.summarize(
             periodDays = periodDays,
             currentScore = current.score.takeIf { currentIsValid },
             currentConfidence = current.confidence,
             dailyScores = dailyScores,
+            scenario = scenario,
         )
     }
 

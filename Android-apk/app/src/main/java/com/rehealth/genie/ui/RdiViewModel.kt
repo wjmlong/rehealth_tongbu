@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.rdi.RdiDisplayData
 import com.rehealth.genie.rdi.RdiPeriodSummary
+import com.rehealth.genie.rdi.RdiScenarioIntervention
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,12 +28,18 @@ class RdiViewModel(
     val periodSummary: StateFlow<RdiPeriodSummary?> = _periodSummary.asStateFlow()
     private var refreshJob: Job? = null
 
-    fun refresh(periodDays: Int = 7) {
+    fun refresh(
+        periodDays: Int = 7,
+        interventions: List<RdiScenarioIntervention> = emptyList(),
+    ) {
         refreshJob?.cancel()
         _refreshError.value = null
         refreshJob = viewModelScope.launch {
             try {
-                _periodSummary.value = application.rdiRepository.refreshPeriod(periodDays)
+                _periodSummary.value = application.rdiRepository.refreshPeriod(
+                    periodDays = periodDays,
+                    interventions = interventions,
+                )
                 _refreshError.value = null
             } catch (cancelled: CancellationException) {
                 throw cancelled

@@ -86,6 +86,16 @@ they do not convert or substitute CVD probability or PIAS output. Version 1.0.1
 stores the verified-activity baseline in the same seven-day-minute unit used by
 the current value and rejects the former clock-minute sleep-regularity anchor;
 sleep regularity is compared as variability against the historical window.
+Attribution also has a local RDI-native 30-day counterfactual adapter. With at
+least seven valid activity, sleep, and HRV days plus an explicit supported
+activity or sleep intervention, it builds separate no-action and plan inputs
+from the recent personal weekday pattern and invokes the same `RdiEngine` for
+every future day. The D30 score difference is the displayed expected reduction.
+The `recent-personal-variability-normal-sensitivity-95-v1` interval is the
+pointwise range of deterministic optimistic and conservative input-sensitivity
+runs; it is a scenario range, not a disease-probability confidence interval.
+Projected inputs and scores are transient and must never be persisted as Room
+observations. No PIAS or CVD probability is accepted as an RDI scenario value.
 
 That existing score and chart use the Android RHI Lite evaluator
 (`rhi-deterministic-preview-2.2.0-android-lite`). It ports the governed RHI-100

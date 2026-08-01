@@ -9,6 +9,7 @@ import com.rehealth.genie.rhi.RhiPeriodSummary
 import com.rehealth.genie.rdi.RdiDailyScore
 import com.rehealth.genie.rdi.RdiPeriodAggregation
 import com.rehealth.genie.rdi.RdiPeriodSummary
+import com.rehealth.genie.rdi.RdiScenarioForecast
 import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -85,6 +86,41 @@ class AttributionUiStateTest {
 
         assertEquals("46.9/100", state.currentRiskText)
         assertFalse(state.rdiScenario.forecastAvailable)
+    }
+
+    @Test
+    fun `maps native RDI scenario scores and interval without PIAS conversion`() {
+        val scenario = RdiScenarioForecast(
+            noAction = listOf(46.9, 47.1, 47.3),
+            withPlan = listOf(46.9, 46.2, 44.8),
+            ciLower = listOf(46.9, 45.7, 43.9),
+            ciUpper = listOf(46.9, 46.8, 45.7),
+            d30NoAction = 47.3,
+            d30WithPlan = 44.8,
+            expectedReduction = 2.5,
+        )
+        val state = map(
+            rdiSummary = rdiSummary(
+                periodDays = 7,
+                score = 46.9,
+                history = listOf(rdiPoint("2026-07-21", 47.2), rdiPoint("2026-07-22", 46.9)),
+                scenario = scenario,
+            ),
+            pias = IndividualAttributionResult(
+                status = "ready",
+                d30NoAction = 0.88,
+                d30WithPlan = 0.77,
+                riskReduction = 0.11,
+            ),
+        )
+
+        assertTrue(state.rdiScenario.forecastAvailable)
+        assertTrue(state.rdiScenario.intervalAvailable)
+        assertEquals(listOf(46.9, 47.1, 47.3), state.rdiScenario.noAction)
+        assertEquals(listOf(46.9, 46.2, 44.8), state.rdiScenario.withPlan)
+        assertEquals(47.3, state.rdiScenario.noActionScore)
+        assertEquals(44.8, state.rdiScenario.withPlanScore)
+        assertEquals(2.5, state.rdiScenario.expectedReduction)
     }
 
     @Test
@@ -439,6 +475,7 @@ class AttributionUiStateTest {
         periodDays: Int,
         score: Double,
         history: List<RdiDailyScore>,
+        scenario: RdiScenarioForecast? = null,
     ) = RdiPeriodSummary(
         periodDays = periodDays,
         score = score,
@@ -451,6 +488,7 @@ class AttributionUiStateTest {
             RdiPeriodAggregation.ROBUST_MEDIAN
         },
         history = history,
+        scenario = scenario,
     )
 
     private fun replayActivity() = AttributionActivityInput(

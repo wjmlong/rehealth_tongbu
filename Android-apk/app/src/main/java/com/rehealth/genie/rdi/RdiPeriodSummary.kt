@@ -16,6 +16,7 @@ data class RdiPeriodSummary(
     val requiredValidDays: Int,
     val aggregation: RdiPeriodAggregation,
     val history: List<RdiDailyScore>,
+    val scenario: RdiScenarioForecast? = null,
 )
 
 enum class RdiPeriodAggregation {
@@ -29,6 +30,7 @@ object RdiPeriodAggregator {
         currentScore: Double?,
         currentConfidence: Double?,
         dailyScores: List<RdiDailyScore>,
+        scenario: RdiScenarioForecast? = null,
     ): RdiPeriodSummary {
         require(periodDays in SUPPORTED_PERIODS) { "RDI period must be 7, 30, or 90 days" }
         val ordered = dailyScores.sortedBy { it.date }.takeLast(periodDays)
@@ -60,6 +62,7 @@ object RdiPeriodAggregator {
                 RdiPeriodAggregation.ROBUST_MEDIAN
             },
             history = ordered,
+            scenario = scenario,
         )
     }
 
