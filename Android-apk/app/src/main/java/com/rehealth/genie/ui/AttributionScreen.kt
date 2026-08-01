@@ -127,17 +127,23 @@ fun AttributionScreen(
     }
 
     LaunchedEffect(
+        selectedPeriod,
         ringState.lastSyncAt,
         ringState.patientMvp?.profile?.updatedAt,
     ) {
         rhiViewModel.refresh(
-            AttributionPeriod.DAYS_90.days.toInt(),
+            selectedPeriod.days.toInt(),
             AttributionDataProvenance.trustedProfile(ringState.patientMvp),
         )
     }
 
-    LaunchedEffect(ringState.lastSyncAt, activeWearableBinding.address, activeWearableBinding.vendor) {
-        rdiViewModel.refresh()
+    LaunchedEffect(
+        selectedPeriod,
+        ringState.lastSyncAt,
+        activeWearableBinding.address,
+        activeWearableBinding.vendor,
+    ) {
+        rdiViewModel.refresh(selectedPeriod.days.toInt())
     }
 
     LaunchedEffect(
@@ -153,15 +159,10 @@ fun AttributionScreen(
         refreshState = refreshState.reduce(AttributionRefreshEvent.Started(requestId))
         try {
             val history = application.riskHistoryRepository.attributionHistory(limit = 90)
-            val pias = if (history.isEmpty()) {
-                null
-            } else {
-                application.remotePhmService.attributeIndividual(history, forecastDays = 30)
-            }
             refreshState = refreshState.reduce(
                 AttributionRefreshEvent.Succeeded(
                     requestId = requestId,
-                    data = AttributionRemoteData(history = history, pias = pias),
+                    data = AttributionRemoteData(history = history, pias = null),
                 ),
             )
         } catch (cancelled: CancellationException) {
@@ -239,10 +240,10 @@ fun AttributionScreen(
         onRetry = {
             retryKey += 1
             rhiViewModel.refresh(
-                AttributionPeriod.DAYS_90.days.toInt(),
+                selectedPeriod.days.toInt(),
                 AttributionDataProvenance.trustedProfile(ringState.patientMvp),
             )
-            rdiViewModel.refresh()
+            rdiViewModel.refresh(selectedPeriod.days.toInt())
             behaviorViewModel.refreshToday()
         },
         rdiDisplayData = rdiDisplayData,
@@ -302,13 +303,12 @@ private fun AttributionContent(
         item { AttributionSummaryCard(state, rhiImprovement, rhiError) }
         item {
             AttributionRiskTrendCard(
-                scenarios = state.pias,
+                period = state.period,
                 history = state.selectedHistory,
-                riskLevel = state.riskLevel,
-                onRetry = onRetry,
+                scenario = state.rdiScenario,
+                impact = rdiDisplayData,
             )
         }
-        item { RdiImpactCard(rdiDisplayData) }
         item {
             AttributionDietCard(
                 state = dietEntryState,
@@ -434,7 +434,7 @@ private fun AttributionSummaryCard(
                 )
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("风险指数", color = Palette.TextSecondary, style = Type.Body)
+                Text("RDI-16 风险指数", color = Palette.TextSecondary, style = Type.Body)
                 Text(
                     state.currentRiskText,
                     color = Palette.TextPrimary,
@@ -442,7 +442,11 @@ private fun AttributionSummaryCard(
                     modifier = Modifier.padding(top = Dimensions.PageSubtitleTop),
                 )
                 Text(
-                    riskLevelLabel(state.riskLevel),
+                    if (state.selectedHistory.isEmpty()) {
+                        "本周期暂无有效记录"
+                    } else {
+                        "${state.period.selectorLabel} · ${state.selectedHistory.size} 个有效日"
+                    },
                     color = Palette.Accent,
                     style = Type.Detail,
                     modifier = Modifier.padding(top = Dimensions.SummarySupportingTop),
@@ -470,73 +474,34 @@ private fun AttributionSummaryCard(
 
 @Composable
 private fun AttributionRiskTrendCard(
-    scenarios: AttributionPiasUiState,
+    period: AttributionPeriod,
     history: List<AttributionHistoryPoint>,
-    riskLevel: String?,
-    onRetry: () -> Unit,
+    scenario: AttributionRdiScenarioUi,
+    impact: RdiDisplayData?,
 ) {
     AttributionCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("个人风险趋势", color = Palette.TextPrimary, style = Type.CardTitle)
-                val readyForecast = (scenarios as? AttributionPiasUiState.Ready)?.forecast
-                val planImproves = readyForecast?.d30WithPlan != null &&
-                    readyForecast.d30NoAction != null &&
-                    readyForecast.d30WithPlan < readyForecast.d30NoAction
                 Text(
-                    if (planImproves) {
-                        "当前风险指数越低越好；执行计划后预计下降更快"
-                    } else if (scenarios is AttributionPiasUiState.Ready) {
-                        "当前风险指数越低越好；下方展示 30 天情景"
-                    } else {
-                        "真实 RDI-16 历史 · 30 天情景模拟"
-                    },
+                    "RDI-16 · ${period.selectorLabel}每日风险变化",
                     color = Palette.TextSecondary,
                     style = Type.Detail,
                 )
             }
             Text(
-                when (scenarios) {
-                    is AttributionPiasUiState.Ready -> riskLevelLabel(riskLevel)
-                    is AttributionPiasUiState.Accumulating -> "积累中"
-                    is AttributionPiasUiState.Failed -> "暂不可用"
-                    AttributionPiasUiState.Empty -> "待生成"
-                    AttributionPiasUiState.Loading -> "计算中"
-                },
+                if (history.isEmpty()) "积累中" else "${history.size} 个有效日",
                 color = Palette.Accent,
                 style = Type.Detail,
                 modifier = Modifier.clip(CircleShape).background(Palette.AccentSoft)
                     .padding(
                         horizontal = Dimensions.StatusHorizontalPadding,
                         vertical = Dimensions.StatusVerticalPadding,
-                    ),
+                ),
             )
         }
-        when (scenarios) {
-            AttributionPiasUiState.Empty -> AttributionCompactMessage("完成已确认 RDI-16 风险评估后生成 30 天预测。")
-            AttributionPiasUiState.Loading -> AttributionLoadingMessage("正在生成风险情景…")
-            is AttributionPiasUiState.Failed -> {
-                AttributionCompactMessage(scenarios.message)
-                TextButton(onClick = onRetry, modifier = Modifier.align(Alignment.End)) {
-                    Text("重新计算", color = Palette.Accent, style = Type.Body)
-                }
-            }
-            is AttributionPiasUiState.Accumulating -> {
-                AttributionCompactMessage(
-                    "已有 ${scenarios.historyDays} 天 RDI-16 记录，还需 ${scenarios.remainingDays} 天才能生成完整预测。",
-                )
-                LinearProgressIndicator(
-                    progress = {
-                        (scenarios.historyDays.toFloat() / scenarios.minHistoryDays.coerceAtLeast(1))
-                            .coerceIn(0f, 1f)
-                    },
-                    modifier = Modifier.fillMaxWidth().height(Dimensions.AccumulationProgressHeight).clip(CircleShape),
-                    color = Palette.Accent,
-                    trackColor = Palette.AccentSoft,
-                )
-            }
-            is AttributionPiasUiState.Ready -> AttributionRiskTrendReadyContent(scenarios, history)
-        }
+        AttributionRdiTrendContent(history, scenario)
+        RdiImpactSection(impact)
         Text(
             "情景模拟基于近期健康状态，不代表未来疾病发生概率。",
             color = Palette.TextSecondary,
@@ -547,19 +512,18 @@ private fun AttributionRiskTrendCard(
 }
 
 @Composable
-private fun AttributionRiskTrendReadyContent(
-    scenarios: AttributionPiasUiState.Ready,
+private fun AttributionRdiTrendContent(
     history: List<AttributionHistoryPoint>,
+    scenario: AttributionRdiScenarioUi,
 ) {
-    if (scenarios.forecast.chartAvailable) {
-        AttributionForecastChart(
+    if (history.size >= 2) {
+        AttributionRdiHistoryChart(
             history = history,
-            forecast = scenarios.forecast,
             modifier = Modifier.fillMaxWidth().height(Dimensions.ForecastChartHeight)
                 .padding(top = Dimensions.ForecastChartTop),
         )
     } else {
-        AttributionCompactMessage("情景分析已完成，本次未返回可绘制的预测序列。")
+        AttributionCompactMessage("RDI-16 历史不足 2 个有效日，暂不能绘制变化曲线。")
     }
     Column(modifier = Modifier.fillMaxWidth().padding(top = Dimensions.LegendTop)) {
         Row(
@@ -573,7 +537,7 @@ private fun AttributionRiskTrendReadyContent(
             )
             AttributionTrendLegend(
                 color = Palette.ForecastNoAction,
-                label = "维持现状",
+                label = "维持现状（暂不可用）",
                 dashed = true,
                 modifier = Modifier.weight(1f),
             )
@@ -584,21 +548,16 @@ private fun AttributionRiskTrendReadyContent(
         ) {
             AttributionTrendLegend(
                 color = Palette.Accent,
-                label = "执行计划",
+                label = "执行计划（暂不可用）",
                 dashed = true,
                 modifier = Modifier.weight(1f),
             )
-            if (
-                scenarios.forecast.ciLower.size >= 2 &&
-                scenarios.forecast.ciUpper.size >= 2
-            ) {
-                AttributionTrendLegend(
-                    color = Palette.ForecastInterval,
-                    label = "95% 参考区间",
-                    interval = true,
-                    modifier = Modifier.weight(1f),
-                )
-            }
+            AttributionTrendLegend(
+                color = Palette.ForecastInterval,
+                label = "95% 区间（暂不可用）",
+                interval = true,
+                modifier = Modifier.weight(1f),
+            )
         }
     }
     Row(
@@ -607,19 +566,19 @@ private fun AttributionRiskTrendReadyContent(
     ) {
         AttributionForecastMetric(
             label = "维持现状",
-            value = scenarios.forecast.d30NoAction.asRiskIndex(),
+            value = scenario.noActionScore.asRdiScenarioValue(),
             color = Palette.ForecastNoAction,
             modifier = Modifier.weight(1f),
         )
         AttributionForecastMetric(
             label = "执行计划",
-            value = scenarios.forecast.d30WithPlan.asRiskIndex(),
+            value = scenario.withPlanScore.asRdiScenarioValue(),
             color = Palette.Accent,
             modifier = Modifier.weight(1f),
         )
         AttributionForecastMetric(
             label = "预计降低",
-            value = scenarios.forecast.riskReduction.asRiskIndexDelta(),
+            value = scenario.expectedReduction.asRdiScenarioValue(),
             color = Palette.ForecastReduction,
             modifier = Modifier.weight(1f),
         )
@@ -627,52 +586,31 @@ private fun AttributionRiskTrendReadyContent(
 }
 
 @Composable
-private fun RdiImpactCard(data: RdiDisplayData?) {
-    AttributionCard {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("近期风险影响分", color = Palette.TextPrimary, style = Type.CardTitle)
-                Text(
-                    "越低越好",
-                    color = Palette.TextSecondary,
-                    style = Type.Micro,
-                    modifier = Modifier.padding(top = Dimensions.PageSubtitleTop),
-                )
-            }
-            Text(
-                rdiImpactStatusLabel(data?.status),
-                color = Palette.Accent,
-                style = Type.Detail,
-                modifier = Modifier.clip(CircleShape).background(Palette.AccentSoft)
-                    .padding(
-                        horizontal = Dimensions.StatusHorizontalPadding,
-                        vertical = Dimensions.StatusVerticalPadding,
-                    ),
-            )
-        }
+private fun RdiImpactSection(data: RdiDisplayData?) {
+    HorizontalDivider(
+        color = Palette.Border,
+        modifier = Modifier.padding(top = Dimensions.FactorGroupTop),
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = Dimensions.FactorGroupTop),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Text(
-            data?.score?.let { String.format(Locale.US, "%.1f", it) } ?: "--",
-            color = if (data == null) Palette.TextSecondary else Palette.TextPrimary,
-            style = Type.SummaryScore,
-            modifier = Modifier.padding(top = Dimensions.SummaryScoreTop),
+            "本周期影响最大的 3 项",
+            color = Palette.TextPrimary,
+            style = Type.CardTitle,
+            modifier = Modifier.weight(1f),
         )
         Text(
             data?.let {
-                "数据可信度 ${String.format(Locale.US, "%.0f%%", it.confidence * 100.0)} · " +
-                    "状态：${rdiImpactStatusLabel(it.status)}"
-            } ?: "正在读取本地 Room 的近期有效数据",
+                "可信度 ${String.format(Locale.US, "%.0f%%", it.confidence * 100.0)}"
+            } ?: "正在读取",
             color = Palette.TextSecondary,
-            style = Type.Detail,
-            modifier = Modifier.padding(top = Dimensions.FactorSupportingTop),
+            style = Type.Micro,
         )
+    }
         val contributions = data?.topContributions.orEmpty()
         if (contributions.isNotEmpty()) {
-            Text(
-                "本周期影响最大的 ${contributions.size} 项",
-                color = Palette.TextPrimary,
-                style = Type.CardTitle,
-                modifier = Modifier.padding(top = Dimensions.FactorRowTop),
-            )
             contributions.forEachIndexed { index, contribution ->
                 RdiImpactContributionRow(index + 1, contribution)
             }
@@ -684,7 +622,6 @@ private fun RdiImpactCard(data: RdiDisplayData?) {
                 modifier = Modifier.padding(top = Dimensions.FactorRowTop),
             )
         }
-    }
 }
 
 @Composable
@@ -1303,6 +1240,53 @@ private fun RhiHistoryChart(history: List<RhiDailyScore>, modifier: Modifier) {
 }
 
 @Composable
+private fun AttributionRdiHistoryChart(
+    history: List<AttributionHistoryPoint>,
+    modifier: Modifier,
+) {
+    Canvas(modifier) {
+        val values = history.map(AttributionHistoryPoint::riskScore)
+            .filter { it.isFinite() && it in 0.0..1.0 }
+        if (values.size < 2) return@Canvas
+        val rawMinimum = values.minOrNull() ?: return@Canvas
+        val rawMaximum = values.maxOrNull() ?: return@Canvas
+        val padding = ((rawMaximum - rawMinimum) * 0.15).coerceAtLeast(0.01)
+        val minimum = (rawMinimum - padding).coerceAtLeast(0.0)
+        val maximum = (rawMaximum + padding).coerceAtMost(1.0).coerceAtLeast(minimum + 0.01)
+        val left = Dimensions.ForecastChartInset.toPx()
+        val right = size.width - Dimensions.ForecastChartInset.toPx()
+        val top = Dimensions.ForecastChartInset.toPx()
+        val bottom = size.height - Dimensions.ForecastChartInset.toPx()
+        repeat(4) { index ->
+            val y = top + (bottom - top) * index / 3f
+            drawLine(
+                Palette.ChartGrid,
+                Offset(left, y),
+                Offset(right, y),
+                Dimensions.ForecastGridStroke.toPx(),
+            )
+        }
+        val path = Path()
+        values.forEachIndexed { index, value ->
+            val x = left + (right - left) * index / values.lastIndex
+            val y = bottom - ((value - minimum) / (maximum - minimum)).toFloat() * (bottom - top)
+            val point = Offset(x, y.coerceIn(top, bottom))
+            if (index == 0) path.moveTo(point.x, point.y) else path.lineTo(point.x, point.y)
+            drawCircle(
+                Palette.ForecastActual,
+                radius = Dimensions.ForecastDotRadius.toPx(),
+                center = point,
+            )
+        }
+        drawPath(
+            path,
+            Palette.ForecastActual,
+            style = Stroke(width = Dimensions.ForecastPlanStroke.toPx(), cap = StrokeCap.Round),
+        )
+    }
+}
+
+@Composable
 private fun AttributionForecastChart(
     history: List<AttributionHistoryPoint>,
     forecast: AttributionForecastUi,
@@ -1436,6 +1420,10 @@ private fun Double?.asRiskIndex(): String = this?.let {
 private fun Double?.asRiskIndexDelta(): String = this?.let {
     String.format(Locale.US, "%.1f", it * 100.0)
 } ?: "--"
+
+private fun Double?.asRdiScenarioValue(): String = this?.let {
+    String.format(Locale.US, "%.1f", it)
+} ?: "暂不可用"
 
 private fun riskLevelLabel(level: String?): String = when (level?.lowercase()) {
     "low" -> "低风险"

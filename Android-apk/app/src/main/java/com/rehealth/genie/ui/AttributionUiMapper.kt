@@ -54,11 +54,14 @@ object AttributionUiMapper {
         val selectedHistory = validHistory
             .filter { (date) -> !date.isBefore(cutoff) && !date.isAfter(input.today) }
             .map { it.second }
-        val currentRisk = input.evaluation
-            ?.takeIf { it.confirmed }
-            ?.riskScore
+        // The period selector controls the displayed RDI-16 value. Only the
+        // confirmed scores already persisted in RDI-16 history participate;
+        // PIAS current/forecast values must never fill this field.
+        val currentRisk = selectedHistory
+            .map(AttributionHistoryPoint::riskScore)
+            .takeIf { it.isNotEmpty() }
+            ?.average()
             ?.takeIf(::validRisk)
-            ?: validHistory.lastOrNull()?.second?.riskScore
         val factors = mapFactors(input.evaluation, input.factorValues)
 
         return AttributionUiState(
@@ -67,8 +70,9 @@ object AttributionUiMapper {
             refreshMessage = refreshMessage(input.refreshPhase, input.refreshError),
             currentRisk = currentRisk,
             currentRiskText = currentRisk?.let { String.format(Locale.US, "%.1f/100", it * 100) } ?: "--/100",
-            riskLevel = input.evaluation?.takeIf { it.confirmed }?.riskLevel,
+            riskLevel = null,
             selectedHistory = selectedHistory,
+            rdiScenario = AttributionRdiScenarioUi(),
             pias = mapPias(input.remote.pias, input.refreshPhase, input.refreshError),
             activity = mapActivity(input.activity, input.allowDebugReplay),
             factors = factors,
@@ -84,19 +88,19 @@ object AttributionUiMapper {
         period: AttributionPeriod,
         today: LocalDate,
     ): AttributionRhiImprovementUi {
-        val ninetyDayCutoff = today.minusDays(89)
+        val selectedCutoff = today.minusDays(period.days - 1)
         val history = summary?.history.orEmpty()
             .filter {
-                !it.date.isBefore(ninetyDayCutoff) &&
+                !it.date.isBefore(selectedCutoff) &&
                     !it.date.isAfter(today) &&
                     it.score.isFinite() &&
                     it.score in 0.0..100.0
             }
             .sortedBy { it.date }
-        val selectedCutoff = today.minusDays(period.days - 1)
-        val selectedHistory = history.filter { !it.date.isBefore(selectedCutoff) }
-        val baseline = history.firstOrNull()
-        val current = history.lastOrNull()
+        val summaryMatchesPeriod = summary?.periodDays == period.days.toInt()
+        val selectedHistory = history.takeIf { summaryMatchesPeriod }.orEmpty()
+        val baseline = selectedHistory.firstOrNull()
+        val current = selectedHistory.lastOrNull()
         val improvement = if (baseline != null && current != null && baseline.date != current.date) {
             current.score - baseline.score
         } else {
@@ -104,15 +108,7 @@ object AttributionUiMapper {
         }
         val comparisonText = when {
             improvement == null -> "RHI-100 需要至少 2 个有效日建立个人基准"
-            requireNotNull(baseline).date <= ninetyDayCutoff ->
-                "RHI-100 · 较 90 天基准改善 · 最近 ${period.selectorLabel}"
-            else -> {
-                val observedDays = java.time.temporal.ChronoUnit.DAYS.between(
-                    baseline.date,
-                    requireNotNull(current).date,
-                ) + 1
-                "RHI-100 · 较最早有效基准改善 · 已积累 ${observedDays} 天"
-            }
+            else -> "RHI-100 · 较 ${period.selectorLabel}窗口基准改善"
         }
         return AttributionRhiImprovementUi(
             improvementPoints = improvement,

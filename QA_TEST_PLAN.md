@@ -105,17 +105,15 @@ git diff --check
    - Upgrade a v7 database containing health, wearable, queue, risk and chat rows to v8.
      Confirm all prior rows remain and the two local RDI tables are created.
    - Open the Attribution and Model tabs and compare with the `fc1f6d5` baseline. Attribution
-     must retain period selection, improvement summary, PIAS, activity, 16-factor groups and
+   must retain period selection, improvement summary, activity, 16-factor groups and
      intervention plan. Model must retain its existing compact risk/input cards.
    - In Attribution, confirm “健康改善得分” shows RHI-100 without “百分点”, and verify
-     that a healthier input direction raises the score. For 7 days, verify the value is the
-     current RHI calculated from recent seven-day valid Room data. For 30/90 days, verify
-     the value and chart use the median/history of valid daily RHI values; fewer than 7/14
-     valid days must show an accumulating state.
-   - Confirm the right-side current clinical risk and PIAS personal-risk trend remain on the
-     existing confirmed CVD-16 interface and are separate from RHI. Missing
-     wearable data must not be replaced with a normal score, and switching periods quickly
-     must not display a result from the previously selected period.
+     that a healthier input direction raises the score. Switching 7/30/90 days must recompute
+     the signed difference from the earliest valid RHI inside that same window and redraw the
+     chart from the matching history. Missing data must not be replaced with a normal score.
+   - Confirm the right-side `RDI-16 风险指数` is the average of confirmed, persisted RDI-16
+     scores inside the selected 7/30/90-day window. Switching periods quickly must not display
+     PIAS or a result from the previously selected period.
    - Open “我的 > 编辑健康与归因指标”. Confirm sedentary hours, waist, 最大摄氧量,
      糖化血红蛋白 and 估算肾小球滤过率 can be saved and restored after process restart. Clearing any field must
      persist `NULL`/missing and lower confidence instead of inserting a normal default.
@@ -302,10 +300,12 @@ git diff --check
      Without verified control-support trend the 20% component remains exactly zero.
    - Confirm Android/backend map snake_case response fields to camelCase DTO properties where needed.
    - Confirm `is_mock=true` is visible and not described as production model output.
-   - In “个人风险趋势”, confirm the solid line uses confirmed RDI-16 history,
-     the gray dashed line uses PIAS `forecast_no_action`, the green dashed line
-     uses `forecast_with_plan`, and the light area uses the returned confidence
-     interval. The card must state that the scenario is not a future disease probability.
+   - In “个人风险趋势”, confirm the blue solid line uses only confirmed RDI-16 history
+     from the selected 7/30/90-day window. Until the RDI-16 contract supplies native scenario
+     fields, “维持现状”, “执行计划”, “预计降低” and “95% 区间” must remain visibly
+     unavailable and must not reuse PIAS values. Confirm the three largest trusted Room RDI
+     impact factors appear below the three scenario data cells inside the same card. The card
+     must state that scenario simulation is not a future disease probability.
 
 12. Intervention retrieval
     - Apply TimescaleDB V4, upload a `telemetry-v2` batch containing today's

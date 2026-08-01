@@ -39,10 +39,39 @@ class AttributionUiStateTest {
         val thirtyDays = map(history = history, period = AttributionPeriod.DAYS_30)
         val ninetyDays = map(history = history, period = AttributionPeriod.DAYS_90)
 
-        assertEquals("2.2/100", sevenDays.currentRiskText)
+        assertEquals("13.6/100", sevenDays.currentRiskText)
+        assertEquals("20.7/100", thirtyDays.currentRiskText)
+        assertEquals("25.5/100", ninetyDays.currentRiskText)
         assertEquals(2, sevenDays.selectedHistory.size)
         assertEquals(3, thirtyDays.selectedHistory.size)
         assertEquals(4, ninetyDays.selectedHistory.size)
+        assertFalse(sevenDays.rdiScenario.forecastAvailable)
+        assertFalse(sevenDays.rdiScenario.intervalAvailable)
+    }
+
+    @Test
+    fun `period RDI sixteen history is not replaced by evaluation or PIAS values`() {
+        val state = map(
+            history = listOf(
+                point("2026-07-20", 0.40),
+                point("2026-07-22", 0.20),
+            ),
+            evaluation = AttributionRiskEvaluation(
+                riskScore = 0.99,
+                riskLevel = "very_high",
+                contributions = emptyMap(),
+                confirmed = true,
+            ),
+            pias = IndividualAttributionResult(
+                status = "ready",
+                d30NoAction = 0.88,
+                d30WithPlan = 0.77,
+                riskReduction = 0.11,
+            ),
+        )
+
+        assertEquals("30.0/100", state.currentRiskText)
+        assertFalse(state.rdiScenario.forecastAvailable)
     }
 
     @Test
@@ -52,15 +81,46 @@ class AttributionUiStateTest {
                 RhiDailyScore(LocalDate.of(2026, 4, 24), 55.0, 0.8),
                 RhiDailyScore(LocalDate.of(2026, 7, 18), 69.0, 0.8),
                 RhiDailyScore(today, 71.0, 0.8),
+                periodDays = 7,
             ),
             period = AttributionPeriod.DAYS_7,
             today = today,
         )
 
-        assertEquals(16.0, improvement.improvementPoints)
-        assertEquals("+16.0 分", improvement.improvementText)
-        assertEquals("RHI-100 · 较 90 天基准改善 · 最近 7 天", improvement.comparisonText)
+        assertEquals(2.0, improvement.improvementPoints)
+        assertEquals("+2.0 分", improvement.improvementText)
+        assertEquals("RHI-100 · 较 7 天窗口基准改善", improvement.comparisonText)
         assertEquals(2, improvement.selectedHistory.size)
+    }
+
+    @Test
+    fun `RHI improvement changes with selected seven thirty and ninety day windows`() {
+        val history = arrayOf(
+            RhiDailyScore(LocalDate.of(2026, 4, 24), 55.0, 0.8),
+            RhiDailyScore(LocalDate.of(2026, 6, 25), 62.0, 0.8),
+            RhiDailyScore(LocalDate.of(2026, 7, 18), 69.0, 0.8),
+            RhiDailyScore(today, 71.0, 0.8),
+        )
+
+        val seven = AttributionUiMapper.mapRhiImprovement(
+            rhiSummary(*history, periodDays = 7),
+            AttributionPeriod.DAYS_7,
+            today,
+        )
+        val thirty = AttributionUiMapper.mapRhiImprovement(
+            rhiSummary(*history, periodDays = 30),
+            AttributionPeriod.DAYS_30,
+            today,
+        )
+        val ninety = AttributionUiMapper.mapRhiImprovement(
+            rhiSummary(*history, periodDays = 90),
+            AttributionPeriod.DAYS_90,
+            today,
+        )
+
+        assertEquals(2.0, seven.improvementPoints)
+        assertEquals(9.0, thirty.improvementPoints)
+        assertEquals(16.0, ninety.improvementPoints)
     }
 
     @Test
@@ -75,7 +135,7 @@ class AttributionUiStateTest {
         )
 
         assertEquals("-6.0 分", improvement.improvementText)
-        assertTrue(improvement.comparisonText.contains("最早有效基准"))
+        assertEquals("RHI-100 · 较 7 天窗口基准改善", improvement.comparisonText)
     }
 
     @Test
@@ -336,8 +396,8 @@ class AttributionUiStateTest {
         isInterventionDay = false,
     )
 
-    private fun rhiSummary(vararg history: RhiDailyScore) = RhiPeriodSummary(
-        periodDays = 90,
+    private fun rhiSummary(vararg history: RhiDailyScore, periodDays: Int = 7) = RhiPeriodSummary(
+        periodDays = periodDays,
         score = history.lastOrNull()?.score,
         confidence = history.lastOrNull()?.confidence,
         validDays = history.size,

@@ -15,7 +15,7 @@ data class RiskPeriodSummary(
     val daysWithScore: Int,
 )
 
-/** Keeps the real-score history used by PIAS separate from mock and UI-only values. */
+/** Keeps confirmed RDI-16 history separate from mock and UI-only values. */
 class RiskHistoryRepository(
     private val riskHistoryDao: RiskHistoryDao,
     private val feedbackDao: InterventionFeedbackDao,
