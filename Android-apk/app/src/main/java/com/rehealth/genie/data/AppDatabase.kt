@@ -19,11 +19,21 @@ import com.rehealth.genie.ring.data.RingDataDao
 import com.rehealth.genie.ring.data.RingMeasurementEntity
 import com.rehealth.genie.ring.data.RingSignalChunkEntity
 import com.rehealth.genie.ring.data.RingSleepSessionEntity
+import com.rehealth.genie.rdi.RdiBaselineDao
+import com.rehealth.genie.rdi.RdiBaselineEntity
+import com.rehealth.genie.rdi.RdiConfirmedLabEntity
+import com.rehealth.genie.rdi.RdiConfirmedMealEntity
 import com.rehealth.genie.rdi.RdiContributionEntity
 import com.rehealth.genie.rdi.RdiDailySnapshotEntity
 import com.rehealth.genie.rdi.RdiDao
+import com.rehealth.genie.rdi.RdiLabMealDao
+import com.rehealth.genie.rhi.RhiDailyDomainScoreEntity
+import com.rehealth.genie.rhi.RhiDailyFeatureSnapshotEntity
+import com.rehealth.genie.rhi.RhiDailyIndexEntity
+import com.rehealth.genie.rhi.RhiDataQualitySnapshotEntity
 import com.rehealth.genie.rhi.RhiManualHealthInputDao
 import com.rehealth.genie.rhi.RhiManualHealthInputEntity
+import com.rehealth.genie.rhi.RhiSnapshotDao
 
 @Entity(tableName = "health_records")
 data class HealthRecordEntity(
@@ -59,10 +69,17 @@ data class AttributionLogEntity(
         HealthChatMessageEntity::class,
         RdiDailySnapshotEntity::class,
         RdiContributionEntity::class,
+        RdiBaselineEntity::class,
+        RdiConfirmedLabEntity::class,
+        RdiConfirmedMealEntity::class,
         RhiManualHealthInputEntity::class,
+        RhiDailyIndexEntity::class,
+        RhiDailyDomainScoreEntity::class,
+        RhiDailyFeatureSnapshotEntity::class,
+        RhiDataQualitySnapshotEntity::class,
         DietRecordEntity::class,
     ],
-    version = 11,
+    version = 14,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -72,10 +89,188 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun riskHistoryDao(): RiskHistoryDao
     abstract fun healthChatDao(): HealthChatDao
     abstract fun rdiDao(): RdiDao
+    abstract fun rdiBaselineDao(): RdiBaselineDao
+    abstract fun rdiLabMealDao(): RdiLabMealDao
     abstract fun rhiManualHealthInputDao(): RhiManualHealthInputDao
+    abstract fun rhiSnapshotDao(): RhiSnapshotDao
     abstract fun dietRecordDao(): DietRecordDao
 
     companion object {
+        /**
+         * Splits RHI daily persistence into index / domain / feature / quality
+         * tables. Purely additive: no existing table is altered or dropped, so
+         * no user data is lost.
+         */
+        val Migration13To14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS rhi_daily_health_index (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        user_id TEXT NOT NULL,
+                        scored_on TEXT NOT NULL,
+                        raw_score REAL NOT NULL,
+                        display_score REAL NOT NULL,
+                        data_confidence REAL NOT NULL,
+                        status TEXT NOT NULL,
+                        product_tier TEXT NOT NULL,
+                        available_days INTEGER NOT NULL,
+                        available_feature_count INTEGER NOT NULL,
+                        smoothing_alpha REAL NOT NULL,
+                        algorithm_version TEXT NOT NULL,
+                        calculation_source TEXT NOT NULL,
+                        created_at INTEGER NOT NULL,
+                        updated_at INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                        "index_rhi_daily_health_index_user_id_scored_on " +
+                        "ON rhi_daily_health_index(user_id, scored_on)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS " +
+                        "index_rhi_daily_health_index_user_id_updated_at " +
+                        "ON rhi_daily_health_index(user_id, updated_at)",
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS rhi_daily_domain_score (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        index_id TEXT NOT NULL,
+                        user_id TEXT NOT NULL,
+                        scored_on TEXT NOT NULL,
+                        domain TEXT NOT NULL,
+                        score REAL,
+                        weight REAL NOT NULL,
+                        created_at INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_rhi_daily_domain_score_index_id " +
+                        "ON rhi_daily_domain_score(index_id)",
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                        "index_rhi_daily_domain_score_user_id_scored_on_domain " +
+                        "ON rhi_daily_domain_score(user_id, scored_on, domain)",
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS rhi_daily_feature_snapshot (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        index_id TEXT NOT NULL,
+                        user_id TEXT NOT NULL,
+                        scored_on TEXT NOT NULL,
+                        feature TEXT NOT NULL,
+                        value REAL NOT NULL,
+                        confidence REAL NOT NULL,
+                        baseline_median REAL,
+                        baseline_mad REAL,
+                        baseline_sample_count INTEGER NOT NULL,
+                        created_at INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_rhi_daily_feature_snapshot_index_id " +
+                        "ON rhi_daily_feature_snapshot(index_id)",
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                        "index_rhi_daily_feature_snapshot_user_id_scored_on_feature " +
+                        "ON rhi_daily_feature_snapshot(user_id, scored_on, feature)",
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS rhi_data_quality_snapshot (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        index_id TEXT NOT NULL,
+                        user_id TEXT NOT NULL,
+                        scored_on TEXT NOT NULL,
+                        confidence_score REAL NOT NULL,
+                        confidence_grade TEXT NOT NULL,
+                        missing_fields TEXT NOT NULL,
+                        low_confidence_fields TEXT NOT NULL,
+                        warning_codes TEXT NOT NULL,
+                        warning_messages TEXT NOT NULL,
+                        device_change_detected INTEGER NOT NULL,
+                        created_at INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_rhi_data_quality_snapshot_index_id " +
+                        "ON rhi_data_quality_snapshot(index_id)",
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                        "index_rhi_data_quality_snapshot_user_id_scored_on " +
+                        "ON rhi_data_quality_snapshot(user_id, scored_on)",
+                )
+            }
+        }
+
+        val Migration12To13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS rdi_confirmed_labs (
+                        id TEXT NOT NULL,
+                        user_id TEXT NOT NULL,
+                        marker_code TEXT NOT NULL,
+                        measured_value REAL NOT NULL,
+                        unit TEXT NOT NULL,
+                        measured_at TEXT NOT NULL,
+                        control_trend REAL NOT NULL,
+                        source TEXT NOT NULL,
+                        confidence REAL NOT NULL,
+                        algorithm_version TEXT NOT NULL,
+                        updated_at INTEGER NOT NULL,
+                        PRIMARY KEY (id)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS rdi_confirmed_meals (
+                        id TEXT NOT NULL,
+                        user_id TEXT NOT NULL,
+                        meal_type TEXT NOT NULL,
+                        kcal_low REAL NOT NULL,
+                        kcal_high REAL NOT NULL,
+                        protein_low REAL NOT NULL,
+                        protein_high REAL NOT NULL,
+                        fat_low REAL NOT NULL,
+                        fat_high REAL NOT NULL,
+                        sodium_low REAL NOT NULL,
+                        sodium_high REAL NOT NULL,
+                        meal_impact REAL NOT NULL,
+                        reason_text TEXT NOT NULL,
+                        recorded_at TEXT NOT NULL,
+                        confidence REAL NOT NULL,
+                        algorithm_version TEXT NOT NULL,
+                        updated_at INTEGER NOT NULL,
+                        PRIMARY KEY (id)
+                    )
+                    """.trimIndent(),
+                )
+            }
+        }
+
+        val Migration11To12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE rdi_daily_snapshots ADD COLUMN is_mock INTEGER NOT NULL DEFAULT 0",
+                )
+            }
+        }
+
         val Migration10To11 = object : Migration(10, 11) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
@@ -476,6 +671,9 @@ abstract class AppDatabase : RoomDatabase() {
                     Migration8To9,
                     Migration9To10,
                     Migration10To11,
+                    Migration11To12,
+                    Migration12To13,
+                    Migration13To14,
                 )
                 .build()
     }

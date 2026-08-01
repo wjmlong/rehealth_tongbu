@@ -127,6 +127,14 @@ private class FakeDietRecordDao : DietRecordDao {
     override suspend fun findNotQueued(userId: String): List<DietRecordEntity> =
         records.filter { it.userId == userId && it.uploadBatchId == null }
 
+    override suspend fun recordsBetween(
+        userId: String,
+        fromInclusive: Long,
+        toExclusive: Long,
+    ): List<DietRecordEntity> = records.filter {
+        it.userId == userId && it.consumedAt >= fromInclusive && it.consumedAt < toExclusive
+    }
+
     override suspend fun attachUploadBatch(recordId: String, userId: String, batchId: String): Int {
         val index = records.indexOfFirst { it.id == recordId && it.userId == userId && it.uploadBatchId == null }
         if (index < 0) return 0

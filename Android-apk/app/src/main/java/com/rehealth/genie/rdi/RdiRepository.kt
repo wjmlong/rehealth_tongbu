@@ -1,6 +1,15 @@
 package com.rehealth.genie.rdi
 
+import com.rehealth.genie.ring.RingMetricType
+import com.rehealth.genie.ring.data.RingActivityEntity
+import com.rehealth.genie.rhi.RhiManualHealthInputDao
+import com.rehealth.genie.rhi.toClinicalBloodPressureValues
 import com.rehealth.genie.ring.data.RingDataDao
+import com.rehealth.genie.ring.data.RingMeasurementEntity
+import com.rehealth.genie.ring.data.RingSleepSessionEntity
+import com.rehealth.genie.diet.DietRecordDao
+import com.rehealth.genie.diet.DietRecordEntity
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +33,11 @@ data class RdiDisplayData(
 
 class RdiRepository(
     private val rdiDao: RdiDao,
+    private val rdiBaselineDao: RdiBaselineDao,
     private val ringDataDao: RingDataDao,
+    private val rhiManualHealthInputDao: RhiManualHealthInputDao,
+    private val rdiLabMealDao: RdiLabMealDao,
+    private val dietRecordDao: DietRecordDao,
     private val userIdProvider: () -> String?,
     private val zoneId: ZoneId = ZoneId.systemDefault(),
     private val clock: () -> Long = System::currentTimeMillis,
@@ -52,16 +65,33 @@ class RdiRepository(
         val since = scoredOn.minusDays(28).atStartOfDay(zoneId).toInstant().toEpochMilli()
         val existing = rdiDao.snapshotForDay(userId, scoredOn.toString())
         val previous = rdiDao.latestBefore(userId, scoredOn.toString())
+        val activities = ringDataDao.getActivitiesSince(since)
+        val sleepSessions = ringDataDao.getSleepSessionsSince(since)
+        val measurements = ringDataDao.getMeasurementsSince(since)
+        val (validDays, staleDays) = computeValidDays(activities, sleepSessions, measurements, scoredOn)
+        val anchoredBaselines = loadAnchoredBaselines(userId, scoredOn)
+        val bloodPressure = rhiManualHealthInputDao.get(userId)?.toClinicalBloodPressureValues()
+        val confirmedLabs = rdiLabMealDao.confirmedLabs(userId)
+        val confirmedMeals = rdiLabMealDao.confirmedMeals(userId)
+        val dietRecords = dietRecordsForDay(userId, scoredOn)
         val calculation = RdiEngine.calculate(
             RdiCalculationInput(
                 scoredOn = scoredOn,
                 zoneId = zoneId,
-                activities = ringDataDao.getActivitiesSince(since),
-                sleepSessions = ringDataDao.getSleepSessionsSince(since),
-                measurements = ringDataDao.getMeasurementsSince(since),
+                activities = activities,
+                sleepSessions = sleepSessions,
+                measurements = measurements,
                 previousDisplayScore = previous?.displayScore ?: existing?.displayScore,
+                validDays = validDays,
+                staleDays = staleDays,
+                anchoredBaselines = anchoredBaselines,
+                bloodPressure = bloodPressure,
+                confirmedLabs = confirmedLabs,
+                confirmedMeals = confirmedMeals,
+                dietRecords = dietRecords,
             ),
         )
+        maybeEstablishBaselines(userId, activities, sleepSessions, measurements, scoredOn)
         val now = clock()
         val snapshotId = "$userId:${scoredOn}"
         val snapshot = RdiDailySnapshotEntity(
@@ -122,9 +152,20 @@ class RdiRepository(
         val activities = ringDataDao.getActivitiesSince(since)
         val sleepSessions = ringDataDao.getSleepSessionsSince(since)
         val measurements = ringDataDao.getMeasurementsSince(since)
+        val userId = userKey()
+        val anchoredBaselines = loadAnchoredBaselines(userId, scoredOn)
+        val bloodPressure = rhiManualHealthInputDao.get(userId)?.toClinicalBloodPressureValues()
+        val confirmedLabs = rdiLabMealDao.confirmedLabs(userId)
+        val confirmedMeals = rdiLabMealDao.confirmedMeals(userId)
+        val dietRecords = dietRecordsBetween(userId, since)
         val calculatedDailyScores = withContext(Dispatchers.Default) {
             (periodDays - 1 downTo 0).mapNotNull { daysAgo ->
                 val date = scoredOn.minusDays(daysAgo.toLong())
+                val dayStart = date.atStartOfDay(zoneId).toInstant().toEpochMilli()
+                val dayEnd = date.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+                val dayDietRecords = dietRecords.filter {
+                    it.consumedAt in dayStart until dayEnd
+                }
                 val calculation = RdiEngine.calculate(
                     RdiCalculationInput(
                         scoredOn = date,
@@ -133,6 +174,11 @@ class RdiRepository(
                         sleepSessions = sleepSessions,
                         measurements = measurements,
                         previousDisplayScore = null,
+                        anchoredBaselines = anchoredBaselines,
+                        bloodPressure = bloodPressure,
+                        confirmedLabs = confirmedLabs,
+                        confirmedMeals = confirmedMeals,
+                        dietRecords = dayDietRecords,
                     ),
                 )
                 calculation.takeIf {
@@ -164,7 +210,155 @@ class RdiRepository(
         )
     }
 
+    private fun Long.toDate(zoneId: ZoneId): LocalDate =
+        Instant.ofEpochMilli(this).atZone(zoneId).toLocalDate()
+
+    /** 与引擎一致的睡眠按日聚合（设计 6.2 基线口径）。 */
+    private fun aggregateSleepDaysLocal(
+        sleepSessions: List<RingSleepSessionEntity>,
+        zoneId: ZoneId,
+    ): Map<LocalDate, SleepDay> =
+        sleepSessions.mapNotNull { session ->
+            val durationMinutes = ((session.endedAt - session.startedAt) / 60_000L).toInt()
+            if (durationMinutes !in 120..900) return@mapNotNull null
+            val asleep = (session.deepMinutes + session.lightMinutes + session.remMinutes).takeIf { it > 0 }
+                ?: (durationMinutes - session.awakeMinutes).coerceAtLeast(0)
+            SleepDay(
+                date = session.endedAt.toDate(zoneId),
+                durationMinutes = durationMinutes,
+                bedtimeMinute = run {
+                    val t = Instant.ofEpochMilli(session.startedAt).atZone(zoneId).toLocalTime()
+                    ((t.hour - 12 + 24) % 24) * 60 + t.minute
+                },
+                efficiency = (asleep.toDouble() / durationMinutes * 100.0).coerceIn(0.0, 100.0),
+                source = session.source,
+            )
+        }.groupBy { it.date }.mapValues { (_, values) -> values.maxBy { it.durationMinutes } }
+
+    private fun List<Double>.median(): Double? {
+        if (isEmpty()) return null
+        val sorted = sorted()
+        val mid = sorted.size / 2
+        return if (sorted.size % 2 == 0) (sorted[mid - 1] + sorted[mid]) / 2.0 else sorted[mid]
+    }
+
+    /** 读取未过冻结期的活跃基线，组装为 factorCode -> 锚定值。 */
+    private suspend fun loadAnchoredBaselines(userId: String, scoredOn: LocalDate): Map<String, Double> {
+        val today = scoredOn.toString()
+        return rdiBaselineDao.activeBaselines(userId)
+            .filter { it.frozenUntil >= today }
+            .associate { it.factorCode to it.baselineValue }
+    }
+
+    /**
+     * 个人基线建立/重建（设计 6.2）：当某 factor 近 28 天有效日 >= 14 时，
+     * 计算稳健中位数 + MAD，冻结 90 天；重建时旧版本保留为 SUPERSEDED。
+     */
+    private suspend fun maybeEstablishBaselines(
+        userId: String,
+        activities: List<RingActivityEntity>,
+        sleepSessions: List<RingSleepSessionEntity>,
+        measurements: List<RingMeasurementEntity>,
+        scoredOn: LocalDate,
+    ) {
+        val establishedOn = scoredOn.toString()
+        val frozenUntil = scoredOn.plusDays(90).toString()
+        val now = clock()
+
+        val stepsByDay = activities.groupBy { it.startedAt.toDate(zoneId) }
+            .mapValues { it.value.maxOf { a -> a.steps }.toDouble() }.values.toList()
+        val minutesByDay = activities.groupBy { it.startedAt.toDate(zoneId) }
+            .mapValues { it.value.filter { a -> a.activityType.isExerciseSession() }.sumOf { a -> a.durationMinutes.coerceAtLeast(0) }.toDouble() }
+            .values.toList()
+        val sleepByDay = aggregateSleepDaysLocal(sleepSessions, zoneId).values
+        val hrvByDay = measurements.filter { it.metricType.equals(RingMetricType.HRV.name, true) }
+            .groupBy { it.measuredAt.toDate(zoneId) }
+            .mapValues { it.value.map { m -> m.primaryValue } }.values.toList()
+        val hrByDay = activities.filter { it.averageHeartRate != null }
+            .groupBy { it.startedAt.toDate(zoneId) }
+            .mapValues { it.value.mapNotNull { a -> a.averageHeartRate!! } }.values.toList()
+
+        suspend fun tryEstablish(factorCode: String, values: List<Double>) {
+            if (values.size < 14) return
+            val active = rdiBaselineDao.activeBaseline(userId, factorCode)
+            if (active != null && active.frozenUntil >= establishedOn) return
+            val median = values.median() ?: return
+            val mad = values.map { kotlin.math.abs(it - median) }.median() ?: 0.0
+            val version = (active?.version ?: 0) + 1
+            rdiBaselineDao.establish(
+                RdiBaselineEntity(
+                    userId = userId,
+                    factorCode = factorCode,
+                    baselineValue = median,
+                    mad = mad,
+                    establishedOn = establishedOn,
+                    frozenUntil = frozenUntil,
+                    version = version,
+                    status = "ACTIVE",
+                    algorithmVersion = RDI_ALGORITHM_VERSION,
+                    updatedAt = now,
+                ),
+            )
+        }
+
+        tryEstablish("steps", stepsByDay)
+        tryEstablish("verified_activity_minutes", minutesByDay)
+        tryEstablish("sleep_duration", sleepByDay.map { it.durationMinutes.toDouble() })
+        tryEstablish("sleep_regularity", sleepByDay.map { it.bedtimeMinute.toDouble() })
+        tryEstablish("sleep_efficiency", sleepByDay.map { it.efficiency })
+        tryEstablish("hrv_personal_trend", hrvByDay.map { it.median() ?: 0.0 })
+        tryEstablish("resting_hr", hrByDay.map { it.median() ?: 0.0 })
+
+        // 血压基线（设计 6.7）：仅已确认袖带且有效日足够。
+        val bp = rhiManualHealthInputDao.get(userId)?.toClinicalBloodPressureValues()
+        if (bp != null && bp.confirmedUpperArmCuff && (bp.validDays ?: 0) >= 14) {
+            bp.sbp7dMean?.let { tryEstablish("bp_sbp", listOf(it)) }
+            bp.dbp7dMean?.let { tryEstablish("bp_dbp", listOf(it)) }
+        }
+    }
+
     private fun userKey(): String = userIdProvider()?.takeIf { it.isNotBlank() } ?: LOCAL_DEVICE_USER
+
+    private suspend fun dietRecordsForDay(userId: String, date: LocalDate): List<DietRecordEntity> {
+        val start = date.atStartOfDay(zoneId).toInstant().toEpochMilli()
+        val end = date.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+        return dietRecordDao.recordsBetween(userId, start, end)
+    }
+
+    private suspend fun dietRecordsBetween(userId: String, sinceInclusiveMs: Long): List<DietRecordEntity> {
+        val now = clock()
+        return dietRecordDao.recordsBetween(userId, sinceInclusiveMs, now)
+    }
+
+    /**
+     * 统计近 28 天中有任意有效数据的自然日数（validDays），
+     * 以及截止到 scoredOn 的连续无有效数据自然日数（staleDays）。
+     * 某自然日只要存在步数聚合记录、睡眠会话或测量记录之一即视为有效。
+     */
+    private fun computeValidDays(
+        activities: List<RingActivityEntity>,
+        sleepSessions: List<RingSleepSessionEntity>,
+        measurements: List<RingMeasurementEntity>,
+        scoredOn: LocalDate,
+    ): Pair<Int, Int> {
+        val activeDays = mutableSetOf<LocalDate>()
+        activities.forEach { activeDays.add(it.startedAt.toDate(zoneId)) }
+        sleepSessions.forEach { activeDays.add(it.startedAt.toDate(zoneId)) }
+        measurements.forEach { activeDays.add(it.measuredAt.toDate(zoneId)) }
+
+        var validDays = 0
+        for (daysAgo in 0..27) {
+            if (activeDays.contains(scoredOn.minusDays(daysAgo.toLong()))) validDays++
+        }
+        var staleDays = 0
+        var cursor = scoredOn
+        while (!activeDays.contains(cursor)) {
+            staleDays++
+            cursor = cursor.minusDays(1)
+            if (staleDays > 30) break
+        }
+        return validDays to staleDays
+    }
 
     companion object {
         private const val LOCAL_DEVICE_USER = "__local_device__"

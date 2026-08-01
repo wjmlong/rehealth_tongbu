@@ -4,6 +4,7 @@ import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.data.RingActivityEntity
 import com.rehealth.genie.ring.data.RingMeasurementEntity
 import com.rehealth.genie.ring.data.RingSleepSessionEntity
+import com.rehealth.genie.diet.DietRecordEntity
 import java.time.LocalDate
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
@@ -72,7 +73,7 @@ class RdiEngineTest {
         val result = calculate(previousDisplay = 44.0)
 
         assertEquals(44.0, result.displayScore, 0.001)
-        assertEquals("accumulating", result.status)
+        assertEquals("NO_DATA", result.status)
     }
 
     @Test
@@ -93,11 +94,68 @@ class RdiEngineTest {
         assertEquals(43.0, result.displayScore, 0.001)
     }
 
+    @Test
+    fun `balanced diet records produce positive local diet impact`() {
+        val meals = listOf(
+            dietRecord("breakfast", 500.0, proteinGrams = 25.0, sodiumMilligrams = 600.0),
+            dietRecord("lunch", 750.0, proteinGrams = 30.0, sodiumMilligrams = 800.0),
+            dietRecord("dinner", 700.0, proteinGrams = 28.0, sodiumMilligrams = 700.0),
+        )
+
+        val result = calculate(dietRecords = meals)
+        val diet = result.contributions.filter { it.domain == "diet" }
+
+        assertTrue(diet.isNotEmpty())
+        assertEquals(3, diet.size)
+        // 总热量 1950 在推荐区间，蛋白充足，钠不超标 → 当日正影响。
+        assertTrue(diet.sumOf { it.finalPoints } > 0.0)
+        assertTrue(diet.all { it.finalPoints <= 2.0 && it.finalPoints >= -2.0 })
+    }
+
+    @Test
+    fun `high sodium and excess calories produce negative diet impact`() {
+        val meals = listOf(
+            dietRecord("breakfast", 900.0, proteinGrams = 20.0, sodiumMilligrams = 1500.0),
+            dietRecord("lunch", 1200.0, proteinGrams = 25.0, sodiumMilligrams = 2000.0),
+            dietRecord("dinner", 1100.0, proteinGrams = 22.0, sodiumMilligrams = 1800.0),
+        )
+
+        val result = calculate(dietRecords = meals)
+        val diet = result.contributions.filter { it.domain == "diet" }
+
+        assertTrue(diet.isNotEmpty())
+        // 总热量 3200、钠 5300mg 远超推荐 → 当日负影响。
+        assertTrue(diet.sumOf { it.finalPoints } < 0.0)
+    }
+
+    private fun dietRecord(
+        mealType: String,
+        kcal: Double,
+        proteinGrams: Double? = null,
+        sodiumMilligrams: Double? = null,
+    ): DietRecordEntity = DietRecordEntity(
+        id = "diet-$mealType-${kcal.toInt()}",
+        userId = "test-user",
+        consumedAt = today.atTime(12, 0).atZone(zone).toInstant().toEpochMilli(),
+        mealType = mealType,
+        description = "test $mealType",
+        caloriesKcal = kcal,
+        proteinGrams = proteinGrams,
+        carbohydrateGrams = null,
+        fatGrams = null,
+        fiberGrams = null,
+        sodiumMilligrams = sodiumMilligrams,
+        source = "manual",
+        createdAt = today.atTime(12, 0).atZone(zone).toInstant().toEpochMilli(),
+        uploadBatchId = null,
+    )
+
     private fun calculate(
         activities: List<RingActivityEntity> = emptyList(),
         sleepSessions: List<RingSleepSessionEntity> = emptyList(),
         measurements: List<RingMeasurementEntity> = emptyList(),
         previousDisplay: Double? = null,
+        dietRecords: List<DietRecordEntity> = emptyList(),
     ): RdiCalculation = RdiEngine.calculate(
         RdiCalculationInput(
             scoredOn = today,
@@ -106,6 +164,7 @@ class RdiEngineTest {
             sleepSessions = sleepSessions,
             measurements = measurements,
             previousDisplayScore = previousDisplay,
+            dietRecords = dietRecords,
         ),
     )
 

@@ -112,7 +112,11 @@ class ReHealthApplication : Application() {
     val rdiRepository by lazy {
         RdiRepository(
             rdiDao = database.rdiDao(),
+            rdiBaselineDao = database.rdiBaselineDao(),
             ringDataDao = database.ringDataDao(),
+            rhiManualHealthInputDao = database.rhiManualHealthInputDao(),
+            rdiLabMealDao = database.rdiLabMealDao(),
+            dietRecordDao = database.dietRecordDao(),
             userIdProvider = { sessionStore.userId },
         )
     }
@@ -122,6 +126,8 @@ class ReHealthApplication : Application() {
             ringDataDao = database.ringDataDao(),
             manualInputDao = database.rhiManualHealthInputDao(),
             interventionFeedbackDao = database.interventionFeedbackDao(),
+            snapshotDao = database.rhiSnapshotDao(),
+            syncRepository = syncRepository,
             userIdProvider = { sessionStore.userId },
             remoteSeriesEvaluator = { request ->
                 when (val result = authenticatedApiClient.evaluateRhiSeries(request)) {

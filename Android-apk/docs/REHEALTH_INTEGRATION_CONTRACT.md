@@ -82,7 +82,7 @@ Android does contain a separate local product index named RDI
 skeleton, but it does not drive the Attribution health improvement score.
 
 That existing score and chart use the Android RHI Lite evaluator
-(`rhi-deterministic-preview-2.1.0-android-lite`). It ports the governed RHI-100
+(`rhi-deterministic-preview-2.2.0-android-lite`). It ports the governed RHI-100
 preview curves, domain weights, confidence shrinkage, and display smoothing for
 fields with explicit provenance from Room, a confirmed clinical report, or the
 trusted user profile. Room schema 9 adds nullable sedentary time, waist,
@@ -94,6 +94,40 @@ blood pressure remains display-only. Seven days uses the current RHI calculated
 from recent valid data; 30/90 days use the median of valid daily RHI values and
 require 7/14 valid days. The current clinical-risk value and PIAS personal-risk
 trend remain on the confirmed CVD-16 path. The Model UI is unchanged.
+
+Version 2.2.0 corrects four scoring and provenance defects and adds daily
+persistence. No UI was changed.
+
+- **Product tier gating.** `RhiProductTier` (LITE / STANDARD / CLINICAL) is
+  resolved from the evidence actually extracted, regardless of whether it was
+  hand-entered or synced from a device. The tier gates both which indicators
+  score and which fields the confidence denominator expects. A wearable-only
+  user is no longer graded against laboratory fields they were never asked to
+  supply, and `total_cholesterol` is no longer counted twice, so an
+  evidence-complete user can now actually reach a high confidence grade.
+- **MVPA baseline scale.** The personal-improvement baseline for
+  `mvpa_minutes_7d` is now a distribution of rolling seven-day totals over the
+  trailing 8–28 day offsets, matching the scale of the current value. It
+  previously compared a seven-day total against single-day values, which
+  systematically suppressed the personal-improvement term.
+- **Steps coverage.** `steps_7d_mean` always divides by seven. Unworn days count
+  as zero exposure rather than being dropped from the average, so a single
+  10,000-step day no longer yields a full activity score.
+- **Quality warnings.** `RhiQualityWarning` surfaces deterministic
+  data-integrity findings that never alter the score:
+  `activity_duration_missing` (steps recorded but zero exercise minutes),
+  `wear_time_incomplete`, `blood_pressure_unavailable`, and `steps_all_zero`.
+
+Room schema 14 splits RHI daily persistence into four tables:
+`rhi_daily_health_index`, `rhi_daily_domain_score`,
+`rhi_daily_feature_snapshot`, and `rhi_data_quality_snapshot`. Migration 13→14
+is additive; no existing table is altered or dropped. Rows are keyed by
+`(user_id, scored_on)` and a recomputation replaces a day atomically rather than
+appending a duplicate. An excluded domain is stored as `NULL`, never as a
+neutral 50, so a gap is never recorded as a measurement. Persistence is a side
+effect of scoring and never a precondition for it. `delta_7d` and `delta_28d`
+are measured against a fixed lookback in the stored series, so a 7-day and a
+90-day view report the same seven-day change.
 
 Android RHI field provenance is fixed as follows:
 

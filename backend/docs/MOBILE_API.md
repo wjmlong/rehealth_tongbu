@@ -1,6 +1,6 @@
 # ReHealth Mobile API E1
 
-Status: E1 implementation contract.  
+Status: E1 implementation contract.
 Module: `jeecg-boot/jeecg-boot-module/jeecg-module-rehealth`.
 
 ## Boundary
@@ -62,6 +62,7 @@ Only `GET /rehealth/mobile/health` is marked `@IgnoreAuth`. All production-style
 | `GET` | `/rehealth/mobile/measurements/recent?limit=50` | Reads only the authenticated user's newest normalized measurement, sleep, and activity rows; `limit` is clamped to 1–200 and raw signal payloads are never returned. |
 | `POST` | `/rehealth/mobile/features/evaluate` | Calls `model-service` `POST /v1/cvd/risk/evaluate`; returns controlled error if unavailable; 透传 model-service 的 model_trace 由 M1 引入的 governance trace 块到 Android 客户端，nullable 字段；详见 model-service/docs/MODEL_REGISTRY.md. |
 | `POST` | `/rehealth/mobile/rhi/evaluate-series` | Authenticated RHI preview. Accepts 1–120 ordered daily RHI v2 requests, calls `model-service POST /v2/rhi/evaluate` sequentially, and returns the same number of ordered evaluations. It does not persist an authoritative RHI snapshot. |
+| `POST` | `/rehealth/mobile/rhi/daily-snapshot` | Receives locally-computed RHI daily snapshots from the Android app for the management platform. Body is `RhiDailySnapshotBatchDto` (a single `userId` plus a list of `RhiDailyIndexDto`, each carrying the day's total, domain scores, feature snapshot, and data-quality snapshot). The backend upserts by `(user_id, scored_on)` and returns `{accepted, persisted, status}`. This is the authoritative upload path that feeds the admin/management RHI views; `rhi/evaluate-series` remains a separate remote-recalculation channel and does not write to this store. |
 | `GET` | `/rehealth/mobile/risk/latest` | Reads the authenticated user's latest persisted risk. |
 | `POST` | `/rehealth/mobile/interventions/generate` | Ignores client-owned health context, reloads profile/interview/latest risk plus tenant-scoped Device Service telemetry context, generates structured actions through LangChain4j, then persists the versioned JSON plan. |
 | `GET` | `/rehealth/mobile/interventions/today` | Reads only the authenticated user's structured plan generated during the current `rehealth.mobile.time-zone` calendar day. |

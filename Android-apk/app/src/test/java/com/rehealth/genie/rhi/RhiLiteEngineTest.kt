@@ -324,6 +324,95 @@ class RhiLiteEngineTest {
 
         assertEquals(32, result.availableFeatureCount)
         assertEquals(7, result.availableDays)
+        assertEquals(RhiProductTier.CLINICAL, result.productTier)
+        // Full clinical evidence must be able to reach a high confidence grade;
+        // an inflated denominator used to cap this well below the target.
+        assertTrue(
+            result.confidence >= 0.80,
+            "clinical-complete input should reach a high confidence, got ${result.confidence}",
+        )
+        assertTrue(result.missingFields.isEmpty(), "unexpected missing: ${result.missingFields}")
+    }
+
+    @Test
+    fun `wearable only user is not graded against laboratory fields`() {
+        val result = calculate(currentSteps = 8_000)
+
+        assertEquals(RhiProductTier.LITE, result.productTier)
+        val labFields = setOf("ldl_c", "hdl_c", "triglycerides", "glycemia_value", "egfr")
+        assertTrue(
+            result.missingFields.none { it in labFields },
+            "lite tier must not expect lab fields, got ${result.missingFields}",
+        )
+    }
+
+    @Test
+    fun `steps recorded without exercise minutes raise a quality warning`() {
+        val activities = (0L..34L).map { daysAgo ->
+            val date = today.minusDays(daysAgo)
+            RingActivityEntity(
+                id = "steps-only-$daysAgo",
+                startedAt = date.atStartOfDay(zoneId).toInstant().toEpochMilli(),
+                endedAt = null,
+                activityType = "daily_summary",
+                steps = 945,
+                distanceMeters = 0.0,
+                caloriesKcal = 0.0,
+                durationMinutes = 0,
+                averageHeartRate = null,
+                source = "TEST_DEVICE",
+            )
+        }
+        val result = RhiLiteEngine.calculate(
+            RhiLiteCalculationInput(
+                scoredOn = today,
+                zoneId = zoneId,
+                activities = activities,
+                sleepSessions = emptyList(),
+                measurements = emptyList(),
+                previousDisplayScore = null,
+            ),
+        )
+
+        assertTrue(
+            result.qualityWarnings.any { it.code == "activity_duration_missing" },
+            "expected an activity_duration_missing warning, got ${result.qualityWarnings}",
+        )
+    }
+
+    @Test
+    fun `unworn days count as zero exposure for the steps average`() {
+        val oneWornDay = listOf(
+            RingActivityEntity(
+                id = "single-day",
+                startedAt = today.atStartOfDay(zoneId).toInstant().toEpochMilli(),
+                endedAt = null,
+                activityType = "daily_summary",
+                steps = 10_000,
+                distanceMeters = 0.0,
+                caloriesKcal = 0.0,
+                durationMinutes = 0,
+                averageHeartRate = null,
+                source = "TEST_DEVICE",
+            ),
+        )
+        val result = RhiLiteEngine.calculate(
+            RhiLiteCalculationInput(
+                scoredOn = today,
+                zoneId = zoneId,
+                activities = oneWornDay,
+                sleepSessions = emptyList(),
+                measurements = emptyList(),
+                previousDisplayScore = null,
+            ),
+        )
+
+        // 10000 steps on one of seven days is a ~1429 step/day exposure, not 10000.
+        assertEquals(10_000.0 / 7.0, result.features.getValue("steps_7d_mean").value, 1.0)
+        assertTrue(
+            result.qualityWarnings.any { it.code == "wear_time_incomplete" },
+            "expected a wear_time_incomplete warning, got ${result.qualityWarnings}",
+        )
     }
 
     private fun calculate(

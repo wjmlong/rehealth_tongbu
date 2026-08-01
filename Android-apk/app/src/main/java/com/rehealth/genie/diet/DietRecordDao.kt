@@ -38,6 +38,22 @@ interface DietRecordDao {
     )
     suspend fun findNotQueued(userId: String): List<DietRecordEntity>
 
+    /** RDI 归因专用：按用户 + 日期区间拉取当日餐食（不含上传状态 join，纯本地估算用）。 */
+    @Query(
+        """
+        SELECT * FROM diet_records
+        WHERE user_id = :userId
+          AND consumed_at >= :fromInclusive
+          AND consumed_at < :toExclusive
+        ORDER BY consumed_at ASC
+        """,
+    )
+    suspend fun recordsBetween(
+        userId: String,
+        fromInclusive: Long,
+        toExclusive: Long,
+    ): List<DietRecordEntity>
+
     @Query(
         """
         UPDATE diet_records

@@ -195,7 +195,8 @@ TimescaleDB `hardware_diet_record`。干预生成忽略客户端提交的画像/
 证据，不解释为诊断或因果改善。
 
 RHI v2 当前以可回滚的 preview 链路接入，不替代既有临床风险链路。Android
-默认在本地用 32 维可用子集计算 RHI，也可由用户明确选择 JeecgBoot 远程复算：
+默认在本地用 32 维可用子集计算 RHI；正式数据页和归因页不向用户暴露计算源切换。
+开发验收仍可通过 JeecgBoot 远程复算：
 `POST /rehealth/mobile/rhi/evaluate-series` 由 JeecgBoot 逐日调用
 `model-service /v2/rhi/evaluate`，Android 不直连 model-service。该 preview
 不把 RHI 当作疾病概率，也不建立云端 RHI 权威缓存；后续仍需由独立 Feature

@@ -1,4 +1,4 @@
-package com.rehealth.genie.network.dto
+﻿package com.rehealth.genie.network.dto
 
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
@@ -193,6 +193,64 @@ data class RhiV2EvaluateResponseDto(
 }
 
 @JsonClass(generateAdapter = true)
+data class RhiDailyDomainScoreDto(
+    val domain: String,
+    val score: Double? = null,
+    val weight: Double,
+)
+
+@JsonClass(generateAdapter = true)
+data class RhiDailyFeatureSnapshotDto(
+    val feature: String,
+    val value: Double,
+    val confidence: Double,
+    @Json(name = "baseline_median") val baselineMedian: Double? = null,
+    @Json(name = "baseline_mad") val baselineMad: Double? = null,
+    @Json(name = "baseline_sample_count") val baselineSampleCount: Int = 0,
+)
+
+@JsonClass(generateAdapter = true)
+data class RhiDailyQualitySnapshotDto(
+    @Json(name = "confidence_score") val confidenceScore: Double,
+    @Json(name = "confidence_grade") val confidenceGrade: String,
+    @Json(name = "missing_fields") val missingFields: List<String> = emptyList(),
+    @Json(name = "low_confidence_fields") val lowConfidenceFields: List<String> = emptyList(),
+    @Json(name = "warning_codes") val warningCodes: List<String> = emptyList(),
+    @Json(name = "warning_messages") val warningMessages: List<String> = emptyList(),
+    @Json(name = "device_change_detected") val deviceChangeDetected: Boolean = false,
+)
+
+@JsonClass(generateAdapter = true)
+data class RhiDailyIndexDto(
+    @Json(name = "scored_on") val scoredOn: String,
+    @Json(name = "raw_score") val rawScore: Double,
+    @Json(name = "display_score") val displayScore: Double,
+    @Json(name = "data_confidence") val dataConfidence: Double,
+    val status: String,
+    @Json(name = "product_tier") val productTier: String,
+    @Json(name = "available_days") val availableDays: Int,
+    @Json(name = "available_feature_count") val availableFeatureCount: Int,
+    @Json(name = "smoothing_alpha") val smoothingAlpha: Double,
+    @Json(name = "algorithm_version") val algorithmVersion: String,
+    @Json(name = "calculation_source") val calculationSource: String,
+    val domains: List<RhiDailyDomainScoreDto> = emptyList(),
+    val features: List<RhiDailyFeatureSnapshotDto> = emptyList(),
+    val quality: RhiDailyQualitySnapshotDto? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class RhiDailySnapshotBatchDto(
+    val userId: String,
+    val snapshots: List<RhiDailyIndexDto>,
+)
+
+@JsonClass(generateAdapter = true)
+data class RhiDailySnapshotResponseDto(
+    val accepted: Boolean = false,
+    val persisted: Boolean = false,
+    val status: String? = null,
+)
+
 data class RhiV2SeriesEvaluateRequestDto(
     val evaluations: List<RhiV2EvaluateRequestDto>,
 )

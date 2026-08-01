@@ -25,6 +25,8 @@ import com.rehealth.genie.network.dto.RhiV2SeriesEvaluateResponseDto
 import com.rehealth.genie.network.dto.SendSmsRequest
 import com.rehealth.genie.network.dto.TelemetryBatchRequestDto
 import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
+import com.rehealth.genie.network.dto.RhiDailySnapshotBatchDto
+import com.rehealth.genie.network.dto.RhiDailySnapshotResponseDto
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
@@ -92,6 +94,11 @@ class ReHealthMobileApi(
         request: FeatureEvaluateRequest,
     ): RemotePhmOutcome<RiskResultDto> =
         unwrap { api.evaluateFeatures(request) }
+
+suspend fun uploadRhiSnapshot(
+        request: RhiDailySnapshotBatchDto,
+    ): RemotePhmOutcome<RhiDailySnapshotResponseDto> =
+        unwrap { api.uploadRhiSnapshot(request) }
 
     suspend fun evaluateRhiSeries(
         request: RhiV2SeriesEvaluateRequestDto,

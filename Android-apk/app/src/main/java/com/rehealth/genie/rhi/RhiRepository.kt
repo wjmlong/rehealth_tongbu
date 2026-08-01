@@ -2,8 +2,11 @@ package com.rehealth.genie.rhi
 
 import com.rehealth.genie.data.sync.InterventionFeedbackDao
 import com.rehealth.genie.data.sync.InterventionFeedbackEntity
+import com.rehealth.genie.data.sync.SyncRepository
+import com.rehealth.genie.data.sync.UploadQueueEntity
 import com.rehealth.genie.network.PatientProfilePayload
 import com.rehealth.genie.network.dto.FeatureQualityDto
+import com.rehealth.genie.network.dto.RhiDailySnapshotBatchDto
 import com.rehealth.genie.network.dto.RhiV2DeviceContextDto
 import com.rehealth.genie.network.dto.RhiV2EvaluateRequestDto
 import com.rehealth.genie.network.dto.RhiV2FeatureFields
@@ -13,6 +16,7 @@ import com.rehealth.genie.network.dto.RhiV2PersonalBaselineDto
 import com.rehealth.genie.network.dto.RhiV2SeriesEvaluateRequestDto
 import com.rehealth.genie.network.dto.RhiV2SeriesEvaluateResponseDto
 import com.rehealth.genie.ring.data.RingDataDao
+import com.google.gson.Gson
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
@@ -22,6 +26,10 @@ class RhiRepository(
     private val ringDataDao: RingDataDao,
     private val manualInputDao: RhiManualHealthInputDao? = null,
     private val interventionFeedbackDao: InterventionFeedbackDao? = null,
+    private val snapshotDao: RhiSnapshotDao? = null,
+    private val syncRepository: SyncRepository? = null,
+    private val gson: Gson = Gson(),
+    private val nowProvider: () -> Long = System::currentTimeMillis,
     private val userIdProvider: () -> String? = { null },
     private val remoteSeriesEvaluator:
         (suspend (RhiV2SeriesEvaluateRequestDto) -> RhiV2SeriesEvaluateResponseDto)? = null,
@@ -42,7 +50,8 @@ class RhiRepository(
         val activities = ringDataDao.getActivitiesSince(since)
         val sleepSessions = ringDataDao.getSleepSessionsSince(since)
         val measurements = ringDataDao.getMeasurementsSince(since)
-        val manual = userIdProvider()?.let { manualInputDao?.get(it) }
+        val userId = userIdProvider()
+        val manual = userId?.let { manualInputDao?.get(it) }
         val feedback = interventionFeedbackDao?.completedFeedbackSince(since).orEmpty()
         val daily = withContext(Dispatchers.Default) {
             val firstDate = scoredOn.minusDays((periodDays + 27).toLong())
@@ -96,11 +105,75 @@ class RhiRepository(
                 )
             }.toList()
         }
-        return if (calculationSource == RhiCalculationSource.LOCAL) {
+        val summary = if (calculationSource == RhiCalculationSource.LOCAL) {
             summarizeLocal(periodDays, scoredOn, daily)
         } else {
             summarizeRemote(periodDays, scoredOn, daily)
         }
+        persist(userId, daily, calculationSource, summary.algorithmVersion)
+        return summary
+    }
+
+    /**
+     * Writes each recomputed day into the split RHI tables. Persistence is a
+     * side effect of scoring, never a precondition for it: a storage failure
+     * must not deny the user a score that was already computed correctly.
+     */
+    private suspend fun persist(
+        userId: String?,
+        daily: List<DailyRhiCalculation>,
+        calculationSource: RhiCalculationSource,
+        algorithmVersion: String,
+    ) {
+        val dao = snapshotDao ?: return
+        if (userId.isNullOrBlank()) return
+        val uploadSnapshots = mutableListOf<com.rehealth.genie.network.dto.RhiDailyIndexDto>()
+        daily.forEach { item ->
+            val entities = RhiSnapshotMapper.toEntities(
+                userId = userId,
+                scoredOn = item.date,
+                calculation = item.result,
+                calculationSource = calculationSource,
+                algorithmVersion = algorithmVersion,
+            )
+            dao.replaceDay(
+                index = entities.index,
+                domains = entities.domains,
+                features = entities.features,
+                quality = entities.quality,
+            )
+            uploadSnapshots += RhiSnapshotMapper.toUploadDto(entities)
+        }
+        val cutoff = daily.last().date.minusDays(RETENTION_DAYS).toString()
+        dao.pruneBefore(userId, cutoff)
+        enqueueUpload(userId, uploadSnapshots)
+    }
+
+    /**
+     * Enqueues the day's locally-computed RHI snapshots for upload to the
+     * backend management platform. Upload is best-effort and never blocks
+     * scoring or local persistence: if the queue or client is unavailable the
+     * day is simply not uploaded this pass and will be retried on a later
+     * refresh.
+     */
+    private suspend fun enqueueUpload(
+        userId: String,
+        snapshots: List<com.rehealth.genie.network.dto.RhiDailyIndexDto>,
+    ) {
+        val repo = syncRepository ?: return
+        if (snapshots.isEmpty()) return
+        val request = RhiDailySnapshotBatchDto(userId = userId, snapshots = snapshots)
+        val now = nowProvider()
+        repo.enqueue(
+            UploadQueueEntity(
+                id = "rhi:$userId:${snapshots.last().scoredOn}",
+                kind = "rhi_daily_snapshot",
+                payloadJson = gson.toJson(request),
+                status = "pending",
+                createdAt = now,
+                nextRetryAt = now,
+            ),
+        )
     }
 
     private fun summarizeLocal(
@@ -108,11 +181,9 @@ class RhiRepository(
         scoredOn: LocalDate,
         daily: List<DailyRhiCalculation>,
     ): RhiPeriodSummary {
-        val periodStart = scoredOn.minusDays((periodDays - 1).toLong())
-        val valid = daily.mapNotNull { item ->
+        val allValid = daily.mapNotNull { item ->
             item.result.takeIf {
-                item.date >= periodStart &&
-                    it.confidence >= RhiPeriodAggregator.MIN_VALID_CONFIDENCE &&
+                it.confidence >= RhiPeriodAggregator.MIN_VALID_CONFIDENCE &&
                     it.availableFeatureCount > 0 &&
                     it.availableDays > 0
             }?.let {
@@ -123,10 +194,17 @@ class RhiRepository(
                 )
             }
         }
+        val periodStart = scoredOn.minusDays((periodDays - 1).toLong())
+        val valid = allValid.filter { it.date >= periodStart }
+        // Momentum is measured against the full warm-up series so that a fixed
+        // 7- or 28-day lookback stays available even in the 7-day view.
+        val byDate = allValid.associate { it.date to it.score }
         return RhiPeriodAggregator.summarize(
             periodDays = periodDays,
             current = valid.lastOrNull { it.date == scoredOn },
             dailyScores = valid,
+            delta7d = RhiPeriodAggregator.delta(byDate, scoredOn, 7),
+            delta28d = RhiPeriodAggregator.delta(byDate, scoredOn, 28),
         )
     }
 
@@ -141,25 +219,31 @@ class RhiRepository(
         if (response.evaluations.size != daily.size) {
             throw IllegalStateException("远程 RHI 返回数量与请求不一致")
         }
-        val periodStart = scoredOn.minusDays((periodDays - 1).toLong())
-        val valid = daily.zip(response.evaluations).mapNotNull { (local, remote) ->
+        val allValid = daily.zip(response.evaluations).mapNotNull { (local, remote) ->
             val confidence = remote.dataConfidence.score
             RhiDailyScore(
                 date = local.date,
                 score = remote.dynamicHealthIndex.score,
                 confidence = confidence,
-            ).takeIf {
-                local.date >= periodStart &&
-                    confidence >= RhiPeriodAggregator.MIN_VALID_CONFIDENCE
-            }
+            ).takeIf { confidence >= RhiPeriodAggregator.MIN_VALID_CONFIDENCE }
         }
+        val periodStart = scoredOn.minusDays((periodDays - 1).toLong())
+        val valid = allValid.filter { it.date >= periodStart }
+        val byDate = allValid.associate { it.date to it.score }
         return RhiPeriodAggregator.summarize(
             periodDays = periodDays,
             current = valid.lastOrNull { it.date == scoredOn },
             dailyScores = valid,
             algorithmVersion = response.evaluations.last().algorithmVersion,
             calculationSource = RhiCalculationSource.REMOTE,
+            delta7d = RhiPeriodAggregator.delta(byDate, scoredOn, 7),
+            delta28d = RhiPeriodAggregator.delta(byDate, scoredOn, 28),
         )
+    }
+
+    private companion object {
+        /** On-device RHI history horizon; older days are pruned after each refresh. */
+        const val RETENTION_DAYS = 400L
     }
 }
 

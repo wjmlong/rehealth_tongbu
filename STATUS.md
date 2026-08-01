@@ -47,7 +47,37 @@
 - MySQL 8 staging 已有迁移、用户隔离、幂等和重启回读证据；生产容量与恢复仍待验证。
 - Android 重新登录和进入个人页会刷新当前用户的类型化个人资料与最近健康问答，且不再受风险/干预接口失败影响；健康初识完成前先持久化 Room 队列，麦克风入口具备用途说明、运行时授权和拒绝后的设置引导。
 - 健康问答 Java 纵向链路已实现：可在 `model-service` 与 `langchain4j` 间配置切换，每轮装配类型化画像/访谈/风险/干预，问答中明确自述的五项基本资料先合并入库再装配同轮画像，MySQL 会话与消息按用户+租户隔离，Android Room v7 本地先写并管理会话；后端仍只有最新会话恢复，没有列表/删除契约，生产数据库迁移、真实 Provider 和跨设备手工 QA 仍待执行。
-- RHI v2 已完成研究规划、32 维 typed schema、确定性预览引擎、验证工具和 Android 未接线 DTO/迁移映射；Android 本地 `rhi-deterministic-preview-2.1.0-android-lite` 已接入 Room 可穿戴数据、可信个人资料及“我的 > 健康档案”手填指标。Room v9/v10 以显式 8→9→10 迁移保存久坐、腰围、正式 VO₂max、HbA1c、eGFR、确认袖带血压和带日期医院血检；空白值不补正常值，无袖带戒指血压不进入 RHI。当前仍没有 JeecgBoot 公共路由或云端日快照表，不能作为经验证临床能力，生产风险仍走 CVD-16。
+- RHI v2 已完成研究规划、32 维 typed schema、确定性预览引擎、验证工具和 Android 未接线 DTO/迁移映射；Android 本地 `rhi-deterministic-preview-2.2.0-android-lite` 已接入 Room 可穿戴数据、可信个人资料及“我的 > 健康档案”手填指标。Room v9/v10 以显式 8→9→10 迁移保存久坐、腰围、正式 VO₂max、HbA1c、eGFR、确认袖带血压和带日期医院血检；空白值不补正常值，无袖带戒指血压不进入 RHI。当前仍没有 JeecgBoot 公共路由或云端日快照表，不能作为经验证临床能力，生产风险仍走 CVD-16。
+- RHI 2.2.0 修正四处计算缺陷并落地日度持久化，未改动 UI：按
+  LITE/STANDARD/CLINICAL 分级判定可信度分母（分级由实际提取到的证据决定，
+  不区分手填或设备同步），消除 `total_cholesterol` 重复计数与纯可穿戴用户被
+  化验项虚高分母压制的问题；MVPA 个人基线改用 7 日滚动总量对齐量纲；
+  `steps_7d_mean` 恒除以 7，未佩戴日按零暴露计入；新增四类质量提醒
+  （`activity_duration_missing` / `wear_time_incomplete` /
+  `blood_pressure_unavailable` / `steps_all_zero`），仅解释可信度、不改分数。
+  Room v14 以纯新增迁移 13→14 拆出 `rhi_daily_health_index` /
+  `rhi_daily_domain_score` / `rhi_daily_feature_snapshot` /
+  `rhi_data_quality_snapshot`，按 `(user_id, scored_on)` 重算即覆盖，未计分域存
+  `NULL` 而非中性 50，持久化失败不阻断评分；`delta_7d` / `delta_28d` 改为固定
+  回看窗。已通过 `:app:testDebugUnitTest`（含 21 项 RHI 用例）与
+  `assembleDebug`；`:app:connectedDebugAndroidTest` 已在 MuMu（API 35 / x86_64）
+  跑通全部 10 项仪器化用例，其中 13→14 由 `runMigrationsAndValidate` 校验建表
+  SQL 与 Room 期望 schema 一致，`RhiSnapshotPersistenceTest` 以真实
+  `RhiRepository` + 真实 Room 验证四张表确实被写入、重算覆盖而非追加、质量提醒
+  落库、未登录时仍出分但不落库。覆盖安装后设备端实测 `user_version=14`、四表
+  与 8 个索引就绪且无 SQLite 异常。云端日快照表与 JeecgBoot 公共路由仍未提供。
+- RHI 上传侧（Android）已实现：本地算好并落库后，`RhiRepository.persist` 把当天
+  快照投影为 `RhiDailySnapshotBatchDto`（`RhiSnapshotMapper.toUploadDto`，只含聚合
+  输出、不含原始可穿戴序列），通过现有离线上传队列 `SyncRepository` 的
+  `rhi_daily_snapshot` kind 入队，复用其 401 暂停、指数退避与死信逻辑；新增
+  `RhiSnapshotUploadClient` 接口与 `AuthenticatedApiClient.uploadRhiSnapshot`
+  实现，Retrofit 端点在 `ReHealthApi` / `ReHealthMobileApi` 声明为
+  `POST /rehealth/mobile/rhi/daily-snapshot`（契约见 `backend/docs/MOBILE_API.md`）。
+  端点尚未在 JeecgBoot 落库实现，故上传会收到 404/失败并进入死信，但不会崩溃，
+  也不影响本地评分与持久化；后端实现后即可即通。未改动任何 UI。新增
+  `RhiSnapshotPersistenceTest.refreshPeriod_enqueuesRhiSnapshotForUpload` 在 MuMu
+  上以真实 `RhiRepository` + 真实 `SyncRepository` + 真实 Room 验证入队行为，5 项
+  仪器化用例全过；`:app:testDebugUnitTest` 与 `assembleDebug` 均通过。
 - Android 已保留独立本地 `RDI rdi-rule-1.0.0` 算法骨架：Room v8 通过显式
   7→8 迁移保存每日快照与贡献证据，但它不再驱动归因页。“健康改善得分”现由
   Android RHI Lite 透明引擎计算 RHI-100：7 日取当前近 7 日有效数据，30/90 日

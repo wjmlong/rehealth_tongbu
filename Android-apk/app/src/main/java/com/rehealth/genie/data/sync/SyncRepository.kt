@@ -6,7 +6,10 @@ import com.rehealth.genie.network.ApiResult
 import com.rehealth.genie.network.AuthState
 import com.rehealth.genie.network.MeasurementUploadClient
 import com.rehealth.genie.network.HealthInterviewUploadClient
+import com.rehealth.genie.network.RhiSnapshotUploadClient
 import com.rehealth.genie.network.dto.HealthInterviewSubmitRequestDto
+import com.rehealth.genie.network.dto.RhiDailySnapshotBatchDto
+import com.rehealth.genie.network.dto.RhiDailySnapshotResponseDto
 import com.rehealth.genie.network.dto.TelemetryBatchRequestDto
 import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
 import kotlinx.coroutines.flow.Flow
@@ -31,6 +34,7 @@ class SyncRepository(
     private val gson: Gson = Gson(),
     private val nowProvider: () -> Long = System::currentTimeMillis,
     private val healthInterviewClient: HealthInterviewUploadClient? = apiClient as? HealthInterviewUploadClient,
+    private val rhiSnapshotClient: RhiSnapshotUploadClient? = apiClient as? RhiSnapshotUploadClient,
 ) {
 
     private val _queueState = MutableStateFlow<QueueState>(QueueState.Active)
@@ -77,6 +81,7 @@ class SyncRepository(
     suspend fun uploadQueuedItem(item: UploadQueueEntity): MeasurementUploadOutcome = when (item.kind) {
         MEASUREMENT_KIND -> uploadMeasurement(item)
         HEALTH_INTERVIEW_KIND -> uploadHealthInterview(item)
+        RHI_SNAPSHOT_KIND -> uploadRhiSnapshot(item)
         else -> MeasurementUploadOutcome.Skipped
     }
 
@@ -103,6 +108,42 @@ class SyncRepository(
             is ApiResult.InvalidResponse -> saveDeadLetter(item, "health_interview_invalid")
             is ApiResult.NetworkError -> saveRetry(item, "health_interview_network")
             is ApiResult.ServiceUnavailable -> saveRetry(item, "health_interview_service_unavailable")
+        }
+    }
+
+    /**
+     * Uploads locally-computed RHI daily snapshots to the backend management
+     * platform. Failures follow the same backoff/dead-letter policy as the
+     * other kinds; a rejected batch never blocks local scoring or storage.
+     */
+    private suspend fun uploadRhiSnapshot(item: UploadQueueEntity): MeasurementUploadOutcome {
+        val client = rhiSnapshotClient ?: return saveRetry(item, "rhi_snapshot_client_unavailable")
+        val request = try {
+            gson.fromJson(item.payloadJson, RhiDailySnapshotBatchDto::class.java)
+                ?: return deadLetter(item)
+        } catch (_: JsonParseException) {
+            return deadLetter(item)
+        }
+        if (request.userId.isBlank() || request.snapshots.isEmpty()) return deadLetter(item)
+        return when (val result = client.uploadRhiSnapshot(request)) {
+            is ApiResult.Success -> {
+                val durable = result.data.persisted && result.data.accepted
+                if (durable) {
+                    dao.update(item.copy(status = "done", lastError = null))
+                    MeasurementUploadOutcome.Uploaded
+                } else {
+                    saveDeadLetter(item, "rhi_snapshot_not_persisted")
+                }
+            }
+            is ApiResult.Unauthorized -> {
+                pauseQueue()
+                MeasurementUploadOutcome.Paused
+            }
+            is ApiResult.Forbidden -> saveDeadLetter(item, "rhi_snapshot_forbidden")
+            is ApiResult.InvalidRequest,
+            is ApiResult.InvalidResponse -> saveDeadLetter(item, "rhi_snapshot_invalid")
+            is ApiResult.NetworkError -> saveRetry(item, "rhi_snapshot_network")
+            is ApiResult.ServiceUnavailable -> saveRetry(item, "rhi_snapshot_service_unavailable")
         }
     }
 
@@ -211,6 +252,7 @@ class SyncRepository(
     private companion object {
         const val MEASUREMENT_KIND = "telemetry_batch"
         const val HEALTH_INTERVIEW_KIND = "health_interview"
+        const val RHI_SNAPSHOT_KIND = "rhi_daily_snapshot"
     }
 }
 

@@ -25,6 +25,8 @@ import com.rehealth.genie.network.dto.RhiV2SeriesEvaluateResponseDto
 import com.rehealth.genie.network.dto.SendSmsRequest
 import com.rehealth.genie.network.dto.TelemetryBatchRequestDto
 import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
+import com.rehealth.genie.network.dto.RhiDailySnapshotBatchDto
+import com.rehealth.genie.network.dto.RhiDailySnapshotResponseDto
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -62,6 +64,11 @@ interface ReHealthApi {
 
     @POST("rehealth/mobile/features/evaluate")
     suspend fun evaluateFeatures(@Body request: FeatureEvaluateRequest): Response<JeecgResult<RiskResultDto>>
+
+@POST("rehealth/mobile/rhi/daily-snapshot")
+    suspend fun uploadRhiSnapshot(
+        @Body request: RhiDailySnapshotBatchDto,
+    ): Response<JeecgResult<RhiDailySnapshotResponseDto>>
 
     @POST("rehealth/mobile/rhi/evaluate-series")
     suspend fun evaluateRhiSeries(

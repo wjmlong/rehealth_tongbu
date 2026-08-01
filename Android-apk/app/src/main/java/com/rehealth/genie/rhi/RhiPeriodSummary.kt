@@ -18,6 +18,10 @@ data class RhiPeriodSummary(
     val history: List<RhiDailyScore>,
     val algorithmVersion: String = RHI_LITE_ALGORITHM_VERSION,
     val calculationSource: RhiCalculationSource = RhiCalculationSource.LOCAL,
+    /** Current display score minus the score 7 days earlier; null when absent. */
+    val delta7d: Double? = null,
+    /** Current display score minus the score 28 days earlier; null when absent. */
+    val delta28d: Double? = null,
 ) {
     val trendDelta: Double?
         get() = history.takeIf { it.size >= 2 }
@@ -41,6 +45,8 @@ object RhiPeriodAggregator {
         dailyScores: List<RhiDailyScore>,
         algorithmVersion: String = RHI_LITE_ALGORITHM_VERSION,
         calculationSource: RhiCalculationSource = RhiCalculationSource.LOCAL,
+        delta7d: Double? = null,
+        delta28d: Double? = null,
     ): RhiPeriodSummary {
         require(periodDays in SUPPORTED_PERIODS) { "RHI period must be 7, 30, or 90 days" }
         val ordered = dailyScores.sortedBy { it.date }.takeLast(periodDays)
@@ -73,7 +79,24 @@ object RhiPeriodAggregator {
             history = ordered,
             algorithmVersion = algorithmVersion,
             calculationSource = calculationSource,
+            delta7d = delta7d?.round1(),
+            delta28d = delta28d?.round1(),
         )
+    }
+
+    /**
+     * Momentum against a fixed lookback rather than the first day of whatever
+     * window the UI happens to show. A 90-day view and a 7-day view must report
+     * the same 7-day change.
+     */
+    fun delta(
+        scores: Map<java.time.LocalDate, Double>,
+        scoredOn: java.time.LocalDate,
+        lookbackDays: Long,
+    ): Double? {
+        val current = scores[scoredOn] ?: return null
+        val past = scores[scoredOn.minusDays(lookbackDays)] ?: return null
+        return current - past
     }
 
     const val MIN_VALID_CONFIDENCE = 0.10

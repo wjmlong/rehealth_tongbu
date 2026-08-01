@@ -14,7 +14,19 @@
   注册 Mock 或通过 Gradle 属性生成指定厂商真机测试 APK。
 - 心率、HRV、血氧、血压、血糖、压力、MET、ECG、睡眠、步数、活动、血液成分和身体成分等本地记录与数据卡片；能力门控的血糖校准与经期设置。
 - Room 本地优先持久化及显式数据库迁移。
-- Room v8 本地 RDI 每日快照、逐因素证据、可信度收缩和平滑算法骨架；当前不驱动健康改善得分。
+- 本地 RDI 引擎（设计 6 章：总公式 50+ΣC、领域上限、平滑、个人基线、可信度收缩）。
+  Room v8 每日快照/逐因素证据；v12 增加 `is_mock` 列；v13 新增 `rdi_baselines`（锚定基线）、
+  `rdi_confirmed_labs`、`rdi_confirmed_meals` 三张表。
+  已接入「健康归因」页顶部总览卡（分数/状态/可信度/近7天变化/前3项/固定免责声明）。
+  状态枚举按有效日数判定：NO_DATA / BASELINE_BUILDING / PRELIMINARY / CONFIRMED / STALE / INVALID / DEBUG_MOCK。
+  六大领域全部实现：C_activity / C_sleep / C_recovery / C_bp_weight（仅已确认上臂袖带血压计分，未验证手表血压不计分）
+  / C_lab（±10，80%实测+20%控制支持）/ C_diet（±5，单餐 -2~+2）。
+  个人基线锚定化：首个连续 14 有效日建立稳健中位数+MAD，冻结 90 天，重建保留旧版本（SUPERSEDED）。
+  静息心率因子、睡眠相对基线改善项已补全；绝对状态修正改为累加而非取下界。
+  C_diet 已改为**离线优先本地估算**：直接读取 Room v11 `diet_records` 当日餐食，按保守营养区间
+  （热量 1600–2400kcal 中线、钠 ≤2300mg、蛋白 ≥50g、脂肪供能 ≤35%）分摊每餐影响（单餐 ±2，domain ±5），
+  不依赖网络或 model-service 回填；若后端经 `rdi_confirmed_meals` 回填精确 `meal_impact` 则优先采用。
+  后台 `rdi_confirmed_meals` 表保留为可选叠加通道，不作为归因前置条件。
 - Room v9/v10 通过显式迁移保存 RHI 手填健康指标、经确认上臂袖带 7 日血压和医院血检；Room v11 保存按用户隔离的手工餐食并接入 durable queue，不依赖破坏性迁移。
 - Android RHI Lite 透明计算：使用 Room 可穿戴数据、经核对健康档案和当前用户资料生成 RHI-100；空白字段保持 `NULL`/中性并降低可信度，不补正常值。
 - 数据页风险卡把既有 16 特征评估接口作为 RDI-16 数据源，只展示真实非 Mock 结果；健康指数圆环读取 RHI-100，不再使用硬编码分数。
@@ -161,9 +173,20 @@ Room v11 新增按用户隔离的 `diet_records`。归因页可录入餐次、�
 上传队列。离线或尚未取得真实设备绑定时保留本地记录，绑定恢复后补排队。
 
 归因页与模型页保持 `fc1f6d5` 的既有样式和主要交互。归因页“健康改善得分”
-使用本地 RHI Lite `rhi-deterministic-preview-2.1.0-android-lite`：7 日显示由近 7 日有效 Room 数据计算并按 `0.25/0.75`
+使用本地 RHI Lite `rhi-deterministic-preview-2.2.0-android-lite`：7 日显示由近 7 日有效 Room 数据计算并按 `0.25/0.75`
 平滑的当前 RHI-100，30/90 日显示窗口内有效日 RHI 的稳健中位数；同卡片
-折线也使用 RHI 历史。“我的 > 健康档案”可录入日均久坐、腰围、正式
+折线也使用 RHI 历史。2.2.0 按 LITE/STANDARD/CLINICAL 分级判定可信度分母，
+仅按用户实际具备的证据计分，不再让纯可穿戴用户被化验项拉低可信度，
+`total_cholesterol` 也不再被重复计数；MVPA 个人基线改用 7 日滚动总量以对齐量纲；
+`steps_7d_mean` 恒除以 7，未佩戴日按零暴露计入；新增
+`activity_duration_missing`（有步数但运动时长为 0）、`wear_time_incomplete`、
+`blood_pressure_unavailable`、`steps_all_zero` 四类质量提醒，仅解释可信度、不改分数。
+Room v14 将 RHI 日度持久化拆为
+`rhi_daily_health_index` / `rhi_daily_domain_score` / `rhi_daily_feature_snapshot` /
+`rhi_data_quality_snapshot` 四张表，13→14 为纯新增迁移，不改动或删除既有表；
+按 `(user_id, scored_on)` 主键重算即覆盖，未参与计分的域存 `NULL` 而非中性 50；
+`delta_7d` / `delta_28d` 按固定回看窗计算，7 日与 90 日视图给出一致的 7 日变化。
+以上仅为算法与存储改动，UI 未变。“我的 > 健康档案”可录入日均久坐、腰围、正式
 VO₂max、HbA1c、eGFR、经确认的上臂袖带血压和医院血检。RHI 越高越健康；
 空白值不填正常值，戒指无袖带血压只展示而不进入 RHI。
 右侧当前风险、下方 PIAS 个人风险趋势和干预计划仍走原有 CVD-16/PIAS
@@ -195,9 +218,10 @@ JeecgBoot 远程 RHI、30 日 RDI-16 与 PIAS；Release source set 的实现固�
 `available=false`。遥测中的 `rawSignalExcluded=true` 是“未上传原始信号”的
 控制元数据，不得被服务端误判为 PPG/RRI 波形内容。
 
-RHI 默认本地计算；数据页和归因页可显式选择“JeecgBoot 远程（预览）”。远程
-模式调用认证路由 `POST /rehealth/mobile/rhi/evaluate-series`，JeecgBoot 再调用
-`model-service /v2/rhi/evaluate`，APK 不保存 model-service 地址，也不直接访问它。
+RHI 默认在 Android 本地计算；数据页和归因页不展示计算源切换或“本地即时”来源
+标签。开发验收使用的远程复算能力仍调用认证路由
+`POST /rehealth/mobile/rhi/evaluate-series`，JeecgBoot 再调用
+`model-service /v2/rhi/evaluate`；APK 不保存 model-service 地址，也不直接访问它。
 
 当前有效设备绑定保存在 `EncryptedSharedPreferences`，不进入 Room。设备首次
 扫描连接成功后才保存绑定地址；没有绑定地址时，后台采集不会使用固定地址或

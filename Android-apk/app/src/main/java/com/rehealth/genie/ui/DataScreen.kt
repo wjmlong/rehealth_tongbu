@@ -110,7 +110,6 @@ internal fun DataScreen(
     val rhiViewModel: RhiViewModel = viewModel(factory = RhiViewModel.Factory(LocalContext.current))
     val rhiPeriodSummary by rhiViewModel.periodSummary.collectAsState()
     val rhiRefreshError by rhiViewModel.refreshError.collectAsState()
-    val rhiCalculationSource by rhiViewModel.calculationSource.collectAsState()
     var showBloodGlucoseCalibration by remember { mutableStateOf(false) }
     var showWomensHealthSetting by remember { mutableStateOf(false) }
     var showEcgDetail by remember { mutableStateOf(false) }
@@ -145,7 +144,6 @@ internal fun DataScreen(
         state.activity?.id,
         state.sleep?.id,
         state.patientMvp?.profile?.updatedAt,
-        rhiCalculationSource,
     ) {
         rhiViewModel.refresh(rhiPeriodDays, AttributionDataProvenance.trustedProfile(state.patientMvp))
     }
@@ -316,15 +314,6 @@ internal fun DataScreen(
                 selected = selectedPeriod,
                 onSelected = { selectedPeriod = it },
             )
-        }
-        item {
-            RhiCalculationSourceSelector(
-                source = rhiCalculationSource,
-                onSourceSelected = rhiViewModel::setCalculationSource,
-            )
-        }
-        item {
-            RiskScoreCard(canonicalRiskStatus)
         }
         if (state.message != null || state.isSyncing) {
             item {
@@ -702,40 +691,6 @@ private fun DataStatusCard(
 }
 
 @Composable
-private fun RiskScoreCard(
-    canonicalRiskStatus: androidx.compose.runtime.State<RemoteFeatureEvaluateStatus?>,
-) {
-    val presentation = dataRiskPresentation(canonicalRiskStatus.value)
-    Row(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
-            .background(Brush.horizontalGradient(listOf(Color.White, Color(0xFFEAF8F4))))
-            .border(1.dp, Color(0xFFD7E5E1), RoundedCornerShape(18.dp))
-            .padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(46.dp).clip(CircleShape).background(MintSoft), contentAlignment = Alignment.Center) {
-            Icon(Icons.Outlined.Shield, null, tint = Mint, modifier = Modifier.size(24.dp))
-        }
-        Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-            Text("当前风险分", color = Ink, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-            Text(
-                presentation.summary,
-                color = Muted,
-                fontSize = 10.sp,
-                lineHeight = 14.sp,
-                maxLines = 2,
-                modifier = Modifier.padding(top = 3.dp),
-            )
-        }
-        Column(horizontalAlignment = Alignment.End) {
-            Text(presentation.scoreText, color = Mint, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text(presentation.riskLevelText, color = Muted, fontSize = 10.sp)
-            Text(presentation.sourceText, color = Muted, fontSize = 9.sp)
-        }
-    }
-}
-
-@Composable
 private fun HealthScoreCard(
     summary: RhiPeriodSummary?,
     error: String?,
@@ -854,13 +809,6 @@ internal fun dataHealthIndexPresentation(
     } else {
         "${summary.periodDays}日稳健中位数"
     }
-    val sourceText = if (
-        summary.calculationSource == com.rehealth.genie.rhi.RhiCalculationSource.REMOTE
-    ) {
-        "JeecgBoot 远程复算"
-    } else {
-        "本地即时"
-    }
     val deltaText = summary.trendDelta?.let { delta ->
         val sign = if (delta > 0.0) "+" else ""
         " · 期内$sign${String.format(Locale.US, "%.1f", delta)}"
@@ -868,7 +816,7 @@ internal fun dataHealthIndexPresentation(
     return DataHealthIndexPresentation(
         scoreText = String.format(Locale.US, "%.1f", score),
         statusText = status,
-        supportingText = "RHI-100 · $sourceText · $periodText$deltaText",
+        supportingText = "RHI-100 · $periodText$deltaText",
         sweepAngle = (score.coerceIn(0.0, 100.0) / 100.0 * 360.0).toFloat(),
     )
 }
