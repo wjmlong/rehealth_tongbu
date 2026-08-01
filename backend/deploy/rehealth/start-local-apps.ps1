@@ -150,6 +150,10 @@ $env:SPRING_DATA_REDIS_PASSWORD = $redisPassword
 $env:JEECG_REDISSON_ADDRESS = '127.0.0.1:6379'
 $env:JEECG_REDISSON_PASSWORD = $redisPassword
 $env:REHEALTH_SOFTWARE_DB_ENABLED = 'true'
+# This launcher is only for the local Debug stack. Allow the authenticated
+# full-chain rehearsal to forward its synthetic 30-day risk history to PIAS;
+# staging and production keep the backend default (false).
+$env:REHEALTH_QA_SYNTHETIC_ATTRIBUTION_HISTORY_ENABLED = 'true'
 $env:REHEALTH_DEVICE_SERVICE_ENABLED = 'true'
 $env:REHEALTH_DEVICE_SERVICE_BASE_URL = 'http://127.0.0.1:8091'
 $env:REHEALTH_TIMESCALE_ENABLED = 'true'

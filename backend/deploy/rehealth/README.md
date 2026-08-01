@@ -178,6 +178,11 @@ powershell -ExecutionPolicy Bypass -File backend/deploy/rehealth/stop-local-apps
 保存固定测试验证码 `123456`。未启用该变量时保留随机验证码和真实短信 Provider 链路；
 staging/production 禁止启用该测试开关。
 
+该本地启动脚本还会启用
+`REHEALTH_QA_SYNTHETIC_ATTRIBUTION_HISTORY_ENABLED=true`，仅供 Debug APK 的
+全链路演练把已完成真实 RDI-16 远程评估的 30 日合成历史转发给 PIAS。后端默认值仍为
+`false`，staging/production 不得启用。
+
 The scripts run applications as hidden Windows processes. PID files and
 separate stdout/stderr logs are written to the ignored
 `backend/deploy/rehealth/.local-runtime/` directory. The model service loads
