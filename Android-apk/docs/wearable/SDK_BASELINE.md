@@ -70,6 +70,12 @@ README also describes use as limited to cooperative customers, so commercial
 authorization remains a release gate even though the public repository contains
 an Apache-2.0 license file.
 
+The pinned `vpprotocol-2.3.73.15.aar` has been signature-audited and already
+exposes `startDetectHrv`/`stopDetectHrv`, `startDetectMet`/`stopDetectMet`, and
+the four HRV/MET capability getters. No binary bump is required for the April
+23 HRV or July 2 MET integration; later JH58-only SDK changes are outside this
+scope.
+
 When the Provider references `VPOperateManager`, Release R8 also sees method
 signatures for optional JieLi bitmap/FAT dial helpers. The absent bitmap helper
 is suppressed in `proguard-rules.pro`; its library remains excluded and no
@@ -111,26 +117,29 @@ phase.
 
 The HBand Provider follows `connectDevice -> Notify -> confirmDevicePwd ->
 settled aggregate/DeviceFunctionPackage capability merge -> syncPersonInfo -> READY`.
+The pinned runtime includes the vendor-required JieLi `BmpConvert` and Bluechip
+`abpartool` companions. `VPOperateManager` calls `releaseJLSDK()` from the BLE disconnect
+callback even when ReHealth does not expose watch-face or OTA features, so omitting
+`BmpConvert` is a connection-lifecycle crash rather than an optional dial limitation.
 The SDK marks `onFunctionSupportDataChange` deprecated and documents that it may fire
 multiple times before all fields are initialized, so numbered packages override the
 latest aggregate value for their fields. In particular, MT116 ECG and direct app-HRV
 support are read from `DeviceFunctionPackage2`; the aggregate callback remains a
-compatibility fallback. Direct HRV requires `hrvAppDetectFunction`; `hrvFunction` or a
-non-zero `hrvType` enables history reads but does not authorize `startDetectHrv`.
-Likewise, direct MET requires `met`, while non-zero `metType` enables history reads only.
+compatibility fallback. Direct HRV requires both `isSupportHRV` and
+`isSupportHrvAppDetect`; a non-zero `hrvType` enables history reads but does not authorize
+`startDetectHrv`. Likewise, direct MET requires both `isSupportMet` and
+`isSupportMetAppDetect`, while non-zero `metType` enables history reads only.
 This distinction is required because the pinned SDK itself rejects unsupported direct
 commands with a user-visible toast.
 Its product intersection
 allows heart rate, daily steps/activity, sleep, blood oxygen, app HRV, blood pressure,
 blood glucose, stress, MET, ECG, blood component, and body composition
 operations. Blood-glucose calibration
-and menstrual-cycle settings use separate feature operations. On 2026-07-30, the purchased
-MT116 was observed to advertise dedicated HRV/stress/MET support while returning an all-zero
-`unknown action` response to all three `manual_detect_de` commands. For `RH-HB-E01`, package
-4 `miniCheckup` therefore has priority over the dedicated HRV/stress commands, and scoped
-manual history has priority over the dedicated MET command. HRV/stress history remains the
-final fallback when mini-checkup is absent; MET uses the UI label “获取”. Dedicated commands
-remain reachable only when the caller explicitly disables these real-data fallbacks.
+and menstrual-cycle settings use separate feature operations. For `RH-HB-E01`, HRV and MET
+prefer the dedicated SDK APIs only after their exact double gates pass. If a pair is absent,
+HRV/stress use package-4 `miniCheckup` or scoped history and MET uses manual-measurement
+history. The purchased MT116's 2026-07-30 all-zero `unknown action` result for the older
+`manual_detect_de` commands remains the expected old-firmware fallback case.
 Failures, timeouts, zeroes, and absent values are not persisted. ECG is a product requirement for `RH-HB-E01`; a device
 that does not report ECG support is rejected instead of silently degrading. The user profile comes from ReHealth profile
 data; the SDK demo's fixed sex/age/height/weight values are not used. Blood
@@ -151,6 +160,9 @@ preparation/mother modes, TCM, OTA, dials, and messaging remain outside `RH-HB-E
 Temperature also remains outside `RH-HB-E01` after the current purchased device failed
 physical measurement verification. Sleep and origin history are serialized as dedicated
 `readSleepData` then `readOriginData` commands because the purchased device returned origin
-records but omitted sleep from `readAllHealthData`; five-minute step records are aggregated per local day.
+records but omitted sleep from `readAllHealthData`. The SDK's `allSleepTime` is persisted as
+the authoritative nullable Room v8 total; `sleepDown`/`sleepUp` remain timestamps, and an
+unreported awake duration is not synthesized from the total-minus-stage remainder. Five-minute
+step records are aggregated per local day.
 `SportUtil.getDistance()` divides metre-scale step distance by 1000, so the
 Provider converts the SDK kilometre value back to Room `distanceMeters`.

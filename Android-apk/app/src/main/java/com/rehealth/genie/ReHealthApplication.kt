@@ -2,6 +2,7 @@ package com.rehealth.genie
 
 import android.app.Application
 import com.rehealth.genie.data.AppDatabase
+import com.rehealth.genie.data.BehaviorRecordRepository
 import com.rehealth.genie.data.RiskHistoryRepository
 import com.rehealth.genie.data.HealthChatRepository
 import com.rehealth.genie.data.sync.InterventionFeedbackRepository
@@ -11,6 +12,7 @@ import com.rehealth.genie.diet.DietRecordRepository
 import com.rehealth.genie.network.AuthenticatedApiClient
 import com.rehealth.genie.network.ApiResult
 import com.rehealth.genie.network.BackendConfig
+import com.rehealth.genie.network.OnboardingStore
 import com.rehealth.genie.network.SessionStore
 import com.rehealth.genie.notification.RingNotificationChannels
 import com.rehealth.genie.phm.RemotePhmService
@@ -40,6 +42,7 @@ class ReHealthApplication : Application() {
 
     // D3: Auth and session management
     val sessionStore by lazy { SessionStore(this) }
+    val onboardingStore by lazy { OnboardingStore(this) }
 
     /**
      * D3: Auth-aware API client with 401 detection and queue pause.
@@ -153,6 +156,10 @@ class ReHealthApplication : Application() {
             apiClient = authenticatedApiClient,
             userIdProvider = { sessionStore.userId },
         )
+    }
+
+    val behaviorRecordRepository by lazy {
+        BehaviorRecordRepository(authenticatedApiClient)
     }
 
     val mrdProtocolAdapter by lazy { MrdProtocolAdapter(this) }

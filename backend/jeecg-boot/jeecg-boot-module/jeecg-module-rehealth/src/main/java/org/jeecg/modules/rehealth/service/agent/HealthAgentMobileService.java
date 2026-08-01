@@ -102,7 +102,7 @@ public class HealthAgentMobileService {
         HealthAgentResponseDto response;
         try {
             response = safetyPolicy.preflight(enginePromptContext.legacyRequest())
-                    .orElseGet(() -> engine.respond(new HealthAgentEngineRequest(enginePromptContext, history)));
+                    .orElseGet(() -> engine.respond(new HealthAgentEngineRequest(userId, enginePromptContext, history)));
             response = safetyPolicy.postflight(response);
             appendProfileUpdateConfirmation(response, profileUpdate);
         } catch (RuntimeException failure) {

@@ -99,6 +99,7 @@ import com.veepoo.protocol.model.enums.EDeviceStatus
 import com.veepoo.protocol.model.enums.ETemperatureUnit
 import com.veepoo.protocol.model.enums.EUricAcidUnit
 import com.veepoo.protocol.model.enums.HrvDetectState
+import com.veepoo.protocol.model.enums.MetDetectState
 import com.veepoo.protocol.model.enums.EWomenOprateStatus
 import com.veepoo.protocol.model.enums.EWomenStatus
 import com.veepoo.protocol.model.enums.EMiniCheckupTestErrorCode
@@ -229,7 +230,14 @@ internal class RealHBandSdkGateway(
         check(pwd.success) { "HBand password confirmation failed" }
         stateMachine.readCapabilities()
         publishState()
-        val supported = capabilityReports.awaitSettled()
+        val reportedCapabilities = capabilityReports.awaitSettled()
+        val vendorCapabilities = VpSpGetUtil.getVpSpVariInstance(appContext)
+        val supported = reportedCapabilities.withOfficialAppMeasurementCapabilities(
+            hrvFeature = vendorCapabilities.isSupportHRV,
+            hrvAppDetect = vendorCapabilities.isSupportHrvAppDetect,
+            metFeature = vendorCapabilities.isSupportMet,
+            metAppDetect = vendorCapabilities.isSupportMetAppDetect,
+        )
         debugLog {
             "capabilities hrvDirect=${supported.hrv} hrvHistory=${supported.hrvHistory} " +
                 "stressDirect=${supported.stress} stressHistory=${supported.stressHistory} " +
@@ -269,34 +277,66 @@ internal class RealHBandSdkGateway(
         publishState()
     }
 
-    override suspend fun sync(metrics: Set<RingMetricType>): HBandPayload {
+    override suspend fun sync(
+        metrics: Set<RingMetricType>,
+        options: HBandSyncOptions,
+    ): HBandPayload {
         if (!manager.isCurrentDeviceConnected || stateMachine.phase.value != HBandConnectionPhase.READY) return HBandPayload()
         var accumulated = HBandPayload()
         return try {
             queue.execute(HISTORY_TIMEOUT_MILLIS) {
                 stateMachine.startSync()
                 publishState()
+                val includeOrigin = options.includeOriginHistory && metrics.any { it in ORIGIN_HISTORY_METRICS }
+                val stageCount = listOf(
+                    RingMetricType.ECG in metrics,
+                    RingMetricType.STEPS in metrics || RingMetricType.ACTIVITY in metrics,
+                    RingMetricType.SLEEP in metrics,
+                    includeOrigin,
+                    metrics.any { it in DEVICE_MANUAL_HISTORY_METRICS },
+                    RingMetricType.BODY_COMPOSITION in metrics,
+                ).count { it }.coerceAtLeast(1)
+                var completedStages = 0
+                fun publishProgress(stageFraction: Float = 0f) {
+                    val boundedFraction = stageFraction.coerceIn(0f, 1f)
+                    val progress = 5 + (((completedStages + boundedFraction) / stageCount) * 90).toInt()
+                    options.onProgress(progress.coerceIn(5, 95))
+                }
+                fun finishStage() {
+                    completedStages++
+                    publishProgress()
+                }
+                publishProgress()
                 // ECG is attempted first because later vendor history reads can be long-running.
-                if (RingMetricType.ECG in metrics) accumulated += optionalHistory { readEcgHistory() }
+                if (RingMetricType.ECG in metrics) {
+                    accumulated += optionalHistory { readEcgHistory() }
+                    finishStage()
+                }
                 if (RingMetricType.STEPS in metrics || RingMetricType.ACTIVITY in metrics) {
                     accumulated += readDailySport()
+                    finishStage()
                 }
                 if (RingMetricType.SLEEP in metrics) {
                     // Some HBand firmware returns origin data but omits sleep from readAllHealthData.
                     // Use the vendor's dedicated command and await completion before the next long read.
-                    accumulated += readSleepHistory()
+                    accumulated += readSleepHistory(options.historyDays) { publishProgress(it) }
+                    finishStage()
                 }
-                if (metrics.any { it in ORIGIN_HISTORY_METRICS }) {
-                    accumulated += readOriginHistory(metrics)
+                if (includeOrigin) {
+                    accumulated += readOriginHistory(metrics, options.historyDays) { publishProgress(it) }
+                    finishStage()
                 }
                 if (metrics.any { it in DEVICE_MANUAL_HISTORY_METRICS }) {
                     accumulated += optionalHistory { readManualMeasurementHistory(metrics) }
+                    finishStage()
                 }
                 if (RingMetricType.BODY_COMPOSITION in metrics) {
                     accumulated += optionalHistory { readBodyCompositionHistory() }
+                    finishStage()
                 }
                 stateMachine.ready()
                 publishState()
+                options.onProgress(100)
                 accumulated
             }
         } catch (error: Exception) {
@@ -464,20 +504,23 @@ internal class RealHBandSdkGateway(
 
     private suspend fun measureHrv(): HBandPayload {
         val result = CompletableDeferred<HBandMetricSample?>()
+        val startResponse = BleWriteResponse { code ->
+            if (code != Code.REQUEST_SUCCESS) result.complete(null)
+        }
         val listener = object : IHrvDetectListener {
             override fun onHrvDetect(hrv: Int) {
                 if (hrv > 0) result.complete(HBandMetricSample(RingMetricType.HRV, clock(), hrv.toDouble(), "ms"))
             }
 
             override fun onDetectFailed(detectState: HrvDetectState) {
-                result.complete(null)
+                if (detectState != HrvDetectState.PROGRESS) result.complete(null)
             }
 
             override fun onDetectStop() {
                 result.complete(null)
             }
         }
-        withContext(Dispatchers.Main.immediate) { manager.startDetectHrv(sdkWriteResponse, listener) }
+        withContext(Dispatchers.Main.immediate) { manager.startDetectHrv(startResponse, listener) }
         return try {
             result.await()?.let { HBandPayload(measurements = listOf(it)) } ?: HBandPayload()
         } finally {
@@ -622,18 +665,21 @@ internal class RealHBandSdkGateway(
 
     private suspend fun measureMet(): HBandPayload {
         val result = CompletableDeferred<HBandMetricSample?>()
+        val startResponse = BleWriteResponse { code ->
+            if (code != Code.REQUEST_SUCCESS) result.complete(null)
+        }
         val listener = object : IMetDetectListener {
             override fun onMetDetect(progress: Int, met: Float) {
                 if (progress >= MEASUREMENT_COMPLETE_PROGRESS && met.isFinite() && met > 0f) {
                     result.complete(HBandMetricSample(RingMetricType.MET, clock(), met.toDouble(), "MET"))
                 }
             }
-            override fun onDetectFailed(detectState: com.veepoo.protocol.model.enums.MetDetectState) {
-                result.complete(null)
+            override fun onDetectFailed(detectState: MetDetectState) {
+                if (detectState != MetDetectState.PROGRESS) result.complete(null)
             }
             override fun onDetectStop() { result.complete(null) }
         }
-        withContext(Dispatchers.Main.immediate) { manager.startDetectMet(sdkWriteResponse, listener) }
+        withContext(Dispatchers.Main.immediate) { manager.startDetectMet(startResponse, listener) }
         return try {
             result.await()?.let { HBandPayload(measurements = listOf(it)) } ?: HBandPayload()
         } finally {
@@ -1398,25 +1444,33 @@ internal class RealHBandSdkGateway(
         )
     }
 
-    private suspend fun readSleepHistory(): HBandPayload {
+    private suspend fun readSleepHistory(
+        requestedDays: Int?,
+        onProgress: (Float) -> Unit,
+    ): HBandPayload {
         val sleep = mutableListOf<HBandSleepRecord>()
         val complete = CompletableDeferred<Unit>()
         val listener = object : ISleepDataListener {
             override fun onSleepDataChange(day: String?, data: SleepData?) {
                 data?.toDomainSleep()?.let(sleep::add)
             }
-            override fun onSleepProgress(progress: Float) = Unit
-            override fun onSleepProgressDetail(day: String?, progress: Int) = Unit
+            override fun onSleepProgress(progress: Float) = onProgress(normalizeVendorProgress(progress))
+            override fun onSleepProgressDetail(day: String?, progress: Int) =
+                onProgress(normalizeVendorProgress(progress.toFloat()))
             override fun onReadSleepComplete() { complete.complete(Unit) }
         }
         withContext(Dispatchers.Main.immediate) {
-            manager.readSleepData(writeResponse, listener, watchDataDays())
+            manager.readSleepData(writeResponse, listener, watchDataDays(requestedDays))
         }
         complete.await()
         return HBandPayload(sleep = sleep)
     }
 
-    private suspend fun readOriginHistory(metrics: Set<RingMetricType>): HBandPayload {
+    private suspend fun readOriginHistory(
+        metrics: Set<RingMetricType>,
+        requestedDays: Int?,
+        onProgress: (Float) -> Unit,
+    ): HBandPayload {
         val records = mutableListOf<HBandMetricSample>()
         val activities = HBandDailyActivityAccumulator()
         val complete = CompletableDeferred<Unit>()
@@ -1479,12 +1533,14 @@ internal class RealHBandSdkGateway(
                     }
                 }
             }
-            override fun onReadOriginProgressDetail(day: Int, date: String?, total: Int, current: Int) = Unit
-            override fun onReadOriginProgress(progress: Float) = Unit
+            override fun onReadOriginProgressDetail(day: Int, date: String?, total: Int, current: Int) {
+                if (total > 0) onProgress((current.toFloat() / total).coerceIn(0f, 1f))
+            }
+            override fun onReadOriginProgress(progress: Float) = onProgress(normalizeVendorProgress(progress))
             override fun onReadOriginComplete() { complete.complete(Unit) }
         }
         withContext(Dispatchers.Main.immediate) {
-            manager.readOriginData(writeResponse, listener, watchDataDays())
+            manager.readOriginData(writeResponse, listener, watchDataDays(requestedDays))
         }
         complete.await()
         return HBandPayload(
@@ -1636,10 +1692,14 @@ internal class RealHBandSdkGateway(
         if (end <= start) end += ONE_DAY_MILLIS
         val deep = deepSleepTime.coerceAtLeast(0)
         val light = lowSleepTime.coerceAtLeast(0)
-        val total = allSleepTime.coerceAtLeast(deep + light)
+        // allSleepTime is the vendor's authoritative sleep duration. sleepDown/sleepUp
+        // represent the clock span and may include awake periods, so never derive the
+        // displayed duration from that span or inflate the total to match stage fields.
+        val total = allSleepTime.coerceAtLeast(0)
         if (total <= 0) return null
-        val awake = if (deep + light > 0) (total - deep - light).coerceAtLeast(0) else 0
-        return HBandSleepRecord(start, end, deep, light, awake, total)
+        // SleepData exposes wakeCount but not awake duration. The remainder can also be
+        // precise-sleep REM/insomnia, so labelling it as awake would invent a stage.
+        return HBandSleepRecord(start, end, deep, light, awakeMinutes = 0, totalMinutes = total)
     }
 
     private fun TimeData.toEpochMillis(): Long? = runCatching { toCalendar().timeInMillis }.getOrNull()?.takeIf { it > 0 }
@@ -1647,10 +1707,19 @@ internal class RealHBandSdkGateway(
     private fun Int.toEpochMillisFromSeconds(): Long? =
         takeIf { it > 0 }?.toLong()?.times(MILLIS_PER_SECOND)
 
-    private fun watchDataDays(): Int = capabilities.value.watchDataDays
+    private fun watchDataDays(requestedDays: Int? = null): Int {
+        val supportedDays = capabilities.value.watchDataDays
         .takeIf { it > 0 }
         ?.coerceAtMost(MAX_WATCH_DATA_DAYS)
         ?: DEFAULT_WATCH_DATA_DAYS
+        return requestedDays?.coerceIn(1, supportedDays) ?: supportedDays
+    }
+
+    private fun normalizeVendorProgress(progress: Float): Float = when {
+        !progress.isFinite() || progress <= 0f -> 0f
+        progress <= 1f -> progress
+        else -> (progress / 100f).coerceAtMost(1f)
+    }
 
     private fun prepareBle(): Boolean {
         mutableConnectionState.value = when {

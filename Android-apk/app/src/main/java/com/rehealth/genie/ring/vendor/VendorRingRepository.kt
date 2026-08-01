@@ -222,6 +222,32 @@ class VendorRingRepository(
         persistPackets()
     }
 
+    override suspend fun sync(
+        metrics: Set<RingMetricType>,
+        onProgress: (Int) -> Unit,
+    ): RingSyncResult = withContext(Dispatchers.Main) {
+        if (!isReady() || connectionState.value != RingConnectionState.CONNECTED) {
+            return@withContext RingSyncResult(emptySet(), 0, System.currentTimeMillis())
+        }
+        val readCommands = buildList {
+            if (RingMetricType.SLEEP in metrics) add(RingMetricType.SLEEP)
+            if (metrics.any { it == RingMetricType.STEPS || it == RingMetricType.ACTIVITY }) {
+                add(RingMetricType.STEPS)
+            }
+        }
+        if (readCommands.isEmpty()) return@withContext RingSyncResult(emptySet(), 0, System.currentTimeMillis())
+        clearPackets()
+        mutableConnectionState.value = RingConnectionState.SYNCING
+        onProgress(10)
+        readCommands.forEachIndexed { index, type ->
+            bleAdapter.LostWriteData(protocol.latestCommand(type))
+            onProgress(15 + ((index + 1) * 65 / readCommands.size))
+            delay(450)
+        }
+        delay(2_000)
+        persistPackets().also { onProgress(100) }
+    }
+
     override suspend fun measure(type: RingMetricType): RingSyncResult = withContext(Dispatchers.Main) {
         if (type == RingMetricType.TEMPERATURE) {
             return@withContext readTemperature()

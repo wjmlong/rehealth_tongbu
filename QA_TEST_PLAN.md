@@ -53,6 +53,9 @@ git diff --check
      forcing device setup. Open “我的 > 设备绑定” and confirm wearable binding remains available.
      Log out and back in during the same app process and confirm the completed interview is not
      shown again.
+   - Register a second account and confirm only that new account receives the health initial
+     interview. Log into a pre-existing account with no local onboarding marker and confirm it
+     enters Home directly. Interrupt a new account's interview, log in again, and confirm it resumes.
    - Confirm no crash on first run and no production medical diagnosis wording.
 
 2. Voice permission
@@ -87,6 +90,10 @@ git diff --check
    - Send a question from Home, leave and return to the Home tab, and reopen the app as the same
      user. Confirm the Home preview is sourced from the same latest Room conversation rather
      than a temporary one-turn state.
+   - Log out and log in again. Confirm Home starts a fresh active conversation while history
+     remains selectable. Send enough messages to scroll; confirm all current messages are
+     reachable and the large mascot/greeting collapses while scrolling. Ask “我是谁” after
+     saving a nickname and confirm the server-authorized assistant context contains that name.
    - Upgrade an installed v6 database containing two conversations to v7. Confirm both message
      histories remain, the latest conversation is active, and the generated titles are readable.
      From Home, create a conversation, switch between conversations, then verify per-conversation
@@ -131,11 +138,38 @@ git diff --check
      select an image through the Android system picker.
      Confirm the preview updates, survives app restart and same-user re-login, and is not visible
      to another user. Verify no avatar upload request is sent and no new media permission is asked.
+   - On Home, tap “拍照记录”, grant camera permission, and confirm the system camera writes to an
+     app-private `FileProvider` URI. Cancel once and confirm no upload or record is created. Capture
+     one meal and one text document; confirm upload progress is visible and FOOD/OCR results appear
+     in “今日行为记录” on both Home and Data with the correct local time.
+   - On a MIUI device, capture immediately after the camera opens and confirm the app waits for the
+     private file write to stabilize before decoding. Repeat after an Activity recreation; neither
+     case may show “照片读取失败” for a valid non-empty JPEG. Confirm high-resolution input is sampled
+     before scaling and does not cause an out-of-memory crash.
+   - Confirm nutrition values are labeled as estimates, the complete OCR text is present in the
+     returned record, and no raw photo, provider key, access token, or image base64 appears in Room,
+     `software_db`, logcat, or JeecgBoot logs. Confirm the temporary camera file is removed.
+   - Reuse the same `requestId` and expect the existing owner-scoped record without a second model
+     call. Log in as another user/tenant and confirm the first user's record is absent. Disable the
+     network or provider and confirm a controlled error is shown without a fake behavior record.
+   - Delay a valid vision response beyond the shared 20-second API read timeout but within the
+     configured 75-second provider timeout. Confirm photo analysis continues and persists exactly
+     one record. Delay it past the provider timeout and confirm the app shows “图片识别超时” instead
+     of “网络连接失败”, creates no placeholder record, and JeecgBoot does not repeat the model call.
+   - Open the Data tab and confirm “今日” is selected. Sync a sleep session that starts before
+     midnight and ends today; verify today's duration equals valid stage totals (or elapsed time
+     only when stages are absent). Verify 7/30-day risk and health index use only confirmed daily
+     results and show their valid-day count.
+   - On HBand firmware with only HRV/stress/MET history capability, verify those App-measurement
+     cards are hidden. On firmware advertising the dedicated HRV/MET flags or mini-checkup
+     HRV/stress, verify the corresponding card appears and saves only a real callback result.
    - Ask for a diagnosis/prescription and enter urgent chest-pain/breathing wording.
      Verify the Java safety policy refuses diagnosis and escalates urgent care, while every
      answer displays “仅供健康参考，不能替代医疗诊断”.
-   - Run once with `REHEALTH_HEALTH_AGENT_ENGINE=model-service` and once with
-     `langchain4j`; confirm the public Android endpoint and response fields stay stable.
+   - With the default `REHEALTH_HEALTH_AGENT_ENGINE=langchain4j`, ask “我是谁/我叫什么”. Confirm
+     the reply uses the latest authenticated profile nickname. Attempt to mention another user ID
+     and confirm no other profile is returned. Run `model-service` once only as an explicit rollback
+     check; the public Android endpoint and response fields must stay stable.
 
 4. Ring permission
    - On Android 12+, deny and then grant `BLUETOOTH_SCAN` and `BLUETOOTH_CONNECT`.
@@ -182,20 +216,24 @@ git diff --check
      but disabled; there is no “查看全部” interaction.
    - Trigger only metrics advertised by the active Provider. RWFit manual measure
      currently supports HR, SpO2 and HRV; BP/temperature/stress are not requested.
-     HBand `RH-HB-E01` manual measure supports HR, SpO2, HRV, BP,
-     blood glucose, stress, MET, ECG, blood component, and body composition. The purchased
-     MT116 advertises HRV/stress/MET direct switches but rejects all three direct commands;
-     HRV/stress therefore prioritize device `miniCheckup`, while MET uses a latest-history
-     “获取” action. Steps, sleep, and activity are sync-only.
-   - On MT116, tap HRV, pressure, and MET. Confirm HRV/pressure use mini-checkup or real history,
-     MET only reads real history, `HBandMetricFlow` reports the selected route, no SDK unsupported-feature
-     toast appears, and an absent/zero result creates no Room row.
+      HBand `RH-HB-E01` manual measure supports HR, SpO2, HRV, BP,
+      blood glucose, stress, MET, ECG, blood component, and body composition. HRV direct
+      measurement requires `isSupportHRV && isSupportHrvAppDetect`; MET direct measurement
+      requires `isSupportMet && isSupportMetAppDetect`. Steps, sleep, and activity are sync-only.
+   - With both HRV or MET flags true, tap “测量” and confirm the dedicated SDK API is selected,
+      progress remains non-terminal, and write/detection failures create no Room row. With an
+      App flag false, confirm HRV/pressure use mini-checkup or real history and MET reads real
+      history. The MT116 older-command `unknown action` evidence covers this fallback;
+      `HBandMetricFlow` must report the route without device identifiers or raw health values.
    - Start ECG from both the data card and the single-lead detail page, and start body composition
      from its data card. Confirm each flow shows the matching instructions before any SDK command,
      requires continuous opposite-hand contact with the metal electrode and a stable posture,
      starts only after confirmation, and sends no command when cancelled.
-   - On the Data tab, tap `同步睡眠、步数与活动`; verify the full device-history sync starts,
-     the button is disabled while progress is active, and the sleep/steps/activity cards refresh from Room after completion.
+   - Before connecting, confirm `同步睡眠、步数与活动` is disabled and neither entering “我的” nor
+     the in-process automatic cycle reconnects/sends BLE sync commands. After connecting, tap it and
+     verify a daily sleep/steps/activity sync starts, progress advances monotonically from real SDK
+     phases, and cards refresh from Room after completion. On HBand, the first/gap sync may read origin
+     history; a second recent sync uses the overlap window and skips the long origin-history command.
    - For HBand blood components, verify five independent values and device-selected
      units. For body composition, verify all 14 values are independently persisted.
    - For HBand full sync, verify the dedicated sleep command completes before origin history, total-only

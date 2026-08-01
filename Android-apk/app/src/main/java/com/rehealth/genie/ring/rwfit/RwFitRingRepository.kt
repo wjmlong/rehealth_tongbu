@@ -61,6 +61,17 @@ class RwFitRingRepository internal constructor(
         return persist(gateway.syncSupported())
     }
 
+    override suspend fun sync(
+        metrics: Set<RingMetricType>,
+        onProgress: (Int) -> Unit,
+    ): RingSyncResult {
+        if (connectionState.value != RingConnectionState.CONNECTED) return emptyResult()
+        val requested = metrics intersect supportedMetrics
+        if (requested.isEmpty()) return emptyResult()
+        onProgress(10)
+        return persist(gateway.sync(requested)).also { onProgress(100) }
+    }
+
     override suspend fun measure(type: RingMetricType): RingSyncResult {
         if (type !in supportedMetrics || type !in MANUAL_METRICS) return emptyResult()
         return persist(gateway.measure(type))

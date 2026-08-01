@@ -27,6 +27,9 @@ import com.rehealth.genie.network.dto.TelemetryBatchRequestDto
 import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
 import com.rehealth.genie.network.dto.RhiDailySnapshotBatchDto
 import com.rehealth.genie.network.dto.RhiDailySnapshotResponseDto
+import com.rehealth.genie.network.dto.BehaviorRecordDto
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -34,6 +37,8 @@ import retrofit2.http.Query
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.PUT
+import retrofit2.http.Multipart
+import retrofit2.http.Part
 
 /**
  * E1 mobile API Retrofit interface. Only the D1-safe endpoints are declared.
@@ -119,6 +124,20 @@ interface ReHealthApi {
     suspend fun getLatestHealthAgentConversation(
         @Query("limit") limit: Int = 100,
     ): Response<JeecgResult<HealthAgentConversation?>>
+
+    @Multipart
+    @POST("rehealth/mobile/behavior-records/analyze-photo")
+    suspend fun analyzeBehaviorPhoto(
+        @Part image: MultipartBody.Part,
+        @Part("requestId") requestId: RequestBody,
+        @Part("occurredAt") occurredAt: RequestBody,
+    ): Response<JeecgResult<BehaviorRecordDto>>
+
+    @GET("rehealth/mobile/behavior-records/today")
+    suspend fun getTodayBehaviorRecords(
+        @Query("date") date: String,
+        @Query("zoneOffsetMinutes") zoneOffsetMinutes: Int,
+    ): Response<JeecgResult<List<BehaviorRecordDto>>>
 
     /**
      * JeecgBoot system login. Lives under `/jeecg-boot` (not the `/rehealth/mobile`

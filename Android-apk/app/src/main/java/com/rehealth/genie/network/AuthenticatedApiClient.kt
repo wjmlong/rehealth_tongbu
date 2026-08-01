@@ -125,6 +125,23 @@ class AuthenticatedApiClient(
         mobileApi.getLatestHealthAgentConversation(limit)
     }
 
+    suspend fun analyzeBehaviorPhoto(
+        image: ByteArray,
+        contentType: String,
+        fileName: String,
+        requestId: String,
+        occurredAt: Long,
+    ): ApiResult<BehaviorRecordDto> = executeWithAuth {
+        mobileApi.analyzeBehaviorPhoto(image, contentType, fileName, requestId, occurredAt)
+    }
+
+    suspend fun getTodayBehaviorRecords(
+        date: String,
+        zoneOffsetMinutes: Int,
+    ): ApiResult<List<BehaviorRecordDto>> = executeWithAuth {
+        mobileApi.getTodayBehaviorRecords(date, zoneOffsetMinutes)
+    }
+
     suspend fun getRiskLatest(): ApiResult<RiskResultDto?> = executeWithAuth {
         mobileApi.getRiskLatest()
     }
@@ -262,7 +279,7 @@ class AuthenticatedApiClient(
                     is RemotePhmError.MissingFeatureFields ->
                         ApiResult.InvalidRequest("Missing fields: ${error.fields.joinToString()}")
                     is RemotePhmError.Timeout ->
-                        ApiResult.NetworkError(error.message)
+                        ApiResult.NetworkError(error.message, isTimeout = true)
                     is RemotePhmError.Unknown ->
                         ApiResult.NetworkError(error.message)
                     else ->
@@ -292,5 +309,8 @@ sealed class ApiResult<out T> {
     data class InvalidRequest(val message: String) : ApiResult<Nothing>()
     data class InvalidResponse(val message: String) : ApiResult<Nothing>()
     data class ServiceUnavailable(val message: String) : ApiResult<Nothing>()
-    data class NetworkError(val message: String) : ApiResult<Nothing>()
+    data class NetworkError(
+        val message: String,
+        val isTimeout: Boolean = false,
+    ) : ApiResult<Nothing>()
 }

@@ -34,9 +34,40 @@ class HBandCapabilityReportsTest {
     }
 
     @Test
-    fun `measurement routing avoids unsupported direct SDK commands`() {
+    fun `official app measurement capability requires base and app detect flags`() {
+        val reported = HBandCapabilities(hrv = true, met = true)
+
+        val neitherAppDetect = reported.withOfficialAppMeasurementCapabilities(
+            hrvFeature = true,
+            hrvAppDetect = false,
+            metFeature = true,
+            metAppDetect = false,
+        )
+        val appDetectWithoutBaseFeature = reported.withOfficialAppMeasurementCapabilities(
+            hrvFeature = false,
+            hrvAppDetect = true,
+            metFeature = false,
+            metAppDetect = true,
+        )
+        val bothSupported = reported.withOfficialAppMeasurementCapabilities(
+            hrvFeature = true,
+            hrvAppDetect = true,
+            metFeature = true,
+            metAppDetect = true,
+        )
+
+        assertFalse(neitherAppDetect.hrv)
+        assertFalse(neitherAppDetect.met)
+        assertFalse(appDetectWithoutBaseFeature.hrv)
+        assertFalse(appDetectWithoutBaseFeature.met)
+        assertTrue(bothSupported.hrv)
+        assertTrue(bothSupported.met)
+    }
+
+    @Test
+    fun `measurement routing prefers supported HRV and MET app commands`() {
         assertEquals(
-            HBandMeasurementRoute.MINI_CHECKUP,
+            HBandMeasurementRoute.DIRECT,
             HBandCapabilities(hrv = true, miniCheckup = true).measurementRoute(
                 RingMetricType.HRV,
                 allowHistoryFallback = true,
@@ -50,14 +81,14 @@ class HBandCapabilityReportsTest {
             ),
         )
         assertEquals(
-            HBandMeasurementRoute.HISTORY,
+            HBandMeasurementRoute.DIRECT,
             HBandCapabilities(met = true, metHistory = true).measurementRoute(
                 RingMetricType.MET,
                 allowHistoryFallback = true,
             ),
         )
         assertEquals(
-            HBandMeasurementRoute.HISTORY,
+            HBandMeasurementRoute.DIRECT,
             HBandCapabilities(hrv = true).measurementRoute(RingMetricType.HRV, allowHistoryFallback = true),
         )
         assertEquals(
@@ -67,6 +98,13 @@ class HBandCapabilityReportsTest {
         assertEquals(
             HBandMeasurementRoute.UNSUPPORTED,
             HBandCapabilities().measurementRoute(RingMetricType.MET, allowHistoryFallback = false),
+        )
+        assertEquals(
+            HBandMeasurementRoute.HISTORY,
+            HBandCapabilities(metHistory = true).measurementRoute(
+                RingMetricType.MET,
+                allowHistoryFallback = true,
+            ),
         )
     }
 

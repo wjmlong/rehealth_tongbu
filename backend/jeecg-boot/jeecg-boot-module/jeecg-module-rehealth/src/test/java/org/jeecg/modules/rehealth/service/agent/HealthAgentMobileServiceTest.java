@@ -100,6 +100,17 @@ class HealthAgentMobileServiceTest {
         assertEquals(1, repository.profileSaveCount);
     }
 
+    @Test
+    void authorizedPromptContextIncludesSavedNickname() {
+        StubReHealthBusinessRepository repository = populatedRepository();
+        repository.profile.name = "小禾用户";
+
+        HealthAgentPromptContext context = new HealthAgentContextAssembler(repository)
+                .assemblePrompt("user-a", message());
+
+        assertTrue(context.authorizedContextJson().contains("\"name\":\"小禾用户\""));
+    }
+
     private HealthAgentMobileService service(
             StubReHealthBusinessRepository repository,
             RecordingModelClient modelClient,
@@ -122,6 +133,7 @@ class HealthAgentMobileServiceTest {
     private StubReHealthBusinessRepository populatedRepository() {
         StubReHealthBusinessRepository repository = new StubReHealthBusinessRepository();
         repository.profile = new PatientProfileDto();
+        repository.profile.name = "Test User";
         repository.profile.age = 54;
         repository.profile.diagnoses = java.util.List.of("must-not-leave-jeecg");
         repository.risk = new RiskEvaluateResponseDto();

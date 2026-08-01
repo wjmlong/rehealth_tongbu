@@ -67,6 +67,8 @@ class ActiveRingRepository(
 
     override val supportedMetrics: Set<RingMetricType>
         get() = provider().supportedMetrics
+    override val manuallyMeasurableMetrics: Set<RingMetricType>
+        get() = provider().manuallyMeasurableMetrics
 
     override val supportedFeatures: Set<RingFeatureType>
         get() = (provider() as? RingFeatureRepository)?.supportedFeatures.orEmpty()
@@ -82,6 +84,11 @@ class ActiveRingRepository(
     override suspend fun disconnect() = operationMutex.withLock { provider().disconnect() }
 
     override suspend fun syncAll(): RingSyncResult = operationMutex.withLock { provider().syncAll() }
+
+    override suspend fun sync(
+        metrics: Set<RingMetricType>,
+        onProgress: (Int) -> Unit,
+    ): RingSyncResult = operationMutex.withLock { provider().sync(metrics, onProgress) }
 
     override suspend fun measure(type: RingMetricType): RingSyncResult = operationMutex.withLock {
         provider().measure(type)

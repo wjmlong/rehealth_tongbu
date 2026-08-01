@@ -92,6 +92,21 @@ public final class ReHealthRuntimeSafetyValidator implements InitializingBean {
                     reject("LLM_MODEL_REQUIRED", "rehealth.health-agent.langchain4j.model is required");
                 }
             }
+            if (enabled(environment, "rehealth.vision.enabled")) {
+                requireSecureUrl(environment, "rehealth.vision.base-url");
+                if (!property(environment, "rehealth.vision.api-key", "").isBlank()) {
+                    reject(
+                            "EMBEDDED_VISION_SECRET_FORBIDDEN",
+                            "vision provider credentials must come from an external secret file"
+                    );
+                }
+                if (property(environment, "rehealth.vision.api-key-file", "").isBlank()) {
+                    reject("VISION_SECRET_FILE_REQUIRED", "rehealth.vision.api-key-file is required");
+                }
+                if (property(environment, "rehealth.vision.model", "").isBlank()) {
+                    reject("VISION_MODEL_REQUIRED", "rehealth.vision.model is required");
+                }
+            }
         }
 
         if (runtimeMode == RuntimeMode.DEMO && !enabled(environment, "rehealth.demo.enabled")) {

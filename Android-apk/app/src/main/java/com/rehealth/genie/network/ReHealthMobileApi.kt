@@ -25,6 +25,7 @@ import com.rehealth.genie.network.dto.RhiV2SeriesEvaluateResponseDto
 import com.rehealth.genie.network.dto.SendSmsRequest
 import com.rehealth.genie.network.dto.TelemetryBatchRequestDto
 import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
+import com.rehealth.genie.network.dto.BehaviorRecordDto
 import com.rehealth.genie.network.dto.RhiDailySnapshotBatchDto
 import com.rehealth.genie.network.dto.RhiDailySnapshotResponseDto
 import com.squareup.moshi.Moshi
@@ -33,9 +34,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 /**
  * Typed E1 mobile API client built on Retrofit/Moshi.
@@ -52,6 +57,8 @@ class ReHealthMobileApi(
     private val httpClient: OkHttpClient,
     private val apiToken: String? = null,
 ) {
+    private val normalizedBaseUrl = BackendConfig.normalizeBaseUrl(baseUrl) + "/"
+
     private val moshi: Moshi = Moshi.Builder()
         .add(KotlinJsonAdapterFactory())
         .build()
@@ -68,9 +75,18 @@ class ReHealthMobileApi(
 
     private val authenticatedClient = httpClient.newBuilder().addInterceptor(authInterceptor).build()
 
-    private val api: ReHealthApi = Retrofit.Builder()
-        .baseUrl(BackendConfig.normalizeBaseUrl(baseUrl) + "/")
-        .client(authenticatedClient)
+    private val photoAnalysisClient = authenticatedClient.newBuilder()
+        .writeTimeout(PHOTO_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .readTimeout(PHOTO_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .callTimeout(PHOTO_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .build()
+
+    private val api: ReHealthApi = createApi(authenticatedClient)
+    private val photoAnalysisApi: ReHealthApi = createApi(photoAnalysisClient)
+
+    private fun createApi(client: OkHttpClient): ReHealthApi = Retrofit.Builder()
+        .baseUrl(normalizedBaseUrl)
+        .client(client)
         .addConverterFactory(MoshiConverterFactory.create(moshi).asLenient())
         .build()
         .create(ReHealthApi::class.java)
@@ -150,6 +166,33 @@ suspend fun uploadRhiSnapshot(
     ): RemotePhmOutcome<HealthAgentConversation?> =
         unwrapNullable { api.getLatestHealthAgentConversation(limit) }
 
+    suspend fun analyzeBehaviorPhoto(
+        image: ByteArray,
+        contentType: String,
+        fileName: String,
+        requestId: String,
+        occurredAt: Long,
+    ): RemotePhmOutcome<BehaviorRecordDto> {
+        val imagePart = MultipartBody.Part.createFormData(
+            "image",
+            fileName,
+            image.toRequestBody(contentType.toMediaType()),
+        )
+        return unwrap {
+            photoAnalysisApi.analyzeBehaviorPhoto(
+                image = imagePart,
+                requestId = requestId.toRequestBody("text/plain".toMediaType()),
+                occurredAt = occurredAt.toString().toRequestBody("text/plain".toMediaType()),
+            )
+        }
+    }
+
+    suspend fun getTodayBehaviorRecords(
+        date: String,
+        zoneOffsetMinutes: Int,
+    ): RemotePhmOutcome<List<BehaviorRecordDto>> =
+        unwrap { api.getTodayBehaviorRecords(date, zoneOffsetMinutes) }
+
     /**
      * JeecgBoot system login. No auth token is attached (the auth interceptor only adds
      * `X-Access-Token` when a non-blank token is present). Maps the `JeecgResult`
@@ -176,6 +219,12 @@ suspend fun uploadRhiSnapshot(
         password: String,
     ): RemotePhmOutcome<Unit> =
         unwrapUnit { api.register(RegisterRequest(phone, smscode, username, password)) }
+
+    private companion object {
+        const val PHOTO_WRITE_TIMEOUT_SECONDS = 45L
+        const val PHOTO_READ_TIMEOUT_SECONDS = 100L
+        const val PHOTO_CALL_TIMEOUT_SECONDS = 110L
+    }
 }
 
 /**

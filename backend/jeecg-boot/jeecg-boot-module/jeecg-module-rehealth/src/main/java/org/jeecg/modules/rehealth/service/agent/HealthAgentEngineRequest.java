@@ -5,6 +5,7 @@ import org.jeecg.modules.rehealth.mobile.dto.HealthAgentHistoryMessageDto;
 import java.util.List;
 
 public record HealthAgentEngineRequest(
+        String userId,
         HealthAgentPromptContext promptContext,
         List<HealthAgentHistoryMessageDto> history
 ) {

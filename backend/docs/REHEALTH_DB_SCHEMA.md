@@ -21,6 +21,8 @@ E1 Java boundary:
 org.jeecg.modules.rehealth.repository.ReHealthBusinessRepository
 org.jeecg.modules.rehealth.repository.impl.E1PendingSoftwareDbReHealthBusinessRepository
 org.jeecg.modules.rehealth.repository.impl.JdbcSoftwareDbReHealthBusinessRepository
+org.jeecg.modules.rehealth.repository.BehaviorRecordRepository
+org.jeecg.modules.rehealth.repository.impl.JdbcBehaviorRecordRepository
 ```
 
 Planned tables:
@@ -35,6 +37,7 @@ Planned tables:
 | `rehealth_intervention_plan` plus contraindication rows | Queryable conservative intervention fields plus the original model evidence snapshot. | Implemented with per-user latest read. |
 | `rehealth_intervention_feedback` | User feedback/adherence/check-in. | Implemented via `/interventions/{id}/feedback`. |
 | `rehealth_attribution_result` | PIAS request and result snapshot. | Implemented via `/attribution/events`. |
+| `rehealth_behavior_record` | Authenticated photo-derived food/OCR record; stores only validated structured output, never raw image bytes. | Implemented via `/behavior-records/analyze-photo` and `/behavior-records/today`; owner-scoped `request_id` is idempotent. |
 | `rehealth_model_request_log` | Minimal request metadata without raw PII or raw telemetry payloads. | Implemented for risk, intervention, and attribution model calls. |
 | `rehealth_upload_batch` | Software-side upload status/materialized summary. | Deferred. |
 
@@ -91,7 +94,9 @@ For a new database, apply `db/software/mysql/V1__create_rehealth_software_tables
 software datasource. For an existing database created with the JSON-only profile/interview schema, back up the
 database and apply `V20260729_1__normalize_business_records.sql` before deploying the matching application.
 The upgrade adds typed columns and child tables, backfills valid legacy JSON, leaves legacy JSON columns nullable
-for rollback, and records `software-V20260729.1` in `rehealth_schema_migration`. Verify row counts and invalid JSON
+for rollback, and records `software-V20260729.1` in `rehealth_schema_migration`. Apply
+`V20260730_1__add_ai_conversations.sql` for authenticated AI history and
+`V20260731_1__add_behavior_records.sql` for photo-derived behavior records. Verify row counts and invalid JSON
 before retiring the legacy columns. Then set `rehealth.software-db.enabled=true`. Every mobile business write/read
 derives ownership from the authenticated Jeecg user; client-supplied user IDs are not accepted for these records.
 

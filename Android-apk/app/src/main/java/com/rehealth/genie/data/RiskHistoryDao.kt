@@ -15,4 +15,10 @@ interface RiskHistoryDao {
             "WHERE user_id = :userId ORDER BY evaluated_on DESC LIMIT :limit",
     )
     suspend fun latestForUser(userId: String, limit: Int): List<RiskHistoryEntity>
+
+    @Query(
+        "SELECT * FROM cvd_risk_history " +
+            "WHERE user_id = :userId AND evaluated_at >= :since ORDER BY evaluated_on ASC",
+    )
+    suspend fun sinceForUser(userId: String, since: Long): List<RiskHistoryEntity>
 }

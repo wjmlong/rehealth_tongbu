@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 14,
-    "identityHash": "7fe69194ae5b600e8787a93ecf13c82e",
+    "identityHash": "b873ba94a07f70916594333821a96ea1",
     "entities": [
       {
         "tableName": "health_records",
@@ -171,7 +171,7 @@
       },
       {
         "tableName": "ring_sleep_sessions",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `started_at` INTEGER NOT NULL, `ended_at` INTEGER NOT NULL, `deep_minutes` INTEGER NOT NULL, `light_minutes` INTEGER NOT NULL, `awake_minutes` INTEGER NOT NULL, `rem_minutes` INTEGER NOT NULL, `interruption_minutes` INTEGER NOT NULL, `source` TEXT NOT NULL, `raw_payload` TEXT, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `started_at` INTEGER NOT NULL, `ended_at` INTEGER NOT NULL, `deep_minutes` INTEGER NOT NULL, `light_minutes` INTEGER NOT NULL, `awake_minutes` INTEGER NOT NULL, `rem_minutes` INTEGER NOT NULL, `interruption_minutes` INTEGER NOT NULL, `source` TEXT NOT NULL, `raw_payload` TEXT, `total_sleep_minutes` INTEGER, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -231,6 +231,11 @@
             "fieldPath": "rawPayload",
             "columnName": "raw_payload",
             "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "totalSleepMinutes",
+            "columnName": "total_sleep_minutes",
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -1933,7 +1938,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7fe69194ae5b600e8787a93ecf13c82e')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b873ba94a07f70916594333821a96ea1')"
     ]
   }
 }

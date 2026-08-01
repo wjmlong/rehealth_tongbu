@@ -6,3 +6,5 @@ Production secret files must be supplied by the deployment secret manager with
 owner-only permissions and rotated independently of the image release.
 
 Required filenames are the keys under the Compose top-level `secrets` section.
+`vision_provider_credential` is the server-only key used for photo food/OCR analysis;
+it must never be copied into Android configuration or logs.

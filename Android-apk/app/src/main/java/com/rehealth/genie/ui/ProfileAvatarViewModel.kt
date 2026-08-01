@@ -27,6 +27,10 @@ class ProfileAvatarViewModel(
     val uiState: StateFlow<ProfileAvatarUiState> = mutableUiState.asStateFlow()
 
     init {
+        reload()
+    }
+
+    fun reload() {
         viewModelScope.launch {
             val bitmap = withContext(Dispatchers.IO) { store.load() }
             mutableUiState.value = ProfileAvatarUiState(bitmap = bitmap)

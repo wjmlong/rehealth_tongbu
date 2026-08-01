@@ -123,9 +123,10 @@ environment at startup; never copy them into tracked YAML or source files.
 
 Health chat now supports two server-side engines behind the unchanged mobile API:
 
-- `REHEALTH_HEALTH_AGENT_ENGINE=model-service` keeps the Python provider path for rollback.
-- `REHEALTH_HEALTH_AGENT_ENGINE=langchain4j` runs prompt assembly, bounded conversation
-  memory and the OpenAI-compatible provider call inside JeecgBoot.
+- `REHEALTH_HEALTH_AGENT_ENGINE=langchain4j` is the default and runs prompt assembly, bounded
+  conversation memory, the authenticated current-profile tool and the OpenAI-compatible provider
+  call inside JeecgBoot.
+- `REHEALTH_HEALTH_AGENT_ENGINE=model-service` keeps the Python provider path only for an explicit rollback.
 
 Before enabling LangChain4j, apply
 `V20260730_1__add_health_agent_conversations.sql`, keep
@@ -157,9 +158,17 @@ To keep using the legacy model-service health Q&A locally with the YAML-first pa
    lets model-service load it directly. The API key is read only by `model-service`;
    it must never be copied into the Android project, JeecgBoot YAML, or Git.
 
-For Java LangChain4j local testing, set `REHEALTH_HEALTH_AGENT_ENGINE=langchain4j`
-in the ignored local `.env` and use `secrets/provider_credential`; the startup
-script passes only the secret-file path to JeecgBoot.
+Java LangChain4j is selected when the ignored local `.env` omits the engine setting. Use
+`secrets/provider_credential`; the startup script passes only the secret-file path to JeecgBoot.
+
+Home camera food/OCR analysis is a separate server-side vision path. Before enabling it, apply
+`V20260731_1__add_behavior_records.sql`, keep `REHEALTH_SOFTWARE_DB_ENABLED=true`, and place the
+vision provider key in the ignored `secrets/vision_provider_credential` file. Configure
+`REHEALTH_VISION_ENABLED=true`, `REHEALTH_VISION_BASE_URL`, `REHEALTH_VISION_MODEL`, and optionally
+`REHEALTH_VISION_TIMEOUT_SECONDS` (default `75`); the startup script supplies only
+`REHEALTH_VISION_API_KEY_FILE` to JeecgBoot. Each analysis attempt makes one provider call without
+automatic model retry. Raw camera bytes are forwarded for one analysis request and are neither
+stored in MySQL nor written to application logs.
 
 The secret-file plus ignored `.env` path remains supported when
 `ai-chat.local.yml` is absent and is still the required pattern for staging and

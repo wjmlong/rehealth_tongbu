@@ -133,10 +133,11 @@ class HBandDataMapperTest {
         )
 
         val sleep = batch.sleepSessions.single()
-        assertEquals(startedAt + 420 * 60_000L, sleep.endedAt)
+        assertEquals(startedAt + 8 * 60 * 60 * 1_000L, sleep.endedAt)
         assertEquals(0, sleep.deepMinutes)
         assertEquals(0, sleep.lightMinutes)
         assertEquals(0, sleep.awakeMinutes)
+        assertEquals(420, sleep.totalSleepMinutes)
         assertTrue(RingMetricType.SLEEP in HBandDataMapper.collectedTypes(batch))
     }
 

@@ -31,16 +31,10 @@ internal object HBandDataMapper {
         sleepSessions = payload.sleep
             .filter { it.startedAt > 0 && it.endedAt > it.startedAt && it.totalMinutes > 0 }
             .map { record ->
-                val hasStageBreakdown = record.deepMinutes + record.lightMinutes + record.awakeMinutes > 0
                 RingSleepSessionEntity(
                     id = stableId(deviceKey, "sleep", "session", record.startedAt),
                     startedAt = record.startedAt,
-                    // Preserve total-only sleep without inventing a deep/light/REM stage.
-                    endedAt = if (hasStageBreakdown) {
-                        record.endedAt
-                    } else {
-                        record.startedAt + record.totalMinutes * MILLIS_PER_MINUTE
-                    },
+                    endedAt = record.endedAt,
                     deepMinutes = record.deepMinutes,
                     lightMinutes = record.lightMinutes,
                     awakeMinutes = record.awakeMinutes,
@@ -49,6 +43,7 @@ internal object HBandDataMapper {
                     interruptionMinutes = record.awakeMinutes,
                     source = SOURCE,
                     rawPayload = null,
+                    totalSleepMinutes = record.totalMinutes,
                 )
             }.distinctBy { it.id },
         activities = payload.activities
@@ -108,6 +103,4 @@ internal object HBandDataMapper {
             .digest(input.toByteArray(Charsets.UTF_8))
             .joinToString("") { "%02x".format(it) }
     }
-
-    private const val MILLIS_PER_MINUTE = 60_000L
 }

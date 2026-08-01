@@ -86,19 +86,12 @@ internal fun healthArchiveRows(
         .orEmpty()
         .ifBlank { "待补全" }
     add("诊断标签" to diagnoses)
-    add(
-        "性别" to when (normalizeProfileGender(profile?.gender)) {
-            "male" -> "男"
-            "female" -> "女"
-            else -> "待补全"
-        },
-    )
     add("家族史" to profile?.familyHistory.toArchiveBoolean())
     add("高血压史" to profile?.hypertensionHistory.toArchiveBoolean())
     add("糖尿病史" to profile?.diabetesHistory.toArchiveBoolean())
-    interview?.baselineItems.orEmpty().forEach { item ->
-        add("健康问答 · ${item.label}" to item.value)
-    }
+    interview?.baselineItems.orEmpty()
+        .filterNot { it.label == "基本资料" }
+        .forEach { item -> add(item.label to item.value) }
     add(
         "关注方向" to interview?.focusAreas.orEmpty()
             .takeIf { it.isNotEmpty() }

@@ -65,6 +65,10 @@ only `RH-HB-E01`/`HBAND`; it must not scan or connect MRD/RWFit concurrently.
 
 For `RH-HB-E01`, validate only device-advertised capabilities:
 
+- record `isSupportHRV`, `isSupportHrvAppDetect`, `isSupportMet`, and
+  `isSupportMetAppDetect` separately; do not infer App measurement support from a
+  base capability alone;
+
 - heart-rate history and manual heart-rate measurement (`bpm`);
 - daily steps/activity, including confirmation that SDK distance in kilometres
   is converted to Room metres and calories remain kcal. Confirm live daily sport
@@ -72,16 +76,23 @@ For `RH-HB-E01`, validate only device-advertised capabilities:
 - sleep start/end, deep/light duration, cross-midnight handling, and the
   documented absence of a separate REM field in the selected SDK callback. Confirm
   the dedicated sleep read completes before the origin-history command starts. For
-  total-only sleep, verify duration is displayed while deep/light/REM remain unknown;
+  every returned night, compare the displayed duration directly with the watch/vendor
+  app `allSleepTime`; it must not equal the longer `sleepDown`→`sleepUp` span merely by
+  coincidence and must not include synthesized awake minutes. For total-only sleep,
+  verify duration is displayed while deep/light/REM remain unknown. If Room contains
+  several increasing callbacks for one wake-up day, verify Today displays the largest
+  final total and 7/30-day views count that day once;
 - manual blood oxygen only when `getSpo2H()` is true; verify a real `%` value and
   wear-off/failure behavior;
-- the purchased MT116's 2026-07-30 log shows that its dedicated HRV/stress/MET commands all
-  receive an all-zero `unknown action` response even though the firmware advertises those
-  switches. For `RH-HB-E01`, verify HRV and stress select package-4 `miniCheckup` before any
-  dedicated command, and MET selects real device history. Persist only a positive SDK HRV
-  integer as `ms`, show no-result on failure, and confirm no “This feature is not supported”
-  SDK toast appears. Debug evidence must use the `HBandMetricFlow` tag and must not include
-  device identifiers or raw health values;
+- when both HRV capability flags are true, verify `startDetectHrv` direct measurement and
+  persist only a positive SDK integer as `ms`; when both MET flags are true, verify
+  `startDetectMet` and persist only a positive floating-point result;
+- when an App measurement flag is absent, verify HRV/stress use package-4 `miniCheckup` or
+  history and MET uses real device history. The purchased MT116's 2026-07-30 all-zero
+  `unknown action` response to the older generic commands covers this compatibility path.
+  Show no-result on failure and confirm no “This feature is not supported” SDK toast appears.
+  Debug evidence must use the `HBandMetricFlow` tag and must not include device identifiers
+  or raw health values;
 - blood-pressure history and manual measurement only when `getBp()` is true;
   verify systolic/diastolic order, `mmHg` units, wear-off/charging/low-battery
   failures, and compare repeated readings with a validated cuff without making
@@ -116,13 +127,17 @@ For `RH-HB-E01`, validate only device-advertised capabilities:
   arms, and still posture; cancelling the dialog must not start measurement;
 - direct blood glucose only when `getBloodGlucose()` is true; verify the device unit,
   manual-history sync, failure behavior, and non-diagnostic/estimated-value wording;
-- stress measurement uses package-4 `miniCheckup` first when available, then device history;
-  the dedicated interface is not selected while fallback is enabled. Verify every real
-  result stays in `1..100 score`; zero is treated as no result and is not interpreted as a mental-health diagnosis;
-- metabolic equivalent uses device history first for `RH-HB-E01`. A non-zero
-  `getMetType()` permits history retrieval but must not call `startDetectMet`; the card uses
-  “获取” for the latest device MET, persists only positive values, and shows no-result when
-  the device has no history. Compare activity-time values with the vendor app;
+- app HRV direct measurement treats `PROGRESS` as non-terminal; `BUSY`, `LOW_POWER`,
+  `WEAR_OFF`, or a write failure must end without persistence. If either HRV flag is false,
+  verify mini-checkup/history fallback;
+- stress measurement uses package-4 `miniCheckup` first when available, then device history.
+  Verify every real result stays in `1..100 score`; zero is treated as no result and is not
+  interpreted as a mental-health diagnosis;
+- metabolic equivalent uses `startDetectMet` when both official MET flags are true. Treat
+  `PROGRESS` as non-terminal and all other failure states or write failures as no result. If
+  either flag is false, read the latest device history. The card uses “测量”, persists only
+  positive values, and shows no-result when the device has no history. Compare activity-time
+  values with the vendor app;
 - blood-glucose calibration only when the adjusting capability is true. Use a
   same-time external meter reference value, verify the setting callback, and do
   not treat calibration as a measurement or medical result;
@@ -141,6 +156,9 @@ test and has been removed from the product capability and data page.
 
 - Android 8/9, 12, and 14/15 where devices are available;
 - permissions denied, Bluetooth off, device out of range, and password timeout;
+- user-initiated disconnect and out-of-range disconnect after a successful connection;
+  verify the app remains alive and logcat contains no `NoClassDefFoundError` from
+  `releaseJLSDK`, `JLWatchFaceManager`, or `BmpConvert`;
 - app foreground/background, screen locked, process killed, and phone reboot;
 - foreground manual sync overlapping scheduled collection (commands must remain
   serialized);

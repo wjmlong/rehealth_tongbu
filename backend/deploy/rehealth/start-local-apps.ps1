@@ -86,18 +86,29 @@ Require-File $java
 $internalCredentialFile = Join-Path $secretsDir 'internal_service_credential'
 Require-File $internalCredentialFile
 $providerCredentialFile = Join-Path $secretsDir 'provider_credential'
+$visionCredentialFile = Join-Path $secretsDir 'vision_provider_credential'
 $localAiConfig = Join-Path $repoRoot 'model-service\config\ai-chat.local.yml'
 
 $env:REHEALTH_RUNTIME_MODE = 'development'
 $env:REHEALTH_MODEL_DIR = Join-Path $repoRoot 'model-service\models'
 $env:REHEALTH_AGENT_INTERNAL_TOKEN_FILE = $internalCredentialFile
-$env:REHEALTH_HEALTH_AGENT_ENGINE = Read-LocalSetting 'REHEALTH_HEALTH_AGENT_ENGINE' 'model-service'
+$env:REHEALTH_HEALTH_AGENT_ENGINE = Read-LocalSetting 'REHEALTH_HEALTH_AGENT_ENGINE' 'langchain4j'
 $env:REHEALTH_LLM_BASE_URL = Read-LocalSetting 'REHEALTH_LLM_BASE_URL' 'https://api.deepseek.com'
 $env:REHEALTH_LLM_MODEL = Read-LocalSetting 'REHEALTH_LLM_MODEL' 'deepseek-v4-flash'
 if (Test-Path -LiteralPath $providerCredentialFile) {
     $env:REHEALTH_LLM_API_KEY_FILE = $providerCredentialFile
 } else {
     Remove-Item Env:REHEALTH_LLM_API_KEY_FILE -ErrorAction SilentlyContinue
+}
+$env:REHEALTH_VISION_ENABLED = Read-LocalSetting 'REHEALTH_VISION_ENABLED' 'false'
+$env:REHEALTH_VISION_BASE_URL = Read-LocalSetting 'REHEALTH_VISION_BASE_URL' 'https://api.openai.com/v1'
+$env:REHEALTH_VISION_MODEL = Read-LocalSetting 'REHEALTH_VISION_MODEL' 'gpt-5.6-luna'
+$env:REHEALTH_VISION_TIMEOUT_SECONDS = Read-LocalSetting 'REHEALTH_VISION_TIMEOUT_SECONDS' '75'
+if ($env:REHEALTH_VISION_ENABLED -eq 'true') {
+    Require-File $visionCredentialFile
+    $env:REHEALTH_VISION_API_KEY_FILE = $visionCredentialFile
+} else {
+    Remove-Item Env:REHEALTH_VISION_API_KEY_FILE -ErrorAction SilentlyContinue
 }
 if (Test-Path -LiteralPath $localAiConfig -PathType Leaf) {
     $env:REHEALTH_LOCAL_CONFIG_FILE = $localAiConfig

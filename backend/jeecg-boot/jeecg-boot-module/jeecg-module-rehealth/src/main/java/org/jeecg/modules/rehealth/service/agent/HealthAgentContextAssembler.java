@@ -77,6 +77,7 @@ public class HealthAgentContextAssembler {
         Map<String, Object> context = new LinkedHashMap<>();
         if (profile != null) {
             Map<String, Object> profileContext = new LinkedHashMap<>();
+            put(profileContext, "name", bounded(profile.name, 80));
             put(profileContext, "age", profile.age);
             put(profileContext, "gender", profile.gender);
             put(profileContext, "heightCm", profile.heightCm);

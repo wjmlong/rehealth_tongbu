@@ -67,6 +67,7 @@ queue until the user logs in again; the app does not invent a refresh-token flow
 | Feedback | `POST /interventions/{id}/feedback` | Mark local feedback complete only when `persisted=true`. |
 | Attribution | `POST /rehealth/mobile/attribution/events` | Authenticated individual attribution only. |
 | Health assistant | `POST /rehealth/mobile/agent/messages`, `GET /rehealth/mobile/agent/conversations/latest` | Persist the user message in Room before sending. `conversationId`, `clientMessageId`, and `requestId` make retries stable; restore the latest user/tenant-scoped server conversation after login. JeecgBoot extracts only explicit self-reported name, gender, age, height and weight, merges changed values into the typed profile before assembling that turn's prompt, and appends a Chinese field-update confirmation to the persisted answer. Hypothetical or third-party values are not profile updates. Provider credentials remain server-only. |
+| Photo behavior record | `POST /rehealth/mobile/behavior-records/analyze-photo`, `GET /rehealth/mobile/behavior-records/today` | Capture with the system camera into app-private cache, normalize and upload JPEG/PNG/WebP up to 4 MB with an owner-stable `requestId`, then render the persisted FOOD/OCR result on Home and Data. The upload uses a dedicated client timeout longer than the server's vision timeout; provider timeout is surfaced separately from connectivity failure. Never include a provider credential in Android. |
 
 RHI v2 now has an authenticated, non-authoritative preview path:
 `POST /rehealth/mobile/rhi/evaluate-series`. Android sends a bounded series of
@@ -97,7 +98,6 @@ the UI says "earliest valid baseline". Its chart filters the same real RHI histo
 for the selected 7/30/90-day view. The current risk index only uses a confirmed
 RDI-16 `risk_score`, rendered as `risk_score * 100` out of 100. Scenario output
 never replaces that current RDI-16 value. The Model UI is unchanged.
-
 Version 2.2.0 corrects four scoring and provenance defects and adds daily
 persistence. No UI was changed.
 
@@ -317,6 +317,14 @@ Risk/model calls still require `rehealth.model-service.base-url`. Health chat us
 `REHEALTH_LLM_BASE_URL`, `REHEALTH_LLM_MODEL`, and a provider credential supplied
 through `REHEALTH_LLM_API_KEY_FILE`. Provider and internal credentials belong only
 in backend runtime secrets.
+
+Photo analysis additionally requires `REHEALTH_VISION_ENABLED=true`,
+`REHEALTH_VISION_BASE_URL`, `REHEALTH_VISION_MODEL`, and a provider credential supplied
+through `REHEALTH_VISION_API_KEY_FILE`. The vision model must accept image input and
+return text. `REHEALTH_VISION_TIMEOUT_SECONDS` defaults to 75 seconds; JeecgBoot makes one
+provider request per analysis attempt and does not automatically repeat an expensive image
+inference after timeout. The secret file is mounted only into JeecgBoot and must never be copied
+to Android resources, Gradle properties, tracked YAML, or Git.
 
 ## QA Status
 

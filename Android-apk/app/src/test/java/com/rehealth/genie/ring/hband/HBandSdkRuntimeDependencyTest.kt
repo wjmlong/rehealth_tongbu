@@ -14,6 +14,21 @@ class HBandSdkRuntimeDependencyTest {
         assertNotNull(Class.forName("com.veepoo.protocol.listener.data.IBPDetectDataListener", false, classLoader))
         assertNotNull(Class.forName("com.veepoo.protocol.listener.data.IECGDetectListener", false, classLoader))
         assertNotNull(Class.forName("com.veepoo.protocol.model.datas.EcgDetectResult", false, classLoader))
+        val hrvListener = Class.forName("com.veepoo.protocol.listener.data.IHrvDetectListener", false, classLoader)
+        val metListener = Class.forName("com.veepoo.protocol.listener.data.IMetDetectListener", false, classLoader)
+        val writeResponse = Class.forName(
+            "com.inuker.bluetooth.library.connect.response.BleWriteResponse",
+            false,
+            classLoader,
+        )
+        val manager = Class.forName("com.veepoo.protocol.VPOperateManager", false, classLoader)
+        val capabilityStore = Class.forName("com.veepoo.protocol.shareprence.VpSpGetUtil", false, classLoader)
+        assertNotNull(manager.getMethod("startDetectHrv", writeResponse, hrvListener))
+        assertNotNull(manager.getMethod("stopDetectHrv", writeResponse, hrvListener))
+        assertNotNull(manager.getMethod("startDetectMet", writeResponse, metListener))
+        assertNotNull(manager.getMethod("stopDetectMet", writeResponse))
+        assertNotNull(capabilityStore.getMethod("isSupportHrvAppDetect"))
+        assertNotNull(capabilityStore.getMethod("isSupportMetAppDetect"))
         assertNotNull(Class.forName("io.runtime.mcumgr.McuMgrTransport", false, classLoader))
         assertNotNull(Class.forName("io.runtime.mcumgr.ble.McuMgrBleTransport", false, classLoader))
         assertNotNull(

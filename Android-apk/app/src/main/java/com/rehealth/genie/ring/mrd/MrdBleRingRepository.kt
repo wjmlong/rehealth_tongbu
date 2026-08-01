@@ -227,6 +227,34 @@ class MrdBleRingRepository(
         persistPackets()
     }
 
+    override suspend fun sync(
+        metrics: Set<RingMetricType>,
+        onProgress: (Int) -> Unit,
+    ): RingSyncResult = withContext(Dispatchers.Main) {
+        val writer = writeCharacteristic
+        val currentGatt = gatt
+        if (writer == null || currentGatt == null || connectionState.value != RingConnectionState.CONNECTED) {
+            return@withContext RingSyncResult(emptySet(), 0, System.currentTimeMillis())
+        }
+        val readCommands = buildList {
+            if (RingMetricType.SLEEP in metrics) add(RingMetricType.SLEEP)
+            if (metrics.any { it == RingMetricType.STEPS || it == RingMetricType.ACTIVITY }) {
+                add(RingMetricType.STEPS)
+            }
+        }
+        if (readCommands.isEmpty()) return@withContext RingSyncResult(emptySet(), 0, System.currentTimeMillis())
+        packets.clear()
+        mutableConnectionState.value = RingConnectionState.SYNCING
+        onProgress(10)
+        readCommands.forEachIndexed { index, type ->
+            write(currentGatt, writer, protocol.latestCommand(type))
+            onProgress(15 + ((index + 1) * 65 / readCommands.size))
+            delay(450)
+        }
+        delay(2_000)
+        persistPackets().also { onProgress(100) }
+    }
+
     override suspend fun measure(type: RingMetricType): RingSyncResult = withContext(Dispatchers.Main) {
         if (type == RingMetricType.TEMPERATURE) {
             return@withContext readTemperature()
