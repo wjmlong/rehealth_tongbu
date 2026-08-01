@@ -138,22 +138,20 @@ object AttributionUiMapper {
             .sortedBy { it.date }
         val summaryMatchesPeriod = summary?.periodDays == period.days.toInt()
         val selectedHistory = history.takeIf { summaryMatchesPeriod }.orEmpty()
-        val baseline = summary?.baseline90d
-        val periodScore = summary?.score?.takeIf { summaryMatchesPeriod && it.isFinite() && it in 0.0..100.0 }
+        val periodBaseline = selectedHistory.firstOrNull()
         val latest = selectedHistory.lastOrNull()
         val improvement = if (
-            baseline != null &&
-            periodScore != null &&
+            periodBaseline != null &&
             latest != null &&
-            baseline.date < latest.date
+            periodBaseline.date < latest.date
         ) {
-            kotlin.math.round((periodScore - baseline.score) * 10.0) / 10.0
+            kotlin.math.round((latest.score - periodBaseline.score) * 10.0) / 10.0
         } else {
             null
         }
         val comparisonText = when {
             improvement == null -> "RHI-100 需要至少 2 个有效日建立个人基准"
-            else -> "RHI-100 · 较个人基线改善 · 最近 ${period.selectorLabel}"
+            else -> "RHI-100 · 较本周期首个有效日改善 · 最近 ${period.selectorLabel}"
         }
         return AttributionRhiImprovementUi(
             improvementPoints = improvement,

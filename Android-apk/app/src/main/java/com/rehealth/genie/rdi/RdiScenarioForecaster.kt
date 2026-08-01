@@ -62,6 +62,7 @@ object RdiScenarioForecaster {
         sleepSessions: List<RingSleepSessionEntity>,
         measurements: List<RingMeasurementEntity>,
         currentScore: Double,
+        referenceDays: Int,
         anchoredBaselines: Map<String, Double>,
         bloodPressure: ClinicalBloodPressureValues?,
         confirmedLabs: List<RdiConfirmedLabEntity>,
@@ -76,6 +77,7 @@ object RdiScenarioForecaster {
             activities = activities,
             sleepSessions = sleepSessions,
             measurements = measurements,
+            referenceDays = referenceDays,
         ) ?: return null
         val context = ForecastContext(
             scoredOn = scoredOn,
@@ -92,11 +94,19 @@ object RdiScenarioForecaster {
             profile = profile,
             plan = plan,
         )
-        val noAction = runTrajectory(context, planStrength = 0.0, favorableZ = 0.0)
-        val withPlan = runTrajectory(context, planStrength = 1.0, favorableZ = 0.0)
-        val optimistic = runTrajectory(context, planStrength = 1.15, favorableZ = 1.96)
-        val conservative = runTrajectory(context, planStrength = 0.65, favorableZ = -1.96)
-        if (noAction.size != HORIZON_DAYS + 1 || withPlan.size != noAction.size) return null
+        val noActionEngine = runTrajectory(context, planStrength = 0.0, favorableZ = 0.0)
+        val withPlanEngine = runTrajectory(context, planStrength = 1.0, favorableZ = 0.0)
+        val optimisticEngine = runTrajectory(context, planStrength = 1.15, favorableZ = 1.96)
+        val conservativeEngine = runTrajectory(context, planStrength = 0.65, favorableZ = -1.96)
+        if (noActionEngine.size != HORIZON_DAYS + 1 || withPlanEngine.size != noActionEngine.size) return null
+        // The selected-period RDI score is the displayed no-change reference.
+        // Both counterfactual arms still run through RdiEngine; their native
+        // pointwise difference is applied to this stable reference so that
+        // "maintain current habits" is a horizontal comparison baseline.
+        val noAction = List(noActionEngine.size) { currentScore.round2() }
+        val withPlan = anchorEffects(currentScore, noActionEngine, withPlanEngine)
+        val optimistic = anchorEffects(currentScore, noActionEngine, optimisticEngine)
+        val conservative = anchorEffects(currentScore, noActionEngine, conservativeEngine)
         val lower = optimistic.zip(conservative).map { (a, b) -> minOf(a, b) }
         val upper = optimistic.zip(conservative).map { (a, b) -> maxOf(a, b) }
         val reduction = (noAction.last() - withPlan.last()).round1()
@@ -109,6 +119,14 @@ object RdiScenarioForecaster {
             d30WithPlan = withPlan.last().round1(),
             expectedReduction = reduction,
         )
+    }
+
+    private fun anchorEffects(
+        referenceScore: Double,
+        noActionEngine: List<Double>,
+        planEngine: List<Double>,
+    ): List<Double> = noActionEngine.zip(planEngine).map { (noAction, plan) ->
+        (referenceScore - (noAction - plan)).coerceIn(0.0, 100.0).round2()
     }
 
     private fun runTrajectory(
@@ -284,8 +302,10 @@ object RdiScenarioForecaster {
                 activities: List<RingActivityEntity>,
                 sleepSessions: List<RingSleepSessionEntity>,
                 measurements: List<RingMeasurementEntity>,
+                referenceDays: Int,
             ): RecentProfile? {
-                val cutoff = scoredOn.minusDays(27)
+                val lookbackDays = referenceDays.coerceIn(MIN_HISTORY_DAYS, 90)
+                val cutoff = scoredOn.minusDays((lookbackDays - 1).toLong())
                 val activityDays = activities.filter {
                     it.startedAt.toDate(zoneId) in cutoff..scoredOn
                 }.groupBy { it.startedAt.toDate(zoneId) }.map { (date, records) ->
@@ -325,25 +345,37 @@ object RdiScenarioForecaster {
                 }.groupBy { it.measuredAt.toDate(zoneId) }
                     .values.mapNotNull { records -> records.map { it.primaryValue }.median() }
                 if (hrvDays.size < MIN_HISTORY_DAYS) return null
-                val recentActivities = activityDays.takeLast(7)
-                val recentSleeps = sleepDays.takeLast(7)
                 val heartRates = activityDays.mapNotNull { it.averageHeartRate }
                 return RecentProfile(
-                    activityByWeekday = recentActivities.associateBy { it.date.dayOfWeek.value },
-                    sleepByWeekday = recentSleeps.associateBy { it.date.dayOfWeek.value },
+                    activityByWeekday = activityDays.groupBy { it.date.dayOfWeek.value }.mapValues { (_, values) ->
+                        ActivityPrototype(
+                            date = values.maxOf { it.date },
+                            steps = values.map { it.steps }.median() ?: return null,
+                            exerciseMinutes = values.map { it.exerciseMinutes }.median() ?: return null,
+                            averageHeartRate = values.mapNotNull { it.averageHeartRate }.median(),
+                        )
+                    },
+                    sleepByWeekday = sleepDays.groupBy { it.date.dayOfWeek.value }.mapValues { (_, values) ->
+                        SleepPrototype(
+                            date = values.maxOf { it.date },
+                            durationMinutes = values.map { it.durationMinutes }.median() ?: return null,
+                            bedtimeMinute = circularMean(values.map { it.bedtimeMinute }),
+                            efficiency = values.map { it.efficiency }.median() ?: return null,
+                        )
+                    },
                     activityFallback = ActivityPrototype(
                         date = scoredOn,
-                        steps = recentActivities.map { it.steps }.median() ?: return null,
-                        exerciseMinutes = recentActivities.map { it.exerciseMinutes }.median() ?: return null,
-                        averageHeartRate = recentActivities.mapNotNull { it.averageHeartRate }.median(),
+                        steps = activityDays.map { it.steps }.median() ?: return null,
+                        exerciseMinutes = activityDays.map { it.exerciseMinutes }.median() ?: return null,
+                        averageHeartRate = activityDays.mapNotNull { it.averageHeartRate }.median(),
                     ),
                     sleepFallback = SleepPrototype(
                         date = scoredOn,
-                        durationMinutes = recentSleeps.map { it.durationMinutes }.median() ?: return null,
-                        bedtimeMinute = circularMean(recentSleeps.map { it.bedtimeMinute }),
-                        efficiency = recentSleeps.map { it.efficiency }.median() ?: return null,
+                        durationMinutes = sleepDays.map { it.durationMinutes }.median() ?: return null,
+                        bedtimeMinute = circularMean(sleepDays.map { it.bedtimeMinute }),
+                        efficiency = sleepDays.map { it.efficiency }.median() ?: return null,
                     ),
-                    hrvMedian = hrvDays.takeLast(7).median() ?: return null,
+                    hrvMedian = hrvDays.median() ?: return null,
                     activitySource = activities.maxByOrNull { it.startedAt }?.source ?: return null,
                     sleepSource = sleepSessions.maxByOrNull { it.endedAt }?.source ?: return null,
                     measurementSource = measurements.filter { it.metricType.equals(RingMetricType.HRV.name, true) }
@@ -354,7 +386,7 @@ object RdiScenarioForecaster {
                     sleepEfficiencySd = sleepDays.map { it.efficiency }.standardDeviation().coerceAtLeast(1.0),
                     hrvSd = hrvDays.standardDeviation().coerceAtLeast(2.0),
                     heartRateSd = heartRates.standardDeviation().coerceAtLeast(1.0),
-                    stableBedtimeMinute = circularMean(recentSleeps.map { it.bedtimeMinute }),
+                    stableBedtimeMinute = circularMean(sleepDays.map { it.bedtimeMinute }),
                 )
             }
         }

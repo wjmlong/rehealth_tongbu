@@ -39,6 +39,7 @@ class RdiScenarioForecasterTest {
         assertEquals(31, first.ciUpper.size)
         assertEquals(50.0, first.noAction.first(), 0.001)
         assertEquals(50.0, first.withPlan.first(), 0.001)
+        assertTrue(first.noAction.all { it == 50.0 })
         assertTrue(first.d30WithPlan < first.d30NoAction)
         assertTrue(first.expectedReduction > 0.0)
         first.ciLower.indices.forEach { index ->
@@ -46,6 +47,16 @@ class RdiScenarioForecasterTest {
             assertTrue(first.withPlan[index] in first.ciLower[index]..first.ciUpper[index])
         }
         assertEquals(RdiScenarioForecast.INTERVAL_METHOD, first.intervalMethod)
+    }
+
+    @Test
+    fun `selected period score anchors a distinct horizontal no action baseline`() {
+        val seven = assertNotNull(forecast(interventions = supportedPlan(), referenceDays = 7, currentScore = 47.3))
+        val ninety = assertNotNull(forecast(interventions = supportedPlan(), referenceDays = 90, currentScore = 53.6))
+
+        assertTrue(seven.noAction.all { it == 47.3 })
+        assertTrue(ninety.noAction.all { it == 53.6 })
+        assertTrue(seven.d30WithPlan != ninety.d30WithPlan)
     }
 
     @Test
@@ -60,14 +71,24 @@ class RdiScenarioForecasterTest {
         )
     }
 
-    private fun forecast(interventions: List<RdiScenarioIntervention>): RdiScenarioForecast? =
+    private fun supportedPlan() = listOf(
+        RdiScenarioIntervention(id = "walking_zone2", status = "active"),
+        RdiScenarioIntervention(id = "sleep_baseline", status = "active"),
+    )
+
+    private fun forecast(
+        interventions: List<RdiScenarioIntervention>,
+        referenceDays: Int = 30,
+        currentScore: Double = 50.0,
+    ): RdiScenarioForecast? =
         RdiScenarioForecaster.forecast(
             scoredOn = today,
             zoneId = zone,
-            activities = (0L..27L).map(::activity),
-            sleepSessions = (0L..27L).map(::sleep),
-            measurements = (0L..27L).map(::hrv),
-            currentScore = 50.0,
+            activities = (0L..89L).map(::activity),
+            sleepSessions = (0L..89L).map(::sleep),
+            measurements = (0L..89L).map(::hrv),
+            currentScore = currentScore,
+            referenceDays = referenceDays,
             anchoredBaselines = mapOf(
                 "steps" to 5_000.0,
                 "verified_activity_minutes" to 140.0,

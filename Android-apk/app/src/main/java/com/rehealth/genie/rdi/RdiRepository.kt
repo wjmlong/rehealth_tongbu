@@ -216,14 +216,21 @@ class RdiRepository(
                 point
             }
         }
-        val scenario = current.score.takeIf { currentIsValid }?.let { currentScore ->
+        val summary = RdiPeriodAggregator.summarize(
+            periodDays = periodDays,
+            currentScore = current.score.takeIf { currentIsValid },
+            currentConfidence = current.confidence,
+            dailyScores = dailyScores,
+        )
+        val scenario = summary.score?.let { referenceScore ->
             RdiScenarioForecaster.forecast(
                 scoredOn = scoredOn,
                 zoneId = zoneId,
                 activities = activities,
                 sleepSessions = sleepSessions,
                 measurements = measurements,
-                currentScore = currentScore,
+                currentScore = referenceScore,
+                referenceDays = periodDays,
                 anchoredBaselines = anchoredBaselines,
                 bloodPressure = bloodPressure,
                 confirmedLabs = confirmedLabs,
@@ -232,13 +239,7 @@ class RdiRepository(
                 isMock = isMock,
             )
         }
-        return RdiPeriodAggregator.summarize(
-            periodDays = periodDays,
-            currentScore = current.score.takeIf { currentIsValid },
-            currentConfidence = current.confidence,
-            dailyScores = dailyScores,
-            scenario = scenario,
-        )
+        return summary.copy(scenario = scenario)
     }
 
     private suspend fun persistCalculatedDay(

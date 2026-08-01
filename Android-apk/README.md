@@ -208,12 +208,16 @@ Room v14 将 RHI 日度持久化拆为
 “我的 > 健康档案”可录入日均久坐、腰围、正式
 VO₂max、HbA1c、eGFR、经确认的上臂袖带血压和医院血检。RHI 越高越健康；
 空白值不填正常值，戒指无袖带血压只展示而不进入 RHI。
+归因页“健康改善得分”来自 RHI-100，按所选 7/30/90 日窗口计算最后一个有效日
+与第一个有效日的差值，因此表示该窗口内的累计改善，不再用同一个 90 日基线减去
+不同周期的中位数。
 归因页右侧“RDI-16 风险指数”读取 Android 本地透明规则引擎的原生 0–100 分值，
 按 7/30/90 日窗口聚合并显示为 `x/100`，不会把 CVD 风险概率乘 100，也不会读取
 PIAS 当前值或预测值。下方个人风险趋势以相同窗口的已落库 RDI-16 历史绘制蓝色实线。
 当至少有 7 个活动、睡眠和 HRV 有效日且存在可识别的活动或睡眠计划时，Android
-以近期个人星期模式分别构造“维持现状”和“执行计划”的 30 日瞬时输入，并逐日调用同一
-RDI-16 引擎；两臂第 30 日差值作为预计降低。95% 情景区间使用近期个人波动的确定性
+以所选 7/30/90 日个人模式分别构造“维持现状”和“执行计划”的 30 日瞬时输入，并逐日调用同一
+RDI-16 引擎；所选周期 RDI 分作为水平的维持现状参考线，两臂逐日原生 RDI 差值叠加到
+该参考线形成计划轨迹，第 30 日差值作为预计降低。95% 情景区间使用近期个人波动的确定性
 正态敏感性扰动生成，表示输入情景范围而非疾病概率置信区间。所有未来输入和分值仅用于
 页面模拟，不写入 Room 观测历史；条件不足时对应字段仍明确显示暂不可用，且绝不以 PIAS
 填充。Room RDI 日快照中的最多
@@ -367,9 +371,9 @@ calculations instead of reusing a 30-day flat series. The attribution risk
 number is the native Android RDI-16 index on a 0-100 scale; CVD probability and
 PIAS output are never substituted. RDI `rdi-rule-1.0.1` aligns the activity
 baseline with the current seven-day-minute unit and removes the invalid
-clock-minute-as-sleep-variability baseline. The RHI improvement number remains
-the governed RHI-100 difference from the earliest valid personal baseline in
-the trailing 90-day horizon. Guest RHI daily calculations are persisted under
+clock-minute-as-sleep-variability baseline. The RHI improvement number is the
+governed RHI-100 difference between the last and first valid day inside the
+selected 7/30/90-day window. Guest RHI daily calculations are persisted under
 the local-device Room key but are never queued for authenticated upload. These
 synthetic records are Debug-only and marked as mock in Room.
 

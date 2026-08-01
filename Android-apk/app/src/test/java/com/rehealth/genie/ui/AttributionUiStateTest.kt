@@ -124,7 +124,7 @@ class AttributionUiStateTest {
     }
 
     @Test
-    fun `maps RHI improvement against the ninety day baseline`() {
+    fun `maps RHI improvement against the first valid day in the selected window`() {
         val improvement = AttributionUiMapper.mapRhiImprovement(
             summary = rhiSummary(
                 RhiDailyScore(LocalDate.of(2026, 4, 24), 55.0, 0.8),
@@ -136,9 +136,9 @@ class AttributionUiStateTest {
             today = today,
         )
 
-        assertEquals(16.0, improvement.improvementPoints)
-        assertEquals("+16.0 分", improvement.improvementText)
-        assertEquals("RHI-100 · 较个人基线改善 · 最近 7 天", improvement.comparisonText)
+        assertEquals(2.0, improvement.improvementPoints)
+        assertEquals("+2.0 分", improvement.improvementText)
+        assertEquals("RHI-100 · 较本周期首个有效日改善 · 最近 7 天", improvement.comparisonText)
         assertEquals(2, improvement.selectedHistory.size)
     }
 
@@ -167,9 +167,9 @@ class AttributionUiStateTest {
             today,
         )
 
-        assertEquals(16.0, seven.improvementPoints)
-        assertEquals(15.0, thirty.improvementPoints)
-        assertEquals(12.3, ninety.improvementPoints)
+        assertEquals(2.0, seven.improvementPoints)
+        assertEquals(9.0, thirty.improvementPoints)
+        assertEquals(16.0, ninety.improvementPoints)
     }
 
     @Test
@@ -185,7 +185,7 @@ class AttributionUiStateTest {
         )
 
         assertEquals("-6.0 分", improvement.improvementText)
-        assertEquals("RHI-100 · 较个人基线改善 · 最近 7 天", improvement.comparisonText)
+        assertEquals("RHI-100 · 较本周期首个有效日改善 · 最近 7 天", improvement.comparisonText)
     }
 
     @Test

@@ -89,8 +89,11 @@ sleep regularity is compared as variability against the historical window.
 Attribution also has a local RDI-native 30-day counterfactual adapter. With at
 least seven valid activity, sleep, and HRV days plus an explicit supported
 activity or sleep intervention, it builds separate no-action and plan inputs
-from the recent personal weekday pattern and invokes the same `RdiEngine` for
-every future day. The D30 score difference is the displayed expected reduction.
+from the selected 7/30/90-day personal pattern and invokes the same `RdiEngine`
+for every future day. The selected-period RDI score is rendered as the horizontal
+no-action reference; the native pointwise difference between both engine arms is
+applied to that reference to form the plan trajectory. The D30 score difference
+is the displayed expected reduction.
 The `recent-personal-variability-normal-sensitivity-95-v1` interval is the
 pointwise range of deterministic optimistic and conservative input-sensitivity
 runs; it is a scenario range, not a disease-probability confidence interval.
@@ -107,9 +110,9 @@ seven-day BP and dated hospital-lab values. Migrations 8→9 and 9→10 are expl
 and preserve existing health records. Unsupported fields remain missing/neutral
 with zero confidence; blanks are never replaced with normal values. Cuffless ring
 blood pressure remains display-only. The Attribution improvement score is the
-signed difference between the latest valid RHI and the earliest valid personal
-baseline in the trailing 90-day window; when full 90-day coverage is unavailable,
-the UI says "earliest valid baseline". Its chart filters the same real RHI history
+signed difference between the last and first valid RHI inside the selected
+7/30/90-day window, so it represents cumulative improvement over that view rather
+than a period median against one shared 90-day baseline. Its chart filters the same real RHI history
 for the selected 7/30/90-day view. The current Attribution risk index uses the
 native local RDI-16 0-100 score. Scenario output never replaces that current
 RDI-16 value. The Model UI is unchanged.
