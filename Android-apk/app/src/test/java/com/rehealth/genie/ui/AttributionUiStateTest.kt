@@ -6,6 +6,9 @@ import com.rehealth.genie.rhi.RhiCalculationSource
 import com.rehealth.genie.rhi.RhiDailyScore
 import com.rehealth.genie.rhi.RhiPeriodAggregation
 import com.rehealth.genie.rhi.RhiPeriodSummary
+import com.rehealth.genie.rdi.RdiDailyScore
+import com.rehealth.genie.rdi.RdiPeriodAggregation
+import com.rehealth.genie.rdi.RdiPeriodSummary
 import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -29,19 +32,28 @@ class AttributionUiStateTest {
     @Test
     fun `maps confirmed RDI sixteen risk as a score out of one hundred`() {
         val history = listOf(
-            point("2026-04-25", 0.40),
-            point("2026-06-25", 0.35),
-            point("2026-07-17", 0.25),
-            point("2026-07-22", 0.0219),
+            rdiPoint("2026-04-25", 52.0),
+            rdiPoint("2026-06-25", 50.5),
+            rdiPoint("2026-07-17", 48.0),
+            rdiPoint("2026-07-22", 46.9),
         )
 
-        val sevenDays = map(history = history, period = AttributionPeriod.DAYS_7)
-        val thirtyDays = map(history = history, period = AttributionPeriod.DAYS_30)
-        val ninetyDays = map(history = history, period = AttributionPeriod.DAYS_90)
+        val sevenDays = map(
+            period = AttributionPeriod.DAYS_7,
+            rdiSummary = rdiSummary(7, 46.9, history.takeLast(2)),
+        )
+        val thirtyDays = map(
+            period = AttributionPeriod.DAYS_30,
+            rdiSummary = rdiSummary(30, 48.0, history.takeLast(3)),
+        )
+        val ninetyDays = map(
+            period = AttributionPeriod.DAYS_90,
+            rdiSummary = rdiSummary(90, 49.3, history),
+        )
 
-        assertEquals("13.6/100", sevenDays.currentRiskText)
-        assertEquals("20.7/100", thirtyDays.currentRiskText)
-        assertEquals("25.5/100", ninetyDays.currentRiskText)
+        assertEquals("46.9/100", sevenDays.currentRiskText)
+        assertEquals("48.0/100", thirtyDays.currentRiskText)
+        assertEquals("49.3/100", ninetyDays.currentRiskText)
         assertEquals(2, sevenDays.selectedHistory.size)
         assertEquals(3, thirtyDays.selectedHistory.size)
         assertEquals(4, ninetyDays.selectedHistory.size)
@@ -52,9 +64,10 @@ class AttributionUiStateTest {
     @Test
     fun `period RDI sixteen history is not replaced by evaluation or PIAS values`() {
         val state = map(
-            history = listOf(
-                point("2026-07-20", 0.40),
-                point("2026-07-22", 0.20),
+            rdiSummary = rdiSummary(
+                7,
+                46.9,
+                listOf(rdiPoint("2026-07-20", 47.3), rdiPoint("2026-07-22", 46.9)),
             ),
             evaluation = AttributionRiskEvaluation(
                 riskScore = 0.99,
@@ -70,7 +83,7 @@ class AttributionUiStateTest {
             ),
         )
 
-        assertEquals("30.0/100", state.currentRiskText)
+        assertEquals("46.9/100", state.currentRiskText)
         assertFalse(state.rdiScenario.forecastAvailable)
     }
 
@@ -87,9 +100,9 @@ class AttributionUiStateTest {
             today = today,
         )
 
-        assertEquals(2.0, improvement.improvementPoints)
-        assertEquals("+2.0 分", improvement.improvementText)
-        assertEquals("RHI-100 · 较 7 天窗口基准改善", improvement.comparisonText)
+        assertEquals(16.0, improvement.improvementPoints)
+        assertEquals("+16.0 分", improvement.improvementText)
+        assertEquals("RHI-100 · 较个人基线改善 · 最近 7 天", improvement.comparisonText)
         assertEquals(2, improvement.selectedHistory.size)
     }
 
@@ -108,19 +121,19 @@ class AttributionUiStateTest {
             today,
         )
         val thirty = AttributionUiMapper.mapRhiImprovement(
-            rhiSummary(*history, periodDays = 30),
+            rhiSummary(*history, periodDays = 30).copy(score = 70.0),
             AttributionPeriod.DAYS_30,
             today,
         )
         val ninety = AttributionUiMapper.mapRhiImprovement(
-            rhiSummary(*history, periodDays = 90),
+            rhiSummary(*history, periodDays = 90).copy(score = 67.3),
             AttributionPeriod.DAYS_90,
             today,
         )
 
-        assertEquals(2.0, seven.improvementPoints)
-        assertEquals(9.0, thirty.improvementPoints)
-        assertEquals(16.0, ninety.improvementPoints)
+        assertEquals(16.0, seven.improvementPoints)
+        assertEquals(15.0, thirty.improvementPoints)
+        assertEquals(12.3, ninety.improvementPoints)
     }
 
     @Test
@@ -129,13 +142,14 @@ class AttributionUiStateTest {
             summary = rhiSummary(
                 RhiDailyScore(LocalDate.of(2026, 7, 20), 71.0, 0.8),
                 RhiDailyScore(today, 65.0, 0.8),
+                baseline = RhiDailyScore(LocalDate.of(2026, 4, 24), 71.0, 0.8),
             ),
             period = AttributionPeriod.DAYS_7,
             today = today,
         )
 
         assertEquals("-6.0 分", improvement.improvementText)
-        assertEquals("RHI-100 · 较 7 天窗口基准改善", improvement.comparisonText)
+        assertEquals("RHI-100 · 较个人基线改善 · 最近 7 天", improvement.comparisonText)
     }
 
     @Test
@@ -151,12 +165,12 @@ class AttributionUiStateTest {
     }
 
     @Test
-    fun `ignores malformed and out of window risk dates`() {
+    fun `RDI history only displays points inside the selected period`() {
         val state = map(
-            history = listOf(
-                point("not-a-date", 0.90),
-                point("2026-01-01", 0.80),
-                point("2026-07-22", 0.25),
+            rdiSummary = rdiSummary(
+                7,
+                46.9,
+                listOf(rdiPoint("2026-01-01", 80.0), rdiPoint("2026-07-22", 46.9)),
             ),
         )
 
@@ -185,9 +199,10 @@ class AttributionUiStateTest {
     @Test
     fun `keeps confirmed history separate from returned PIAS scenarios`() {
         val state = map(
-            history = listOf(
-                point("2026-07-20", 0.31),
-                point("2026-07-22", 0.28),
+            rdiSummary = rdiSummary(
+                7,
+                46.2,
+                listOf(rdiPoint("2026-07-20", 46.9), rdiPoint("2026-07-22", 46.2)),
             ),
             pias = IndividualAttributionResult(
                 status = "ready",
@@ -199,7 +214,7 @@ class AttributionUiStateTest {
         )
         val pias = assertIs<AttributionPiasUiState.Ready>(state.pias)
 
-        assertEquals(listOf(0.31, 0.28), state.selectedHistory.map { it.riskScore })
+        assertEquals(listOf(0.469, 0.462), state.selectedHistory.map { it.riskScore })
         assertEquals(listOf(0.28, 0.29, 0.30), pias.forecast.noAction)
         assertEquals(listOf(0.28, 0.26, 0.24), pias.forecast.withPlan)
         assertEquals(listOf(0.24, 0.23, 0.21), pias.forecast.ciLower)
@@ -376,12 +391,14 @@ class AttributionUiStateTest {
         allowDebugReplay: Boolean = false,
         interventions: List<AttributionInterventionInput> = emptyList(),
         interventionSourceMode: String? = null,
+        rdiSummary: RdiPeriodSummary? = null,
     ): AttributionUiState = AttributionUiMapper.map(
         AttributionUiInput(
             period = period,
             today = today,
             evaluation = evaluation,
             remote = AttributionRemoteData(history = history, pias = pias),
+            rdiSummary = rdiSummary,
             refreshPhase = AttributionRefreshPhase.READY,
             activity = activity,
             allowDebugReplay = allowDebugReplay,
@@ -396,7 +413,11 @@ class AttributionUiStateTest {
         isInterventionDay = false,
     )
 
-    private fun rhiSummary(vararg history: RhiDailyScore, periodDays: Int = 7) = RhiPeriodSummary(
+    private fun rhiSummary(
+        vararg history: RhiDailyScore,
+        periodDays: Int = 7,
+        baseline: RhiDailyScore? = history.firstOrNull(),
+    ) = RhiPeriodSummary(
         periodDays = periodDays,
         score = history.lastOrNull()?.score,
         confidence = history.lastOrNull()?.confidence,
@@ -405,6 +426,31 @@ class AttributionUiStateTest {
         aggregation = RhiPeriodAggregation.ROBUST_MEDIAN,
         history = history.toList(),
         calculationSource = RhiCalculationSource.LOCAL,
+        baseline90d = baseline,
+    )
+
+    private fun rdiPoint(date: String, score: Double) = RdiDailyScore(
+        date = LocalDate.parse(date),
+        score = score,
+        confidence = 0.8,
+    )
+
+    private fun rdiSummary(
+        periodDays: Int,
+        score: Double,
+        history: List<RdiDailyScore>,
+    ) = RdiPeriodSummary(
+        periodDays = periodDays,
+        score = score,
+        confidence = 0.8,
+        validDays = history.size,
+        requiredValidDays = if (periodDays == 7) 1 else if (periodDays == 30) 7 else 14,
+        aggregation = if (periodDays == 7) {
+            RdiPeriodAggregation.CURRENT_7_DAY
+        } else {
+            RdiPeriodAggregation.ROBUST_MEDIAN
+        },
+        history = history,
     )
 
     private fun replayActivity() = AttributionActivityInput(

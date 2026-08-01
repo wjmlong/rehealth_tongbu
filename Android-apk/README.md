@@ -208,10 +208,10 @@ Room v14 将 RHI 日度持久化拆为
 “我的 > 健康档案”可录入日均久坐、腰围、正式
 VO₂max、HbA1c、eGFR、经确认的上臂袖带血压和医院血检。RHI 越高越健康；
 空白值不填正常值，戒指无袖带血压只展示而不进入 RHI。
-右侧“RDI-16 风险指数”只聚合当前 7/30/90 日窗口内已确认、已落库的
-RDI-16 `risk_score` 并显示为 `x/100`，不会读取 PIAS 当前值或预测值。
-下方个人风险趋势以相同窗口的已落库 RDI-16 历史绘制蓝色实线。
-当前 RDI-16 契约尚未返回维持现状、执行计划、预计降低和 95% 区间，页面为这些
+归因页右侧“RDI-16 风险指数”读取 Android 本地透明规则引擎的原生 0–100 分值，
+按 7/30/90 日窗口聚合并显示为 `x/100`，不会把 CVD 风险概率乘 100，也不会读取
+PIAS 当前值或预测值。下方个人风险趋势以相同窗口的已落库 RDI-16 历史绘制蓝色实线。
+当前本地 RDI-16 引擎尚未返回维持现状、执行计划、预计降低和 95% 区间，页面为这些
 字段保留数据格并明确显示暂不可用，不使用 PIAS 填充。Room RDI 日快照中的最多
 3 项可信影响因素合并显示在同一趋势卡的数据格下方，不再单独占用一张卡。
 干预计划仍走原有 CVD-16/PIAS 链路。贡献因素卡片改读服务端独立的
@@ -354,6 +354,20 @@ Debug APK：
 ```text
 app/build/outputs/apk/debug/app-debug.apk
 ```
+
+### Debug RHI/RDI attribution fixture (2026-08-01)
+
+The Debug mock ring seeds 118 Room days: 90 visible days plus 28 warm-up
+days. Selecting 7/30/90 days therefore uses 7/30/90 real local RDI daily
+calculations instead of reusing a 30-day flat series. The attribution risk
+number is the native Android RDI-16 index on a 0-100 scale; CVD probability and
+PIAS output are never substituted. RDI `rdi-rule-1.0.1` aligns the activity
+baseline with the current seven-day-minute unit and removes the invalid
+clock-minute-as-sleep-variability baseline. The RHI improvement number remains
+the governed RHI-100 difference from the earliest valid personal baseline in
+the trailing 90-day horizon. Guest RHI daily calculations are persisted under
+the local-device Room key but are never queued for authenticated upload. These
+synthetic records are Debug-only and marked as mock in Room.
 
 ## 当前限制
 

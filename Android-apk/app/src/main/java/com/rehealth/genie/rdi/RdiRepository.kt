@@ -74,6 +74,7 @@ class RdiRepository(
         val confirmedLabs = rdiLabMealDao.confirmedLabs(userId)
         val confirmedMeals = rdiLabMealDao.confirmedMeals(userId)
         val dietRecords = dietRecordsForDay(userId, scoredOn)
+        val isMock = containsMockSource(activities, sleepSessions, measurements)
         val calculation = RdiEngine.calculate(
             RdiCalculationInput(
                 scoredOn = scoredOn,
@@ -89,6 +90,7 @@ class RdiRepository(
                 confirmedLabs = confirmedLabs,
                 confirmedMeals = confirmedMeals,
                 dietRecords = dietRecords,
+                isMock = isMock,
             ),
         )
         maybeEstablishBaselines(userId, activities, sleepSessions, measurements, scoredOn)
@@ -102,6 +104,7 @@ class RdiRepository(
             displayScore = calculation.displayScore,
             dataConfidence = calculation.confidence,
             status = calculation.status,
+            isMock = isMock,
             algorithmVersion = RDI_ALGORITHM_VERSION,
             createdAt = existing?.createdAt ?: now,
             updatedAt = now,
@@ -145,7 +148,7 @@ class RdiRepository(
     ): RdiPeriodSummary {
         require(periodDays in setOf(7, 30, 90)) { "RDI period must be 7, 30, or 90 days" }
         val current = refresh(scoredOn)
-        val since = scoredOn.minusDays((periodDays + 27).toLong())
+        val since = scoredOn.minusDays((RDI_HISTORY_DAYS + RDI_WARMUP_DAYS).toLong())
             .atStartOfDay(zoneId)
             .toInstant()
             .toEpochMilli()
@@ -158,8 +161,9 @@ class RdiRepository(
         val confirmedLabs = rdiLabMealDao.confirmedLabs(userId)
         val confirmedMeals = rdiLabMealDao.confirmedMeals(userId)
         val dietRecords = dietRecordsBetween(userId, since)
-        val calculatedDailyScores = withContext(Dispatchers.Default) {
-            (periodDays - 1 downTo 0).mapNotNull { daysAgo ->
+        val isMock = containsMockSource(activities, sleepSessions, measurements)
+        val calculatedDays = withContext(Dispatchers.Default) {
+            (RDI_HISTORY_DAYS - 1 downTo 0).map { daysAgo ->
                 val date = scoredOn.minusDays(daysAgo.toLong())
                 val dayStart = date.atStartOfDay(zoneId).toInstant().toEpochMilli()
                 val dayEnd = date.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
@@ -179,18 +183,27 @@ class RdiRepository(
                         confirmedLabs = confirmedLabs,
                         confirmedMeals = confirmedMeals,
                         dietRecords = dayDietRecords,
+                        isMock = isMock,
                     ),
                 )
-                calculation.takeIf {
-                    it.confidence >= RdiPeriodAggregator.MIN_VALID_CONFIDENCE &&
-                        it.contributions.isNotEmpty()
-                }?.let {
-                    RdiDailyScore(
-                        date = date,
-                        score = it.displayScore,
-                        confidence = it.confidence,
-                    )
-                }
+                CalculatedRdiDay(date, calculation)
+            }
+        }
+        if (isMock) {
+            calculatedDays.filter { it.date != scoredOn }.forEach { day ->
+                persistCalculatedDay(userId, day.date, day.calculation, isMock = true)
+            }
+        }
+        val calculatedDailyScores = calculatedDays.mapNotNull { day ->
+            day.calculation.takeIf {
+                it.confidence >= RdiPeriodAggregator.MIN_VALID_CONFIDENCE &&
+                    it.contributions.isNotEmpty()
+            }?.let {
+                RdiDailyScore(
+                    date = day.date,
+                    score = it.displayScore,
+                    confidence = it.confidence,
+                )
             }
         }
         val currentIsValid = current.confidence >= RdiPeriodAggregator.MIN_VALID_CONFIDENCE &&
@@ -208,6 +221,66 @@ class RdiRepository(
             currentConfidence = current.confidence,
             dailyScores = dailyScores,
         )
+    }
+
+    private suspend fun persistCalculatedDay(
+        userId: String,
+        scoredOn: LocalDate,
+        calculation: RdiCalculation,
+        isMock: Boolean,
+    ) {
+        val now = clock()
+        val snapshotId = "$userId:$scoredOn"
+        val existing = rdiDao.snapshotForDay(userId, scoredOn.toString())
+        val snapshot = RdiDailySnapshotEntity(
+            id = snapshotId,
+            userId = userId,
+            scoredOn = scoredOn.toString(),
+            rawScore = calculation.rawScore,
+            displayScore = calculation.displayScore,
+            dataConfidence = calculation.confidence,
+            status = calculation.status,
+            isMock = isMock,
+            algorithmVersion = RDI_ALGORITHM_VERSION,
+            createdAt = existing?.createdAt ?: now,
+            updatedAt = now,
+        )
+        val records = calculation.contributions.map { item ->
+            RdiContributionEntity(
+                id = "$snapshotId:${item.factorCode}",
+                snapshotId = snapshotId,
+                userId = userId,
+                scoredOn = scoredOn.toString(),
+                factorCode = item.factorCode,
+                domain = item.domain,
+                source = item.source,
+                currentValue = item.currentValue,
+                baselineValue = item.baselineValue,
+                unit = item.unit,
+                rawPoints = item.rawPoints,
+                confidence = item.confidence,
+                finalPoints = item.finalPoints,
+                evidenceText = item.evidenceText,
+                algorithmVersion = RDI_ALGORITHM_VERSION,
+                sourceFactorId = item.sourceFactorId,
+                createdAt = now,
+            )
+        }
+        rdiDao.replaceCalculation(snapshot, records)
+    }
+
+    private fun containsMockSource(
+        activities: List<RingActivityEntity>,
+        sleepSessions: List<RingSleepSessionEntity>,
+        measurements: List<RingMeasurementEntity>,
+    ): Boolean = sequenceOf(
+        activities.asSequence().map(RingActivityEntity::source),
+        sleepSessions.asSequence().map(RingSleepSessionEntity::source),
+        measurements.asSequence().map(RingMeasurementEntity::source),
+    ).flatten().any { source ->
+        source.equals("synthetic_qa", ignoreCase = true) ||
+            source.equals("ring_sim", ignoreCase = true) ||
+            source.contains("mock", ignoreCase = true)
     }
 
     private fun Long.toDate(zoneId: ZoneId): LocalDate =
@@ -246,7 +319,11 @@ class RdiRepository(
     private suspend fun loadAnchoredBaselines(userId: String, scoredOn: LocalDate): Map<String, Double> {
         val today = scoredOn.toString()
         return rdiBaselineDao.activeBaselines(userId)
-            .filter { it.frozenUntil >= today }
+            .filter {
+                it.frozenUntil >= today &&
+                    it.algorithmVersion == RDI_ALGORITHM_VERSION &&
+                    it.factorCode != "sleep_regularity"
+            }
             .associate { it.factorCode to it.baselineValue }
     }
 
@@ -302,9 +379,12 @@ class RdiRepository(
         }
 
         tryEstablish("steps", stepsByDay)
-        tryEstablish("verified_activity_minutes", minutesByDay)
+        // The engine compares a rolling 7-day total with this baseline. Persist a
+        // weekly-equivalent value rather than the old daily-minute median.
+        tryEstablish("verified_activity_minutes", minutesByDay.map { it * 7.0 })
         tryEstablish("sleep_duration", sleepByDay.map { it.durationMinutes.toDouble() })
-        tryEstablish("sleep_regularity", sleepByDay.map { it.bedtimeMinute.toDouble() })
+        // Sleep regularity is a standard deviation, not a clock minute. Keep it
+        // window-relative in the engine until a dedicated SD baseline is stored.
         tryEstablish("sleep_efficiency", sleepByDay.map { it.efficiency })
         tryEstablish("hrv_personal_trend", hrvByDay.map { it.median() ?: 0.0 })
         tryEstablish("resting_hr", hrByDay.map { it.median() ?: 0.0 })
@@ -362,5 +442,12 @@ class RdiRepository(
 
     companion object {
         private const val LOCAL_DEVICE_USER = "__local_device__"
+        private const val RDI_HISTORY_DAYS = 90
+        private const val RDI_WARMUP_DAYS = 28
     }
 }
+
+private data class CalculatedRdiDay(
+    val date: LocalDate,
+    val calculation: RdiCalculation,
+)

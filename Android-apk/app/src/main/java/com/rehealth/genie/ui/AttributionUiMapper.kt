@@ -49,19 +49,27 @@ object AttributionUiMapper {
     private val fallbackInterventionIds = setOf("bp_monitor", "walking_zone2", "sleep_baseline")
 
     fun map(input: AttributionUiInput): AttributionUiState {
-        val validHistory = input.remote.history.mapNotNull(::validHistoryPoint).sortedBy { it.first }
         val cutoff = input.today.minusDays(input.period.days - 1)
-        val selectedHistory = validHistory
-            .filter { (date) -> !date.isBefore(cutoff) && !date.isAfter(input.today) }
-            .map { it.second }
-        // The period selector controls the displayed RDI-16 value. Only the
-        // confirmed scores already persisted in RDI-16 history participate;
-        // PIAS current/forecast values must never fill this field.
-        val currentRisk = selectedHistory
-            .map(AttributionHistoryPoint::riskScore)
-            .takeIf { it.isNotEmpty() }
-            ?.average()
-            ?.takeIf(::validRisk)
+        val rdiSummary = input.rdiSummary?.takeIf { it.periodDays == input.period.days.toInt() }
+        val selectedHistory = rdiSummary?.history.orEmpty()
+            .filter {
+                !it.date.isBefore(cutoff) &&
+                    !it.date.isAfter(input.today) &&
+                    it.score.isFinite() &&
+                    it.score in 0.0..100.0
+            }
+            .sortedBy { it.date }
+            .map {
+                AttributionHistoryPoint(
+                    date = it.date.toString(),
+                    riskScore = it.score / 100.0,
+                    isInterventionDay = false,
+                )
+            }
+        // RDI-16 is a native 0..100 impact index. Do not substitute the
+        // separate CVD probability history (0..1) or PIAS forecast values.
+        val rdiScore = rdiSummary?.score?.takeIf { it.isFinite() && it in 0.0..100.0 }
+        val currentRisk = rdiScore?.div(100.0)
         val factors = mapFactors(input.evaluation, input.factorValues)
 
         return AttributionUiState(
@@ -69,7 +77,7 @@ object AttributionUiMapper {
             refreshPhase = input.refreshPhase,
             refreshMessage = refreshMessage(input.refreshPhase, input.refreshError),
             currentRisk = currentRisk,
-            currentRiskText = currentRisk?.let { String.format(Locale.US, "%.1f/100", it * 100) } ?: "--/100",
+            currentRiskText = rdiScore?.let { String.format(Locale.US, "%.1f/100", it) } ?: "--/100",
             riskLevel = null,
             selectedHistory = selectedHistory,
             rdiScenario = AttributionRdiScenarioUi(),
@@ -99,16 +107,22 @@ object AttributionUiMapper {
             .sortedBy { it.date }
         val summaryMatchesPeriod = summary?.periodDays == period.days.toInt()
         val selectedHistory = history.takeIf { summaryMatchesPeriod }.orEmpty()
-        val baseline = selectedHistory.firstOrNull()
-        val current = selectedHistory.lastOrNull()
-        val improvement = if (baseline != null && current != null && baseline.date != current.date) {
-            current.score - baseline.score
+        val baseline = summary?.baseline90d
+        val periodScore = summary?.score?.takeIf { summaryMatchesPeriod && it.isFinite() && it in 0.0..100.0 }
+        val latest = selectedHistory.lastOrNull()
+        val improvement = if (
+            baseline != null &&
+            periodScore != null &&
+            latest != null &&
+            baseline.date < latest.date
+        ) {
+            kotlin.math.round((periodScore - baseline.score) * 10.0) / 10.0
         } else {
             null
         }
         val comparisonText = when {
             improvement == null -> "RHI-100 需要至少 2 个有效日建立个人基准"
-            else -> "RHI-100 · 较 ${period.selectorLabel}窗口基准改善"
+            else -> "RHI-100 · 较个人基线改善 · 最近 ${period.selectorLabel}"
         }
         return AttributionRhiImprovementUi(
             improvementPoints = improvement,

@@ -35,6 +35,7 @@ import com.rehealth.genie.work.RingBackgroundRecoveryWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class ReHealthApplication : Application() {
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -214,6 +215,14 @@ class ReHealthApplication : Application() {
         // D3: if a session was restored, schedule the feedback sync worker
         if (sessionStore.isLoggedIn) {
             MeasurementSyncWorker.schedule(this)
+        }
+        if (BuildConfig.DEBUG && BuildConfig.SEED_FAKE_HEALTH_DATA) {
+            applicationScope.launch {
+                runCatching {
+                    ringRepository.autoConnect()
+                    ringRepository.syncAll()
+                }
+            }
         }
     }
 }

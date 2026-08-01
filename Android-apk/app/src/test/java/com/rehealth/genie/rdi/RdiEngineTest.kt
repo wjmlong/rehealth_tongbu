@@ -54,6 +54,21 @@ class RdiEngineTest {
     }
 
     @Test
+    fun `activity baseline uses the same seven day minute unit as current value`() {
+        val activities = (0L..27L).map { activity(it, 6_000, durationMinutes = 45) }
+
+        val result = calculate(
+            activities = activities,
+            anchoredBaselines = mapOf("verified_activity_minutes" to 315.0),
+        )
+        val minutes = result.contributions.single { it.factorCode == "verified_activity_minutes" }
+
+        assertEquals(315.0, minutes.currentValue, 0.001)
+        assertEquals(315.0, minutes.baselineValue ?: 0.0, 0.001)
+        assertEquals(-0.5, minutes.rawPoints, 0.001)
+    }
+
+    @Test
     fun `device source change excludes HRV contribution`() {
         val measurements = (0L..13L).map { daysAgo ->
             measurement(
@@ -156,6 +171,7 @@ class RdiEngineTest {
         measurements: List<RingMeasurementEntity> = emptyList(),
         previousDisplay: Double? = null,
         dietRecords: List<DietRecordEntity> = emptyList(),
+        anchoredBaselines: Map<String, Double> = emptyMap(),
     ): RdiCalculation = RdiEngine.calculate(
         RdiCalculationInput(
             scoredOn = today,
@@ -165,20 +181,21 @@ class RdiEngineTest {
             measurements = measurements,
             previousDisplayScore = previousDisplay,
             dietRecords = dietRecords,
+            anchoredBaselines = anchoredBaselines,
         ),
     )
 
-    private fun activity(daysAgo: Long, steps: Int): RingActivityEntity {
+    private fun activity(daysAgo: Long, steps: Int, durationMinutes: Int = 0): RingActivityEntity {
         val startedAt = today.minusDays(daysAgo).atTime(20, 0).atZone(zone).toInstant().toEpochMilli()
         return RingActivityEntity(
             id = "activity-$daysAgo",
             startedAt = startedAt,
             endedAt = startedAt,
-            activityType = "daily",
+            activityType = "walking",
             steps = steps,
             distanceMeters = 0.0,
             caloriesKcal = 0.0,
-            durationMinutes = 0,
+            durationMinutes = durationMinutes,
             averageHeartRate = null,
             source = "ring-a",
         )

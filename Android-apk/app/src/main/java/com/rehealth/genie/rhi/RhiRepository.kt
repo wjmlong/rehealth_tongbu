@@ -42,19 +42,21 @@ class RhiRepository(
         calculationSource: RhiCalculationSource = RhiCalculationSource.LOCAL,
     ): RhiPeriodSummary {
         require(periodDays in setOf(7, 30, 90)) { "RHI period must be 7, 30, or 90 days" }
+        val calculationDays = maxOf(periodDays, PERSONAL_BASELINE_DAYS)
         val historyWarmupDays = 42
-        val since = scoredOn.minusDays((periodDays + historyWarmupDays).toLong())
+        val since = scoredOn.minusDays((calculationDays + historyWarmupDays).toLong())
             .atStartOfDay(zoneId)
             .toInstant()
             .toEpochMilli()
         val activities = ringDataDao.getActivitiesSince(since)
         val sleepSessions = ringDataDao.getSleepSessionsSince(since)
         val measurements = ringDataDao.getMeasurementsSince(since)
-        val userId = userIdProvider()
-        val manual = userId?.let { manualInputDao?.get(it) }
+        val authenticatedUserId = userIdProvider()?.takeIf { it.isNotBlank() }
+        val persistenceUserId = authenticatedUserId ?: LOCAL_DEVICE_USER
+        val manual = authenticatedUserId?.let { manualInputDao?.get(it) }
         val feedback = interventionFeedbackDao?.completedFeedbackSince(since).orEmpty()
         val daily = withContext(Dispatchers.Default) {
-            val firstDate = scoredOn.minusDays((periodDays + 27).toLong())
+            val firstDate = scoredOn.minusDays((calculationDays + 27).toLong())
             var previousDisplay: Double? = null
             var previousConfidence: Double? = null
             generateSequence(firstDate) { date ->
@@ -110,7 +112,13 @@ class RhiRepository(
         } else {
             summarizeRemote(periodDays, scoredOn, daily)
         }
-        persist(userId, daily, calculationSource, summary.algorithmVersion)
+        persist(
+            userId = persistenceUserId,
+            daily = daily,
+            calculationSource = calculationSource,
+            algorithmVersion = summary.algorithmVersion,
+            enqueueForUpload = authenticatedUserId != null,
+        )
         return summary
     }
 
@@ -120,13 +128,13 @@ class RhiRepository(
      * must not deny the user a score that was already computed correctly.
      */
     private suspend fun persist(
-        userId: String?,
+        userId: String,
         daily: List<DailyRhiCalculation>,
         calculationSource: RhiCalculationSource,
         algorithmVersion: String,
+        enqueueForUpload: Boolean,
     ) {
         val dao = snapshotDao ?: return
-        if (userId.isNullOrBlank()) return
         val uploadSnapshots = mutableListOf<com.rehealth.genie.network.dto.RhiDailyIndexDto>()
         daily.forEach { item ->
             val entities = RhiSnapshotMapper.toEntities(
@@ -146,7 +154,9 @@ class RhiRepository(
         }
         val cutoff = daily.last().date.minusDays(RETENTION_DAYS).toString()
         dao.pruneBefore(userId, cutoff)
-        enqueueUpload(userId, uploadSnapshots)
+        if (enqueueForUpload) {
+            enqueueUpload(userId, uploadSnapshots)
+        }
     }
 
     /**
@@ -199,12 +209,16 @@ class RhiRepository(
         // Momentum is measured against the full warm-up series so that a fixed
         // 7- or 28-day lookback stays available even in the 7-day view.
         val byDate = allValid.associate { it.date to it.score }
+        val baseline90d = allValid.firstOrNull {
+            it.date >= scoredOn.minusDays((PERSONAL_BASELINE_DAYS - 1).toLong()) && it.date <= scoredOn
+        }
         return RhiPeriodAggregator.summarize(
             periodDays = periodDays,
             current = valid.lastOrNull { it.date == scoredOn },
             dailyScores = valid,
             delta7d = RhiPeriodAggregator.delta(byDate, scoredOn, 7),
             delta28d = RhiPeriodAggregator.delta(byDate, scoredOn, 28),
+            baseline90d = baseline90d,
         )
     }
 
@@ -230,6 +244,9 @@ class RhiRepository(
         val periodStart = scoredOn.minusDays((periodDays - 1).toLong())
         val valid = allValid.filter { it.date >= periodStart }
         val byDate = allValid.associate { it.date to it.score }
+        val baseline90d = allValid.firstOrNull {
+            it.date >= scoredOn.minusDays((PERSONAL_BASELINE_DAYS - 1).toLong()) && it.date <= scoredOn
+        }
         return RhiPeriodAggregator.summarize(
             periodDays = periodDays,
             current = valid.lastOrNull { it.date == scoredOn },
@@ -238,12 +255,15 @@ class RhiRepository(
             calculationSource = RhiCalculationSource.REMOTE,
             delta7d = RhiPeriodAggregator.delta(byDate, scoredOn, 7),
             delta28d = RhiPeriodAggregator.delta(byDate, scoredOn, 28),
+            baseline90d = baseline90d,
         )
     }
 
     private companion object {
+        const val LOCAL_DEVICE_USER = "__local_device__"
         /** On-device RHI history horizon; older days are pruned after each refresh. */
         const val RETENTION_DAYS = 400L
+        const val PERSONAL_BASELINE_DAYS = 90
     }
 }
 

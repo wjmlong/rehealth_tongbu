@@ -22,6 +22,8 @@ data class RhiPeriodSummary(
     val delta7d: Double? = null,
     /** Current display score minus the score 28 days earlier; null when absent. */
     val delta28d: Double? = null,
+    /** Earliest valid personal baseline inside the latest 90-day horizon. */
+    val baseline90d: RhiDailyScore? = null,
 ) {
     val trendDelta: Double?
         get() = history.takeIf { it.size >= 2 }
@@ -47,6 +49,7 @@ object RhiPeriodAggregator {
         calculationSource: RhiCalculationSource = RhiCalculationSource.LOCAL,
         delta7d: Double? = null,
         delta28d: Double? = null,
+        baseline90d: RhiDailyScore? = null,
     ): RhiPeriodSummary {
         require(periodDays in SUPPORTED_PERIODS) { "RHI period must be 7, 30, or 90 days" }
         val ordered = dailyScores.sortedBy { it.date }.takeLast(periodDays)
@@ -81,6 +84,7 @@ object RhiPeriodAggregator {
             calculationSource = calculationSource,
             delta7d = delta7d?.round1(),
             delta28d = delta28d?.round1(),
+            baseline90d = baseline90d,
         )
     }
 

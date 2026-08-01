@@ -90,7 +90,7 @@ private class DebugFullChainSimulationRunner(
                 stages += success(
                     "room",
                     "Room 数据",
-                    "已写入 $SIMULATION_DAYS 天 synthetic_qa 戒指、睡眠、活动、体成分及完整临床手工字段。",
+                    "已写入 $VISIBLE_HISTORY_DAYS 天展示数据及 $RDI_WARMUP_DAYS 天计算预热数据，包含 synthetic_qa 戒指、睡眠、活动、体成分及完整临床手工字段。",
                 )
             },
             onFailure = { error ->
@@ -123,6 +123,22 @@ private class DebugFullChainSimulationRunner(
             )
         }.getOrElse { failed("rhi", "RHI-100", safeError(it)) }
         stages += rhiStage
+
+        val rdiStage = runCatching {
+            val summary = application.rdiRepository.refreshPeriod(VISIBLE_HISTORY_DAYS, today)
+            val current = summary.history.lastOrNull()?.score
+            val detail = buildString {
+                append("本地真实规则逐日计算并落库 ${summary.validDays}/$VISIBLE_HISTORY_DAYS 日")
+                append("，当前 ${current?.let { String.format(Locale.US, "%.1f", it) } ?: "--"}/100")
+                append("，90日代表值 ${summary.score?.let { String.format(Locale.US, "%.1f", it) } ?: "--"}/100。")
+            }
+            if (summary.validDays == VISIBLE_HISTORY_DAYS && current != null) {
+                success("rdi16", "RDI-16", detail)
+            } else {
+                warning("rdi16", "RDI-16", detail)
+            }
+        }.getOrElse { failed("rdi16", "RDI-16", safeError(it)) }
+        stages += rdiStage
 
         val riskResults = mutableListOf<Pair<Long, com.rehealth.genie.network.dto.RiskResultDto>>()
         val measurements = application.database.ringDataDao().getMeasurementsSince(observedAt)
@@ -168,7 +184,7 @@ private class DebugFullChainSimulationRunner(
             }
         }
         stages += if (riskResults.isEmpty()) {
-            failed("rdi16", "RDI-16", "远程模型未返回可确认的非 Mock 评分；未写入 PIAS 风险历史。")
+            failed("cvd16", "CVD-16 远程风险", "远程模型未返回可确认的非 Mock 评分；未写入 PIAS 风险历史。")
         } else {
             val latest = riskResults.last().second
             val score = String.format(Locale.US, "%.1f", latest.normalizedRiskScore!! * 100.0)
@@ -177,9 +193,9 @@ private class DebugFullChainSimulationRunner(
             val detail =
                 "真实远程评估 ${riskResults.size}/$RISK_HISTORY_DAYS 日，当前 $score；贡献规则 ${factorVersion ?: "缺失"}。"
             if (complete && factorVersion == FACTOR16_VERSION) {
-                success("rdi16", "RDI-16", detail)
+                success("cvd16", "CVD-16 远程风险", detail)
             } else {
-                warning("rdi16", "RDI-16", detail)
+                warning("cvd16", "CVD-16 远程风险", detail)
             }
         }
 
@@ -441,7 +457,9 @@ private class DebugFullChainSimulationRunner(
         error.message?.take(180)?.takeIf { it.isNotBlank() } ?: error::class.java.simpleName
 
     private companion object {
-        const val SIMULATION_DAYS = 90
+        const val VISIBLE_HISTORY_DAYS = 90
+        const val RDI_WARMUP_DAYS = 28
+        const val SIMULATION_DAYS = VISIBLE_HISTORY_DAYS + RDI_WARMUP_DAYS
         const val RISK_HISTORY_DAYS = 30
         const val SOURCE = "synthetic_qa"
         const val FACTOR16_VERSION = "factor16-rule-v1.0.0"

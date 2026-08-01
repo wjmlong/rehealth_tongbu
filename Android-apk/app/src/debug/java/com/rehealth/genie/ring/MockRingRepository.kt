@@ -167,7 +167,7 @@ class MockRingRepository(
         if (baselineSeeded) return
         baselineSeeded = true
         val now = System.currentTimeMillis()
-        (6 downTo 1).forEach { daysAgo ->
+        (MOCK_HISTORY_DAYS - 1 downTo 1).forEach { daysAgo ->
             val dayStart = startOfDay(now - daysAgo * DAY_MS)
             dao.insertBatch(generateDailyBatch(dayStart, daysAgo))
         }
@@ -177,20 +177,20 @@ class MockRingRepository(
         val dayStart = startOfDay(now)
         val (hr, sbp, dbp) = baselines()
         val dayIndex = dayIndex(now)
-        val steps = (6200 + sin(dayIndex * 0.9) * 1500 + sin(now / 3.0e5) * 300)
+        val steps = (8_500 + sin(dayIndex * 0.9) * 400 + sin(now / 3.0e5) * 150)
             .roundToInt().coerceAtLeast(2500)
         return RingDataBatch(
             measurements = listOf(
-                measurement(RingMetricType.HEART_RATE, now, wobble(hr, now, 4.0), "bpm"),
-                measurement(RingMetricType.HRV, now, wobble(50.0 + (hr - 74) * -0.6, now, 6.0), "ms"),
+                measurement(RingMetricType.HEART_RATE, now, wobble(hr - 4.0, now, 1.2), "bpm"),
+                measurement(RingMetricType.HRV, now, wobble(56.0, now, 1.5), "ms"),
                 measurement(RingMetricType.BLOOD_OXYGEN, now, wobble(98.0, now, 1.2).coerceIn(94.0, 99.0), "%"),
-                measurement(RingMetricType.BLOOD_PRESSURE, now, wobble(sbp, now, 5.0), "mmHg", wobble(dbp, now, 3.0)),
+                measurement(RingMetricType.BLOOD_PRESSURE, now, wobble(sbp - 2.0, now, 1.5), "mmHg", wobble(dbp - 1.0, now, 1.0)),
                 measurement(RingMetricType.TEMPERATURE, now, wobble(36.5, now, 0.15), "°C"),
                 measurement(RingMetricType.STEPS, now, steps.toDouble(), "steps"),
                 measurement(RingMetricType.STRESS, now, wobble(34.0, now, 8.0).coerceIn(12.0, 75.0), "score"),
             ),
-            sleepSessions = listOf(sleepSession(dayStart)),
-            activities = listOf(activity(dayStart, steps)),
+            sleepSessions = listOf(sleepSession(dayStart, progress = 1.0)),
+            activities = listOf(activity(dayStart, steps, progress = 1.0)),
             signalChunks = listOf(rriSignal(now), ppgSignal(now)),
         )
     }
@@ -199,30 +199,55 @@ class MockRingRepository(
         val (hr, sbp, dbp) = baselines()
         val morning = dayStart + 8 * HOUR_MS + ((daysAgo * 137) % 45) * MINUTE_MS
         val evening = dayStart + 20 * HOUR_MS + ((daysAgo * 91) % 60) * MINUTE_MS
-        val trend = (6 - daysAgo) * 0.7
-        val steps = (5600 + sin(daysAgo * 1.3) * 1600 + trend * 160).roundToInt().coerceAtLeast(2500)
+        val progress = (MOCK_HISTORY_DAYS - 1 - daysAgo).toDouble() / (MOCK_HISTORY_DAYS - 1)
+        val steps = (1_500 + progress * 7_000.0 + sin(daysAgo * 1.3) * 400.0)
+            .roundToInt().coerceAtLeast(800)
+        val restingHr = hr + 10.0 - progress * 14.0
+        val hrv = 24.0 + progress * 32.0
         return RingDataBatch(
             measurements = listOf(
-                measurement(RingMetricType.HEART_RATE, morning, wobble(hr - trend * 0.6, morning, 4.0), "bpm"),
-                measurement(RingMetricType.HEART_RATE, evening, wobble(hr + trend * 0.4, evening, 5.0), "bpm"),
-                measurement(RingMetricType.HRV, morning, wobble(46.0 + trend + (hr - 74) * -0.5, morning, 5.0), "ms"),
+                measurement(RingMetricType.HEART_RATE, morning, wobble(restingHr, morning, 1.2), "bpm"),
+                measurement(RingMetricType.HEART_RATE, evening, wobble(restingHr + 1.5, evening, 1.5), "bpm"),
+                measurement(RingMetricType.HRV, morning, wobble(hrv, morning, 1.5), "ms"),
                 measurement(RingMetricType.BLOOD_OXYGEN, morning, wobble(98.0, morning, 1.2).coerceIn(94.0, 99.0), "%"),
-                measurement(RingMetricType.BLOOD_PRESSURE, morning, wobble(sbp - trend, morning, 5.0), "mmHg", wobble(dbp - trend * 0.5, morning, 3.0)),
+                measurement(
+                    RingMetricType.BLOOD_PRESSURE,
+                    morning,
+                    wobble(sbp + 3.0 - progress * 5.0, morning, 1.5),
+                    "mmHg",
+                    wobble(dbp + 2.0 - progress * 3.0, morning, 1.0),
+                ),
                 measurement(RingMetricType.TEMPERATURE, morning, wobble(36.45, morning, 0.14), "°C"),
                 measurement(RingMetricType.STEPS, evening, steps.toDouble(), "steps"),
-                measurement(RingMetricType.STRESS, evening, wobble(40.0 - trend, evening, 8.0).coerceIn(12.0, 80.0), "score"),
+                measurement(
+                    RingMetricType.STRESS,
+                    evening,
+                    wobble(50.0 - progress * 15.0, evening, 3.0).coerceIn(12.0, 80.0),
+                    "score",
+                ),
             ),
-            sleepSessions = listOf(sleepSession(dayStart)),
-            activities = listOf(activity(dayStart, steps)),
+            sleepSessions = listOf(sleepSession(dayStart, progress)),
+            // Preserve a meaningful 90-day improvement path while giving the
+            // latest 7 days a visible, retention-friendly activity milestone.
+            // RDI still evaluates the real rule engine output from these records.
+            activities = listOf(
+                activity(
+                    dayStart,
+                    steps,
+                    progress = if (daysAgo <= 6) 1.0 else progress * 0.50,
+                ),
+            ),
         )
     }
 
-    private fun sleepSession(dayStart: Long): RingSleepSessionEntity {
+    private fun sleepSession(dayStart: Long, progress: Double): RingSleepSessionEntity {
         val endAt = dayStart + 7 * HOUR_MS + ((dayIndex(dayStart) * 53) % 45) * MINUTE_MS
-        val deep = 88 + ((dayIndex(dayStart) * 7) % 40)
-        val rem = 52 + ((dayIndex(dayStart) * 11) % 30)
-        val awake = 14 + ((dayIndex(dayStart) * 5) % 20)
-        val light = 250 + ((dayIndex(dayStart) * 13) % 70)
+        val totalTarget = (300 + progress * 190.0).roundToInt()
+        val awake = (totalTarget * (0.30 - progress * 0.22)).roundToInt()
+        val asleep = totalTarget - awake
+        val deep = (asleep * 0.22).roundToInt()
+        val rem = (asleep * 0.20).roundToInt()
+        val light = asleep - deep - rem
         val total = deep + rem + awake + light
         return RingSleepSessionEntity(
             id = stableId("sleep", endAt),
@@ -238,15 +263,19 @@ class MockRingRepository(
         )
     }
 
-    private fun activity(dayStart: Long, steps: Int): RingActivityEntity {
+    private fun activity(dayStart: Long, steps: Int, progress: Double): RingActivityEntity {
         val startedAt = dayStart + 18 * HOUR_MS + ((dayIndex(dayStart) * 17) % 90) * MINUTE_MS
-        val duration = 30 + ((dayIndex(dayStart) * 19) % 22)
+        val duration = (20 + progress * 28.0).roundToInt()
         return RingActivityEntity(
             id = stableId("activity", startedAt),
             startedAt = startedAt,
             endedAt = startedAt + duration * MINUTE_MS,
             activityType = "walking",
-            steps = (steps * 0.42).roundToInt(),
+            // RHI/RDI consume RingActivityEntity as their daily activity summary.
+            // Store the full daily steps here; the previous workout-only 42% value
+            // understated the health trajectory even though STEPS measurements
+            // already contained the correct total.
+            steps = steps,
             distanceMeters = steps * 0.68,
             caloriesKcal = steps * 0.036,
             durationMinutes = duration,
@@ -315,6 +344,7 @@ class MockRingRepository(
 
     private companion object {
         const val SOURCE = "ring_sim"
+        const val MOCK_HISTORY_DAYS = 118
         const val MINUTE_MS = 60_000L
         const val HOUR_MS = 60 * MINUTE_MS
         const val DAY_MS = 24 * HOUR_MS

@@ -3,6 +3,7 @@ package com.rehealth.genie.ui
 import com.rehealth.genie.phm.AttributionHistoryPoint
 import com.rehealth.genie.phm.IndividualAttributionResult
 import com.rehealth.genie.rhi.RhiDailyScore
+import com.rehealth.genie.rdi.RdiPeriodSummary
 import java.time.LocalDate
 
 enum class AttributionPeriod(val days: Long, val selectorLabel: String) {
@@ -61,6 +62,7 @@ data class AttributionUiInput(
     val today: LocalDate,
     val evaluation: AttributionRiskEvaluation?,
     val remote: AttributionRemoteData,
+    val rdiSummary: RdiPeriodSummary? = null,
     val refreshPhase: AttributionRefreshPhase,
     val refreshError: String? = null,
     val activity: AttributionActivityInput? = null,

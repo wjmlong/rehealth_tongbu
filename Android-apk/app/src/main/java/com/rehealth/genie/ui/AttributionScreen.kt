@@ -107,6 +107,7 @@ fun AttributionScreen(
     val rhiRefreshError by rhiViewModel.refreshError.collectAsState()
     val rdiViewModel: RdiViewModel = viewModel(factory = RdiViewModel.Factory(LocalContext.current))
     val rdiDisplayData by rdiViewModel.display.collectAsState()
+    val rdiPeriodSummary by rdiViewModel.periodSummary.collectAsState()
     val behaviorOwnerKey = remember(application.sessionStore.userId, application.sessionStore.username) {
         profileAvatarStorageKey(
             application.sessionStore.userId ?: application.sessionStore.username ?: "signed-out",
@@ -192,6 +193,7 @@ fun AttributionScreen(
             today = LocalDate.now(),
             evaluation = evaluation,
             remote = remote,
+            rdiSummary = rdiPeriodSummary,
             refreshPhase = refreshState.phase,
             refreshError = refreshState.errorMessage,
             activity = ringState.activity?.let { activity ->

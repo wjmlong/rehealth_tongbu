@@ -79,8 +79,13 @@ not persist an authoritative cloud RHI snapshot and does not replace the future
 Feature Pipeline ownership or its release gate.
 
 Android does contain a separate local product index named RDI
-(`rdi-rule-1.0.0`). It remains an additive transparent rule and Room persistence
-skeleton, but it does not drive the Attribution health improvement score.
+(`rdi-rule-1.0.1`). It remains an additive transparent rule with Room
+persistence, but it does not drive the Attribution health improvement score.
+The Attribution risk value and historical line use this native 0-100 RDI index;
+they do not convert or substitute CVD probability or PIAS output. Version 1.0.1
+stores the verified-activity baseline in the same seven-day-minute unit used by
+the current value and rejects the former clock-minute sleep-regularity anchor;
+sleep regularity is compared as variability against the historical window.
 
 That existing score and chart use the Android RHI Lite evaluator
 (`rhi-deterministic-preview-2.2.0-android-lite`). It ports the governed RHI-100
@@ -95,9 +100,9 @@ blood pressure remains display-only. The Attribution improvement score is the
 signed difference between the latest valid RHI and the earliest valid personal
 baseline in the trailing 90-day window; when full 90-day coverage is unavailable,
 the UI says "earliest valid baseline". Its chart filters the same real RHI history
-for the selected 7/30/90-day view. The current risk index only uses a confirmed
-RDI-16 `risk_score`, rendered as `risk_score * 100` out of 100. Scenario output
-never replaces that current RDI-16 value. The Model UI is unchanged.
+for the selected 7/30/90-day view. The current Attribution risk index uses the
+native local RDI-16 0-100 score. Scenario output never replaces that current
+RDI-16 value. The Model UI is unchanged.
 Version 2.2.0 corrects four scoring and provenance defects and adds daily
 persistence. No UI was changed.
 
@@ -131,6 +136,9 @@ neutral 50, so a gap is never recorded as a measurement. Persistence is a side
 effect of scoring and never a precondition for it. `delta_7d` and `delta_28d`
 are measured against a fixed lookback in the stored series, so a 7-day and a
 90-day view report the same seven-day change.
+Guest/local-device calculations use the `__local_device__` Room key so Debug
+7/30/90-day validation has durable rows; those rows are not placed on the
+authenticated upload queue.
 
 Android RHI field provenance is fixed as follows:
 
@@ -178,10 +186,11 @@ a score only when the response is reachable, finite, in `[0, 1]`, and explicitly
 Today/7-day selections use the current seven-day RHI, while 30/90-day selections
 use the valid-day median and the same 7/14-day minimums.
 
-The only full synthetic-chain entry is the confirmation-gated Debug action under
-Profile -> Device binding. It writes 90 days of `synthetic_qa` records to Room
+The full synthetic-chain entry remains the confirmation-gated Debug action under
+Profile -> Device binding. The Debug mock provider seeds 118 days (90 visible
+days plus 28 warm-up days) of clearly marked synthetic records to Room
 before invoking real device binding, durable telemetry upload, local/remote RHI,
-30 daily RDI-16 evaluations, and PIAS. The Release source-set factory is a no-op.
+90 daily local RDI-16 evaluations, and PIAS. The Release source-set factory is a no-op.
 No other screen may generate this fixture. `quality.rawSignalExcluded=true`
 declares that raw PPG/RRI samples are absent and is valid control metadata; actual
 raw payload keys and signal chunks remain rejected while raw upload is disabled.

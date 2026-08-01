@@ -37,7 +37,7 @@ class RdiViewModel(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                _refreshError.value = "健康改善得分暂时无法更新，请稍后重试"
+                _refreshError.value = "RDI-16 风险指数暂时无法更新，请稍后重试"
             }
         }
     }

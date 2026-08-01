@@ -15,7 +15,7 @@ import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.sqrt
 
-const val RDI_ALGORITHM_VERSION = "rdi-rule-1.0.0"
+const val RDI_ALGORITHM_VERSION = "rdi-rule-1.0.1"
 
 /** 状态枚举（设计要求 5.2）：按有效日数/数据可用性判定，而非置信度阈值。 */
 object RdiStatus {
