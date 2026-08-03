@@ -169,5 +169,5 @@ internal object AttributionMotion {
 
 internal object AttributionOpacity {
     const val MetricTint = 0.08f
-    const val ForecastInterval = 0.16f
+    const val ForecastInterval = 0.30f
 }
