@@ -15,7 +15,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
-import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -122,13 +121,6 @@ class AttributionUiStateTest {
         assertEquals(47.3, state.rdiScenario.noActionScore)
         assertEquals(44.8, state.rdiScenario.withPlanScore)
         assertEquals(2.5, state.rdiScenario.expectedReduction)
-
-        val chart = assertNotNull(state.rdiScenario.asForecastUi(historyAnchor = 0.42))
-        assertEquals(0.42, chart.noAction.first(), 0.0001)
-        assertEquals(0.42, chart.withPlan.first(), 0.0001)
-        assertEquals(0.42, chart.ciLower.first(), 0.0001)
-        assertEquals(0.42, chart.ciUpper.first(), 0.0001)
-        assertTrue(chart.ciUpper.last() > chart.ciLower.last())
     }
 
     @Test

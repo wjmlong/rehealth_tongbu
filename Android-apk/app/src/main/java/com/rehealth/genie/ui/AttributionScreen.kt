@@ -531,7 +531,7 @@ private fun AttributionRdiTrendContent(
     history: List<AttributionHistoryPoint>,
     scenario: AttributionRdiScenarioUi,
 ) {
-    val forecast = scenario.asForecastUi(history.lastOrNull()?.riskScore)
+    val forecast = scenario.asForecastUi()
     if (history.size >= 2) {
         if (forecast != null) {
             AttributionForecastChart(
@@ -610,24 +610,15 @@ private fun AttributionRdiTrendContent(
     }
 }
 
-internal fun AttributionRdiScenarioUi.asForecastUi(historyAnchor: Double? = null): AttributionForecastUi? {
+private fun AttributionRdiScenarioUi.asForecastUi(): AttributionForecastUi? {
     if (!forecastAvailable) return null
     val count = minOf(noAction.size, withPlan.size)
     if (count < 2) return null
-    val rawNoAction = noAction.take(count).map { it / 100.0 }
-    val rawWithPlan = withPlan.take(count).map { it / 100.0 }
-    val rawLower = ciLower.take(count).map { it / 100.0 }
-    val rawUpper = ciUpper.take(count).map { it / 100.0 }
-    val anchor = historyAnchor?.takeIf { it.isFinite() && it in 0.0..1.0 }
-    val offset = anchor?.minus(rawWithPlan.first()) ?: 0.0
-    fun anchored(values: List<Double>): List<Double> = values.mapIndexed { index, value ->
-        if (index == 0 && anchor != null) anchor else (value + offset).coerceIn(0.0, 1.0)
-    }
     return AttributionForecastUi(
-        noAction = anchored(rawNoAction),
-        withPlan = anchored(rawWithPlan),
-        ciLower = anchored(rawLower),
-        ciUpper = anchored(rawUpper),
+        noAction = noAction.take(count).map { it / 100.0 },
+        withPlan = withPlan.take(count).map { it / 100.0 },
+        ciLower = ciLower.take(count).map { it / 100.0 },
+        ciUpper = ciUpper.take(count).map { it / 100.0 },
         d30NoAction = noActionScore?.div(100.0),
         d30WithPlan = withPlanScore?.div(100.0),
         riskReduction = expectedReduction?.div(100.0),
