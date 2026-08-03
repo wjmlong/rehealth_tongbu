@@ -170,6 +170,15 @@ vision provider key in the ignored `secrets/vision_provider_credential` file. Co
 automatic model retry. Raw camera bytes are forwarded for one analysis request and are neither
 stored in MySQL nor written to application logs.
 
+When a Windows development machine requires a local proxy to reach an HTTPS
+provider, set `REHEALTH_JEECG_HTTPS_PROXY_ENABLED=true` together with
+`REHEALTH_JEECG_HTTPS_PROXY_HOST` and `REHEALTH_JEECG_HTTPS_PROXY_PORT` in the
+ignored local `.env`. The launcher adds the proxy only to the JeecgBoot JVM and
+keeps `localhost`, `127.*`, and `[::1]` on direct connections. Specify only a
+host and port; never put proxy credentials in tracked configuration. A loopback
+proxy address is local-development configuration and must not be copied into a
+container, staging, or production deployment.
+
 The secret-file plus ignored `.env` path remains supported when
 `ai-chat.local.yml` is absent and is still the required pattern for staging and
 production.

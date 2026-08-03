@@ -31,7 +31,7 @@ function Read-Secret {
 function Read-LocalSetting {
     param(
         [Parameter(Mandatory)][string]$Name,
-        [Parameter(Mandatory)][string]$DefaultValue
+        [Parameter(Mandatory)][AllowEmptyString()][string]$DefaultValue
     )
     $envFile = Join-Path $PSScriptRoot '.env'
     if (-not (Test-Path -LiteralPath $envFile -PathType Leaf)) {
@@ -88,6 +88,29 @@ Require-File $internalCredentialFile
 $providerCredentialFile = Join-Path $secretsDir 'provider_credential'
 $visionCredentialFile = Join-Path $secretsDir 'vision_provider_credential'
 $localAiConfig = Join-Path $repoRoot 'model-service\config\ai-chat.local.yml'
+
+$jeecgHttpsProxyEnabled = (Read-LocalSetting 'REHEALTH_JEECG_HTTPS_PROXY_ENABLED' 'false').ToLowerInvariant()
+if ($jeecgHttpsProxyEnabled -notin @('true', 'false')) {
+    throw 'REHEALTH_JEECG_HTTPS_PROXY_ENABLED must be true or false'
+}
+$jeecgHttpsProxyArguments = @()
+if ($jeecgHttpsProxyEnabled -eq 'true') {
+    $jeecgHttpsProxyHost = Read-LocalSetting 'REHEALTH_JEECG_HTTPS_PROXY_HOST' ''
+    $jeecgHttpsProxyPort = Read-LocalSetting 'REHEALTH_JEECG_HTTPS_PROXY_PORT' ''
+    if ($jeecgHttpsProxyHost -eq '' -or $jeecgHttpsProxyHost -match '\s|://') {
+        throw 'REHEALTH_JEECG_HTTPS_PROXY_HOST must be a host name or IP address without a URL scheme'
+    }
+    if ($jeecgHttpsProxyPort -notmatch '^\d{1,5}$' -or
+        [int]$jeecgHttpsProxyPort -lt 1 -or
+        [int]$jeecgHttpsProxyPort -gt 65535) {
+        throw 'REHEALTH_JEECG_HTTPS_PROXY_PORT must be a valid TCP port'
+    }
+    $jeecgHttpsProxyArguments = @(
+        "-Dhttps.proxyHost=$jeecgHttpsProxyHost",
+        "-Dhttps.proxyPort=$jeecgHttpsProxyPort",
+        '-Dhttp.nonProxyHosts=localhost|127.*|[::1]'
+    )
+}
 
 $env:REHEALTH_RUNTIME_MODE = 'development'
 $env:REHEALTH_MODEL_DIR = Join-Path $repoRoot 'model-service\models'
@@ -180,17 +203,18 @@ $env:JEECG_SMS_DEV_MODE = 'true'
 $jeecgJar = Join-Path $repoRoot 'backend\jeecg-boot\jeecg-server-cloud\jeecg-system-cloud-start\target\jeecg-system-cloud-start-3.9.2.jar'
 $jeecgConfig = (Join-Path $repoRoot 'backend\jeecg-boot\jeecg-module-system\jeecg-system-start\src\main\resources\application-dev.yml').Replace('\', '/')
 Require-File $jeecgJar
+$jeecgArguments = $jeecgHttpsProxyArguments + @(
+    '-Xms512m',
+    '-Xmx1536m',
+    '-jar',
+    $jeecgJar,
+    '--server.address=127.0.0.1',
+    "--spring.config.additional-location=file:///$jeecgConfig"
+)
 Start-ManagedProcess `
     -Name 'jeecg' `
     -FilePath $java `
-    -ArgumentList @(
-        '-Xms512m',
-        '-Xmx1536m',
-        '-jar',
-        $jeecgJar,
-        '--server.address=127.0.0.1',
-        "--spring.config.additional-location=file:///$jeecgConfig"
-    ) `
+    -ArgumentList $jeecgArguments `
     -WorkingDirectory (Split-Path $jeecgJar)
 
 $env:REHEALTH_HARDWARE_DB_ENABLED = 'true'
