@@ -98,6 +98,14 @@ private data class RingMetricUi(
     val measuringLabel: String = "测量中",
 )
 
+internal const val DEFAULT_DATA_PERIOD_INDEX = 0
+internal val DATA_PERIOD_OPTIONS = listOf(
+    "今日" to 0,
+    "7 天" to 7,
+    "30 天" to 30,
+    "90 天" to 90,
+)
+
 @Composable
 internal fun DataScreen(
     state: RingUiState,
@@ -106,7 +114,7 @@ internal fun DataScreen(
     onMeasure: (RingMetricType) -> Unit,
     onSync: () -> Unit,
 ) {
-    var selectedPeriod by remember { mutableIntStateOf(1) }
+    var selectedPeriod by remember { mutableIntStateOf(DEFAULT_DATA_PERIOD_INDEX) }
     val rhiViewModel: RhiViewModel = viewModel(factory = RhiViewModel.Factory(LocalContext.current))
     val rhiPeriodSummary by rhiViewModel.periodSummary.collectAsState()
     val rhiRefreshError by rhiViewModel.refreshError.collectAsState()
@@ -130,7 +138,7 @@ internal fun DataScreen(
     // 真实周期聚合：切换 今日/7天/30天/90天 时从本地 Room 历史重新计算
     var aggregate by remember { mutableStateOf<PeriodAggregate?>(null) }
     LaunchedEffect(selectedPeriod, state.lastSyncAt, state.activity?.id, state.sleep?.id) {
-        val windowDays = when (selectedPeriod) { 0 -> 0; 1 -> 7; 2 -> 30; 3 -> 90; else -> 7 }
+        val windowDays = DATA_PERIOD_OPTIONS[selectedPeriod].second
         aggregate = ringViewModel.loadPeriodAggregate(windowDays)
     }
     val rhiPeriodDays = when (selectedPeriod) {
@@ -159,7 +167,7 @@ internal fun DataScreen(
             record.primaryValue.toInt().toString()
         }
     }
-    val periodDays = listOf(0, 7, 30, 90)[selectedPeriod]
+    val periodDays = DATA_PERIOD_OPTIONS[selectedPeriod].second
     val periodLabel = if (periodDays == 0) "今日" else "近 $periodDays 天"
     val hrText = aggregate?.avgHeartRate?.let { String.format(Locale.getDefault(), "%.0f", it) } ?: measurement(RingMetricType.HEART_RATE)
     val spo2Text = aggregate?.avgSpo2?.let { String.format(Locale.getDefault(), "%.0f", it) } ?: measurement(RingMetricType.BLOOD_OXYGEN)
@@ -312,7 +320,7 @@ internal fun DataScreen(
         }
         item {
             PeriodSelector(
-                labels = listOf("今日", "7 天", "30 天", "90 天"),
+                labels = DATA_PERIOD_OPTIONS.map { it.first },
                 selected = selectedPeriod,
                 onSelected = { selectedPeriod = it },
             )
