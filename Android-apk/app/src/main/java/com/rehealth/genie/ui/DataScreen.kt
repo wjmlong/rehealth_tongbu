@@ -197,28 +197,30 @@ internal fun DataScreen(
         type !in state.supportedMetrics -> "当前设备不支持"
         else -> fallback
     }
-    val vitalMetrics = listOf(
-        RingMetricUi(RingMetricType.HEART_RATE, "心率", hrText, "bpm", capabilityStatus(RingMetricType.HEART_RATE, periodLabel), Icons.Outlined.FavoriteBorder, Color(0xFFFF6078), manualMeasure = RingMetricType.HEART_RATE in state.supportedMetrics, showAction = true),
-        RingMetricUi(RingMetricType.BLOOD_OXYGEN, "血氧", spo2Text, "%", capabilityStatus(RingMetricType.BLOOD_OXYGEN, periodLabel), Icons.Outlined.DataUsage, Color(0xFF148BFF), manualMeasure = RingMetricType.BLOOD_OXYGEN in state.supportedMetrics, showAction = true),
-        RingMetricUi(RingMetricType.BLOOD_PRESSURE, "血压", bpText, "mmHg", capabilityStatus(RingMetricType.BLOOD_PRESSURE, periodLabel), Icons.Outlined.FavoriteBorder, Color(0xFF8B63F6), manualMeasure = RingMetricType.BLOOD_PRESSURE in state.supportedMetrics, showAction = true),
-        RingMetricUi(RingMetricType.HRV, "HRV", hrvText, "ms", capabilityStatus(RingMetricType.HRV, periodLabel), Icons.Outlined.Timeline, Color(0xFF00A6A6), manualMeasure = RingMetricType.HRV in state.supportedMetrics, showAction = true),
-        RingMetricUi(RingMetricType.BLOOD_GLUCOSE, "血糖", decimalMeasurement(RingMetricType.BLOOD_GLUCOSE), measurementUnit(RingMetricType.BLOOD_GLUCOSE, "设备单位"), capabilityStatus(RingMetricType.BLOOD_GLUCOSE, "设备估算，仅供健康参考"), Icons.Outlined.DataUsage, Color(0xFFE06B57), manualMeasure = RingMetricType.BLOOD_GLUCOSE in state.supportedMetrics, showAction = true),
-        RingMetricUi(RingMetricType.STRESS, "压力", measurement(RingMetricType.STRESS), "分", capabilityStatus(RingMetricType.STRESS, periodLabel), Icons.Outlined.Timeline, Color(0xFF7B61B8), manualMeasure = RingMetricType.STRESS in state.supportedMetrics, showAction = true),
-        RingMetricUi(
-            RingMetricType.MET,
-            "MET",
-            decimalMeasurement(RingMetricType.MET),
-            "MET",
-            capabilityStatus(RingMetricType.MET, "获取设备最新代谢当量"),
-            Icons.Outlined.ShowChart,
-            Color(0xFF2E8B72),
-            manualMeasure = RingMetricType.MET in state.supportedMetrics,
-            showAction = true,
-            actionLabel = "获取",
-            measuringLabel = "获取中",
-        ),
-        RingMetricUi(RingMetricType.ECG, "ECG", ecgText, "bpm", capabilityStatus(RingMetricType.ECG, ecgStatus), Icons.Outlined.Assessment, Color(0xFF009688), manualMeasure = RingMetricType.ECG in state.supportedMetrics, showAction = true),
-    )
+    val hrvRecord = state.measurements[RingMetricType.HRV]
+        ?.takeIf { isDisplayableAdvancedMeasurement(RingMetricType.HRV, it) }
+    val stressRecord = state.measurements[RingMetricType.STRESS]
+        ?.takeIf { isDisplayableAdvancedMeasurement(RingMetricType.STRESS, it) }
+    val metRecord = state.measurements[RingMetricType.MET]
+        ?.takeIf { isDisplayableAdvancedMeasurement(RingMetricType.MET, it) }
+    val vitalMetrics = buildList {
+        add(RingMetricUi(RingMetricType.HEART_RATE, "心率", hrText, "bpm", capabilityStatus(RingMetricType.HEART_RATE, periodLabel), Icons.Outlined.FavoriteBorder, Color(0xFFFF6078), manualMeasure = RingMetricType.HEART_RATE in state.manuallyMeasurableMetrics, showAction = true))
+        add(RingMetricUi(RingMetricType.BLOOD_OXYGEN, "血氧", spo2Text, "%", capabilityStatus(RingMetricType.BLOOD_OXYGEN, periodLabel), Icons.Outlined.DataUsage, Color(0xFF148BFF), manualMeasure = RingMetricType.BLOOD_OXYGEN in state.manuallyMeasurableMetrics, showAction = true))
+        add(RingMetricUi(RingMetricType.BLOOD_PRESSURE, "血压", bpText, "mmHg", capabilityStatus(RingMetricType.BLOOD_PRESSURE, periodLabel), Icons.Outlined.FavoriteBorder, Color(0xFF8B63F6), manualMeasure = RingMetricType.BLOOD_PRESSURE in state.manuallyMeasurableMetrics, showAction = true))
+        if (hrvRecord != null) {
+            val canMeasure = RingMetricType.HRV in state.manuallyMeasurableMetrics
+            add(RingMetricUi(RingMetricType.HRV, "HRV", hrvText, "ms", periodLabel, Icons.Outlined.Timeline, Color(0xFF00A6A6), manualMeasure = canMeasure, showAction = canMeasure))
+        }
+        add(RingMetricUi(RingMetricType.BLOOD_GLUCOSE, "血糖", decimalMeasurement(RingMetricType.BLOOD_GLUCOSE), measurementUnit(RingMetricType.BLOOD_GLUCOSE, "设备单位"), capabilityStatus(RingMetricType.BLOOD_GLUCOSE, "设备估算，仅供健康参考"), Icons.Outlined.DataUsage, Color(0xFFE06B57), manualMeasure = RingMetricType.BLOOD_GLUCOSE in state.manuallyMeasurableMetrics, showAction = true))
+        if (stressRecord != null) {
+            val canMeasure = RingMetricType.STRESS in state.manuallyMeasurableMetrics
+            add(RingMetricUi(RingMetricType.STRESS, "压力", measurement(RingMetricType.STRESS), "分", periodLabel, Icons.Outlined.Timeline, Color(0xFF7B61B8), manualMeasure = canMeasure, showAction = canMeasure))
+        }
+        if (metRecord != null) {
+            add(RingMetricUi(RingMetricType.MET, "MET", decimalMeasurement(RingMetricType.MET), "MET", "设备历史数据", Icons.Outlined.ShowChart, Color(0xFF2E8B72)))
+        }
+        add(RingMetricUi(RingMetricType.ECG, "ECG", ecgText, "bpm", capabilityStatus(RingMetricType.ECG, ecgStatus), Icons.Outlined.Assessment, Color(0xFF009688), manualMeasure = RingMetricType.ECG in state.manuallyMeasurableMetrics, showAction = true))
+    }
     val bloodComponentTypes = listOf(
         RingMetricType.URIC_ACID,
         RingMetricType.TOTAL_CHOLESTEROL,
@@ -227,7 +229,7 @@ internal fun DataScreen(
         RingMetricType.LDL_CHOLESTEROL,
     )
     val bloodComponentMetrics = listOf(
-        RingMetricUi(RingMetricType.BLOOD_COMPONENT, "血液成分", "${bloodComponentTypes.count(state.measurements::containsKey)}/5", "项", capabilityStatus(RingMetricType.BLOOD_COMPONENT, "设备估算，仅供健康参考"), Icons.Outlined.DataUsage, Color(0xFFC35B90), manualMeasure = RingMetricType.BLOOD_COMPONENT in state.supportedMetrics, showAction = true),
+        RingMetricUi(RingMetricType.BLOOD_COMPONENT, "血液成分", "${bloodComponentTypes.count(state.measurements::containsKey)}/5", "项", capabilityStatus(RingMetricType.BLOOD_COMPONENT, "设备估算，仅供健康参考"), Icons.Outlined.DataUsage, Color(0xFFC35B90), manualMeasure = RingMetricType.BLOOD_COMPONENT in state.manuallyMeasurableMetrics, showAction = true),
         RingMetricUi(RingMetricType.URIC_ACID, "尿酸", decimalMeasurement(RingMetricType.URIC_ACID), measurementUnit(RingMetricType.URIC_ACID, "设备单位"), periodLabel, Icons.Outlined.DataUsage, Color(0xFFC35B90)),
         RingMetricUi(RingMetricType.TOTAL_CHOLESTEROL, "总胆固醇", decimalMeasurement(RingMetricType.TOTAL_CHOLESTEROL), measurementUnit(RingMetricType.TOTAL_CHOLESTEROL, "设备单位"), periodLabel, Icons.Outlined.DataUsage, Color(0xFFC35B90)),
         RingMetricUi(RingMetricType.TRIGLYCERIDES, "甘油三酯", decimalMeasurement(RingMetricType.TRIGLYCERIDES), measurementUnit(RingMetricType.TRIGLYCERIDES, "设备单位"), periodLabel, Icons.Outlined.DataUsage, Color(0xFFC35B90)),
@@ -251,7 +253,7 @@ internal fun DataScreen(
         RingMetricType.BASAL_METABOLIC_RATE,
     )
     val bodyComponentMetrics = listOf(
-        RingMetricUi(RingMetricType.BODY_COMPOSITION, "身体成分", "${bodyComponentTypes.count(state.measurements::containsKey)}/14", "项", capabilityStatus(RingMetricType.BODY_COMPOSITION, "设备估算，仅供健康参考"), Icons.Outlined.Assessment, Color(0xFF6A72D8), manualMeasure = RingMetricType.BODY_COMPOSITION in state.supportedMetrics, showAction = true),
+        RingMetricUi(RingMetricType.BODY_COMPOSITION, "身体成分", "${bodyComponentTypes.count(state.measurements::containsKey)}/14", "项", capabilityStatus(RingMetricType.BODY_COMPOSITION, "设备估算，仅供健康参考"), Icons.Outlined.Assessment, Color(0xFF6A72D8), manualMeasure = RingMetricType.BODY_COMPOSITION in state.manuallyMeasurableMetrics, showAction = true),
         RingMetricUi(RingMetricType.BMI, "BMI", decimalMeasurement(RingMetricType.BMI), "kg/m²", periodLabel, Icons.Outlined.Assessment, Color(0xFF6A72D8)),
         RingMetricUi(RingMetricType.BODY_FAT_PERCENT, "体脂率", decimalMeasurement(RingMetricType.BODY_FAT_PERCENT), "%", periodLabel, Icons.Outlined.Assessment, Color(0xFF6A72D8)),
         RingMetricUi(RingMetricType.FAT_MASS, "脂肪量", decimalMeasurement(RingMetricType.FAT_MASS), "kg", periodLabel, Icons.Outlined.Assessment, Color(0xFF6A72D8)),

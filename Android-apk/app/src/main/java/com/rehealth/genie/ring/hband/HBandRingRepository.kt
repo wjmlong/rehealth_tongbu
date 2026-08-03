@@ -48,6 +48,7 @@ class HBandRingRepository internal constructor(
     override val manuallyMeasurableMetrics: Set<RingMetricType>
         get() = MANUAL_METRICS.filterTo(mutableSetOf()) { type ->
             type in expectedMetrics &&
+                (type !in MINI_CHECKUP_MANUAL_METRICS || gateway.capabilities.value.miniCheckup) &&
                 gateway.capabilities.value.measurementRoute(type, allowHistoryFallback = false) !=
                 HBandMeasurementRoute.UNSUPPORTED
         }
@@ -110,7 +111,7 @@ class HBandRingRepository internal constructor(
     }
 
     override suspend fun measure(type: RingMetricType): RingSyncResult {
-        if (type !in supportedMetrics || type !in MANUAL_METRICS) return emptyResult()
+        if (type !in supportedMetrics || type !in manuallyMeasurableMetrics) return emptyResult()
         return persist(
             gateway.measure(
                 type = type,
@@ -206,10 +207,13 @@ class HBandRingRepository internal constructor(
             RingMetricType.BLOOD_GLUCOSE,
             RingMetricType.TEMPERATURE,
             RingMetricType.STRESS,
-            RingMetricType.MET,
             RingMetricType.ECG,
             RingMetricType.BLOOD_COMPONENT,
             RingMetricType.BODY_COMPOSITION,
+        )
+        val MINI_CHECKUP_MANUAL_METRICS = setOf(
+            RingMetricType.HRV,
+            RingMetricType.STRESS,
         )
         val HISTORY_FALLBACK_METRICS = setOf(
             RingMetricType.HRV,

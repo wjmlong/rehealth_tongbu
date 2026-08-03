@@ -164,6 +164,7 @@ class HBandRingRepositoryTest {
                 temperature = true,
                 stress = true,
                 met = true,
+                miniCheckup = true,
                 ecg = true,
                 bloodComponent = true,
                 bodyComposition = true,
@@ -190,17 +191,18 @@ class HBandRingRepositoryTest {
                 RingMetricType.BLOOD_PRESSURE,
                 RingMetricType.BLOOD_GLUCOSE,
                 RingMetricType.STRESS,
-                RingMetricType.MET,
                 RingMetricType.ECG,
                 RingMetricType.BLOOD_COMPONENT,
                 RingMetricType.BODY_COMPOSITION,
             ),
             gateway.measuredTypes,
         )
+        assertTrue(RingMetricType.MET in repository.supportedMetrics)
+        assertTrue(RingMetricType.MET !in repository.manuallyMeasurableMetrics)
     }
 
     @Test
-    fun productConfiguredHrvStressAndMetCanRequestRealHistoryFallback() = runTest {
+    fun productConfiguredHrvStressAndMetUseSyncForRealHistoryOnly() = runTest {
         val gateway = FakeHBandGateway(capabilitiesValue = HBandCapabilities(ecg = true))
         val repository = repository(FakeHBandDao(), HBandBindingStore(), gateway).apply {
             wearableUserProfile = BaselineHealthProfile(
@@ -215,15 +217,16 @@ class HBandRingRepositoryTest {
         repository.measure(RingMetricType.HRV)
         repository.measure(RingMetricType.STRESS)
         repository.measure(RingMetricType.MET)
+        repository.syncAll()
 
         assertTrue(RingMetricType.HRV in repository.supportedMetrics)
         assertTrue(RingMetricType.STRESS in repository.supportedMetrics)
         assertTrue(RingMetricType.MET in repository.supportedMetrics)
-        assertEquals(
-            listOf(RingMetricType.HRV, RingMetricType.STRESS, RingMetricType.MET),
-            gateway.measuredTypes,
-        )
-        assertEquals(listOf(true, true, true), gateway.historyFallbackRequests)
+        assertTrue(setOf(RingMetricType.HRV, RingMetricType.STRESS, RingMetricType.MET)
+            .none { it in repository.manuallyMeasurableMetrics })
+        assertTrue(gateway.measuredTypes.isEmpty())
+        assertTrue(setOf(RingMetricType.HRV, RingMetricType.STRESS, RingMetricType.MET)
+            .all { it in gateway.lastSyncMetrics })
     }
 
     @Test
@@ -387,6 +390,7 @@ private class FakeHBandGateway(
     val measuredTypes = mutableListOf<RingMetricType>()
     val historyFallbackRequests = mutableListOf<Boolean>()
     var syncCalls = 0
+    var lastSyncMetrics = emptySet<RingMetricType>()
     var lastConnectedAddress: String? = null
     var bloodGlucoseSettingCalls = 0
     var menstrualSettingCalls = 0
@@ -406,6 +410,7 @@ private class FakeHBandGateway(
     var lastSyncOptions: HBandSyncOptions? = null
     override suspend fun sync(metrics: Set<RingMetricType>, options: HBandSyncOptions): HBandPayload {
         syncCalls++
+        lastSyncMetrics = metrics
         lastSyncOptions = options
         return payload
     }

@@ -105,12 +105,36 @@ class HBandDataMapperTest {
     fun dropsInvalidOrZeroTelemetryInsteadOfCreatingSyntheticMeasurements() {
         val batch = HBandDataMapper.toEntities(
             HBandPayload(
-                measurements = listOf(HBandMetricSample(RingMetricType.HEART_RATE, 1000, 0.0, "bpm")),
+                measurements = listOf(
+                    HBandMetricSample(RingMetricType.HEART_RATE, 1000, 0.0, "bpm"),
+                    HBandMetricSample(RingMetricType.HRV, 1000, 0.0, "ms"),
+                    HBandMetricSample(RingMetricType.STRESS, 1000, 0.0, "score"),
+                    HBandMetricSample(RingMetricType.STRESS, 1000, 101.0, "score"),
+                    HBandMetricSample(RingMetricType.MET, 1000, 0.0, "MET"),
+                    HBandMetricSample(RingMetricType.MET, 1000, Double.NaN, "MET"),
+                ),
                 activities = listOf(HBandActivityRecord(1000, 2000, 0, 0.0, 0.0)),
             ),
             "device",
         )
         assertEquals(0, batch.size)
+    }
+
+    @Test
+    fun keepsOnlyValidPositiveHrvStressAndMetMeasurements() {
+        val batch = HBandDataMapper.toEntities(
+            HBandPayload(
+                measurements = listOf(
+                    HBandMetricSample(RingMetricType.HRV, 1000, 48.0, "ms"),
+                    HBandMetricSample(RingMetricType.STRESS, 1001, 1.0, "score"),
+                    HBandMetricSample(RingMetricType.STRESS, 1002, 100.0, "score"),
+                    HBandMetricSample(RingMetricType.MET, 1003, 1.4, "MET"),
+                ),
+            ),
+            "device",
+        )
+
+        assertEquals(listOf(48.0, 1.0, 100.0, 1.4), batch.measurements.map { it.primaryValue })
     }
 
     @Test

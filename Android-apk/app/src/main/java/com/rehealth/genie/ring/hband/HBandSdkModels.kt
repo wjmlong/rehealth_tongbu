@@ -144,14 +144,12 @@ internal fun HBandCapabilities.measurementRoute(
     type: RingMetricType,
     allowHistoryFallback: Boolean,
 ): HBandMeasurementRoute = when {
-    // Newer protocol releases expose dedicated HRV/MET App measurement commands.
-    // Prefer them only after the official base + App-detect capability checks pass.
-    type in setOf(RingMetricType.HRV, RingMetricType.MET) && supportsDirectMeasurement(type) ->
-        HBandMeasurementRoute.DIRECT
-    // Keep the MT116 fallback for older firmware that does not advertise the new
-    // App-detect capability. Stress still uses the previously verified route.
+    // MT116 can advertise the dedicated HRV/stress actions while rejecting their
+    // commands. The product flow therefore prefers the verified mini-checkup path.
     miniCheckup && type in setOf(RingMetricType.HRV, RingMetricType.STRESS) ->
         HBandMeasurementRoute.MINI_CHECKUP
+    // Product collection may fall back to real device history. The dedicated
+    // HRV/MET SDK routes remain available below when history fallback is disabled.
     allowHistoryFallback && type in setOf(RingMetricType.HRV, RingMetricType.STRESS, RingMetricType.MET) ->
         HBandMeasurementRoute.HISTORY
     supportsDirectMeasurement(type) -> HBandMeasurementRoute.DIRECT

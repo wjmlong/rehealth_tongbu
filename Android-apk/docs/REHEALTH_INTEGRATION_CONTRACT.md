@@ -249,6 +249,14 @@ HBand advanced-health measurements use independent normalized `metricType` value
 calibration and menstrual-cycle configuration are device settings and never enter
 the telemetry batch.
 
+For `RH-HB-E01`, the product collection policy is narrower than the pinned SDK surface.
+The SDK retains its dedicated HRV/MET APIs and capability fields, but Android routes
+HRV and stress through package-4 Mini Checkup or real device history and obtains MET
+only from real device history. Persistence and display require HRV/MET `> 0` or stress
+within `1..100`. Missing, zero, non-finite, out-of-range, mock, or synthetic values do
+not create a visible card. HRV/stress expose a user action only when Mini Checkup is
+available; MET has no real-time action.
+
 Android Room schema v5 extends local `ring_signal_chunks` for ECG with nullable
 draw frequency, duration, lead type, vendor ECG type, calibration type, average
 heart rate, and contact quality. Newly calibrated HBand curves use `FLOAT32_LE`

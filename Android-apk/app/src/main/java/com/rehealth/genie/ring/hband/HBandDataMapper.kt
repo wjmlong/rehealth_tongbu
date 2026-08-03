@@ -14,7 +14,7 @@ internal object HBandDataMapper {
 
     fun toEntities(payload: HBandPayload, deviceKey: String): RingDataBatch = RingDataBatch(
         measurements = payload.measurements
-            .filter { it.measuredAt > 0 && it.value > 0.0 && (it.secondaryValue == null || it.secondaryValue > 0.0) }
+            .filter(::isPersistableMeasurement)
             .map { sample ->
                 RingMeasurementEntity(
                     id = stableId(deviceKey, "measurement", sample.type.name, sample.measuredAt),
@@ -95,6 +95,12 @@ internal object HBandDataMapper {
             add(RingMetricType.ACTIVITY)
         }
         if (batch.signalChunks.any { it.signalType == RingMetricType.ECG.name }) add(RingMetricType.ECG)
+    }
+
+    private fun isPersistableMeasurement(sample: HBandMetricSample): Boolean {
+        if (sample.measuredAt <= 0 || !sample.value.isFinite() || sample.value <= 0.0) return false
+        if (sample.secondaryValue?.let { !it.isFinite() || it <= 0.0 } == true) return false
+        return sample.type != RingMetricType.STRESS || sample.value in 1.0..100.0
     }
 
     private fun stableId(deviceKey: String, kind: String, subtype: String, timestamp: Long): String {

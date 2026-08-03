@@ -1,6 +1,6 @@
 # ReHealth 当前状态
 
-> 最后核对：2026-07-31。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
+> 最后核对：2026-08-03。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
 > `docs/archive/acceptance/`，不得作为当前实现或发布状态的依据。
 
 ## 发布结论
@@ -24,6 +24,8 @@
 | PIAS | 独立服务提供个体归因；Android 不执行生产归因 |
 | 部署 | Gateway、MySQL、TimescaleDB、Kafka、Redis、Nacos、Prometheus、Grafana 的 Compose 拓扑 |
 | 真机联调通道 | `https://rehealth.youngjimmy.store`（SSH 反向隧道 + ECS nginx，Let's Encrypt SAN 证书，2026-07-29 端到端 200；备用 `rehealth.47.80.30.228.sslip.io`），Debug/Release 均可联调；见 `tools/dev-tunnel/README.md` |
+
+HBand 的 HRV、压力、MET 页面策略已经按 MT116 实测收紧：HRV/压力仅通过一键体检或真实历史取得有效值，MET 仅通过真实设备历史取得有效值；HRV/MET 专用 SDK 能力仍保留在底层以便兼容与诊断，但产品页不触发 MET 实时命令。三项只有真实 Provider 的 HRV/MET 正值或 `1..100` 压力值才写入 Room 并显示，无有效值、越界值或模拟来源时隐藏卡片。
 
 ## 已验证边界
 

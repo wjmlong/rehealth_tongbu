@@ -65,9 +65,9 @@ class HBandCapabilityReportsTest {
     }
 
     @Test
-    fun `measurement routing prefers supported HRV and MET app commands`() {
+    fun `product routing prefers mini checkup and real history while retaining direct SDK routes`() {
         assertEquals(
-            HBandMeasurementRoute.DIRECT,
+            HBandMeasurementRoute.MINI_CHECKUP,
             HBandCapabilities(hrv = true, miniCheckup = true).measurementRoute(
                 RingMetricType.HRV,
                 allowHistoryFallback = true,
@@ -81,19 +81,23 @@ class HBandCapabilityReportsTest {
             ),
         )
         assertEquals(
-            HBandMeasurementRoute.DIRECT,
+            HBandMeasurementRoute.HISTORY,
             HBandCapabilities(met = true, metHistory = true).measurementRoute(
                 RingMetricType.MET,
                 allowHistoryFallback = true,
             ),
         )
         assertEquals(
-            HBandMeasurementRoute.DIRECT,
+            HBandMeasurementRoute.HISTORY,
             HBandCapabilities(hrv = true).measurementRoute(RingMetricType.HRV, allowHistoryFallback = true),
         )
         assertEquals(
             HBandMeasurementRoute.DIRECT,
             HBandCapabilities(hrv = true).measurementRoute(RingMetricType.HRV, allowHistoryFallback = false),
+        )
+        assertEquals(
+            HBandMeasurementRoute.DIRECT,
+            HBandCapabilities(met = true).measurementRoute(RingMetricType.MET, allowHistoryFallback = false),
         )
         assertEquals(
             HBandMeasurementRoute.UNSUPPORTED,

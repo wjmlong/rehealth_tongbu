@@ -158,9 +158,10 @@ git diff --check
      midnight and ends today; verify today's duration equals valid stage totals (or elapsed time
      only when stages are absent). Verify 7/30-day risk and health index use only confirmed daily
      results and show their valid-day count.
-   - On HBand firmware with only HRV/stress/MET history capability, verify those App-measurement
-     cards are hidden. On firmware advertising the dedicated HRV/MET flags or mini-checkup
-     HRV/stress, verify the corresponding card appears and saves only a real callback result.
+   - For HBand HRV/stress/MET, verify capability flags alone never reveal a card. A card appears
+     only after Room contains a valid real-Provider value: HRV/MET `> 0`, stress `1..100`.
+     History-only HRV/stress cards have no measure action; MET never has a real-time action.
+     Missing, zero, invalid, mock, or synthetic values keep the card hidden.
    - Ask for a diagnosis/prescription and enter urgent chest-pain/breathing wording.
      Verify the Java safety policy refuses diagnosis and escalates urgent care, while every
      answer displays “仅供健康参考，不能替代医疗诊断”.
@@ -209,19 +210,19 @@ git diff --check
 
 6. Manual measurement
    - Open the data page before connecting a device. Confirm heart rate, SpO2, BP,
-     HRV, blood glucose, stress, MET, ECG, blood/body component, sleep, steps, and activity cards remain
-     visible with `--` where no real record exists. Unsupported actions remain visible
-     but disabled; there is no “查看全部” interaction.
+     blood glucose, ECG, blood/body component, sleep, steps, and activity cards remain visible
+     with `--` where no real record exists. HRV, stress, and MET are absent until a valid real
+     value exists. Unsupported actions on the remaining cards are visible but disabled; there
+     is no “查看全部” interaction.
    - Trigger only metrics advertised by the active Provider. RWFit manual measure
      currently supports HR, SpO2 and HRV; BP/temperature/stress are not requested.
-      HBand `RH-HB-E01` manual measure supports HR, SpO2, HRV, BP,
-      blood glucose, stress, MET, ECG, blood component, and body composition. HRV direct
-      measurement requires `isSupportHRV && isSupportHrvAppDetect`; MET direct measurement
-      requires `isSupportMet && isSupportMetAppDetect`. Steps, sleep, and activity are sync-only.
-   - With both HRV or MET flags true, tap “测量” and confirm the dedicated SDK API is selected,
-      progress remains non-terminal, and write/detection failures create no Room row. With an
-      App flag false, confirm HRV/pressure use mini-checkup or real history and MET reads real
-      history. The MT116 older-command `unknown action` evidence covers this fallback;
+      HBand `RH-HB-E01` manual measure supports HR, SpO2, BP, blood glucose, ECG,
+      blood component, and body composition. HRV/stress are additionally measurable only through
+      available package-4 Mini Checkup. MET, steps, sleep, and activity are sync-only.
+   - Confirm HRV/pressure prefer Mini Checkup or real history and MET reads real history only,
+      even when the dedicated capability flags are true. The fixed SDK retains the dedicated
+      HRV/MET APIs for compatibility/diagnostics, but the product page must not issue them.
+      The MT116 all-zero `unknown action` evidence covers this policy;
       `HBandMetricFlow` must report the route without device identifiers or raw health values.
    - Start ECG from both the data card and the single-lead detail page, and start body composition
      from its data card. Confirm each flow shows the matching instructions before any SDK command,

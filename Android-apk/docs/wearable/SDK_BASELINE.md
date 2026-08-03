@@ -132,14 +132,14 @@ compatibility fallback. Direct HRV requires both `isSupportHRV` and
 This distinction is required because the pinned SDK itself rejects unsupported direct
 commands with a user-visible toast.
 Its product intersection
-allows heart rate, daily steps/activity, sleep, blood oxygen, app HRV, blood pressure,
+allows heart rate, daily steps/activity, sleep, blood oxygen, HRV, blood pressure,
 blood glucose, stress, MET, ECG, blood component, and body composition
 operations. Blood-glucose calibration
-and menstrual-cycle settings use separate feature operations. For `RH-HB-E01`, HRV and MET
-prefer the dedicated SDK APIs only after their exact double gates pass. If a pair is absent,
-HRV/stress use package-4 `miniCheckup` or scoped history and MET uses manual-measurement
-history. The purchased MT116's 2026-07-30 all-zero `unknown action` result for the older
-`manual_detect_de` commands remains the expected old-firmware fallback case.
+and menstrual-cycle settings use separate feature operations. For `RH-HB-E01`, the lower SDK
+surface retains the dedicated HRV/MET APIs and exact double gates, but the product repository
+does not use them as normal user actions. HRV/stress use package-4 `miniCheckup` or scoped real
+history; MET is real-history-only and has no real-time button. The purchased MT116's 2026-07-30
+all-zero `unknown action` result despite declared dedicated capability is the regression basis.
 Failures, timeouts, zeroes, and absent values are not persisted. ECG is a product requirement for `RH-HB-E01`; a device
 that does not report ECG support is rejected instead of silently degrading. The user profile comes from ReHealth profile
 data; the SDK demo's fixed sex/age/height/weight values are not used. Blood

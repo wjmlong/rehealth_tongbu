@@ -28,13 +28,13 @@ Status: implemented software path; updated 2026-07-31.
   explicitly awaits `readSleepData` before starting `readOriginData`, because physical-device
   validation found firmware that returned origin records but omitted sleep from `readAllHealthData`. Five-minute
   step, distance, and calorie records are aggregated per day before Room persistence;
-  capability-gated manual measurement and body-composition history follow. Direct HBand App
-  HRV/MET measurement uses the vendor's exact double gates: `isSupportHRV &&
-  isSupportHrvAppDetect` and `isSupportMet && isSupportMetAppDetect`. When the relevant pair
-  is true, `RH-HB-E01` prefers the dedicated SDK API; otherwise HRV/stress retain package-4
-  mini-checkup or history fallback and MET retains manual-measurement history fallback. The
-  purchased MT116's 2026-07-30 `unknown action` evidence covers the older generic commands.
-  This prevents the SDK's unsupported-feature toast without inventing an instant MET value;
+  capability-gated manual measurement and body-composition history follow. The SDK layer retains
+  the vendor's exact direct HRV/MET double gates (`isSupportHRV && isSupportHrvAppDetect` and
+  `isSupportMet && isSupportMetAppDetect`) for compatibility and diagnostics. The `RH-HB-E01`
+  product flow does not trust those flags as proof that the purchased firmware accepts the command:
+  HRV/stress prefer package-4 mini-checkup or real history, and MET is history-only with no real-time
+  action. The purchased MT116's 2026-07-30 all-zero `unknown action` evidence is the regression basis.
+  This prevents the SDK's unsupported-feature toast without inventing an instant result;
   only positive real SDK results are persisted. Completed
   reads are retained if a later optional SDK operation fails. Unsupported,
   zero, and invalid readings remain absent; raw ECG samples remain local only.
@@ -42,9 +42,10 @@ Status: implemented software path; updated 2026-07-31.
   calibrated `FLOAT32_LE` mV plus structured lead/sample/duration/contact metadata,
   while migrated legacy `INT32_LE` rows remain relative-only. Neither representation
   is included in telemetry uploads.
-- Data-card visibility uses App-measurement capability separately from history capability:
-  HRV/stress/MET are hidden when only historical sync is available. Dedicated HRV/MET or
-  mini-checkup HRV/stress remain visible and measurable.
+- HRV/stress/MET card visibility is value-gated rather than capability-gated. A real Provider Room
+  record must contain HRV/MET `> 0` or stress `1..100`; mock, synthetic, missing, zero, non-finite,
+  or out-of-range values hide the card. HRV/stress show a measure action only when mini-checkup is
+  available; a history-only value has no action. MET never exposes a real-time measure action.
 - Room v8 adds nullable `total_sleep_minutes` through a non-destructive v7→v8 migration.
   HBand persists the SDK-authoritative `allSleepTime` there and period aggregation uses it
   before actual sleep stages (`deep + light + REM`) and finally elapsed session time. Awake
