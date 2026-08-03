@@ -17,6 +17,7 @@ data class RdiPeriodSummary(
     val aggregation: RdiPeriodAggregation,
     val history: List<RdiDailyScore>,
     val scenario: RdiScenarioForecast? = null,
+    val impact: RdiPeriodImpact? = null,
 )
 
 enum class RdiPeriodAggregation {

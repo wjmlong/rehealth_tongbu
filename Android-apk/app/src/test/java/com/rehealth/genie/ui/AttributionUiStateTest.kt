@@ -8,6 +8,7 @@ import com.rehealth.genie.rhi.RhiPeriodAggregation
 import com.rehealth.genie.rhi.RhiPeriodSummary
 import com.rehealth.genie.rdi.RdiDailyScore
 import com.rehealth.genie.rdi.RdiPeriodAggregation
+import com.rehealth.genie.rdi.RdiPeriodImpact
 import com.rehealth.genie.rdi.RdiPeriodSummary
 import com.rehealth.genie.rdi.RdiScenarioForecast
 import java.time.LocalDate
@@ -29,6 +30,25 @@ class AttributionUiStateTest {
         assertEquals("基线建立中", rdiImpactStatusLabel("accumulating"))
         assertEquals("计算中", rdiImpactStatusLabel(null))
         assertEquals("状态待确认", rdiImpactStatusLabel("unexpected"))
+    }
+
+    @Test
+    fun `labels impact periods and avoids false precision for evidence quality`() {
+        assertEquals("本周", rdiImpactPeriodLabel(7))
+        assertEquals("本月", rdiImpactPeriodLabel(30))
+        assertEquals("本季度", rdiImpactPeriodLabel(90))
+        assertEquals(
+            "数据依据充分",
+            rdiImpactEvidenceLabel(RdiPeriodImpact(30, 30, 1.0, emptyList())),
+        )
+        assertEquals(
+            "数据依据有限",
+            rdiImpactEvidenceLabel(RdiPeriodImpact(30, 8, 1.0, emptyList())),
+        )
+        assertEquals("降低风险", rdiImpactDirectionLabel(-2.3))
+        assertEquals("-2.3 分", rdiImpactSignedPointsText(-2.3))
+        assertEquals("增加风险", rdiImpactDirectionLabel(0.8))
+        assertEquals("+0.8 分", rdiImpactSignedPointsText(0.8))
     }
 
     @Test

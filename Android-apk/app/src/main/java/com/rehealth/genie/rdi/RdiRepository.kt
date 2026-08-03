@@ -222,6 +222,13 @@ class RdiRepository(
             currentConfidence = current.confidence,
             dailyScores = dailyScores,
         )
+        val impact = RdiPeriodImpactAggregator.summarize(
+            periodDays = periodDays,
+            scoredOn = scoredOn,
+            dailyCalculations = calculatedDays.map { day ->
+                RdiPeriodCalculation(day.date, day.calculation)
+            },
+        )
         val scenario = summary.score?.let { referenceScore ->
             RdiScenarioForecaster.forecast(
                 scoredOn = scoredOn,
@@ -239,7 +246,7 @@ class RdiRepository(
                 isMock = isMock,
             )
         }
-        return summary.copy(scenario = scenario)
+        return summary.copy(scenario = scenario, impact = impact)
     }
 
     private suspend fun persistCalculatedDay(

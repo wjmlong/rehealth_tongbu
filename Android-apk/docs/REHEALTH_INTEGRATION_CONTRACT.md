@@ -99,6 +99,12 @@ pointwise range of deterministic optimistic and conservative input-sensitivity
 runs; it is a scenario range, not a disease-probability confidence interval.
 Projected inputs and scores are transient and must never be persisted as Room
 observations. No PIAS or CVD probability is accepted as an RDI scenario value.
+The impact list is period-scoped: Android aggregates native daily RDI
+contributions over the selected 7/30/90-day window, divides each factor by all
+valid days (so missing factor evidence contributes zero), and displays the
+largest three absolute average effects as weekly, monthly, or quarterly impact.
+The UI exposes only qualitative evidence sufficiency; the engine's input
+completeness coefficient must not be labeled as a statistical confidence percent.
 
 That existing score and chart use the Android RHI Lite evaluator
 (`rhi-deterministic-preview-2.2.0-android-lite`). It ports the governed RHI-100
@@ -207,6 +213,14 @@ before invoking real device binding, durable telemetry upload, local/remote RHI,
 No other screen may generate this fixture. `quality.rawSignalExcluded=true`
 declares that raw PPG/RRI samples are absent and is valid control metadata; actual
 raw payload keys and signal chunks remain rejected while raw upload is disabled.
+
+The attribution trend card calculates each selected 7/30/90-day factor change as
+the native RDI-16 contribution at the period end minus the contribution at the
+period start. It must not label an average factor burden as an improvement.
+Negative changes are rendered explicitly as risk reduction and positive changes
+as risk increase. Factors require eligible evidence at both endpoints; the UI
+uses qualitative evidence sufficiency instead of presenting input completeness
+as statistical confidence.
 
 Every durable business endpoint returns a retryable `503` envelope when the
 required database is disabled or unavailable. Android must not interpret an

@@ -73,8 +73,8 @@ import com.rehealth.genie.data.profileAvatarStorageKey
 import com.rehealth.genie.network.PatientProfilePayload
 import com.rehealth.genie.network.dto.BehaviorRecordDto
 import com.rehealth.genie.phm.AttributionHistoryPoint
-import com.rehealth.genie.rdi.RdiContributionEntity
-import com.rehealth.genie.rdi.RdiDisplayData
+import com.rehealth.genie.rdi.RdiPeriodImpact
+import com.rehealth.genie.rdi.RdiPeriodImpactFactor
 import com.rehealth.genie.rdi.RdiScenarioIntervention
 import com.rehealth.genie.rhi.RhiDailyScore
 import com.rehealth.genie.ring.RingUiState
@@ -107,7 +107,6 @@ fun AttributionScreen(
     val rhiPeriodSummary by rhiViewModel.periodSummary.collectAsState()
     val rhiRefreshError by rhiViewModel.refreshError.collectAsState()
     val rdiViewModel: RdiViewModel = viewModel(factory = RdiViewModel.Factory(LocalContext.current))
-    val rdiDisplayData by rdiViewModel.display.collectAsState()
     val rdiPeriodSummary by rdiViewModel.periodSummary.collectAsState()
     val behaviorOwnerKey = remember(application.sessionStore.userId, application.sessionStore.username) {
         profileAvatarStorageKey(
@@ -261,7 +260,9 @@ fun AttributionScreen(
             rdiViewModel.refresh(selectedPeriod.days.toInt(), rdiScenarioInterventions)
             behaviorViewModel.refreshToday()
         },
-        rdiDisplayData = rdiDisplayData,
+        rdiPeriodImpact = rdiPeriodSummary?.impact?.takeIf {
+            it.periodDays == selectedPeriod.days.toInt()
+        },
         behaviorRecords = behaviorState.records,
     )
 }
@@ -277,7 +278,7 @@ private fun AttributionContent(
     onClearDietMessage: () -> Unit,
     onPeriodSelected: (AttributionPeriod) -> Unit,
     onRetry: () -> Unit,
-    rdiDisplayData: RdiDisplayData?,
+    rdiPeriodImpact: RdiPeriodImpact?,
     behaviorRecords: List<BehaviorRecordDto>,
 ) {
     LazyColumn(
@@ -321,7 +322,7 @@ private fun AttributionContent(
                 period = state.period,
                 history = state.selectedHistory,
                 scenario = state.rdiScenario,
-                impact = rdiDisplayData,
+                impact = rdiPeriodImpact,
             )
         }
         item {
@@ -492,7 +493,7 @@ private fun AttributionRiskTrendCard(
     period: AttributionPeriod,
     history: List<AttributionHistoryPoint>,
     scenario: AttributionRdiScenarioUi,
-    impact: RdiDisplayData?,
+    impact: RdiPeriodImpact?,
 ) {
     AttributionCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -516,7 +517,7 @@ private fun AttributionRiskTrendCard(
             )
         }
         AttributionRdiTrendContent(history, scenario)
-        RdiImpactSection(impact)
+        RdiImpactSection(period.days.toInt(), impact)
         Text(
             "情景模拟基于近期健康状态，不代表未来疾病发生概率。",
             color = Palette.TextSecondary,
@@ -635,33 +636,49 @@ internal fun AttributionRdiScenarioUi.asForecastUi(historyAnchor: Double? = null
 }
 
 @Composable
-private fun RdiImpactSection(data: RdiDisplayData?) {
+private fun RdiImpactSection(
+    periodDays: Int,
+    data: RdiPeriodImpact?,
+) {
     HorizontalDivider(
         color = Palette.Border,
         modifier = Modifier.padding(top = Dimensions.FactorGroupTop),
     )
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = Dimensions.FactorGroupTop),
-        verticalAlignment = Alignment.CenterVertically,
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = Dimensions.FactorGroupTop)
+            .clip(RoundedCornerShape(Dimensions.ContentRadius))
+            .background(Palette.SurfaceSubtle)
+            .padding(12.dp),
     ) {
-        Text(
-            "本周期影响最大的 3 项",
-            color = Palette.TextPrimary,
-            style = Type.CardTitle,
-            modifier = Modifier.weight(1f),
-        )
-        Text(
-            data?.let {
-                "可信度 ${String.format(Locale.US, "%.0f%%", it.confidence * 100.0)}"
-            } ?: "正在读取",
-            color = Palette.TextSecondary,
-            style = Type.Micro,
-        )
-    }
-        val contributions = data?.topContributions.orEmpty()
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "${rdiImpactPeriodLabel(periodDays)}风险变化贡献",
+                color = Palette.TextPrimary,
+                style = Type.CardTitle,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                rdiImpactEvidenceLabel(data),
+                color = Palette.Accent,
+                style = Type.Micro,
+                modifier = Modifier.clip(CircleShape).background(Palette.AccentSoft)
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+            )
+        }
+        val contributions = data?.factors.orEmpty()
         if (contributions.isNotEmpty()) {
             contributions.forEachIndexed { index, contribution ->
-                RdiImpactContributionRow(index + 1, contribution)
+                RdiImpactContributionRow(
+                    rank = index + 1,
+                    contribution = contribution,
+                    periodLabel = rdiImpactPeriodLabel(periodDays),
+                )
+                if (index < contributions.lastIndex) {
+                    HorizontalDivider(
+                        color = Palette.Border,
+                        modifier = Modifier.padding(start = 38.dp, top = 10.dp),
+                    )
+                }
             }
         } else {
             Text(
@@ -671,14 +688,16 @@ private fun RdiImpactSection(data: RdiDisplayData?) {
                 modifier = Modifier.padding(top = Dimensions.FactorRowTop),
             )
         }
+    }
 }
 
 @Composable
 private fun RdiImpactContributionRow(
     rank: Int,
-    contribution: RdiContributionEntity,
+    contribution: RdiPeriodImpactFactor,
+    periodLabel: String,
 ) {
-    val points = contribution.finalPoints
+    val points = contribution.changePoints
     val improvesRisk = points < 0.0
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = Dimensions.FactorRowTop),
@@ -695,19 +714,80 @@ private fun RdiImpactContributionRow(
                 fontWeight = FontWeight.Bold,
             )
         }
-        Text(
-            contribution.evidenceText.ifBlank { contribution.factorCode },
-            color = Palette.TextPrimary,
-            style = Type.FactorTitle,
-            modifier = Modifier.weight(1f).padding(start = Dimensions.FactorContentGap),
-        )
-        Text(
-            String.format(Locale.US, "%s %+.1f 分", if (improvesRisk) "↓" else "↑", points),
-            color = if (improvesRisk) Palette.Accent else Palette.ContributionRisk,
-            style = Type.FactorScore,
+        Column(modifier = Modifier.weight(1f).padding(start = Dimensions.FactorContentGap)) {
+            Text(
+                rdiImpactFactorLabel(contribution.factorCode),
+                color = Palette.TextPrimary,
+                style = Type.FactorTitle,
+            )
+            Text(
+                "较${periodLabel}起点 · ${rdiFactorEvidenceLabel(contribution.dataConfidence)}",
+                color = Palette.TextSecondary,
+                style = Type.Micro,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+        Column(
+            horizontalAlignment = Alignment.End,
             modifier = Modifier.padding(start = Dimensions.LegendLabelGap),
-        )
+        ) {
+            Text(
+                rdiImpactDirectionLabel(points),
+                color = if (improvesRisk) Palette.Accent else Palette.ContributionRisk,
+                style = Type.Micro,
+            )
+            Text(
+                rdiImpactSignedPointsText(points),
+                color = if (improvesRisk) Palette.Accent else Palette.ContributionRisk,
+                style = Type.FactorScore,
+                modifier = Modifier.padding(top = 1.dp),
+            )
+        }
     }
+}
+
+internal fun rdiImpactDirectionLabel(points: Double): String = when {
+    points < 0.0 -> "降低风险"
+    points > 0.0 -> "增加风险"
+    else -> "风险持平"
+}
+
+internal fun rdiImpactSignedPointsText(points: Double): String =
+    String.format(Locale.US, "%+.1f 分", points)
+
+internal fun rdiImpactPeriodLabel(periodDays: Int): String = when (periodDays) {
+    7 -> "本周"
+    30 -> "本月"
+    90 -> "本季度"
+    else -> "本周期"
+}
+
+internal fun rdiImpactEvidenceLabel(data: RdiPeriodImpact?): String = when {
+    data?.dataConfidence == null -> "数据积累中"
+    data.validDays < data.periodDays / 2 -> "数据依据有限"
+    data.dataConfidence >= 0.85 -> "数据依据充分"
+    data.dataConfidence >= 0.60 -> "数据依据一般"
+    else -> "数据依据有限"
+}
+
+private fun rdiFactorEvidenceLabel(confidence: Double): String = when {
+    confidence >= 0.85 -> "依据充分"
+    confidence >= 0.60 -> "依据一般"
+    else -> "依据有限"
+}
+
+private fun rdiImpactFactorLabel(factorCode: String): String = when (factorCode) {
+    "steps" -> "日均步数"
+    "verified_activity_minutes" -> "明确运动时长"
+    "sleep_duration" -> "睡眠时长"
+    "sleep_regularity" -> "睡眠规律性"
+    "sleep_efficiency" -> "睡眠效率"
+    "sleep_consistency_reward" -> "连续有效睡眠"
+    "hrv_personal_trend" -> "HRV 个人趋势"
+    "resting_hr" -> "日均心率趋势"
+    "bp_sbp_dbp" -> "血压趋势"
+    "weight_trend" -> "体重趋势"
+    else -> factorCode.removePrefix("diet_").replace('_', ' ')
 }
 
 internal fun rdiImpactStatusLabel(status: String?): String = when (status?.lowercase(Locale.US)) {
