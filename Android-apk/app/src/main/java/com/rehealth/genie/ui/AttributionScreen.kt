@@ -531,7 +531,7 @@ private fun AttributionRdiTrendContent(
     history: List<AttributionHistoryPoint>,
     scenario: AttributionRdiScenarioUi,
 ) {
-    val forecast = scenario.asForecastUi()
+    val forecast = scenario.asForecastUi(history.firstOrNull()?.riskScore)
     if (history.size >= 2) {
         if (forecast != null) {
             AttributionForecastChart(
@@ -610,15 +610,24 @@ private fun AttributionRdiTrendContent(
     }
 }
 
-private fun AttributionRdiScenarioUi.asForecastUi(): AttributionForecastUi? {
+internal fun AttributionRdiScenarioUi.asForecastUi(historyAnchor: Double? = null): AttributionForecastUi? {
     if (!forecastAvailable) return null
     val count = minOf(noAction.size, withPlan.size)
     if (count < 2) return null
+    val rawNoAction = noAction.take(count).map { it / 100.0 }
+    val rawWithPlan = withPlan.take(count).map { it / 100.0 }
+    val rawLower = ciLower.take(count).map { it / 100.0 }
+    val rawUpper = ciUpper.take(count).map { it / 100.0 }
+    val anchor = historyAnchor?.takeIf { it.isFinite() && it in 0.0..1.0 }
+    val offset = anchor?.minus(rawWithPlan.first()) ?: 0.0
+    fun anchored(values: List<Double>): List<Double> = values.mapIndexed { index, value ->
+        if (index == 0 && anchor != null) anchor else (value + offset).coerceIn(0.0, 1.0)
+    }
     return AttributionForecastUi(
-        noAction = noAction.take(count).map { it / 100.0 },
-        withPlan = withPlan.take(count).map { it / 100.0 },
-        ciLower = ciLower.take(count).map { it / 100.0 },
-        ciUpper = ciUpper.take(count).map { it / 100.0 },
+        noAction = anchored(rawNoAction),
+        withPlan = anchored(rawWithPlan),
+        ciLower = anchored(rawLower),
+        ciUpper = anchored(rawUpper),
         d30NoAction = noActionScore?.div(100.0),
         d30WithPlan = withPlanScore?.div(100.0),
         riskReduction = expectedReduction?.div(100.0),
@@ -1353,14 +1362,13 @@ private fun AttributionForecastChart(
         val right = size.width - Dimensions.ForecastChartInset.toPx()
         val top = Dimensions.ForecastChartInset.toPx()
         val bottom = size.height - Dimensions.ForecastChartInset.toPx()
-        val predictionLeft = if (actualValues.isEmpty()) left else left + (right - left) * 0.34f
         fun point(index: Int, value: Double, startX: Float, endX: Float, pointCount: Int): Offset {
             val x = if (pointCount <= 1) endX else startX + (endX - startX) * index / (pointCount - 1)
             val y = bottom - ((value - minimum) / (maximum - minimum)).toFloat() * (bottom - top)
             return Offset(x, y.coerceIn(top, bottom))
         }
         fun forecastPoint(index: Int, value: Double): Offset =
-            point(index, value, predictionLeft, right, count)
+            point(index, value, left, right, count)
         repeat(4) { index ->
             val y = top + (bottom - top) * index / 3f
             drawLine(
@@ -1405,7 +1413,7 @@ private fun AttributionForecastChart(
         if (actualValues.isNotEmpty()) {
             val actualPath = Path()
             actualValues.forEachIndexed { index, value ->
-                val position = point(index, value, left, predictionLeft, actualValues.size)
+                val position = point(index, value, left, right, actualValues.size)
                 if (index == 0) {
                     actualPath.moveTo(position.x, position.y)
                 } else {
