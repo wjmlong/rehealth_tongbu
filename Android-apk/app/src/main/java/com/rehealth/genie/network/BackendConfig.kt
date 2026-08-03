@@ -8,21 +8,21 @@ import java.util.concurrent.TimeUnit
 /**
  * Configuration and shared OkHttp factory for the E1 mobile API client.
  *
- * Base URL is configurable; the committed debug default points at the internal (alpha)
- * test backend via the `rehealth.api.base.url` property in `gradle.properties`
+ * Base URL is configurable; the committed debug default points at the local host
+ * through the emulator loopback address in `gradle.properties`
  * (overridable per-machine via `local.properties` or the `REHEALTH_API_BASE_URL` env var):
  *
- *   https://rehealth.youngjimmy.store/jeecg-boot
+ *   http://10.0.2.2:8080/jeecg-boot
  *
- * For local emulator dev without the tunnel, override with the emulator loopback address
- * for the local JeecgBoot instance, e.g. http://10.0.2.2:8080/jeecg-boot.
+ * A physical device can use http://127.0.0.1:8080/jeecg-boot with
+ * `adb reverse tcp:8080 tcp:8080`. Public HTTPS must be selected explicitly.
  *
  * D1 does not persist tokens or implement token refresh; [authToken] is taken from
  * BuildConfig and may be blank (JeecgBoot local dev tolerates missing tokens for the
  * mobile endpoints used here except where @IgnoreAuth applies).
  */
 object BackendConfig {
-    const val DEFAULT_BASE_URL: String = "https://rehealth.youngjimmy.store/jeecg-boot"
+    const val DEFAULT_BASE_URL: String = "http://10.0.2.2:8080/jeecg-boot"
 
     fun buildHttpClient(
         connectTimeoutSeconds: Long = 15L,

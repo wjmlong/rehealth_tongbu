@@ -106,18 +106,25 @@ CVD 评估通过独立的 feature-evaluate 路径完成。
 
 ## 配置
 
-Debug 默认后端（已提交到 `gradle.properties`，内测环境）：
+Debug 默认后端（已提交到 `gradle.properties`，Android 模拟器访问宿主机）：
 
 ```text
-https://rehealth.youngjimmy.store/jeecg-boot/
+http://10.0.2.2:8080/jeecg-boot/
 ```
 
 可在未跟踪的 `local.properties` 中覆盖（优先级高于 `gradle.properties` 与环境变量）：
 
 ```properties
-rehealth.api.base.url=https://rehealth.youngjimmy.store/jeecg-boot/
-rehealth.release.api.base.url=https://rehealth.youngjimmy.store/jeecg-boot/
+# USB 真机：先执行 adb reverse tcp:8080 tcp:8080
+rehealth.api.base.url=http://127.0.0.1:8080/jeecg-boot/
+
+# 仅在明确切换到公网 Release 环境时配置；必须是 HTTPS
+rehealth.release.api.base.url=https://rehealth.example.com/jeecg-boot/
 ```
+
+也可分别使用 `REHEALTH_API_BASE_URL` 和 `REHEALTH_RELEASE_API_BASE_URL` 环境变量。
+未显式配置公网 Release 地址时，提交的 `https://api.rehealth.invalid/` 占位地址会
+失败关闭，避免构建意外连接公网联调环境。
 
 无蓝牙的真机 QA（模拟器 / MuMu）可用 fake-ring 通道替掉 BLE 采集：
 
