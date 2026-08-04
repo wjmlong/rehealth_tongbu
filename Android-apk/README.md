@@ -126,8 +126,9 @@ rehealth.release.api.base.url=https://rehealth.example.com/jeecg-boot/
 ```
 
 也可分别使用 `REHEALTH_API_BASE_URL` 和 `REHEALTH_RELEASE_API_BASE_URL` 环境变量。
-未显式配置公网 Release 地址时，提交的 `https://api.rehealth.invalid/` 占位地址会由
-`verifyReleaseConfiguration` 阻止 Release 构建，避免产物意外连接联调或占位环境。
+仓库当前批准的 Release 地址为 `https://rehealth.youngjimmy.store/jeecg-boot/`；
+`verifyReleaseConfiguration` 会拒绝非 HTTPS、空主机或 `.invalid` 占位地址。切换环境时必须
+由发布负责人明确覆盖，避免产物意外连接联调或占位环境。
 
 无蓝牙的真机 QA（模拟器 / MuMu）可用 fake-ring 通道替掉 BLE 采集：
 
@@ -312,6 +313,11 @@ REHEALTH_RELEASE_KEY_PASSWORD
 
 正式发布前运行 `.\gradlew.bat verifyPublishConfiguration`；未提供完整签名材料时该门禁
 会失败，`assembleRelease` 仅生成不可发布的 `app-release-unsigned.apk`。
+
+当前 Android 上传证书别名为 `rehealth-upload`，证书 SHA-256 指纹为
+`84:56:D2:47:A4:9E:A4:71:9B:95:A0:9D:AD:AB:7C:83:0F:1E:1C:74:D8:E3:22:A0:6D:BB:53:D6:A2:BA:C9:75`。
+keystore 和密码只保存在仓库外的受控本机/CI secret 中；Google Play 应将该证书作为
+Upload Key 并启用 Play App Signing。指纹用于发布核对，不是 secret。
 
 生成强制选择 RWFit、并保留重启后绑定重连能力的真机测试 APK：
 

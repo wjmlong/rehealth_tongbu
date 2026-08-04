@@ -11,14 +11,26 @@
 
 1. 物理 MRD/RWFit 戒指及 HBand 手表/手环与 Android 13+ 真机的扫描、重连、锁屏长时间采集、功耗和准确性 QA 尚未完成；HBand 已开始首次真机联调，完整重装后的连接验证仍待完成。
 2. Android 运行时端到端证据仍需覆盖登录、采集、离线队列、遥测上传、风险评估和反馈回传。
-3. 签名 Release APK 的运行时 logcat、权限、隐私和真实 HTTPS 环境仍需验收。
+3. 签名 Release APK 的真实设备运行时 logcat、权限、隐私和真实 HTTPS 全链路仍需验收。
 
 2026-08-04 发布整理已完成 Release 源集门禁：`testDebugUnitTest`、R8、Lint Vital 和
 `assembleRelease` 在显式 HTTPS 联调地址下通过；Mock 商品资源、设备演练 UI、
 `synthetic_qa`、Debug Factor16 版本、占位域名和 API Key 样式值均未进入 Release APK，
 Manifest 禁止 cleartext，所有模拟开关为 `false`。完整 `lintRelease` 发现并移除了未使用的
-`QUERY_ALL_PACKAGES` 与尚未接线的 Health Connect 写权限，修正后已通过。当前产物因未提供
-外部 keystore 为 unsigned，不能发布；正式签名与真实生产地址仍是发布阻塞项。
+`QUERY_ALL_PACKAGES` 与尚未接线的 Health Connect 写权限，修正后已通过。该阶段的 unsigned
+产物仅用于边界审计，已由下述正式签名产物取代。
+
+2026-08-04 已在仓库外创建 RSA 4096 位 PKCS12 Android Upload Key，并把仓库默认 Release
+地址确认为 `https://rehealth.youngjimmy.store/jeecg-boot/`。上传证书 SHA-256 为
+`84:56:D2:47:A4:9E:A4:71:9B:95:A0:9D:AD:AB:7C:83:0F:1E:1C:74:D8:E3:22:A0:6D:BB:53:D6:A2:BA:C9:75`；
+keystore 和 DPAPI 凭据不进入 Git。`testDebugUnitTest`、`verifyPublishConfiguration`、
+`lintRelease`、R8、`bundleRelease` 与 `assembleRelease` 已通过；签名 APK SHA-256 为
+`295CE48A64D6FB37FF95B40D3D0E09374B20E000E79EB6C11501ACECAD060845`，签名 AAB SHA-256 为
+`F02CE90E0713585C52FA9EEE4DE568565CA34D664BB86E4A6B0FB4ACEC1C9A9E`。MuMu 已强制卸载旧包、
+安装并启动 `1.0.0 (versionCode 1)` 正式签名 APK，系统未标记 debuggable且可见页面无 Debug
+入口。生产 API 路径保持 HTTPS 并返回预期 200/401；站点根路径的文档跳转仍生成 HTTP URL，
+虽不影响 App API 调用，仍应在网关补齐可信 `X-Forwarded-Proto`/HTTPS 重定向后再完成公网验收。
+Play Console 内测、物理设备与完整线上闭环验收仍保持发布阻塞。
 
 ## 已实现能力
 

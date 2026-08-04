@@ -10,7 +10,9 @@
 - [ ] 签名 `assembleRelease` 通过。
 - [ ] `verifyReleaseConfiguration` 与完整 `lintRelease` 通过；禁止使用 `.invalid` 占位地址。
 - [ ] `verifyPublishConfiguration` 通过，签名材料全部来自本机或 CI secret。
+- [ ] APK/AAB 上传证书 SHA-256 与批准指纹 `84:56:D2:47:A4:9E:A4:71:9B:95:A0:9D:AD:AB:7C:83:0F:1E:1C:74:D8:E3:22:A0:6D:BB:53:D6:A2:BA:C9:75` 一致。
 - [ ] Release 使用真实 HTTPS API 地址，禁止 cleartext 和调试配置。
+- [ ] 生产 Gateway/API 不产生 HTTPS→HTTP 降级跳转，可信代理协议头与重定向地址已验收。
 - [ ] Release APK 不包含 Provider secret、内部 token、数据库凭据或本地配置文件。
 - [ ] Release APK 的 `JEECG_SIGN_SECRET` 与 `SMS_TEST_CODE` 为空；生产 `/sys/sms` 使用已评审的移动端安全签名/证明方案和真实短信 Provider，不接受固定测试码或 APK 内共享密钥。
 - [ ] Release 不会静默使用 Mock 戒指、Mock 风险或 Mock 归因。

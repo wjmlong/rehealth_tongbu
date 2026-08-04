@@ -42,4 +42,11 @@ Thumbs.db
 *.tmp
 **/local.properties
 **/local.properties.backup
+
+# Android signing and local encrypted credential material
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.clixml
 /MuMu_启动与adb配置.md

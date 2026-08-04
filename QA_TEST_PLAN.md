@@ -30,7 +30,8 @@ Release 产物还必须执行 APK 内容审计：合并商品资源只允许 MRD
 Mock 商品、全链路演练文案、`synthetic_qa`、Debug Factor16 版本、测试码、占位地址或
 Provider API Key。Manifest 必须为 `debuggable=false`、`usesCleartextTraffic=false`，且不得
 声明 `QUERY_ALL_PACKAGES` 或尚未接线的 Health Connect 写权限；最后使用 `apksigner verify`
-校验正式签名并记录 SHA-256。
+校验正式签名并记录 SHA-256。APK/AAB 上传证书必须匹配发布清单批准的指纹；生产 API 与
+重定向不得从 HTTPS 降级到 HTTP。
 
 ```powershell
 mvn -f backend/contracts/telemetry/pom.xml test
