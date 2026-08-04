@@ -118,6 +118,11 @@ fun AttributionScreen(
         factory = remember(application) { BehaviorRecordViewModel.Factory(application) },
     )
     val behaviorState by behaviorViewModel.state.collectAsState()
+
+    LaunchedEffect(behaviorOwnerKey) {
+        behaviorViewModel.refreshToday()
+    }
+
     var selectedPeriod by remember { mutableStateOf(AttributionPeriod.DAYS_7) }
     var retryKey by remember { mutableIntStateOf(0) }
     var requestSequence by remember { mutableLongStateOf(0L) }

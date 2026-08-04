@@ -62,6 +62,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -133,6 +134,11 @@ internal fun HomeScreen() {
         factory = remember(application) { BehaviorRecordViewModel.Factory(application) },
     )
     val behaviorState by behaviorViewModel.state.collectAsState()
+
+    LaunchedEffect(chatOwnerKey) {
+        behaviorViewModel.refreshToday()
+    }
+
     val session = application.sessionStore
     val displayName = session.realname?.takeIf(String::isNotBlank)
         ?: session.username?.takeIf(String::isNotBlank)

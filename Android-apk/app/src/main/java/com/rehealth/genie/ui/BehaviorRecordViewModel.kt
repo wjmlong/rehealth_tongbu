@@ -27,10 +27,6 @@ class BehaviorRecordViewModel(application: Application) : AndroidViewModel(appli
     private val _state = MutableStateFlow(BehaviorRecordUiState())
     val state: StateFlow<BehaviorRecordUiState> = _state.asStateFlow()
 
-    init {
-        refreshToday()
-    }
-
     fun analyzePhoto(photoFile: File) {
         if (_state.value.isUploading) return
         viewModelScope.launch {
