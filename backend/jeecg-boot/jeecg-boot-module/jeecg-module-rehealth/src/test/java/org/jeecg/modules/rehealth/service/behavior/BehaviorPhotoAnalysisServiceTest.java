@@ -9,10 +9,14 @@ import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import org.junit.jupiter.api.Test;
 
+import java.net.InetSocketAddress;
+import java.net.URI;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BehaviorPhotoAnalysisServiceTest {
     @Test
@@ -50,6 +54,23 @@ class BehaviorPhotoAnalysisServiceTest {
                 BehaviorPhotoAnalysisException.class,
                 () -> invalidJson.analyze(new byte[]{1}, "image/png")
         );
+    }
+
+    @Test
+    void configuresAnExplicitProxyOnlyWhenHostAndPortAreValid() {
+        var proxiedClient = BehaviorPhotoAnalysisService
+                .jdkClientBuilder("127.0.0.1", 7897)
+                .build();
+        var selected = proxiedClient.proxy().orElseThrow()
+                .select(URI.create("https://vision.example.com/v1"));
+
+        assertEquals(1, selected.size());
+        assertInstanceOf(InetSocketAddress.class, selected.get(0).address());
+        assertTrue(BehaviorPhotoAnalysisService
+                .jdkClientBuilder("", 0)
+                .build()
+                .proxy()
+                .isEmpty());
     }
 
     private static class RecordingModel implements ChatModel {

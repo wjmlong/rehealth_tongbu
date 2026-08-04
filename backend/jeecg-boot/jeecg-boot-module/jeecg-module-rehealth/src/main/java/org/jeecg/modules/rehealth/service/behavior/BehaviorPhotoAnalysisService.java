@@ -19,6 +19,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.ProxySelector;
+import java.net.http.HttpClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -35,6 +38,8 @@ public class BehaviorPhotoAnalysisService {
     private final String baseUrl;
     private final String apiKey;
     private final String modelName;
+    private final String proxyHost;
+    private final int proxyPort;
     private final Duration timeout;
     private final int maxTokens;
     private final int maxImageBytes;
@@ -48,6 +53,8 @@ public class BehaviorPhotoAnalysisService {
             @Value("${rehealth.vision.api-key:}") String apiKey,
             @Value("${rehealth.vision.api-key-file:}") String apiKeyFile,
             @Value("${rehealth.vision.model:gpt-5.6-luna}") String modelName,
+            @Value("${rehealth.vision.proxy-host:}") String proxyHost,
+            @Value("${rehealth.vision.proxy-port:0}") int proxyPort,
             @Value("${rehealth.vision.timeout-seconds:75}") long timeoutSeconds,
             @Value("${rehealth.vision.max-tokens:1200}") int maxTokens,
             @Value("${rehealth.vision.max-image-bytes:4194304}") int maxImageBytes,
@@ -57,6 +64,8 @@ public class BehaviorPhotoAnalysisService {
         this.baseUrl = normalize(baseUrl);
         this.apiKey = resolveSecret(apiKey, apiKeyFile);
         this.modelName = modelName == null ? "" : modelName.trim();
+        this.proxyHost = proxyHost == null ? "" : proxyHost.trim();
+        this.proxyPort = proxyPort;
         this.timeout = Duration.ofSeconds(Math.max(5, Math.min(timeoutSeconds, 120)));
         this.maxTokens = Math.max(256, Math.min(maxTokens, 3000));
         this.maxImageBytes = Math.max(64 * 1024, Math.min(maxImageBytes, 8 * 1024 * 1024));
@@ -68,6 +77,8 @@ public class BehaviorPhotoAnalysisService {
         this.baseUrl = "test";
         this.apiKey = "test";
         this.modelName = modelName;
+        this.proxyHost = "";
+        this.proxyPort = 0;
         this.timeout = Duration.ofSeconds(5);
         this.maxTokens = 1200;
         this.maxImageBytes = 4 * 1024 * 1024;
@@ -153,7 +164,9 @@ public class BehaviorPhotoAnalysisService {
         synchronized (this) {
             if (chatModel == null) {
                 chatModel = OpenAiChatModel.builder()
-                        .httpClientBuilder(new JdkHttpClientBuilder())
+                        .httpClientBuilder(new JdkHttpClientBuilder().httpClientBuilder(
+                                jdkClientBuilder(proxyHost, proxyPort)
+                        ))
                         .baseUrl(baseUrl)
                         .apiKey(apiKey)
                         .modelName(modelName)
@@ -164,8 +177,16 @@ public class BehaviorPhotoAnalysisService {
                         .logResponses(false)
                         .build();
             }
-            return chatModel;
         }
+        return chatModel;
+    }
+
+    static HttpClient.Builder jdkClientBuilder(String proxyHost, int proxyPort) {
+        HttpClient.Builder builder = HttpClient.newBuilder();
+        if (proxyHost != null && !proxyHost.isBlank() && proxyPort > 0 && proxyPort <= 65_535) {
+            builder.proxy(ProxySelector.of(new InetSocketAddress(proxyHost.trim(), proxyPort)));
+        }
+        return builder;
     }
 
     private String normalizeCategory(String category) {

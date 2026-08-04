@@ -165,7 +165,8 @@ Home camera food/OCR analysis is a separate server-side vision path. Before enab
 `V20260731_1__add_behavior_records.sql`, keep `REHEALTH_SOFTWARE_DB_ENABLED=true`, and place the
 vision provider key in the ignored `secrets/vision_provider_credential` file. Configure
 `REHEALTH_VISION_ENABLED=true`, `REHEALTH_VISION_BASE_URL`, `REHEALTH_VISION_MODEL`, and optionally
-`REHEALTH_VISION_TIMEOUT_SECONDS` (default `75`); the startup script supplies only
+`REHEALTH_VISION_TIMEOUT_SECONDS` (default `75`) and `REHEALTH_VISION_MAX_TOKENS` (default `1200`);
+the startup script forwards those ignored local limits and supplies only
 `REHEALTH_VISION_API_KEY_FILE` to JeecgBoot. Each analysis attempt makes one provider call without
 automatic model retry. Raw camera bytes are forwarded for one analysis request and are neither
 stored in MySQL nor written to application logs.
@@ -178,6 +179,10 @@ keeps `localhost`, `127.*`, and `[::1]` on direct connections. Specify only a
 host and port; never put proxy credentials in tracked configuration. A loopback
 proxy address is local-development configuration and must not be copied into a
 container, staging, or production deployment.
+
+To proxy only the photo-analysis provider instead of all JeecgBoot HTTPS calls, set the ignored
+`REHEALTH_VISION_PROXY_HOST` and `REHEALTH_VISION_PROXY_PORT`. The proxy is injected only into the
+vision client's JDK `HttpClient`; Device Service and other loopback service calls remain direct.
 
 The secret-file plus ignored `.env` path remains supported when
 `ai-chat.local.yml` is absent and is still the required pattern for staging and
