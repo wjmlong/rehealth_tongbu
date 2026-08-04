@@ -291,9 +291,15 @@ Release 对应工厂固定不可用。演练数据统一标记 `synthetic_qa`，
 cd Android-apk
 .\gradlew.bat testDebugUnitTest
 .\gradlew.bat assembleDebug
+$env:REHEALTH_RELEASE_API_BASE_URL="https://api.example.com/jeecg-boot/"
+.\gradlew.bat verifyReleaseConfiguration lintRelease assembleRelease
+.\gradlew.bat verifyPublishConfiguration
 ```
 
 Debug APK：`Android-apk/app/build/outputs/apk/debug/app-debug.apk`
+
+Release 的后端地址、版本号和签名材料由本机或 CI 显式注入；仓库占位地址会失败关闭，
+签名密钥与密码不得进入 Git。Release 合并资源只包含三个真实 Provider，非生产遥测会被拒绝上传。
 
 ### Device Service 与遥测契约
 

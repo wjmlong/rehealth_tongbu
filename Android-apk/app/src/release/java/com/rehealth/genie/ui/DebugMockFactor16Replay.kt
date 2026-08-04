@@ -5,6 +5,9 @@ import com.rehealth.genie.features.BaselineHealthProfile
 
 internal object DebugMockFactor16Replay {
     @Suppress("UNUSED_PARAMETER")
+    fun matchesRuleVersion(ruleVersion: String?): Boolean = false
+
+    @Suppress("UNUSED_PARAMETER")
     fun completeBaselineProfile(
         profile: BaselineHealthProfile?,
         enabled: Boolean,

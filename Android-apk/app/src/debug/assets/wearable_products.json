@@ -1,5 +1,24 @@
 [
   {
+    "productCode": "RH-MOCK-DEBUG",
+    "vendor": "MOCK",
+    "displayName": "ReHealth Debug Mock",
+    "modelNameHints": ["Mock"],
+    "expectedMetrics": [
+      "HEART_RATE",
+      "HRV",
+      "BLOOD_OXYGEN",
+      "BLOOD_PRESSURE",
+      "SLEEP",
+      "TEMPERATURE",
+      "STEPS",
+      "ACTIVITY",
+      "STRESS",
+      "RRI",
+      "PPG"
+    ]
+  },
+  {
     "productCode": "RH-MRD-S01",
     "vendor": "MRD",
     "displayName": "ReHealth 标准戒指",

@@ -272,7 +272,7 @@ object AttributionUiMapper {
             caloriesKcal = activity.caloriesKcal.coerceAtLeast(0.0),
             distanceMeters = activity.distanceMeters.coerceAtLeast(0.0),
             provenanceLabel = if (activity.replay) {
-                "调试回放 · Room（非真实设备）"
+                debugReplayProvenanceLabel()
             } else if (activity.source.contains("mrd", ignoreCase = true)) {
                 "MR11 戒指 · Room"
             } else {

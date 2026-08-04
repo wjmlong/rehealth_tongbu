@@ -1,6 +1,6 @@
 # ReHealth MVP QA Test Plan
 
-Last reviewed: 2026-07-30
+Last reviewed: 2026-08-04
 Scope: Android MVP, backend services, model-service, contract gates, and release QA. This plan is not final release approval; see `STATUS.md` for current blockers.
 
 ## Test Environment
@@ -20,8 +20,17 @@ Run before every candidate handoff:
 cd Android-apk
 .\gradlew.bat testDebugUnitTest
 .\gradlew.bat assembleDebug
+$env:REHEALTH_RELEASE_API_BASE_URL="https://api.example.com/jeecg-boot/"
+.\gradlew.bat verifyReleaseConfiguration lintRelease assembleRelease
+.\gradlew.bat verifyPublishConfiguration
 cd ..
 ```
+
+Release 产物还必须执行 APK 内容审计：合并商品资源只允许 MRD/RWFit/HBand；不得包含
+Mock 商品、全链路演练文案、`synthetic_qa`、Debug Factor16 版本、测试码、占位地址或
+Provider API Key。Manifest 必须为 `debuggable=false`、`usesCleartextTraffic=false`，且不得
+声明 `QUERY_ALL_PACKAGES` 或尚未接线的 Health Connect 写权限；最后使用 `apksigner verify`
+校验正式签名并记录 SHA-256。
 
 ```powershell
 mvn -f backend/contracts/telemetry/pom.xml test

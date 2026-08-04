@@ -109,20 +109,6 @@
     <!-- ============================================================ -->
     <uses-permission android:name="android.permission.REORDER_TASKS" />
     <uses-permission android:name="android.permission.GET_TASKS" />
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
-
-    <!-- ============================================================ -->
-    <!-- Health Connect 写入 (G Band 对接，Phase 2 可选)                    -->
-    <!-- ============================================================ -->
-    <uses-permission android:name="android.permission.health.WRITE_HEART_RATE" />
-    <uses-permission android:name="android.permission.health.WRITE_SLEEP" />
-    <uses-permission android:name="android.permission.health.WRITE_STEPS" />
-    <uses-permission android:name="android.permission.health.WRITE_DISTANCE" />
-    <uses-permission android:name="android.permission.health.WRITE_TOTAL_CALORIES_BURNED" />
-    <uses-permission android:name="android.permission.health.WRITE_OXYGEN_SATURATION" />
-    <uses-permission android:name="android.permission.health.WRITE_BLOOD_PRESSURE" />
-    <uses-permission android:name="android.permission.health.WRITE_BODY_TEMPERATURE" />
-    <uses-permission android:name="android.permission.health.WRITE_BLOOD_GLUCOSE" />
 
     <!-- ============================================================ -->
     <!-- Hardware Features                                              -->

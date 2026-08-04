@@ -125,7 +125,7 @@ class RingCloudRepository(
             sleep?.let { add(it.startedAt); add(it.endedAt) }
             activity?.let { add(it.startedAt); it.endedAt?.let(::add) }
         }
-        val provenance = if (
+        val containsNonProductionInput =
             vendor == WearableVendor.MOCK ||
             measurements.any { it.source.equals("ring_sim", true) } ||
             measurements.any { it.source.contains("mock", true) || it.source.contains("synthetic", true) } ||
@@ -133,7 +133,7 @@ class RingCloudRepository(
             sleep?.source?.let { it.contains("mock", true) || it.contains("synthetic", true) } == true ||
             activity?.source?.equals("ring_sim", true) == true ||
             activity?.source?.let { it.contains("mock", true) || it.contains("synthetic", true) } == true
-        ) "synthetic_qa" else "${vendor.name.lowercase()}_room"
+        val provenance = runtimeTelemetryProvenance(vendor, containsNonProductionInput)
         val batchId = UUID.nameUUIDFromBytes(
             "$effectiveDeviceId|$collectedAt|$trigger".toByteArray(StandardCharsets.UTF_8),
         ).toString()

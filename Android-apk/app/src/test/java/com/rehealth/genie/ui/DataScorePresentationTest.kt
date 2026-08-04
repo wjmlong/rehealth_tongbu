@@ -40,7 +40,7 @@ class DataScorePresentationTest {
         )
 
         assertEquals("--", presentation.scoreText)
-        assertEquals("模拟不展示", presentation.sourceText)
+        assertEquals("结果不可用", presentation.sourceText)
     }
 
     @Test

@@ -70,7 +70,7 @@ internal data class RemoteFeatureEvaluateStatus(
 ) {
     val modeLabel: String
         get() = when {
-            isMock == true -> "云端mock"
+            isMock == true -> "结果未确认"
             reachable -> "云端"
             else -> "不可用"
         }
@@ -85,8 +85,7 @@ internal fun RemoteFeatureEvaluateStatus.toAttributionRiskEvaluation(): Attribut
         factorConfirmed =
             (reachable && factorContributionVersion == FACTOR16_RULE_VERSION) ||
                 (
-                    com.rehealth.genie.BuildConfig.DEBUG &&
-                        factorContributionVersion == DEBUG_MOCK_FACTOR16_RULE_VERSION
+                    DebugMockFactor16Replay.matchesRuleVersion(factorContributionVersion)
                     ),
         factorValues = factorValues,
         contributionRuleVersion = factorContributionVersion,

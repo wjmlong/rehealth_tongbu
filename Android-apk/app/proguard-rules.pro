@@ -6,12 +6,6 @@
 -keep class com.rehealth.genie.phm.** { *; }
 -keepclassmembers class com.rehealth.genie.phm.** { *; }
 
-# Keep Mock methods specifically
--keep class com.rehealth.genie.phm.RemotePhmService {
-    private *** generateMockRiskResult(...);
-    private *** generateMockAttributionResult(...);
-}
-
 # Keep HealthChatService and its methods
 -keep class com.rehealth.genie.network.HealthChatService { *; }
 -keepclassmembers class com.rehealth.genie.network.HealthChatService { *; }

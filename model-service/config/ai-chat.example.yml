@@ -9,6 +9,6 @@ health-agent:
   provider:
     base-url: https://api.deepseek.com
     model: deepseek-v4-flash
-    # Filling this value automatically enables the external provider.
-    api-key: "sk-2b5a87cf4fdf4aa082b253de4133935a"
+    # Filling this value in the ignored local copy enables the external provider.
+    api-key: ""
     timeout-seconds: 20

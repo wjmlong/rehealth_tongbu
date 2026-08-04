@@ -304,7 +304,7 @@ class RdiRepository(
         sleepSessions.asSequence().map(RingSleepSessionEntity::source),
         measurements.asSequence().map(RingMeasurementEntity::source),
     ).flatten().any { source ->
-        source.equals("synthetic_qa", ignoreCase = true) ||
+        source.contains("synthetic", ignoreCase = true) ||
             source.equals("ring_sim", ignoreCase = true) ||
             source.contains("mock", ignoreCase = true)
     }

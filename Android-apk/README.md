@@ -126,8 +126,8 @@ rehealth.release.api.base.url=https://rehealth.example.com/jeecg-boot/
 ```
 
 也可分别使用 `REHEALTH_API_BASE_URL` 和 `REHEALTH_RELEASE_API_BASE_URL` 环境变量。
-未显式配置公网 Release 地址时，提交的 `https://api.rehealth.invalid/` 占位地址会
-失败关闭，避免构建意外连接公网联调环境。
+未显式配置公网 Release 地址时，提交的 `https://api.rehealth.invalid/` 占位地址会由
+`verifyReleaseConfiguration` 阻止 Release 构建，避免产物意外连接联调或占位环境。
 
 无蓝牙的真机 QA（模拟器 / MuMu）可用 fake-ring 通道替掉 BLE 采集：
 
@@ -141,9 +141,9 @@ rehealth.release.api.base.url=https://rehealth.example.com/jeecg-boot/
 Release 的后端地址必须使用 HTTPS。模型 Provider 凭据、内部服务 token 和生产
 secret 禁止进入 `local.properties`、BuildConfig 或 APK。
 
-Debug 注册请求会使用 JeecgBoot 的开发签名默认值为 `/sys/sms` 增加 `X-Sign` 和
-`X-Timestamp`；可通过 `local.properties` 的 `JEECG_SIGNATURE_SECRET` 或同名环境变量
-覆盖。仅当后端使用 `JEECG_SMS_DEV_MODE=true` 时，验证码接口保存固定测试码 `123456`，
+Debug 注册请求只有在 `local.properties` 的 `JEECG_SIGNATURE_SECRET` 或同名环境变量
+明确提供时，才会为 `/sys/sms` 增加 `X-Sign` 和 `X-Timestamp`。仓库不再包含开发签名默认值。
+仅当后端使用 `JEECG_SMS_DEV_MODE=true` 时，验证码接口保存固定测试码 `123456`，
 Android 在请求成功后自动填入该值。Release 的签名字段和测试码均为空，生产环境继续
 由后端随机生成验证码并调用真实短信 Provider。
 
@@ -259,6 +259,9 @@ Room `ring_activities` 按设备当地自然日聚合的真实活动记录，活
 模拟戒指只存在于 `app/src/debug`，由 Debug 专用工厂和
 `USE_FAKE_RING`/`SEED_FAKE_HEALTH_DATA` 控制。`app/src/release` 的工厂只构造
 真实 MRD/RWFit/HBand Provider；远程风险评估失败时显示不可用，不生成本地模拟风险。
+Mock 商品目录和设备绑定演练 UI 同样只存在于 Debug source set；Release 合并资源中只包含
+MRD、RWFit 与 HBand 三个真实商品。Release 如果遇到覆盖安装遗留的非生产遥测会拒绝上传，
+不会把其改写为真实 Provider 数据。
 
 Debug 版“我的 → 设备绑定”另提供唯一的全链路演练入口，且必须在警告对话框中
 再次确认。它为当前测试账号写入 90 天、来源为 `synthetic_qa` 的 50 岁男性正常
@@ -293,8 +296,22 @@ Maven Central 和 Gradle Plugin Portal。未覆盖 Maven 配置时，本地仓�
 ```powershell
 .\gradlew.bat testDebugUnitTest
 .\gradlew.bat assembleDebug
-.\gradlew.bat assembleRelease
+$env:REHEALTH_RELEASE_API_BASE_URL="https://api.example.com/jeecg-boot/"
+.\gradlew.bat verifyReleaseConfiguration lintRelease assembleRelease
 ```
+
+Release 版本号可通过 `REHEALTH_VERSION_CODE` / `REHEALTH_VERSION_NAME` 或对应 Gradle
+属性覆盖。发布签名必须通过本机/CI 的以下四项同时提供，禁止写入仓库：
+
+```text
+REHEALTH_RELEASE_STORE_FILE
+REHEALTH_RELEASE_STORE_PASSWORD
+REHEALTH_RELEASE_KEY_ALIAS
+REHEALTH_RELEASE_KEY_PASSWORD
+```
+
+正式发布前运行 `.\gradlew.bat verifyPublishConfiguration`；未提供完整签名材料时该门禁
+会失败，`assembleRelease` 仅生成不可发布的 `app-release-unsigned.apk`。
 
 生成强制选择 RWFit、并保留重启后绑定重连能力的真机测试 APK：
 

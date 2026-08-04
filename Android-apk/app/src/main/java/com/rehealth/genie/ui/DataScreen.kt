@@ -771,7 +771,7 @@ internal fun dataRiskPresentation(status: RemoteFeatureEvaluateStatus?): DataRis
         sourceText = if (confirmed) {
             "RDI-16 · 风险概率"
         } else if (status?.isMock == true) {
-            "模拟不展示"
+            "结果不可用"
         } else if (status?.reachable == false) {
             "不可用"
         } else {
@@ -779,7 +779,7 @@ internal fun dataRiskPresentation(status: RemoteFeatureEvaluateStatus?): DataRis
         },
         summary = when {
             confirmed -> status?.summary ?: "RDI-16 风险评估已完成"
-            status?.isMock == true -> "当前仅返回模拟结果，未作为真实风险分展示"
+            status?.isMock == true -> "当前结果未通过真实性校验，未作为风险分展示"
             status != null -> status.summary
             else -> "正在请求 RDI-16 风险评估"
         },

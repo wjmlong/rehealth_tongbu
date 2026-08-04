@@ -1,6 +1,6 @@
 # ReHealth 当前状态
 
-> 最后核对：2026-08-03。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
+> 最后核对：2026-08-04。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
 > `docs/archive/acceptance/`，不得作为当前实现或发布状态的依据。
 
 ## 发布结论
@@ -12,6 +12,13 @@
 1. 物理 MRD/RWFit 戒指及 HBand 手表/手环与 Android 13+ 真机的扫描、重连、锁屏长时间采集、功耗和准确性 QA 尚未完成；HBand 已开始首次真机联调，完整重装后的连接验证仍待完成。
 2. Android 运行时端到端证据仍需覆盖登录、采集、离线队列、遥测上传、风险评估和反馈回传。
 3. 签名 Release APK 的运行时 logcat、权限、隐私和真实 HTTPS 环境仍需验收。
+
+2026-08-04 发布整理已完成 Release 源集门禁：`testDebugUnitTest`、R8、Lint Vital 和
+`assembleRelease` 在显式 HTTPS 联调地址下通过；Mock 商品资源、设备演练 UI、
+`synthetic_qa`、Debug Factor16 版本、占位域名和 API Key 样式值均未进入 Release APK，
+Manifest 禁止 cleartext，所有模拟开关为 `false`。完整 `lintRelease` 发现并移除了未使用的
+`QUERY_ALL_PACKAGES` 与尚未接线的 Health Connect 写权限，修正后已通过。当前产物因未提供
+外部 keystore 为 unsigned，不能发布；正式签名与真实生产地址仍是发布阻塞项。
 
 ## 已实现能力
 

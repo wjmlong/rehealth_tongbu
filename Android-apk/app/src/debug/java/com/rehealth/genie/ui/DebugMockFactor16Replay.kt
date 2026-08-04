@@ -10,6 +10,9 @@ import kotlin.math.abs
 import kotlin.math.round
 
 internal object DebugMockFactor16Replay {
+    fun matchesRuleVersion(ruleVersion: String?): Boolean =
+        ruleVersion == DEBUG_MOCK_FACTOR16_RULE_VERSION
+
     fun completeBaselineProfile(
         profile: BaselineHealthProfile?,
         enabled: Boolean,
@@ -35,6 +38,8 @@ internal object DebugMockFactor16Replay {
         return DebugMockFactor16Engine(nowMillis).evaluate(vector)
     }
 }
+
+internal const val DEBUG_MOCK_FACTOR16_RULE_VERSION = "factor16-rule-v1.0.0-debug-mock"
 
 /**
  * Debug-only mirror of the server-owned Factor16 V1.0 display rule.

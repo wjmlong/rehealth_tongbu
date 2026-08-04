@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.net.URI
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -35,11 +36,10 @@ fun reHealthReleaseApiBaseUrl(): String {
     return normalized
 }
 // JeecgBoot request-signing secret for endpoints that require the `X-Sign` header
-// (e.g. /sys/sms). Debug falls back to JeecgBoot's checked-in development default;
-// release builds always override this field with an empty value below.
+// (e.g. /sys/sms). It is intentionally local-only, including for Debug builds.
 fun signSecret(): String =
     (localProps.getProperty("JEECG_SIGNATURE_SECRET") ?: System.getenv("JEECG_SIGNATURE_SECRET")
-        ?: "dd05f1c54d63749eda95f9fa6d49v442a").trim()
+        ?: "").trim()
 fun debugWearableProductCode(): String {
     val normalizedProductCode = (
         providers.gradleProperty("rehealth.debug.wearable.product.code")
@@ -64,6 +64,35 @@ fun seedFakeHealthData(): Boolean =
         ?: providers.gradleProperty("rehealth.debug.seed.fake.health.data").orNull
         ?: "false").toBooleanStrict()
 
+fun releaseVersionCode(): Int =
+    (localProps.getProperty("rehealth.version.code")
+        ?: System.getenv("REHEALTH_VERSION_CODE")
+        ?: providers.gradleProperty("rehealth.version.code").orNull
+        ?: "1").toInt()
+
+fun releaseVersionName(): String =
+    (localProps.getProperty("rehealth.version.name")
+        ?: System.getenv("REHEALTH_VERSION_NAME")
+        ?: providers.gradleProperty("rehealth.version.name").orNull
+        ?: "1.0.0").trim()
+
+fun releaseSigningValue(propertyName: String, environmentName: String): String? =
+    (localProps.getProperty(propertyName)
+        ?: System.getenv(environmentName)
+        ?: providers.gradleProperty(propertyName).orNull)
+        ?.trim()
+        ?.takeIf(String::isNotEmpty)
+
+val releaseStoreFile = releaseSigningValue("rehealth.release.store.file", "REHEALTH_RELEASE_STORE_FILE")
+val releaseStorePassword = releaseSigningValue("rehealth.release.store.password", "REHEALTH_RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = releaseSigningValue("rehealth.release.key.alias", "REHEALTH_RELEASE_KEY_ALIAS")
+val releaseKeyPassword = releaseSigningValue("rehealth.release.key.password", "REHEALTH_RELEASE_KEY_PASSWORD")
+val releaseSigningValues = listOf(releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword)
+require(releaseSigningValues.all { it == null } || releaseSigningValues.all { it != null }) {
+    "Release signing requires store file, store password, key alias, and key password together."
+}
+val releaseSigningReady = releaseSigningValues.all { it != null }
+
 android {
     namespace = "com.rehealth.genie"
     compileSdk = 36
@@ -73,8 +102,8 @@ android {
         applicationId = "com.rehealth.genie"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = releaseVersionCode()
+        versionName = releaseVersionName()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "REHEALTH_API_BASE_URL", "\"${reHealthReleaseApiBaseUrl()}\"")
@@ -82,6 +111,21 @@ android {
         // Provider credentials and request-signing secrets must never enter a release APK.
         buildConfigField("String", "JEECG_SIGN_SECRET", "\"\"")
         buildConfigField("String", "SMS_TEST_CODE", "\"\"")
+        // Main code may reference these fields, but only Debug is allowed to override them.
+        buildConfigField("boolean", "USE_FAKE_RING", "false")
+        buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", "false")
+        buildConfigField("boolean", "ALLOW_WEARABLE_PRODUCT_SWITCH", "false")
+    }
+
+    signingConfigs {
+        if (releaseSigningReady) {
+            create("release") {
+                storeFile = rootProject.file(requireNotNull(releaseStoreFile))
+                storePassword = requireNotNull(releaseStorePassword)
+                keyAlias = requireNotNull(releaseKeyAlias)
+                keyPassword = requireNotNull(releaseKeyPassword)
+            }
+        }
     }
 
     sourceSets {
@@ -100,7 +144,7 @@ android {
             manifestPlaceholders["usesCleartextTraffic"] = "true"
         }
         release {
-            buildConfigField("boolean", "ALLOW_WEARABLE_PRODUCT_SWITCH", "false")
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -189,4 +233,34 @@ dependencies {
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.room:room-testing:2.7.1")
     ksp("androidx.room:room-compiler:2.7.1")
+}
+
+val verifyReleaseConfiguration by tasks.registering {
+    group = "verification"
+    description = "Fails when the Release backend is not a real HTTPS endpoint."
+    doLast {
+        val releaseUrl = reHealthReleaseApiBaseUrl()
+        val host = URI(releaseUrl).host.orEmpty().lowercase()
+        require(host.isNotBlank() && !host.endsWith(".invalid")) {
+            "Release backend URL must be an explicit non-placeholder HTTPS endpoint."
+        }
+    }
+}
+
+val verifyPublishConfiguration by tasks.registering {
+    group = "verification"
+    description = "Checks Release endpoint and signing inputs before publishing."
+    dependsOn(verifyReleaseConfiguration)
+    doLast {
+        require(releaseSigningReady) {
+            "Publishing requires external Release signing credentials; no keystore is committed to Git."
+        }
+        require(rootProject.file(requireNotNull(releaseStoreFile)).isFile) {
+            "Configured Release keystore does not exist."
+        }
+    }
+}
+
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn(verifyReleaseConfiguration)
 }

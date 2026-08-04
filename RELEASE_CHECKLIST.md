@@ -8,10 +8,14 @@
 - [ ] `testDebugUnitTest` 通过。
 - [ ] `assembleDebug` 通过并记录 APK SHA-256。
 - [ ] 签名 `assembleRelease` 通过。
+- [ ] `verifyReleaseConfiguration` 与完整 `lintRelease` 通过；禁止使用 `.invalid` 占位地址。
+- [ ] `verifyPublishConfiguration` 通过，签名材料全部来自本机或 CI secret。
 - [ ] Release 使用真实 HTTPS API 地址，禁止 cleartext 和调试配置。
 - [ ] Release APK 不包含 Provider secret、内部 token、数据库凭据或本地配置文件。
 - [ ] Release APK 的 `JEECG_SIGN_SECRET` 与 `SMS_TEST_CODE` 为空；生产 `/sys/sms` 使用已评审的移动端安全签名/证明方案和真实短信 Provider，不接受固定测试码或 APK 内共享密钥。
 - [ ] Release 不会静默使用 Mock 戒指、Mock 风险或 Mock 归因。
+- [ ] Release APK 扫描确认不包含 Mock 商品、演练 UI、`synthetic_qa`、Debug Factor16 版本、测试地址或 API Key 样式值。
+- [ ] Release Manifest 不声明 `QUERY_ALL_PACKAGES` 或尚未实现的 Health Connect 写权限。
 
 ## Android 运行时
 
