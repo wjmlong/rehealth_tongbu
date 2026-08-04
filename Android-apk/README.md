@@ -106,15 +106,18 @@ CVD 评估通过独立的 feature-evaluate 路径完成。
 
 ## 配置
 
-Debug 默认后端（已提交到 `gradle.properties`，Android 模拟器访问宿主机）：
+Debug 默认后端（已提交到 `gradle.properties`，仅用于真机联调）：
 
 ```text
-http://10.0.2.2:8080/jeecg-boot/
+https://rehealth.youngjimmy.store/jeecg-boot/
 ```
 
 可在未跟踪的 `local.properties` 中覆盖（优先级高于 `gradle.properties` 与环境变量）：
 
 ```properties
+# Android 模拟器访问宿主机
+rehealth.api.base.url=http://10.0.2.2:8080/jeecg-boot/
+
 # USB 真机：先执行 adb reverse tcp:8080 tcp:8080
 rehealth.api.base.url=http://127.0.0.1:8080/jeecg-boot/
 
