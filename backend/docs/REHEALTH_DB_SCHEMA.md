@@ -33,7 +33,7 @@ Planned tables:
 | `rehealth_patient_profile` plus diagnosis/medication/allergy tables | Typed ReHealth profile fields and ordered medical-history items. | Implemented via authenticated `GET/PUT /profile`; BMI is server-derived and `profile_version` provides optimistic locking. |
 | `rehealth_health_interview` plus answer/baseline/focus tables | Typed interview header and ordered answer/business-profile rows. | Implemented via authenticated `POST /interviews` and `GET /interviews/latest`. |
 | `rehealth_cvd_feature_vector` | CVD 16 vector and feature quality metadata. | Implemented via `/features/evaluate`. |
-| `rehealth_cvd_risk_result` | Risk score, level, contributions, model version, missing fields, warnings, summary. | Implemented with per-user latest read. |
+| `rehealth_cvd_risk_result` | Risk score, level, model contributions, Factor16 rule contributions/components, model version, missing fields, warnings, summary. | Implemented with per-user latest read. |
 | `rehealth_intervention_plan` plus contraindication rows | Queryable conservative intervention fields plus the original model evidence snapshot. | Implemented with per-user latest read. |
 | `rehealth_intervention_feedback` | User feedback/adherence/check-in. | Implemented via `/interventions/{id}/feedback`. |
 | `rehealth_attribution_result` | PIAS request and result snapshot. | Implemented via `/attribution/events`. |
@@ -95,8 +95,10 @@ software datasource. For an existing database created with the JSON-only profile
 database and apply `V20260729_1__normalize_business_records.sql` before deploying the matching application.
 The upgrade adds typed columns and child tables, backfills valid legacy JSON, leaves legacy JSON columns nullable
 for rollback, and records `software-V20260729.1` in `rehealth_schema_migration`. Apply
-`V20260730_1__add_ai_conversations.sql` for authenticated AI history and
-`V20260731_1__add_behavior_records.sql` for photo-derived behavior records. Verify row counts and invalid JSON
+`V20260730_1__add_health_agent_conversations.sql` for authenticated AI history,
+`V20260731_1__add_behavior_records.sql` for photo-derived behavior records, and
+`V20260731_2__add_factor16_contributions.sql` for the separately versioned Factor16
+rule contribution fields. Verify row counts and invalid JSON
 before retiring the legacy columns. Then set `rehealth.software-db.enabled=true`. Every mobile business write/read
 derives ownership from the authenticated Jeecg user; client-supplied user IDs are not accepted for these records.
 

@@ -191,6 +191,26 @@ powershell -ExecutionPolicy Bypass -File backend/deploy/rehealth/start-local-app
 powershell -ExecutionPolicy Bypass -File backend/deploy/rehealth/stop-local-apps.ps1
 ```
 
+Before the first local Jeecg run against a new `software-db` volume, import the
+base Jeecg schema and apply the add-only ReHealth migrations. The local Debug
+launcher maps its legacy-compatible `hardware` datasource to
+`rehealth_software`, so the telemetry V1 migration must be applied to that
+database before exercising the Android upload queue:
+
+```powershell
+$migration = "backend\jeecg-boot\jeecg-boot-module\jeecg-module-rehealth\src\main\resources\db\hardware\mysql\V1__create_hardware_telemetry_tables.sql"
+Get-Content -Raw $migration | docker exec -i rehealth-software-db-1 `
+  sh -c 'MYSQL_PWD=$(cat /run/secrets/software_db_password) mysql -u rehealth_software rehealth_software'
+```
+
+This migration is intentionally explicit because JeecgBoot disables Flyway
+auto-configuration. Apply it once to a fresh volume; do not replay it after the
+tables exist. Quartz uses the official uppercase `QRTZ_*` table names. If an
+older Jeecg base dump created lowercase `qrtz_*` names, normalize those names
+before startup when Docker MySQL runs with case-sensitive table names; changing
+only `tablePrefix` is insufficient because Quartz appends uppercase table-name
+suffixes internally.
+
 `start-local-apps.ps1` 为本地 JeecgBoot 设置 `JEECG_SMS_DEV_MODE=true`。此模式下
 `POST /jeecg-boot/sys/sms` 仍要求正常请求签名，但不会调用短信网关，而是在 Redis 中
 保存固定测试验证码 `123456`。未启用该变量时保留随机验证码和真实短信 Provider 链路；
