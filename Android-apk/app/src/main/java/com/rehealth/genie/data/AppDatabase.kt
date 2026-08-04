@@ -42,7 +42,7 @@ data class HealthRecordEntity(
     val value: String,
     val unit: String,
     val recordedAt: Long,
-    val source: String = "mock",
+    val source: String = "unknown",
 )
 
 @Entity(tableName = "attribution_logs")

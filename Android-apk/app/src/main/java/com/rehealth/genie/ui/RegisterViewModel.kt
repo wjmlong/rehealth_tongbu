@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.rehealth.genie.BuildConfig
 import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.network.ApiResult
 import com.rehealth.genie.work.MeasurementSyncWorker
@@ -57,7 +56,7 @@ class RegisterViewModel(private val context: Context) : ViewModel() {
             )
             when (val result = app.authenticatedApiClient.sendSms(phone)) {
                 is ApiResult.Success -> {
-                    val testCode = BuildConfig.SMS_TEST_CODE.takeIf { it.isNotBlank() }
+                    val testCode = runtimeSmsTestCode()
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         infoMessage = if (testCode != null) {

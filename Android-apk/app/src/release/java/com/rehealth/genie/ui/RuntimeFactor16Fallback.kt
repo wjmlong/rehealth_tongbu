@@ -1,9 +1,12 @@
 package com.rehealth.genie.ui
 
-import com.rehealth.genie.features.CvdFeatureVector
 import com.rehealth.genie.features.BaselineHealthProfile
+import com.rehealth.genie.features.CvdFeatureVector
 
-internal object DebugMockFactor16Replay {
+@Suppress("UNUSED_PARAMETER")
+internal fun isRuntimeFactorContributionConfirmed(ruleVersion: String?): Boolean = false
+
+internal object RuntimeFactor16Fallback {
     @Suppress("UNUSED_PARAMETER")
     fun completeBaselineProfile(
         profile: BaselineHealthProfile?,

@@ -16,7 +16,6 @@ import com.rehealth.genie.network.OnboardingStore
 import com.rehealth.genie.network.SessionStore
 import com.rehealth.genie.notification.RingNotificationChannels
 import com.rehealth.genie.phm.RemotePhmService
-import com.rehealth.genie.qa.createRuntimeFullChainSimulationRunner
 import com.rehealth.genie.rdi.RdiRepository
 import com.rehealth.genie.rhi.RhiRepository
 import com.rehealth.genie.ring.RingBackgroundCollectionSettings
@@ -51,7 +50,7 @@ class ReHealthApplication : Application() {
     val authenticatedApiClient by lazy {
         AuthenticatedApiClient(
             baseUrl = BuildConfig.REHEALTH_API_BASE_URL,
-            httpClient = BackendConfig.buildHttpClient(signSecret = BuildConfig.JEECG_SIGN_SECRET),
+            httpClient = BackendConfig.buildHttpClient(signSecret = runtimeJeecgSignSecret()),
             sessionStore = sessionStore,
         )
     }
@@ -147,10 +146,6 @@ class ReHealthApplication : Application() {
         )
     }
 
-    val fullChainSimulationRunner by lazy {
-        createRuntimeFullChainSimulationRunner(this)
-    }
-
     val healthChatRepository by lazy {
         HealthChatRepository(
             dao = database.healthChatDao(),
@@ -205,6 +200,15 @@ class ReHealthApplication : Application() {
         )
     }
 
+    internal fun launchRuntimeStartupSync() {
+        applicationScope.launch {
+            runCatching {
+                ringRepository.autoConnect()
+                ringRepository.syncAll()
+            }
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         RingNotificationChannels.ensure(this)
@@ -216,13 +220,6 @@ class ReHealthApplication : Application() {
         if (sessionStore.isLoggedIn) {
             MeasurementSyncWorker.schedule(this)
         }
-        if (BuildConfig.DEBUG && BuildConfig.SEED_FAKE_HEALTH_DATA) {
-            applicationScope.launch {
-                runCatching {
-                    ringRepository.autoConnect()
-                    ringRepository.syncAll()
-                }
-            }
-        }
+        runRuntimeStartupHooks(this)
     }
 }

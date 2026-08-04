@@ -9,7 +9,12 @@ import com.rehealth.genie.features.FeatureSource
 import kotlin.math.abs
 import kotlin.math.round
 
-internal object DebugMockFactor16Replay {
+internal const val DEBUG_MOCK_FACTOR16_RULE_VERSION = "factor16-rule-v1.0.0-debug-mock"
+
+internal fun isRuntimeFactorContributionConfirmed(ruleVersion: String?): Boolean =
+    ruleVersion == DEBUG_MOCK_FACTOR16_RULE_VERSION
+
+internal object RuntimeFactor16Fallback {
     fun completeBaselineProfile(
         profile: BaselineHealthProfile?,
         enabled: Boolean,

@@ -15,7 +15,7 @@ class DebugMockFactor16ReplayTest {
     @Test
     fun `normal 50 year old mock profile fills all 16 governed contributions`() {
         val result = requireNotNull(
-            DebugMockFactor16Replay.evaluate(
+            RuntimeFactor16Fallback.evaluate(
                 vector = normalMockVector(),
                 enabled = true,
                 nowMillis = NOW,
@@ -53,7 +53,7 @@ class DebugMockFactor16ReplayTest {
     @Test
     fun `replay is disabled unless caller explicitly selects mock mode`() {
         assertNull(
-            DebugMockFactor16Replay.evaluate(
+            RuntimeFactor16Fallback.evaluate(
                 normalMockVector(),
                 enabled = false,
                 nowMillis = NOW,
@@ -82,7 +82,7 @@ class DebugMockFactor16ReplayTest {
     @Test
     fun `mock profile cache completes behavior fields through the profile entry`() {
         val completed = requireNotNull(
-            DebugMockFactor16Replay.completeBaselineProfile(
+            RuntimeFactor16Fallback.completeBaselineProfile(
                 profile = BaselineHealthProfile(
                     age = 50,
                     gender = "male",

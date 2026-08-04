@@ -84,10 +84,7 @@ internal fun RemoteFeatureEvaluateStatus.toAttributionRiskEvaluation(): Attribut
         confirmed = reachable && isMock == false,
         factorConfirmed =
             (reachable && factorContributionVersion == FACTOR16_RULE_VERSION) ||
-                (
-                    com.rehealth.genie.BuildConfig.DEBUG &&
-                        factorContributionVersion == DEBUG_MOCK_FACTOR16_RULE_VERSION
-                    ),
+                isRuntimeFactorContributionConfirmed(factorContributionVersion),
         factorValues = factorValues,
         contributionRuleVersion = factorContributionVersion,
         measuredComponents = factorMeasuredComponents,
@@ -110,7 +107,7 @@ internal suspend fun refreshRemoteFeatureEvaluateStatus(
     val isDebugMockWearable =
         application.activeWearableStore.activeBinding.value.vendor == WearableVendor.MOCK
     val remoteProfile = AttributionDataProvenance.trustedProfile(state.patientMvp)
-    val debugMockProfile = DebugMockFactor16Replay.completeBaselineProfile(
+    val runtimeFallbackProfile = RuntimeFactor16Fallback.completeBaselineProfile(
         profile = application.activeWearableStore.readUserProfile(application.sessionStore.userId),
         enabled = remoteProfile == null && isDebugMockWearable,
         nowMillis = now,
@@ -123,8 +120,8 @@ internal suspend fun refreshRemoteFeatureEvaluateStatus(
             ringActivities = activities,
             ringSleepSessions = state.sleep?.let { listOf(it) }.orEmpty(),
         ).let { base ->
-            if (base.profile == null && debugMockProfile != null) {
-                base.copy(profile = debugMockProfile)
+            if (base.profile == null && runtimeFallbackProfile != null) {
+                base.copy(profile = runtimeFallbackProfile)
             } else {
                 base
             }
@@ -135,7 +132,7 @@ internal suspend fun refreshRemoteFeatureEvaluateStatus(
 
     val outcome = application.remotePhmService.evaluateFeatures(vector)
     val result = outcome.result
-    val debugReplayCandidate = DebugMockFactor16Replay.evaluate(
+    val runtimeFallbackCandidate = RuntimeFactor16Fallback.evaluate(
         vector = vector,
         enabled = isDebugMockWearable,
         nowMillis = now,
@@ -147,7 +144,7 @@ internal suspend fun refreshRemoteFeatureEvaluateStatus(
                 AttributionUiMapper.CANONICAL_FACTOR_KEYS.all(
                     result.normalizedFactorContributions::containsKey,
                 )
-        val debugReplay = debugReplayCandidate.takeUnless { serverHasCompleteFactor16 }
+        val runtimeFallback = runtimeFallbackCandidate.takeUnless { serverHasCompleteFactor16 }
         target.value = RemoteFeatureEvaluateStatus(
             reachable = true,
             modelVersion = result.normalizedModelVersion,
@@ -155,13 +152,13 @@ internal suspend fun refreshRemoteFeatureEvaluateStatus(
             riskLevel = result.normalizedRiskLevel,
             riskScore = result.normalizedRiskScore,
             featureContributions = result.normalizedFeatureContributions,
-            factorContributions = debugReplay?.contributions ?: result.normalizedFactorContributions,
+            factorContributions = runtimeFallback?.contributions ?: result.normalizedFactorContributions,
             factorContributionVersion =
-                debugReplay?.ruleVersion ?: result.normalizedFactorContributionVersion,
+                runtimeFallback?.ruleVersion ?: result.normalizedFactorContributionVersion,
             factorMeasuredComponents =
-                debugReplay?.measuredComponents ?: result.normalizedFactorMeasuredComponents,
+                runtimeFallback?.measuredComponents ?: result.normalizedFactorMeasuredComponents,
             factorControlSupportComponents =
-                debugReplay?.controlSupportComponents
+                runtimeFallback?.controlSupportComponents
                     ?: result.normalizedFactorControlSupportComponents,
             factorValues = vector.toAttributionFactorValues(),
             requestId = result.normalizedRequestId ?: outcome.requestId,
@@ -176,11 +173,11 @@ internal suspend fun refreshRemoteFeatureEvaluateStatus(
             isMock = null,
             riskLevel = null,
             riskScore = null,
-            factorContributions = debugReplayCandidate?.contributions.orEmpty(),
-            factorContributionVersion = debugReplayCandidate?.ruleVersion,
-            factorMeasuredComponents = debugReplayCandidate?.measuredComponents.orEmpty(),
+            factorContributions = runtimeFallbackCandidate?.contributions.orEmpty(),
+            factorContributionVersion = runtimeFallbackCandidate?.ruleVersion,
+            factorMeasuredComponents = runtimeFallbackCandidate?.measuredComponents.orEmpty(),
             factorControlSupportComponents =
-                debugReplayCandidate?.controlSupportComponents.orEmpty(),
+                runtimeFallbackCandidate?.controlSupportComponents.orEmpty(),
             requestId = outcome.requestId,
             fallbackReason = outcome.failureReason,
             missingFields = vector.missingFields,

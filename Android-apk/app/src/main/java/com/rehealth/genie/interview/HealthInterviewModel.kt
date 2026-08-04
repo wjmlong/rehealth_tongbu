@@ -40,7 +40,7 @@ interface HealthInterviewModel {
     fun buildBaseline(answers: List<InterviewAnswer>): HealthBaseline
 }
 
-class MockHealthInterviewModel : HealthInterviewModel {
+class GuidedHealthInterviewModel : HealthInterviewModel {
     override val questions = listOf(
         InterviewQuestion(
             id = "profile",

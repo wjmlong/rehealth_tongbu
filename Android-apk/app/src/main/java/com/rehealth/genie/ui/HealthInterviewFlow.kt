@@ -81,7 +81,7 @@ import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.interview.HealthBaseline
 import com.rehealth.genie.interview.HealthInterviewSyncViewModel
 import com.rehealth.genie.interview.InterviewAnswer
-import com.rehealth.genie.interview.MockHealthInterviewModel
+import com.rehealth.genie.interview.GuidedHealthInterviewModel
 import com.rehealth.genie.ui.theme.Canvas
 import com.rehealth.genie.ui.theme.Ink
 import com.rehealth.genie.ui.theme.Line
@@ -102,7 +102,7 @@ fun HealthInterviewFlow(
         factory = remember(application) { HealthInterviewSyncViewModel.Factory(application) },
     )
     val syncState by syncViewModel.uiState.collectAsState()
-    val model = remember { MockHealthInterviewModel() }
+    val model = remember { GuidedHealthInterviewModel() }
     val answers = remember { mutableStateListOf<InterviewAnswer>() }
     var input by remember { mutableStateOf("") }
     var baseline by remember { mutableStateOf<HealthBaseline?>(null) }

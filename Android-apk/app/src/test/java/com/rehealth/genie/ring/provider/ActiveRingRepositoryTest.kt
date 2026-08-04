@@ -53,7 +53,7 @@ class ActiveRingRepositoryTest {
     @Test
     fun productSwitchDisconnectsOldProviderAndRoutesFutureCalls() = runTest {
         val mrdProfile = profile(DEFAULT_MRD_PRODUCT_CODE, WearableVendor.MRD)
-        val mockProfile = profile(DEBUG_MOCK_PRODUCT_CODE, WearableVendor.MOCK)
+        val mockProfile = profile(TEST_MOCK_PRODUCT_CODE, WearableVendor.MOCK)
         val store = FakeBindingStore(mrdProfile)
         val mrd = FakeRingRepository("MRD")
         val mock = FakeRingRepository("MOCK")
@@ -67,7 +67,7 @@ class ActiveRingRepositoryTest {
         val manager = ActiveWearableManager(store, listOf(mrdProfile, mockProfile), registry, routed)
 
         assertEquals("MRD", routed.scan().single().name)
-        manager.switchProduct(DEBUG_MOCK_PRODUCT_CODE)
+        manager.switchProduct(TEST_MOCK_PRODUCT_CODE)
         assertEquals(1, mrd.disconnectCalls)
         assertEquals(WearableVendor.MOCK, store.activeBinding.value.vendor)
         assertEquals("MOCK", routed.scan().single().name)
@@ -161,6 +161,8 @@ class ActiveRingRepositoryTest {
         expectedMetrics = setOf(RingMetricType.HEART_RATE),
     )
 }
+
+private const val TEST_MOCK_PRODUCT_CODE = "RH-MOCK-TEST"
 
 private class BlockingRingRepository : RingRepository {
     private val state = MutableStateFlow(RingConnectionState.CONNECTED)

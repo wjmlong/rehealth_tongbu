@@ -1,3 +1,4 @@
+import java.net.URI
 import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -34,9 +35,61 @@ fun reHealthReleaseApiBaseUrl(): String {
     }
     return normalized
 }
+
+val configuredReleaseApiBaseUrl = localProps.getProperty("rehealth.release.api.base.url")
+    ?: System.getenv("REHEALTH_RELEASE_API_BASE_URL")
+    ?: providers.gradleProperty("rehealth.release.api.base.url").orNull
+
+val releaseKeystorePath = System.getenv("REHEALTH_RELEASE_KEYSTORE")?.trim()?.takeIf { it.isNotEmpty() }
+val releaseKeystorePassword =
+    System.getenv("REHEALTH_RELEASE_KEYSTORE_PASSWORD")?.takeIf { it.isNotEmpty() }
+val releaseKeyAlias = System.getenv("REHEALTH_RELEASE_KEY_ALIAS")?.trim()?.takeIf { it.isNotEmpty() }
+val releaseKeyPassword = System.getenv("REHEALTH_RELEASE_KEY_PASSWORD")?.takeIf { it.isNotEmpty() }
+val hasCompleteReleaseSigningConfig = listOf(
+    releaseKeystorePath,
+    releaseKeystorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+).all { it != null }
+
+fun validateReleaseApiBaseUrl(configured: String?): List<String> {
+    if (configured.isNullOrBlank()) {
+        return listOf(
+            "Set rehealth.release.api.base.url or REHEALTH_RELEASE_API_BASE_URL to the production HTTPS endpoint.",
+        )
+    }
+    val uri = runCatching { URI(configured.trim()) }.getOrNull()
+        ?: return listOf("Release backend URL is not a valid URI.")
+    val host = uri.host?.lowercase().orEmpty()
+    val privateIpv4 = host.startsWith("10.") || host.startsWith("192.168.") ||
+        host.startsWith("169.254.") || host.startsWith("100.64.") ||
+        Regex("^172\\.(1[6-9]|2[0-9]|3[01])\\.").containsMatchIn(host)
+    val privateIpv6 = host == "::1" || host.startsWith("fc") || host.startsWith("fd") ||
+        host.startsWith("fe80:")
+    val documentationHost = host == "example.com" || host.endsWith(".example.com") ||
+        host == "example.org" || host.endsWith(".example.org") ||
+        host == "example.net" || host.endsWith(".example.net")
+    return buildList {
+        if (uri.scheme?.lowercase() != "https") add("Release backend URL must use HTTPS.")
+        if (uri.userInfo != null) add("Release backend URL must not contain credentials.")
+        if (uri.query != null || uri.fragment != null) {
+            add("Release backend URL must not contain a query or fragment.")
+        }
+        if (
+            host.isBlank() || host == "localhost" || host == "0.0.0.0" || host == "127.0.0.1" ||
+            host == "10.0.2.2" || host.endsWith(".local") || host.endsWith(".invalid") ||
+            privateIpv4 || privateIpv6 || documentationHost
+        ) {
+            add("Release backend URL must resolve to a production host, not a local/private/placeholder host.")
+        }
+        if (host in setOf("rehealth.youngjimmy.store", "rehealth.47.80.30.228.sslip.io")) {
+            add("The public development tunnel is not an approved production Release endpoint.")
+        }
+    }
+}
 // JeecgBoot request-signing secret for endpoints that require the `X-Sign` header
 // (e.g. /sys/sms). Debug falls back to JeecgBoot's checked-in development default;
-// release builds always override this field with an empty value below.
+// release does not define or reference this BuildConfig field.
 fun signSecret(): String =
     (localProps.getProperty("JEECG_SIGNATURE_SECRET") ?: System.getenv("JEECG_SIGNATURE_SECRET")
         ?: "dd05f1c54d63749eda95f9fa6d49v442a").trim()
@@ -79,13 +132,21 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "REHEALTH_API_BASE_URL", "\"${reHealthReleaseApiBaseUrl()}\"")
         manifestPlaceholders["usesCleartextTraffic"] = "false"
-        // Provider credentials and request-signing secrets must never enter a release APK.
-        buildConfigField("String", "JEECG_SIGN_SECRET", "\"\"")
-        buildConfigField("String", "SMS_TEST_CODE", "\"\"")
     }
 
     sourceSets {
         getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    }
+
+    val releaseSigningConfig = if (hasCompleteReleaseSigningConfig) {
+        signingConfigs.create("release") {
+            storeFile = file(releaseKeystorePath!!)
+            storePassword = releaseKeystorePassword
+            keyAlias = releaseKeyAlias
+            keyPassword = releaseKeyPassword
+        }
+    } else {
+        null
     }
 
     buildTypes {
@@ -102,6 +163,7 @@ android {
         release {
             buildConfigField("boolean", "ALLOW_WEARABLE_PRODUCT_SWITCH", "false")
             isMinifyEnabled = true
+            signingConfig = releaseSigningConfig
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -189,4 +251,27 @@ dependencies {
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.room:room-testing:2.7.1")
     ksp("androidx.room:room-compiler:2.7.1")
+}
+
+val validateReleaseConfiguration by tasks.registering {
+    group = "verification"
+    description = "Fails closed unless the production API and formal Android signing inputs are configured."
+    doLast {
+        val errors = validateReleaseApiBaseUrl(configuredReleaseApiBaseUrl).toMutableList()
+        if (!hasCompleteReleaseSigningConfig) {
+            errors += "Set REHEALTH_RELEASE_KEYSTORE, REHEALTH_RELEASE_KEYSTORE_PASSWORD, " +
+                "REHEALTH_RELEASE_KEY_ALIAS, and REHEALTH_RELEASE_KEY_PASSWORD."
+        } else if (!file(releaseKeystorePath!!).isFile) {
+            errors += "REHEALTH_RELEASE_KEYSTORE does not point to an existing file."
+        }
+        if (errors.isNotEmpty()) {
+            throw GradleException("Release configuration is incomplete:\n- " + errors.joinToString("\n- "))
+        }
+    }
+}
+
+tasks.configureEach {
+    if (name in setOf("assembleRelease", "bundleRelease", "packageRelease")) {
+        dependsOn(validateReleaseConfiguration)
+    }
 }

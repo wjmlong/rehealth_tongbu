@@ -121,13 +121,27 @@ rehealth.api.base.url=http://10.0.2.2:8080/jeecg-boot/
 # USB 真机：先执行 adb reverse tcp:8080 tcp:8080
 rehealth.api.base.url=http://127.0.0.1:8080/jeecg-boot/
 
-# 仅在明确切换到公网 Release 环境时配置；必须是 HTTPS
+# 仅在明确切换到获批生产 Release 环境时配置；必须是 HTTPS
 rehealth.release.api.base.url=https://rehealth.example.com/jeecg-boot/
 ```
 
 也可分别使用 `REHEALTH_API_BASE_URL` 和 `REHEALTH_RELEASE_API_BASE_URL` 环境变量。
-未显式配置公网 Release 地址时，提交的 `https://api.rehealth.invalid/` 占位地址会
-失败关闭，避免构建意外连接公网联调环境。
+未显式配置生产 Release 地址时，提交的 `https://api.rehealth.invalid/` 占位地址会
+失败关闭。Release 还会拒绝 localhost、私网地址和
+`https://rehealth.youngjimmy.store` 开发隧道，避免把联调环境误发为生产版本。
+
+正式 APK/AAB 的签名材料只通过当前进程环境变量注入，密钥库应放在仓库外，密码不得
+写入 Git、`gradle.properties` 或 `local.properties`：
+
+```powershell
+$env:REHEALTH_RELEASE_KEYSTORE='D:\secure\rehealth-release.jks'
+$env:REHEALTH_RELEASE_KEYSTORE_PASSWORD='<secret>'
+$env:REHEALTH_RELEASE_KEY_ALIAS='rehealth'
+$env:REHEALTH_RELEASE_KEY_PASSWORD='<secret>'
+```
+
+`assembleRelease`、`bundleRelease` 与底层 `packageRelease` 都依赖
+`validateReleaseConfiguration`；生产 URL 或四项签名输入缺失时不会生成可误发的包。
 
 无蓝牙的真机 QA（模拟器 / MuMu）可用 fake-ring 通道替掉 BLE 采集：
 
@@ -292,9 +306,16 @@ Maven Central 和 Gradle Plugin Portal。未覆盖 Maven 配置时，本地仓�
 
 ```powershell
 .\gradlew.bat testDebugUnitTest
+.\gradlew.bat testReleaseUnitTest
 .\gradlew.bat assembleDebug
+.\gradlew.bat lintRelease
+.\gradlew.bat validateReleaseConfiguration
 .\gradlew.bat assembleRelease
 ```
+
+最后两条发布命令只有在生产 URL 与正式签名环境变量均已配置时才应通过。Release 商品
+资源只包含 MRD、RWFit 与 HBand，设备切换、全链路演练、合成数据和 Factor16 本地回放
+均仅存在于 Debug 源集。
 
 生成强制选择 RWFit、并保留重启后绑定重连能力的真机测试 APK：
 

@@ -1,6 +1,6 @@
 # ReHealth 当前状态
 
-> 最后核对：2026-08-03。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
+> 最后核对：2026-08-04。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
 > `docs/archive/acceptance/`，不得作为当前实现或发布状态的依据。
 
 ## 发布结论
@@ -12,6 +12,9 @@
 1. 物理 MRD/RWFit 戒指及 HBand 手表/手环与 Android 13+ 真机的扫描、重连、锁屏长时间采集、功耗和准确性 QA 尚未完成；HBand 已开始首次真机联调，完整重装后的连接验证仍待完成。
 2. Android 运行时端到端证据仍需覆盖登录、采集、离线队列、遥测上传、风险评估和反馈回传。
 3. 签名 Release APK 的运行时 logcat、权限、隐私和真实 HTTPS 环境仍需验收。
+4. 当前工作站未配置正式 Android 签名材料和获批生产 API 域名；model-service 也缺少
+   已审核的 `rehealth_cvd_catboost.pkl`、`feature_cols.pkl` 与 `model_meta_v2.json`，
+   因此发布门禁会按预期失败关闭。
 
 ## 已实现能力
 
@@ -23,7 +26,7 @@
 | model-service | CVD 风险评分、模型制品校验；旧干预生成仍保留作兼容路径；新增隔离的 `/v2/rhi/evaluate` research preview，提供 32 维确定性 RHI、五域、动量和可信度，明确不生成临床概率；旧健康助手接口保留为可配置回退 |
 | PIAS | 独立服务提供个体归因；Android 不执行生产归因 |
 | 部署 | Gateway、MySQL、TimescaleDB、Kafka、Redis、Nacos、Prometheus、Grafana 的 Compose 拓扑 |
-| 真机联调通道 | `https://rehealth.youngjimmy.store`（SSH 反向隧道 + ECS nginx，Let's Encrypt SAN 证书，2026-07-29 端到端 200；备用 `rehealth.47.80.30.228.sslip.io`），Debug/Release 均可联调；见 `tools/dev-tunnel/README.md` |
+| 真机联调通道 | `https://rehealth.youngjimmy.store`（SSH 反向隧道 + ECS nginx，Let's Encrypt SAN 证书，2026-07-29 端到端 200；备用 `rehealth.47.80.30.228.sslip.io`），仅限 Debug 联调，禁止作为 Release 生产地址；见 `tools/dev-tunnel/README.md` |
 
 HBand 的 HRV、压力、MET 页面策略已经按 MT116 实测收紧：HRV/压力仅通过一键体检或真实历史取得有效值，MET 仅通过真实设备历史取得有效值；HRV/MET 专用 SDK 能力仍保留在底层以便兼容与诊断，但产品页不触发 MET 实时命令。三项只有真实 Provider 的 HRV/MET 正值或 `1..100` 压力值才写入 Room 并显示，无有效值、越界值或模拟来源时隐藏卡片。
 
@@ -37,6 +40,13 @@ HBand 的 HRV、压力、MET 页面策略已经按 MT116 实测收紧：HRV/压�
 - CatBoost、SHAP、LLM 和生产归因不进入 Android APK。
 - 生产和 staging 不允许把 Mock 结果伪装成真实模型结果。
 - Android Release 源集不包含模拟戒指实现；远程风险失败不会生成本地模拟结果。
+- Android Release 已移除设备页 Debug 套餐切换、全链路演练、模拟产品资源、测试短信码和
+  Factor16 本地回放入口；这些能力仅从 `src/debug` 编译。`assembleRelease` / `bundleRelease`
+  会在生产 HTTPS 地址仍为占位/本地/开发隧道或正式签名环境变量不完整时失败关闭。
+- 2026-08-04 从清理后的构建目录运行 `testDebugUnitTest`、`testReleaseUnitTest`、
+  `assembleDebug` 与 `lintRelease` 均通过；Release Kotlin class 和合并商品资源的禁用标记
+  扫描通过。`validateReleaseConfiguration` 因当前占位生产域名及缺少正式签名材料按预期失败，
+  尚未生成或宣称签名 Release 制品。
 - `productCode` 只选择一个懒加载 Provider；绑定存于加密偏好且不迁移 Room，
   未绑定地址时后台采集不会使用固定 MAC 自动连接；RWFit SDK 类型不进入 UI、
   ViewModel 或 Room Entity；HBand SDK 类型同样被限制在 Gateway 文件内，未支持的指标不生成占位记录，

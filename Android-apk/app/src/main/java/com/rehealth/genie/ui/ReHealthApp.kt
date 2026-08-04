@@ -34,7 +34,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
@@ -46,7 +45,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rehealth.genie.BuildConfig
 import com.rehealth.genie.ReHealthApplication
-import com.rehealth.genie.qa.FullChainSimulationReport
 import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.RingDevice
 import com.rehealth.genie.ring.RingUiState
@@ -55,7 +53,6 @@ import com.rehealth.genie.ui.theme.Canvas
 import com.rehealth.genie.ui.theme.Mint
 import com.rehealth.genie.ui.theme.Muted
 import com.rehealth.genie.ui.components.QueueStatusBanner
-import kotlinx.coroutines.launch
 
 internal enum class AppStage { Splash, Login, Register, InterviewSession, Main }
 
@@ -194,9 +191,6 @@ private fun MainShell(
         .collectAsState(initial = emptyList())
     var showDeviceBinding by remember { mutableStateOf(false) }
     var showInterview by remember { mutableStateOf(false) }
-    val simulationScope = rememberCoroutineScope()
-    var simulationRunning by remember { mutableStateOf(false) }
-    var simulationReport by remember { mutableStateOf<FullChainSimulationReport?>(null) }
     val canonicalRiskStatus = remember { mutableStateOf<RemoteFeatureEvaluateStatus?>(null) }
     LaunchedEffect(
         ringState.lastSyncAt,
@@ -231,21 +225,7 @@ private fun MainShell(
             onDisconnect = onDisconnect,
             onSync = onSync,
             onSwitchProduct = onSwitchProduct,
-            simulationAvailable = application.fullChainSimulationRunner.available,
-            simulationRunning = simulationRunning,
-            simulationReport = simulationReport,
-            onRunFullChainSimulation = {
-                if (!simulationRunning) {
-                    simulationScope.launch {
-                        simulationRunning = true
-                        simulationReport = runCatching {
-                            application.fullChainSimulationRunner.run()
-                        }.getOrNull()
-                        simulationRunning = false
-                        ringViewModel.refreshPatientMvp()
-                    }
-                }
-            },
+            onRuntimeDataChanged = ringViewModel::refreshPatientMvp,
         )
         return
     }
