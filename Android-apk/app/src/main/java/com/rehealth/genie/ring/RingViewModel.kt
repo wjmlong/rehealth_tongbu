@@ -135,9 +135,12 @@ class RingViewModel(
             mutableUiState.update {
                 it.copy(
                     wearableProducts = if (allowWearableProductSwitch) {
-                        manager.products.map { product ->
-                            WearableProductOption(product.productCode, product.displayName)
-                        }
+                        collapseViomiProductOptions(
+                            products = manager.products.map { product ->
+                                WearableProductOption(product.productCode, product.displayName)
+                            },
+                            activeProductCode = manager.activeBinding.value.productCode,
+                        )
                     } else {
                         emptyList()
                     },
@@ -910,6 +913,27 @@ private fun pushProfileToRepository(repository: RingRepository, profile: Patient
 }
 
 data class WearableProductOption(val productCode: String, val displayName: String)
+
+/**
+ * All supported Viomi watches use the same cloud/IMEI workflow. Keep the concrete
+ * productCode for backend compatibility, but expose one vendor-level choice to users.
+ */
+internal fun collapseViomiProductOptions(
+    products: List<WearableProductOption>,
+    activeProductCode: String?,
+): List<WearableProductOption> {
+    val viomiProducts = products.filter { it.productCode.startsWith(VIOMI_PRODUCT_CODE_PREFIX) }
+    if (viomiProducts.isEmpty()) return products
+    val selectedViomi = viomiProducts.firstOrNull { it.productCode == activeProductCode }
+        ?: viomiProducts.first()
+    val viomiOption = WearableProductOption(selectedViomi.productCode, "云米")
+    val firstViomiIndex = products.indexOfFirst { it.productCode.startsWith(VIOMI_PRODUCT_CODE_PREFIX) }
+    val visible = products.filterNot { it.productCode.startsWith(VIOMI_PRODUCT_CODE_PREFIX) }.toMutableList()
+    visible.add(firstViomiIndex.coerceAtMost(visible.size), viomiOption)
+    return visible
+}
+
+private const val VIOMI_PRODUCT_CODE_PREFIX = "RH-VM-"
 
 private fun RingMetricType.displayName(): String = when (this) {
     RingMetricType.HEART_RATE -> "心率"

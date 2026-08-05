@@ -108,7 +108,7 @@ internal fun DeviceBindingScreen(
                 Column {
                     Text(if (onboarding) "连接你的智能戒指" else "设备绑定", color = Ink, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                     Text(
-                        if (onboarding) "连接后即可进入主页" else "连接睿禾智能戒指并同步健康数据",
+                        if (onboarding) "连接后即可进入主页" else "绑定可穿戴设备并同步健康数据",
                         color = Muted,
                         fontSize = 11.sp,
                     )

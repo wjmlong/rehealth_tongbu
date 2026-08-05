@@ -62,9 +62,9 @@ internal fun DeviceBindingDebugSection(
     if (state.wearableProducts.isEmpty()) return
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         ReHealthCardBlock {
-            Text("设备型号", color = Ink, fontWeight = FontWeight.SemiBold)
+            Text("设备类型", color = Ink, fontWeight = FontWeight.SemiBold)
             Text(
-                "选择实际佩戴设备；云米型号使用 IMEI 绑定，其他设备使用蓝牙连接。",
+                "选择实际佩戴设备；云米使用 IMEI 绑定，其他设备使用蓝牙连接。",
                 color = Muted,
                 fontSize = 10.sp,
             )
@@ -87,8 +87,13 @@ internal fun DeviceBindingDebugSection(
                     }
                 }
             }
+            val currentProductName = state.wearableProducts
+                .firstOrNull { it.productCode == state.activeProductCode }
+                ?.displayName
+                ?: state.activeProductCode
+                ?: "未选择"
             Text(
-                "当前：${state.activeProductCode ?: "未选择"}",
+                "当前：$currentProductName",
                 color = Mint,
                 fontSize = 11.sp,
                 modifier = Modifier.padding(top = 6.dp),

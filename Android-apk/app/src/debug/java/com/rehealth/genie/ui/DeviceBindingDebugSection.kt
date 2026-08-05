@@ -93,9 +93,9 @@ internal fun DeviceBindingDebugSection(
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (state.wearableProducts.isNotEmpty()) {
             ReHealthCardBlock {
-                Text("Debug 套餐设备", color = Ink, fontWeight = FontWeight.SemiBold)
+                Text("设备类型", color = Ink, fontWeight = FontWeight.SemiBold)
                 Text(
-                    "仅用于验证 productCode 路由；Release 不提供此入口。",
+                    "选择实际佩戴设备；云米使用 IMEI 绑定，其他设备使用蓝牙连接。",
                     color = Muted,
                     fontSize = 10.sp,
                 )
@@ -118,8 +118,13 @@ internal fun DeviceBindingDebugSection(
                         }
                     }
                 }
+                val currentProductName = state.wearableProducts
+                    .firstOrNull { it.productCode == state.activeProductCode }
+                    ?.displayName
+                    ?: state.activeProductCode
+                    ?: "未选择"
                 Text(
-                    "当前：${state.activeProductCode ?: "未选择"}",
+                    "当前：$currentProductName",
                     color = Mint,
                     fontSize = 11.sp,
                     modifier = Modifier.padding(top = 6.dp),
