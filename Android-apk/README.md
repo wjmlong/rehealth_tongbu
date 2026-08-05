@@ -19,7 +19,7 @@
 
 - Compose 登录、注册、健康访谈、设备绑定、主页、数据、风险、干预、反馈、归因和健康助手页面。
 - MRD SDK/协议适配，以及固定版本 RWFit、HBand 官方 SDK Provider。
-- 基于 `productCode` 的单一有效设备路由；Release 注册 MRD/RWFit/HBand，Debug 另可
+- 基于 `productCode` 的单一有效设备路由；Release 注册 MRD/RWFit/HBand/Viomi Cloud，Debug 另可
   注册 Mock 或通过 Gradle 属性生成指定厂商真机测试 APK。
 - 心率、HRV、血氧、血压、血糖、压力、MET、ECG、睡眠、步数、活动、血液成分和身体成分等本地记录与数据卡片；能力门控的血糖校准与经期设置。
 - Room 本地优先持久化及显式数据库迁移。
@@ -271,9 +271,9 @@ Room `ring_activities` 按设备当地自然日聚合的真实活动记录，活
 
 模拟戒指只存在于 `app/src/debug`，由 Debug 专用工厂和
 `USE_FAKE_RING`/`SEED_FAKE_HEALTH_DATA` 控制。`app/src/release` 的工厂只构造
-真实 MRD/RWFit/HBand Provider；远程风险评估失败时显示不可用，不生成本地模拟风险。
-Mock 商品目录和设备绑定演练 UI 同样只存在于 Debug source set；Release 合并资源中只包含
-MRD、RWFit 与 HBand 三个真实商品。Release 如果遇到覆盖安装遗留的非生产遥测会拒绝上传，
+真实 MRD/RWFit/HBand/Viomi Cloud Provider；远程风险评估失败时显示不可用，不生成本地模拟风险。
+Mock 商品增量目录和设备绑定演练 UI 只存在于 Debug source set；Release 合并资源中只包含
+MRD、RWFit、HBand 与 Viomi Cloud 真实商品。Release 如果遇到覆盖安装遗留的非生产遥测会拒绝上传，
 不会把其改写为真实 Provider 数据。
 
 Debug 版“我的 → 设备绑定”另提供唯一的全链路演练入口，且必须在警告对话框中
@@ -349,7 +349,8 @@ Debug 默认使用 MRD。切换配置后需重新构建并安装应用。
 
 Debug 的“设备绑定”页也可在确认对话框后切换本地商品目录中的 `productCode`。
 切换会暂停采集、断开旧 Provider、清空旧绑定并保留全部 Room 历史，再恢复原先
-启用的采集任务。Release 不显示该入口，套餐仍由受信任的产品配置决定。
+启用的采集任务。Debug 与 Release 均可选择真实设备类型并通过“云米”入口绑定 IMEI；
+Mock 和全链路演练仍只在 Debug 显示。
 
 HBand 真机联调可生成强制选择 `RH-HB-E01` 的专用 APK：
 

@@ -38,4 +38,31 @@ class WearableProductProfileTest {
 
         assertFailsWith<IllegalArgumentException> { parseWearableProductProfiles(json) }
     }
+
+    @Test
+    fun mergesDebugProductsWithoutReplacingRealProducts() {
+        val real = profile("RH-VM-S8", WearableVendor.VIOMI_CLOUD)
+        val debug = profile("RH-MOCK-DEBUG", WearableVendor.MOCK)
+
+        val merged = mergeWearableProductProfiles(listOf(real), listOf(debug))
+
+        assertEquals(listOf("RH-VM-S8", "RH-MOCK-DEBUG"), merged.map { it.productCode })
+    }
+
+    @Test
+    fun rejectsDuplicateCodesAcrossCatalogs() {
+        val profile = profile("DUP", WearableVendor.MRD)
+
+        assertFailsWith<IllegalArgumentException> {
+            mergeWearableProductProfiles(listOf(profile), listOf(profile))
+        }
+    }
+
+    private fun profile(productCode: String, vendor: WearableVendor) = WearableProductProfile(
+        productCode = productCode,
+        vendor = vendor,
+        displayName = productCode,
+        modelNameHints = emptySet(),
+        expectedMetrics = emptySet(),
+    )
 }

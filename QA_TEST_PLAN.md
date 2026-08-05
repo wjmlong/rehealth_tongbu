@@ -2,7 +2,7 @@
 
 ## Viomi cloud-watch QA
 
-1. Select the single user-facing “云米” device type (covering S8/S9/GS20/GS17/A67/K9L) and verify the page shows IMEI binding without Bluetooth permission.
+1. In both Debug and Release, select the single user-facing “云米” device type (covering S8/S9/GS20/GS17/A67/K9L) and verify the page shows IMEI binding without Bluetooth permission. Debug merged assets must retain the real catalog in addition to its Mock-only incremental catalog.
 2. An IMEI outside the configured Viomi account must fail binding and remain disconnected.
 3. A valid IMEI must create only a hashed server-side device identity; logs must contain no IMEI, AppKey, AccessToken, or raw health data.
 4. Sync the last seven days and verify heart rate, systolic/diastolic pressure, blood oxygen, and UTC timestamps; Room changes only after backend persistence succeeds.

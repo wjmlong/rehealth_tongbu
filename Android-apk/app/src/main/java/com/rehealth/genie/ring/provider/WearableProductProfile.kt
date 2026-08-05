@@ -16,16 +16,38 @@ class WearableProductCatalog(context: Context) {
     private val appContext = context.applicationContext
 
     val products: List<WearableProductProfile> by lazy {
-        val json = appContext.assets.open(ASSET_NAME).bufferedReader().use { it.readText() }
-        parseWearableProductProfiles(json)
+        val baseProfiles = loadProfiles(ASSET_NAME)
+        val debugProfiles = if (DEBUG_ASSET_NAME in appContext.assets.list("").orEmpty()) {
+            loadProfiles(DEBUG_ASSET_NAME)
+        } else {
+            emptyList()
+        }
+        mergeWearableProductProfiles(baseProfiles, debugProfiles)
     }
 
     fun find(productCode: String): WearableProductProfile? =
         products.firstOrNull { it.productCode == productCode }
 
+    private fun loadProfiles(assetName: String): List<WearableProductProfile> {
+        val json = appContext.assets.open(assetName).bufferedReader().use { it.readText() }
+        return parseWearableProductProfiles(json)
+    }
+
     private companion object {
         const val ASSET_NAME = "wearable_products.json"
+        const val DEBUG_ASSET_NAME = "debug_wearable_products.json"
     }
+}
+
+internal fun mergeWearableProductProfiles(
+    baseProfiles: List<WearableProductProfile>,
+    additionalProfiles: List<WearableProductProfile>,
+): List<WearableProductProfile> {
+    val merged = baseProfiles + additionalProfiles
+    require(merged.map { it.productCode }.distinct().size == merged.size) {
+        "wearable productCode values must be unique across product catalogs"
+    }
+    return merged
 }
 
 internal fun parseWearableProductProfiles(json: String): List<WearableProductProfile> {

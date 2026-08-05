@@ -39,7 +39,7 @@ HBand ECG 已补齐与固定 SDK 匹配的四 ABI 原生库，实时 ADC 按设�
 保存导联、采样/绘制频率、时长、校准方式、平均心率和接触质量，并提供实时及本机历史单导联波形详情。
 ECG 和身体成分在下发设备测量命令前先展示电极接触与稳定姿势说明，用户确认后才开始测量。
 SDK 疾病风险不作为诊断展示，界面明确标注仅供健康参考、不能替代医疗诊断。
-Debug 设备页可验证套餐切换顺序；Release 不允许用户在客户端自行改变套餐。
+Debug 设备页可验证套餐切换顺序；Debug 与 Release 均可选择真实设备类型，Mock 与演练入口只存在于 Debug。
 后台恢复只重连加密保存的当前绑定；HBand 所需四项真实画像使用按用户哈希隔离的
 加密缓存，不使 BLE 采集依赖网络。
 Android 在重新登录和进入个人页时按当前用户读取类型化个人资料及最近健康问答；这些读取与
@@ -303,8 +303,9 @@ $env:REHEALTH_RELEASE_API_BASE_URL="https://api.example.com/jeecg-boot/"
 Debug APK：`Android-apk/app/build/outputs/apk/debug/app-debug.apk`
 
 Release 默认使用已批准的 `https://rehealth.youngjimmy.store/jeecg-boot/`，版本号可由本机或
-CI 覆盖，签名材料必须从仓库外注入且不得进入 Git。Release 合并资源只包含三个真实
-Provider，非生产遥测会被拒绝上传；环境覆盖仍由 `verifyReleaseConfiguration` 校验。
+CI 覆盖，签名材料必须从仓库外注入且不得进入 Git。Release 合并资源只包含
+MRD、RWFit、HBand 与 Viomi Cloud 四个真实 Provider，非生产遥测会被拒绝上传；
+环境覆盖仍由 `verifyReleaseConfiguration` 校验。
 
 ### Device Service 与遥测契约
 
