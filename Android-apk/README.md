@@ -3,6 +3,7 @@
 ## 云米云端手表
 
 设备页可选择 S8、S9、GS20、GS17、A67 或 K9L，输入 IMEI 后由后端验证并绑定。
+Debug 与 Release 均提供真实设备型号选择器；选择任一云米型号后显示 IMEI 输入框。
 同步会请求后端拉取最近 7 天的心率、血压和血氧；后端持久化成功后，App 才将
 标准化记录写入现有 Room `ring_measurements`。该数据使用 `viomi_cloud` 来源且不会
 再次进入本地上传队列。APK 不包含云米 AppId、AppKey 或 AccessToken，IMEI 保存在
