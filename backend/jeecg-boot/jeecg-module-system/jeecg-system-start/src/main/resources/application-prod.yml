@@ -474,8 +474,8 @@ rehealth:
   # through for local integration (still persisted under the configured user-id).
   viomi:
     enabled: ${REHEALTH_VIOMI_ENABLED:true}
-    app-id: ${REHEALTH_VIOMI_APP_ID:}
-    app-key: ${REHEALTH_VIOMI_APP_KEY:}
+    app-id: ${REHEALTH_VIOMI_APP_ID:1115}
+    app-key: ${REHEALTH_VIOMI_APP_KEY:BE9D8972-6E0C-4252-933C-AD8A9DF41FB9}
     require-auth: ${REHEALTH_VIOMI_REQUIRE_AUTH:true}
     user-id: ${REHEALTH_VIOMI_USER_ID:viomi-gateway}
     source: ${REHEALTH_VIOMI_SOURCE:viomi}
