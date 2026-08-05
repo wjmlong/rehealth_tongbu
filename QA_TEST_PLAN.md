@@ -319,6 +319,11 @@ git diff --check
      must state that scenario simulation is not a future disease probability.
 
 12. Intervention retrieval
+    - For local `admin` API QA, run
+      `backend/deploy/rehealth/scripts/seed-admin-intervention-test-data.ps1` first.
+      Confirm its software and hardware row-count checks pass, retain tenant `1000`
+      from the authenticated login, and treat the seeded `is_mock=true` risk and
+      `LOCAL_TEST_SEED` telemetry as test-only inputs.
     - Apply TimescaleDB V4, upload a `telemetry-v2` batch containing today's
       `dietRecords` plus activity/sleep/measurement rows, then call
       `POST /rehealth/mobile/interventions/generate` with only a stable `request_id`.

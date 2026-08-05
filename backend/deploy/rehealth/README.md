@@ -147,6 +147,25 @@ limits are `REHEALTH_INTERVENTION_LANGCHAIN4J_TIMEOUT_SECONDS` and
 Device Service context, or software persistence are unavailable, generation
 fails closed; no mock plan is persisted.
 
+For local personalized-intervention QA, seed the active `admin` account with an
+explicitly marked test profile, interview, mock risk context, and rolling
+TimescaleDB activity/sleep/measurement/diet history:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File `
+  backend/deploy/rehealth/scripts/seed-admin-intervention-test-data.ps1
+```
+
+The script resolves the current `admin` user ID and login tenant from
+`software_db`, refreshes only records carrying its stable local-seed IDs, and
+prints row-count verification. It requires the local `software-db` and
+`hardware-db` containers plus ignored database password files. All seeded data
+is labelled `LOCAL_TEST_SEED`; the persisted risk has `is_mock=true` and is not
+valid for clinical or production decisions. Start JeecgBoot and Device Service,
+authenticate as `admin`, retain its login tenant header, and call
+`POST /rehealth/mobile/interventions/generate` with a stable `request_id` to
+exercise the real LangChain4j generation and persistence path.
+
 To keep using the legacy model-service health Q&A locally with the YAML-first path:
 
 1. Copy `model-service/config/ai-chat.example.yml` to the ignored
