@@ -28,6 +28,10 @@ import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
 import com.rehealth.genie.network.dto.RhiDailySnapshotBatchDto
 import com.rehealth.genie.network.dto.RhiDailySnapshotResponseDto
 import com.rehealth.genie.network.dto.RhiManualHealthInputDto
+import com.rehealth.genie.network.dto.ViomiBindRequestDto
+import com.rehealth.genie.network.dto.ViomiBindResponseDto
+import com.rehealth.genie.network.dto.ViomiSyncRequestDto
+import com.rehealth.genie.network.dto.ViomiSyncResponseDto
 import com.rehealth.genie.network.dto.BehaviorRecordDto
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -75,6 +79,16 @@ interface ReHealthApi {
     suspend fun bindDevice(
         @Body request: DeviceBindRequestDto,
     ): Response<JeecgResult<DeviceBindResponseDto>>
+
+    @POST("rehealth/mobile/viomi/bind")
+    suspend fun bindViomi(
+        @Body request: ViomiBindRequestDto,
+    ): Response<JeecgResult<ViomiBindResponseDto>>
+
+    @POST("rehealth/mobile/viomi/sync")
+    suspend fun syncViomi(
+        @Body request: ViomiSyncRequestDto,
+    ): Response<JeecgResult<ViomiSyncResponseDto>>
 
     @POST("rehealth/mobile/features/evaluate")
     suspend fun evaluateFeatures(@Body request: FeatureEvaluateRequest): Response<JeecgResult<RiskResultDto>>

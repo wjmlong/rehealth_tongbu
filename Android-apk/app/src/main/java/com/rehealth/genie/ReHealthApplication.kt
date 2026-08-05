@@ -190,6 +190,7 @@ class ReHealthApplication : Application() {
                 dao = database.ringDataDao(),
                 protocolAdapter = mrdProtocolAdapter,
                 activeWearableStore = activeWearableStore,
+                apiClient = authenticatedApiClient,
             ),
         )
     }

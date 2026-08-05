@@ -33,6 +33,7 @@ import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -51,11 +52,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.rehealth.genie.qa.FullChainSimulationReport
 import com.rehealth.genie.ring.RingConnectionState
+import com.rehealth.genie.ring.RingAcquisitionMode
 import com.rehealth.genie.ring.RingDevice
 import com.rehealth.genie.ring.RingUiState
 import com.rehealth.genie.ui.theme.Canvas
@@ -85,6 +89,7 @@ internal fun DeviceBindingScreen(
     var permissionGranted by remember {
         mutableStateOf(hasBluetoothPermission(context))
     }
+    var viomiImei by remember(state.activeProductCode) { mutableStateOf("") }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { results ->
@@ -120,7 +125,7 @@ internal fun DeviceBindingScreen(
                 onRunFullChainSimulation = onRunFullChainSimulation,
             )
         }
-        item {
+        if (state.acquisitionMode == RingAcquisitionMode.BLUETOOTH) item {
             ReHealthCardBlock {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(44.dp).clip(CircleShape).background(MintSoft), contentAlignment = Alignment.Center) {
@@ -153,6 +158,33 @@ internal fun DeviceBindingScreen(
                 )
             }
         }
+        if (state.acquisitionMode == RingAcquisitionMode.CLOUD) item {
+            ReHealthCardBlock {
+                Text("绑定云米云端手表", color = Ink, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "输入手表 IMEI。云米密钥和 AccessToken 只保存在 ReHealth 后端。",
+                    color = Muted,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+                OutlinedTextField(
+                    value = viomiImei,
+                    onValueChange = { viomiImei = it.filter(Char::isDigit).take(32) },
+                    label = { Text("手表 IMEI") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                )
+                Button(
+                    onClick = { onConnect(RingDevice(viomiImei, "云米云端手表", null)) },
+                    enabled = viomiImei.length >= 8 && !state.isSyncing,
+                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Mint),
+                ) {
+                    Text("验证并绑定")
+                }
+            }
+        }
         item {
             ReHealthCardBlock {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -167,7 +199,12 @@ internal fun DeviceBindingScreen(
                     modifier = Modifier.padding(top = 12.dp),
                 )
                 state.connectedDevice?.let {
-                    Text("${it.address} · RSSI ${it.rssi ?: "--"}", color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+                    val identifier = if (state.acquisitionMode == RingAcquisitionMode.CLOUD) {
+                        "IMEI ••••${it.address.takeLast(4)}"
+                    } else {
+                        "${it.address} · RSSI ${it.rssi ?: "--"}"
+                    }
+                    Text(identifier, color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
                 }
                 if (state.message != null) {
                     Text(state.message, color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))
@@ -185,7 +222,7 @@ internal fun DeviceBindingScreen(
                     modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Button(
+                    if (state.acquisitionMode == RingAcquisitionMode.BLUETOOTH) Button(
                         onClick = onScan,
                         enabled = !state.isScanning && !state.isSyncing,
                         modifier = Modifier.weight(1f),
@@ -238,7 +275,11 @@ internal fun DeviceBindingScreen(
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Mint),
                 ) {
-                    Text(if (state.isSyncing) "正在同步 ${state.syncProgress}%" else "同步全部健康数据")
+                    Text(
+                        if (state.isSyncing) "正在同步 ${state.syncProgress}%"
+                        else if (state.acquisitionMode == RingAcquisitionMode.CLOUD) "从云米云端同步近 7 天数据"
+                        else "同步全部健康数据",
+                    )
                 }
                 state.lastSyncAt?.let {
                     Text(

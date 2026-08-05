@@ -208,6 +208,7 @@ private fun String.matchesVendor(vendor: WearableVendor): Boolean = when (vendor
             contains("mock", ignoreCase = true) ||
             contains("synthetic", ignoreCase = true)
     WearableVendor.HBAND -> startsWith("hband", ignoreCase = true)
+    WearableVendor.VIOMI_CLOUD -> startsWith("viomi_cloud", ignoreCase = true)
 }
 
 private fun <T> ApiResult<T>.successOrThrow(fallback: String): T = when (this) {

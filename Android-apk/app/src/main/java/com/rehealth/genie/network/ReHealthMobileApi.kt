@@ -29,6 +29,10 @@ import com.rehealth.genie.network.dto.BehaviorRecordDto
 import com.rehealth.genie.network.dto.RhiDailySnapshotBatchDto
 import com.rehealth.genie.network.dto.RhiDailySnapshotResponseDto
 import com.rehealth.genie.network.dto.RhiManualHealthInputDto
+import com.rehealth.genie.network.dto.ViomiBindRequestDto
+import com.rehealth.genie.network.dto.ViomiBindResponseDto
+import com.rehealth.genie.network.dto.ViomiSyncRequestDto
+import com.rehealth.genie.network.dto.ViomiSyncResponseDto
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
@@ -114,6 +118,12 @@ class ReHealthMobileApi(
 
     suspend fun bindDevice(request: DeviceBindRequestDto): RemotePhmOutcome<DeviceBindResponseDto> =
         unwrap { api.bindDevice(request) }
+
+    suspend fun bindViomi(request: ViomiBindRequestDto): RemotePhmOutcome<ViomiBindResponseDto> =
+        unwrap { api.bindViomi(request) }
+
+    suspend fun syncViomi(request: ViomiSyncRequestDto): RemotePhmOutcome<ViomiSyncResponseDto> =
+        unwrap { api.syncViomi(request) }
 
     suspend fun evaluateFeatures(
         request: FeatureEvaluateRequest,

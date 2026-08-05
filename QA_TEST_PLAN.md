@@ -1,5 +1,15 @@
 # ReHealth MVP QA Test Plan
 
+## Viomi cloud-watch QA
+
+1. Select S8/S9/GS20/GS17/A67/K9L and verify the page shows IMEI binding without Bluetooth permission.
+2. An IMEI outside the configured Viomi account must fail binding and remain disconnected.
+3. A valid IMEI must create only a hashed server-side device identity; logs must contain no IMEI, AppKey, AccessToken, or raw health data.
+4. Sync the last seven days and verify heart rate, systolic/diastolic pressure, blood oxygen, and UTC timestamps; Room changes only after backend persistence succeeds.
+5. Repeating a window must be idempotent; `NO_NEW_DATA` is successful.
+6. With network or hardware persistence unavailable, no new Viomi Room record is written; retry succeeds after recovery.
+7. Verify `viomi_cloud` records never create a second `/measurements/batch` upload.
+
 Last reviewed: 2026-08-04
 Scope: Android MVP, backend services, model-service, contract gates, and release QA. This plan is not final release approval; see `STATUS.md` for current blockers.
 

@@ -114,7 +114,7 @@ android {
         // Main code may reference these fields, but only Debug is allowed to override them.
         buildConfigField("boolean", "USE_FAKE_RING", "false")
         buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", "false")
-        buildConfigField("boolean", "ALLOW_WEARABLE_PRODUCT_SWITCH", "false")
+        buildConfigField("boolean", "ALLOW_WEARABLE_PRODUCT_SWITCH", "true")
     }
 
     signingConfigs {

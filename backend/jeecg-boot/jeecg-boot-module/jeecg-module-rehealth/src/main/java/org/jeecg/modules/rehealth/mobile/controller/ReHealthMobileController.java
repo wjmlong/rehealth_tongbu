@@ -28,9 +28,14 @@ import org.jeecg.modules.rehealth.mobile.dto.RecentTelemetryResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.TelemetryBatchRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.TelemetryBatchResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.RhiManualHealthInputDto;
+import org.jeecg.modules.rehealth.mobile.dto.ViomiBindRequestDto;
+import org.jeecg.modules.rehealth.mobile.dto.ViomiBindResponseDto;
+import org.jeecg.modules.rehealth.mobile.dto.ViomiSyncRequestDto;
+import org.jeecg.modules.rehealth.mobile.dto.ViomiSyncResponseDto;
 import org.jeecg.modules.rehealth.model.ModelServiceException;
 import org.jeecg.modules.rehealth.ingest.writer.HardwarePersistenceUnavailableException;
 import org.jeecg.modules.rehealth.service.ReHealthMobileService;
+import org.jeecg.modules.rehealth.viomi.ViomiPullService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -48,13 +53,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class ReHealthMobileController {
     private final ReHealthMobileService mobileService;
     private final AuthenticatedTenantResolver tenantResolver;
+    private final ViomiPullService viomiPullService;
 
     public ReHealthMobileController(
             ReHealthMobileService mobileService,
-            AuthenticatedTenantResolver tenantResolver
+            AuthenticatedTenantResolver tenantResolver,
+            ViomiPullService viomiPullService
     ) {
         this.mobileService = mobileService;
         this.tenantResolver = tenantResolver;
+        this.viomiPullService = viomiPullService;
     }
 
     @IgnoreAuth
@@ -151,6 +159,34 @@ public class ReHealthMobileController {
 
     private String currentUserId() {
         return currentUser().getId();
+    }
+
+    @PostMapping("/viomi/bind")
+    @Operation(summary = "Verify and bind a Viomi cloud watch to the current user")
+    public Result<ViomiBindResponseDto> bindViomi(@RequestBody ViomiBindRequestDto request) {
+        try {
+            return Result.OK(viomiPullService.bind(currentUserId(), request));
+        } catch (IllegalArgumentException e) {
+            return Result.error(400, e.getMessage());
+        } catch (IllegalStateException e) {
+            return Result.error(503, "Viomi service or persistence unavailable; retry later");
+        }
+    }
+
+    @PostMapping("/viomi/sync")
+    @Operation(summary = "Pull Viomi history, durably persist it, and return normalized measurements")
+    public Result<ViomiSyncResponseDto> syncViomi(@RequestBody ViomiSyncRequestDto request) {
+        try {
+            return Result.OK(viomiPullService.sync(currentUserId(), request));
+        } catch (IllegalArgumentException e) {
+            return Result.error(400, e.getMessage());
+        } catch (SecurityException e) {
+            return Result.error(403, e.getMessage());
+        } catch (HardwarePersistenceUnavailableException e) {
+            return Result.error(503, "hardware telemetry persistence unavailable; retry the same Viomi window");
+        } catch (IllegalStateException e) {
+            return Result.error(503, "Viomi service or hardware persistence unavailable; retry later");
+        }
     }
 
     private LoginUser currentUser() {

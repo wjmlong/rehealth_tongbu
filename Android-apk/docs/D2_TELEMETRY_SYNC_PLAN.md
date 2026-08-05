@@ -4,6 +4,13 @@ Status: implemented software path; updated 2026-07-31.
 
 ## Implemented
 
+### Viomi cloud pull path (2026-08-05)
+
+- `VIOMI_CLOUD` is a non-BLE `RingRepository` provider for S8/S9/GS20/GS17/A67/K9L.
+- Binding and seven-day history sync use authenticated backend endpoints; vendor credentials never enter the APK.
+- Backend persistence is the authority. Only a persisted response is imported to Room.
+- Imported `viomi_cloud` records set `RingSyncResult.requiresUpload=false`, preventing an upload echo loop.
+
 - MRD/RWFit/HBand collection writes to Room before any network operation.
 - Successful manual/automatic sync creates a durable `telemetry_batch` queue item.
 - WorkManager uploads through the authenticated Jeecg mobile client.

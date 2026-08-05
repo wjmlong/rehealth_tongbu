@@ -162,6 +162,8 @@ productCode / 单一有效绑定
 
 ```text
 POST /jeecg-boot/rehealth/mobile/measurements/batch
+POST /jeecg-boot/rehealth/mobile/viomi/bind  (云米 IMEI 验证与用户绑定)
+POST /jeecg-boot/rehealth/mobile/viomi/sync  (按时间窗拉取心率/血压/血氧并入库)
 GET  /jeecg-boot/rehealth/mobile/measurements/recent
 POST /jeecg-boot/rehealth/viomi/report        (云米/viomi 平台主动上报回调；JWT HS256 验签)
 ```

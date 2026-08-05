@@ -3,6 +3,8 @@ package com.rehealth.genie.ring
 import kotlinx.coroutines.flow.StateFlow
 
 interface RingRepository {
+    val acquisitionMode: RingAcquisitionMode
+        get() = RingAcquisitionMode.BLUETOOTH
     val connectionState: StateFlow<RingConnectionState>
     val connectedDevice: StateFlow<RingDevice?>
     val supportedMetrics: Set<RingMetricType>

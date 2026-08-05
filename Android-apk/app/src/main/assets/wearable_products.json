@@ -33,5 +33,47 @@
       "BLOOD_COMPONENT",
       "BODY_COMPOSITION"
     ]
+  },
+  {
+    "productCode": "RH-VM-S8",
+    "vendor": "VIOMI_CLOUD",
+    "displayName": "云米 S8 云端手表",
+    "modelNameHints": ["S8"],
+    "expectedMetrics": ["HEART_RATE", "BLOOD_PRESSURE", "BLOOD_OXYGEN"]
+  },
+  {
+    "productCode": "RH-VM-S9",
+    "vendor": "VIOMI_CLOUD",
+    "displayName": "云米 S9 云端手表",
+    "modelNameHints": ["S9"],
+    "expectedMetrics": ["HEART_RATE", "BLOOD_PRESSURE", "BLOOD_OXYGEN"]
+  },
+  {
+    "productCode": "RH-VM-GS20",
+    "vendor": "VIOMI_CLOUD",
+    "displayName": "云米 GS20 云端手表",
+    "modelNameHints": ["GS20"],
+    "expectedMetrics": ["HEART_RATE", "BLOOD_PRESSURE", "BLOOD_OXYGEN"]
+  },
+  {
+    "productCode": "RH-VM-GS17",
+    "vendor": "VIOMI_CLOUD",
+    "displayName": "云米 GS17 云端手表",
+    "modelNameHints": ["GS17"],
+    "expectedMetrics": ["HEART_RATE", "BLOOD_PRESSURE", "BLOOD_OXYGEN"]
+  },
+  {
+    "productCode": "RH-VM-A67",
+    "vendor": "VIOMI_CLOUD",
+    "displayName": "云米 A67 云端手表",
+    "modelNameHints": ["A67"],
+    "expectedMetrics": ["HEART_RATE", "BLOOD_PRESSURE", "BLOOD_OXYGEN"]
+  },
+  {
+    "productCode": "RH-VM-K9L",
+    "vendor": "VIOMI_CLOUD",
+    "displayName": "云米 K9L 云端手表",
+    "modelNameHints": ["K9L"],
+    "expectedMetrics": ["HEART_RATE", "BLOOD_PRESSURE", "BLOOD_OXYGEN"]
   }
 ]

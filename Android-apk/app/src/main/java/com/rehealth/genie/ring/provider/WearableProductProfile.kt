@@ -57,3 +57,4 @@ private fun com.google.gson.JsonObject.requireStringSet(name: String): Set<Strin
 const val DEFAULT_MRD_PRODUCT_CODE = "RH-MRD-S01"
 const val RWFIT_PRODUCT_CODE = "RH-RW-P01"
 const val HBAND_PRODUCT_CODE = "RH-HB-E01"
+const val VIOMI_S8_PRODUCT_CODE = "RH-VM-S8"

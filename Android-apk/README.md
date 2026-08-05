@@ -1,5 +1,13 @@
 # ReHealth AI Android
 
+## 云米云端手表
+
+设备页可选择 S8、S9、GS20、GS17、A67 或 K9L，输入 IMEI 后由后端验证并绑定。
+同步会请求后端拉取最近 7 天的心率、血压和血氧；后端持久化成功后，App 才将
+标准化记录写入现有 Room `ring_measurements`。该数据使用 `viomi_cloud` 来源且不会
+再次进入本地上传队列。APK 不包含云米 AppId、AppKey 或 AccessToken，IMEI 保存在
+加密的设备绑定首选项中。云端手表模式不申请蓝牙权限，也不启动 BLE 前台服务。
+
 睿禾精灵 Android 客户端，负责 MRD/RWFit 戒指与 HBand 手表/手环采集、本地持久化、轻量健康
 特征提取、离线上传和用户交互。CatBoost、SHAP、LLM 和生产归因均位于云端，
 不进入 Android APK。

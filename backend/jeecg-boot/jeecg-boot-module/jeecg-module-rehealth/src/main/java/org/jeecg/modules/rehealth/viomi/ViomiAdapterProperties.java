@@ -31,6 +31,15 @@ public class ViomiAdapterProperties {
     @Value("${rehealth.viomi.source:viomi}")
     private String source;
 
+    @Value("${rehealth.viomi.base-url:https://openapi.miwitracker.com}")
+    private String baseUrl;
+
+    @Value("${rehealth.viomi.connect-timeout-seconds:10}")
+    private int connectTimeoutSeconds;
+
+    @Value("${rehealth.viomi.request-timeout-seconds:30}")
+    private int requestTimeoutSeconds;
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -53,5 +62,17 @@ public class ViomiAdapterProperties {
 
     public String getSource() {
         return source;
+    }
+
+    public String getBaseUrl() {
+        return baseUrl;
+    }
+
+    public int getConnectTimeoutSeconds() {
+        return connectTimeoutSeconds;
+    }
+
+    public int getRequestTimeoutSeconds() {
+        return requestTimeoutSeconds;
     }
 }

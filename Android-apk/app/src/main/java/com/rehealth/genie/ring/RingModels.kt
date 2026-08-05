@@ -67,6 +67,8 @@ enum class RingConnectionState {
     ERROR,
 }
 
+enum class RingAcquisitionMode { BLUETOOTH, CLOUD }
+
 data class RingDevice(
     val address: String,
     val name: String?,
@@ -77,6 +79,7 @@ data class RingSyncResult(
     val collectedTypes: Set<RingMetricType>,
     val recordsWritten: Int,
     val completedAt: Long,
+    val requiresUpload: Boolean = true,
 )
 
 val RequiredRingMetrics: Set<RingMetricType> = setOf(

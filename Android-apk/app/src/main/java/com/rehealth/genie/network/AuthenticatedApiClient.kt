@@ -107,6 +107,14 @@ class AuthenticatedApiClient(
         mobileApi.bindDevice(request)
     }
 
+    suspend fun bindViomi(request: ViomiBindRequestDto): ApiResult<ViomiBindResponseDto> = executeWithAuth {
+        mobileApi.bindViomi(request)
+    }
+
+    suspend fun syncViomi(request: ViomiSyncRequestDto): ApiResult<ViomiSyncResponseDto> = executeWithAuth {
+        mobileApi.syncViomi(request)
+    }
+
     suspend fun submitInterventionFeedback(
         interventionId: String,
         request: InterventionFeedbackRequest,

@@ -6,4 +6,5 @@ enum class WearableVendor {
     MRD,
     RWFIT,
     HBAND,
+    VIOMI_CLOUD,
 }

@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import com.rehealth.genie.BuildConfig
 import com.rehealth.genie.ring.data.RingDataDao
+import com.rehealth.genie.network.AuthenticatedApiClient
 import com.rehealth.genie.ring.hband.HBandRingRepository
 import com.rehealth.genie.ring.hband.RealHBandSdkGateway
 import com.rehealth.genie.ring.mrd.MrdBleRingRepository
@@ -17,12 +18,14 @@ import com.rehealth.genie.ring.provider.WearableVendor
 import com.rehealth.genie.ring.provider.WearableProductCatalog
 import com.rehealth.genie.ring.rwfit.RealRwFitSdkGateway
 import com.rehealth.genie.ring.rwfit.RwFitRingRepository
+import com.rehealth.genie.ring.viomi.ViomiCloudRingRepository
 
 internal fun createRuntimeRingProviderFactories(
     context: Context,
     dao: RingDataDao,
     protocolAdapter: MrdProtocolAdapter,
     activeWearableStore: ActiveWearableBindingStore,
+    apiClient: AuthenticatedApiClient,
 ): Map<WearableVendor, () -> RingRepository> = mapOf(
     WearableVendor.MOCK to { MockRingRepository(dao) },
     WearableVendor.MRD to {
@@ -47,6 +50,7 @@ internal fun createRuntimeRingProviderFactories(
             expectedMetrics = product.expectedMetrics,
         )
     },
+    WearableVendor.VIOMI_CLOUD to { ViomiCloudRingRepository(dao, apiClient, activeWearableStore) },
 )
 
 internal fun runtimeDefaultWearableSelection(): Pair<String, WearableVendor> =

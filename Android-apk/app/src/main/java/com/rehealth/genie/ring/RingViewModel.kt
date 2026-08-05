@@ -39,6 +39,7 @@ import kotlinx.coroutines.launch
 private val initialFallbackMvp = buildFallbackPatientMvp()
 
 data class RingUiState(
+    val acquisitionMode: RingAcquisitionMode = RingAcquisitionMode.BLUETOOTH,
     val connectionState: RingConnectionState = RingConnectionState.DISCONNECTED,
     val devices: List<RingDevice> = emptyList(),
     val connectedDevice: RingDevice? = null,
@@ -121,7 +122,9 @@ class RingViewModel(
     private val allowWearableProductSwitch: Boolean = false,
     private val riskHistoryRepository: RiskHistoryRepository? = null,
 ) : ViewModel() {
-    private val mutableUiState = MutableStateFlow(RingUiState(supportedMetrics = repository.supportedMetrics))
+    private val mutableUiState = MutableStateFlow(
+        RingUiState(acquisitionMode = repository.acquisitionMode, supportedMetrics = repository.supportedMetrics),
+    )
     val uiState: StateFlow<RingUiState> = mutableUiState.asStateFlow()
     private var autoCollectionJob: Job? = null
     private var patientRefreshJob: Job? = null
@@ -143,7 +146,12 @@ class RingViewModel(
             }
             viewModelScope.launch {
                 manager.activeBinding.collect { binding ->
-                    mutableUiState.update { it.copy(activeProductCode = binding.productCode) }
+                    mutableUiState.update {
+                        it.copy(
+                            activeProductCode = binding.productCode,
+                            acquisitionMode = repository.acquisitionMode,
+                        )
+                    }
                 }
             }
         }
@@ -216,6 +224,7 @@ class RingViewModel(
     }
 
     fun startAutoCollection() {
+        if (repository.acquisitionMode == RingAcquisitionMode.CLOUD) return
         if (autoCollectionJob?.isActive == true) return
         autoCollectionJob = viewModelScope.launch {
             delay(3_000)
@@ -232,6 +241,7 @@ class RingViewModel(
     }
 
     fun startBackgroundCollection(context: Context) {
+        if (repository.acquisitionMode == RingAcquisitionMode.CLOUD) return
         RingForegroundService.start(context.applicationContext)
     }
 
@@ -262,7 +272,9 @@ class RingViewModel(
                 .onFailure { error ->
                     mutableUiState.update { it.copy(message = error.message ?: "设备套餐切换失败") }
                 }
-            if (resumeBackground) RingForegroundService.start(appContext)
+            if (resumeBackground && repository.acquisitionMode != RingAcquisitionMode.CLOUD) {
+                RingForegroundService.start(appContext)
+            }
             if (resumeAuto) startAutoCollection()
         }
     }
@@ -359,7 +371,11 @@ class RingViewModel(
             mutableUiState.update { it.copy(message = "正在连接 ${device.name ?: "智能戒指"}") }
             runCatching { repository.connect(device) }
                 .onSuccess {
-                    val binding = cloudRepository?.bindDevice(device)
+                    val binding = if (repository.acquisitionMode == RingAcquisitionMode.CLOUD) {
+                        null
+                    } else {
+                        cloudRepository?.bindDevice(device)
+                    }
                     mutableUiState.update {
                         it.copy(
                             message = if (binding == null || binding.isSuccess) {
@@ -427,7 +443,7 @@ class RingViewModel(
             }
                 .onSuccess { result ->
                     progressJob.cancel()
-                    val uploadMessage = if (result.recordsWritten > 0) {
+                    val uploadMessage = if (result.recordsWritten > 0 && result.requiresUpload) {
                         uploadLatestSnapshot(result.completedAt, "manual_sync")
                     } else {
                         null
@@ -439,9 +455,17 @@ class RingViewModel(
                             lastSyncAt = result.completedAt,
                             cloudSnapshotId = uploadMessage?.batchId ?: it.cloudSnapshotId,
                             message = if (result.recordsWritten > 0) {
-                                "${result.recordsWritten} 条戒指数据已保存到本机，${uploadMessage?.message ?: "云端未上传"}"
+                                if (result.requiresUpload) {
+                                    "${result.recordsWritten} 条设备数据已保存到本机，${uploadMessage?.message ?: "云端未上传"}"
+                                } else {
+                                    "云米云端已入库，${result.recordsWritten} 条数据已同步到本机"
+                                }
                             } else {
-                                "未读取到戒指数据，请确认戒指仍保持连接"
+                                if (repository.acquisitionMode == RingAcquisitionMode.CLOUD) {
+                                    "云米云端暂无新数据"
+                                } else {
+                                    "未读取到戒指数据，请确认戒指仍保持连接"
+                                }
                             },
                         )
                     }

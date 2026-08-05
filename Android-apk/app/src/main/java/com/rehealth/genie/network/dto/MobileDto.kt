@@ -130,6 +130,45 @@ data class TelemetryBatchResponseDto(
     @SerializedName("dietRecordCount") val dietRecordCount: Int = 0,
 )
 
+@JsonClass(generateAdapter = true)
+data class ViomiBindRequestDto(val imei: String, val productCode: String)
+
+@JsonClass(generateAdapter = true)
+data class ViomiBindResponseDto(
+    val deviceId: String,
+    val status: String? = null,
+    val persisted: Boolean = false,
+    val persistenceStage: String? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class ViomiSyncRequestDto(
+    val imei: String,
+    val beginAt: Long,
+    val endAt: Long,
+    val metrics: Set<String>,
+)
+
+@JsonClass(generateAdapter = true)
+data class ViomiMeasurementDto(
+    val id: String,
+    val metricType: String,
+    val measuredAt: Long,
+    val primaryValue: Double,
+    val secondaryValue: Double? = null,
+    val unit: String,
+    val source: String = "viomi_cloud",
+)
+
+@JsonClass(generateAdapter = true)
+data class ViomiSyncResponseDto(
+    val deviceId: String,
+    val status: String? = null,
+    val persisted: Boolean = false,
+    val recordCount: Int = 0,
+    val measurements: List<ViomiMeasurementDto> = emptyList(),
+)
+
 data class AttributionEventItemDto(
     @SerializedName("date") val date: String? = null,
     @SerializedName("risk_score") val riskScore: Double? = null,

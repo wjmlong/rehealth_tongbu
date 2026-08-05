@@ -479,3 +479,6 @@ rehealth:
     require-auth: ${REHEALTH_VIOMI_REQUIRE_AUTH:true}
     user-id: ${REHEALTH_VIOMI_USER_ID:viomi-gateway}
     source: ${REHEALTH_VIOMI_SOURCE:viomi}
+    base-url: ${REHEALTH_VIOMI_BASE_URL:https://openapi.miwitracker.com}
+    connect-timeout-seconds: ${REHEALTH_VIOMI_CONNECT_TIMEOUT_SECONDS:10}
+    request-timeout-seconds: ${REHEALTH_VIOMI_REQUEST_TIMEOUT_SECONDS:30}

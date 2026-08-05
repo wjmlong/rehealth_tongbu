@@ -8,6 +8,7 @@ import com.rehealth.genie.ring.MenstrualCycleConfig
 import com.rehealth.genie.ring.RingFeatureRepository
 import com.rehealth.genie.ring.RingFeatureType
 import com.rehealth.genie.ring.RingRepository
+import com.rehealth.genie.ring.RingAcquisitionMode
 import com.rehealth.genie.ring.RingSyncResult
 import com.rehealth.genie.ring.RingEcgLiveState
 import com.rehealth.genie.ring.RingEcgRepository
@@ -69,6 +70,8 @@ class ActiveRingRepository(
         get() = provider().supportedMetrics
     override val manuallyMeasurableMetrics: Set<RingMetricType>
         get() = provider().manuallyMeasurableMetrics
+    override val acquisitionMode: RingAcquisitionMode
+        get() = provider().acquisitionMode
 
     override val supportedFeatures: Set<RingFeatureType>
         get() = (provider() as? RingFeatureRepository)?.supportedFeatures.orEmpty()
