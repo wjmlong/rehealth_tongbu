@@ -1,6 +1,6 @@
 # ReHealth 当前状态
 
-> 最后核对：2026-08-04。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
+> 最后核对：2026-08-05。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
 > `docs/archive/acceptance/`，不得作为当前实现或发布状态的依据。
 
 ## 2026-08-05 云米云端手表接入
@@ -8,6 +8,8 @@
 - 后端已增加 `/rehealth/mobile/viomi/bind` 与 `/viomi/sync`，支持 S8、S9、GS20、GS17、A67、K9L 共用的 IMEI 验证和历史拉取流程。
 - 心率、血压、血氧先经硬件入库端口持久化，再返回 Android 写入 Room；云端来源不会被 App 重复上传。
 - App 已增加 `VIOMI_CLOUD` provider、产品目录与 IMEI 绑定 UI；生产包允许选择真实设备产品。
+- 绑定成功自动执行首次 31 天回填，后续按设备最新记录以 2 天重叠窗口增量同步；数据页仅展示已支持的心率、血氧、血压。
+- Room v15 为测量增加用户与设备作用域；云米数据查询按用户、设备、`viomi_cloud` 来源隔离，14→15 迁移保留旧记录。
 - 真实联调仍需注入 `REHEALTH_VIOMI_APP_ID`、`REHEALTH_VIOMI_APP_KEY` 和 `REHEALTH_VIOMI_USER_ID`。
 
 ## 发布结论

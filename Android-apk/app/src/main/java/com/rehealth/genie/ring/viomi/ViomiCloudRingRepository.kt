@@ -21,6 +21,7 @@ class ViomiCloudRingRepository(
     private val dao: RingDataDao,
     private val api: AuthenticatedApiClient,
     private val bindingStore: ActiveWearableBindingStore,
+    private val userIdProvider: () -> String?,
 ) : RingRepository {
     override val acquisitionMode = RingAcquisitionMode.CLOUD
     override val supportedMetrics = setOf(
@@ -45,7 +46,11 @@ class ViomiCloudRingRepository(
             ).getOrThrow()
             check(response.persisted) { "云米设备绑定未持久化" }
             val bound = RingDevice(device.address.trim(), device.name ?: "云米云端手表", null)
-            bindingStore.recordConnectedDevice(WearableVendor.VIOMI_CLOUD, bound)
+            bindingStore.recordConnectedDevice(
+                vendor = WearableVendor.VIOMI_CLOUD,
+                device = bound,
+                modelCode = response.deviceId,
+            )
             this.device.value = bound
             state.value = RingConnectionState.CONNECTED
         } catch (error: Throwable) {
@@ -72,31 +77,33 @@ class ViomiCloudRingRepository(
         val imei = device.value?.address ?: error("请先绑定云米手表")
         val selected = metrics.intersect(supportedMetrics).ifEmpty { supportedMetrics }
         val end = System.currentTimeMillis()
+        val ownerUserId = userIdProvider()?.takeIf(String::isNotBlank) ?: error("请先登录后同步云米数据")
+        val deviceId = bindingStore.activeBinding.value.modelCode
+            ?: viomiDeviceId(imei)
+        val latestMeasuredAt = dao.getLatestMeasuredAtForBinding(ownerUserId, deviceId, VIOMI_SOURCE)
+        val earliestAllowed = end - MAX_SYNC_WINDOW_MILLIS
+        val begin = latestMeasuredAt
+            ?.minus(SYNC_OVERLAP_MILLIS)
+            ?.coerceAtLeast(earliestAllowed)
+            ?: earliestAllowed
         state.value = RingConnectionState.SYNCING
         onProgress(10)
         return try {
             val response = api.syncViomi(
                 ViomiSyncRequestDto(
                     imei = imei,
-                    beginAt = end - 7L * 24 * 60 * 60 * 1000,
+                    beginAt = begin,
                     endAt = end,
                     metrics = selected.map { it.name }.toSet(),
                 ),
             ).getOrThrow()
             check(response.persisted) { "云米数据尚未在服务端持久化" }
-            dao.insertMeasurements(response.measurements.map {
-                RingMeasurementEntity(
-                    id = it.id,
-                    metricType = it.metricType,
-                    measuredAt = it.measuredAt,
-                    primaryValue = it.primaryValue,
-                    secondaryValue = it.secondaryValue,
-                    unit = it.unit,
-                    source = "viomi_cloud",
-                )
-            })
+            val validMeasurements = response.measurements.mapNotNull { measurement ->
+                measurement.toScopedEntityOrNull(ownerUserId, deviceId, end)
+            }
+            dao.insertMeasurements(validMeasurements)
             onProgress(100)
-            RingSyncResult(selected, response.measurements.size, end, requiresUpload = false)
+            RingSyncResult(selected, validMeasurements.size, end, requiresUpload = false)
         } finally {
             state.value = RingConnectionState.CONNECTED
         }
@@ -109,6 +116,48 @@ class ViomiCloudRingRepository(
         .takeIf { it.vendor == WearableVendor.VIOMI_CLOUD && !it.address.isNullOrBlank() }
         ?.let { RingDevice(it.address!!, it.deviceName ?: "云米云端手表", null) }
 }
+
+internal fun com.rehealth.genie.network.dto.ViomiMeasurementDto.toScopedEntityOrNull(
+    ownerUserId: String,
+    deviceId: String,
+    now: Long,
+): RingMeasurementEntity? {
+    if (measuredAt <= 0L || measuredAt > now + MAX_FUTURE_SKEW_MILLIS) return null
+    val valid = when (metricType) {
+        RingMetricType.HEART_RATE.name -> primaryValue in 20.0..250.0
+        RingMetricType.BLOOD_OXYGEN.name -> primaryValue in 50.0..100.0
+        RingMetricType.BLOOD_PRESSURE.name -> {
+            val diastolic = secondaryValue
+            diastolic != null && primaryValue in 50.0..260.0 &&
+                diastolic in 30.0..180.0 && primaryValue > diastolic
+        }
+        else -> false
+    }
+    if (!valid) return null
+    val normalizedUnit = when (metricType) {
+        RingMetricType.HEART_RATE.name -> "bpm"
+        RingMetricType.BLOOD_OXYGEN.name -> "%"
+        RingMetricType.BLOOD_PRESSURE.name -> "mmHg"
+        else -> return null
+    }
+    return RingMeasurementEntity(
+        id = id,
+        metricType = metricType,
+        measuredAt = measuredAt,
+        primaryValue = primaryValue,
+        secondaryValue = secondaryValue,
+        unit = normalizedUnit,
+        quality = 100,
+        source = VIOMI_SOURCE,
+        ownerUserId = ownerUserId,
+        deviceId = deviceId,
+    )
+}
+
+private const val DAY_MILLIS = 24L * 60 * 60 * 1000
+private const val MAX_SYNC_WINDOW_MILLIS = 31L * DAY_MILLIS
+private const val SYNC_OVERLAP_MILLIS = 2L * DAY_MILLIS
+private const val MAX_FUTURE_SKEW_MILLIS = 5L * 60 * 1000
 
 private fun <T> ApiResult<T>.getOrThrow(): T = when (this) {
     is ApiResult.Success -> data

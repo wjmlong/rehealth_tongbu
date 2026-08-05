@@ -18,7 +18,7 @@ import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
@@ -32,6 +32,7 @@ public class ViomiPullService {
     private static final Set<String> ALLOWED_METRICS = Set.of("HEART_RATE", "BLOOD_PRESSURE", "BLOOD_OXYGEN");
     private static final Duration MAX_WINDOW = Duration.ofDays(31);
     private static final DateTimeFormatter API_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final ZoneId VIOMI_ZONE = ZoneId.of("Asia/Shanghai");
     private final ViomiOpenApiGateway gateway;
     private final ReHealthBusinessRepository businessRepository;
     private final HardwareIngestionPort hardwareIngestionPort;
@@ -144,6 +145,7 @@ public class ViomiPullService {
             unit = "%";
         }
         if (!Double.isFinite(primary) || (secondary != null && !Double.isFinite(secondary))) return null;
+        if (!isPhysiologicallyPlausible(metric, primary, secondary)) return null;
         ViomiSyncResponseDto.Measurement out = new ViomiSyncResponseDto.Measurement();
         out.metricType = metric;
         out.measuredAt = measuredAt.toEpochMilli();
@@ -162,10 +164,22 @@ public class ViomiPullService {
                 long numeric = Long.parseLong(value);
                 return numeric > 10_000_000_000L ? Instant.ofEpochMilli(numeric) : Instant.ofEpochSecond(numeric);
             }
-            return LocalDateTime.parse(value.replace('/', '-'), API_TIME).toInstant(ZoneOffset.UTC);
+            return LocalDateTime.parse(value.replace('/', '-'), API_TIME).atZone(VIOMI_ZONE).toInstant();
         } catch (DateTimeParseException | NumberFormatException ignored) {
             return null;
         }
+    }
+
+    private static boolean isPhysiologicallyPlausible(String metric, double primary, Double secondary) {
+        return switch (metric) {
+            case "HEART_RATE" -> primary >= 20.0 && primary <= 250.0;
+            case "BLOOD_OXYGEN" -> primary >= 50.0 && primary <= 100.0;
+            case "BLOOD_PRESSURE" -> secondary != null
+                    && primary >= 50.0 && primary <= 260.0
+                    && secondary >= 30.0 && secondary <= 180.0
+                    && primary > secondary;
+            default -> false;
+        };
     }
 
     private static String requireImei(String value) {

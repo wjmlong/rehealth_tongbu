@@ -30,6 +30,7 @@ import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.ShowChart
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Timeline
+import androidx.compose.material.icons.outlined.Watch
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -69,6 +70,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rehealth.genie.R
 import com.rehealth.genie.rhi.RhiPeriodAggregation
 import com.rehealth.genie.rhi.RhiPeriodSummary
+import com.rehealth.genie.ring.RingAcquisitionMode
 import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.RingFeatureType
 import com.rehealth.genie.ring.RingUiState
@@ -94,6 +96,7 @@ private data class RingMetricUi(
     val color: Color,
     val manualMeasure: Boolean = false,
     val showAction: Boolean = false,
+    val showChart: Boolean = true,
     val actionLabel: String = "测量",
     val measuringLabel: String = "测量中",
 )
@@ -156,6 +159,7 @@ internal fun DataScreen(
         rhiViewModel.refresh(rhiPeriodDays, AttributionDataProvenance.trustedProfile(state.patientMvp))
     }
     val currentRhi = rhiPeriodSummary?.takeIf { it.periodDays == rhiPeriodDays }
+    val cloudMode = state.acquisitionMode == RingAcquisitionMode.CLOUD
 
     fun measurement(type: RingMetricType): String {
         val record = state.measurements[type] ?: return "--"
@@ -171,6 +175,9 @@ internal fun DataScreen(
     val periodLabel = if (periodDays == 0) "今日" else "近 $periodDays 天"
     val hrText = aggregate?.avgHeartRate?.let { String.format(Locale.getDefault(), "%.0f", it) } ?: measurement(RingMetricType.HEART_RATE)
     val spo2Text = aggregate?.avgSpo2?.let { String.format(Locale.getDefault(), "%.0f", it) } ?: measurement(RingMetricType.BLOOD_OXYGEN)
+    val spo2PeriodStatus = aggregate?.minSpo2?.takeIf { cloudMode }?.let {
+        "最低 ${String.format(Locale.getDefault(), "%.0f", it)}% · $periodLabel"
+    } ?: periodLabel
     val bpText = aggregate?.let { agg ->
         val s = agg.avgSbp?.toInt()
         val d = agg.avgDbp?.toInt()
@@ -201,8 +208,9 @@ internal fun DataScreen(
     fun measurementUnit(type: RingMetricType, fallback: String): String =
         state.measurements[type]?.unit?.takeIf(String::isNotBlank) ?: fallback
     fun capabilityStatus(type: RingMetricType, fallback: String): String = when {
-        state.connectedDevice == null -> "连接设备后检测能力"
+        state.connectedDevice == null -> if (cloudMode) "绑定云米后同步" else "连接设备后检测能力"
         type !in state.supportedMetrics -> "当前设备不支持"
+        cloudMode -> "云米云端 · $fallback"
         else -> fallback
     }
     val hrvRecord = state.measurements[RingMetricType.HRV]
@@ -212,22 +220,22 @@ internal fun DataScreen(
     val metRecord = state.measurements[RingMetricType.MET]
         ?.takeIf { isDisplayableAdvancedMeasurement(RingMetricType.MET, it) }
     val vitalMetrics = buildList {
-        add(RingMetricUi(RingMetricType.HEART_RATE, "心率", hrText, "bpm", capabilityStatus(RingMetricType.HEART_RATE, periodLabel), Icons.Outlined.FavoriteBorder, Color(0xFFFF6078), manualMeasure = RingMetricType.HEART_RATE in state.manuallyMeasurableMetrics, showAction = true))
-        add(RingMetricUi(RingMetricType.BLOOD_OXYGEN, "血氧", spo2Text, "%", capabilityStatus(RingMetricType.BLOOD_OXYGEN, periodLabel), Icons.Outlined.DataUsage, Color(0xFF148BFF), manualMeasure = RingMetricType.BLOOD_OXYGEN in state.manuallyMeasurableMetrics, showAction = true))
-        add(RingMetricUi(RingMetricType.BLOOD_PRESSURE, "血压", bpText, "mmHg", capabilityStatus(RingMetricType.BLOOD_PRESSURE, periodLabel), Icons.Outlined.FavoriteBorder, Color(0xFF8B63F6), manualMeasure = RingMetricType.BLOOD_PRESSURE in state.manuallyMeasurableMetrics, showAction = true))
-        if (hrvRecord != null) {
+        add(RingMetricUi(RingMetricType.HEART_RATE, "心率", hrText, "bpm", capabilityStatus(RingMetricType.HEART_RATE, periodLabel), Icons.Outlined.FavoriteBorder, Color(0xFFFF6078), manualMeasure = RingMetricType.HEART_RATE in state.manuallyMeasurableMetrics, showAction = !cloudMode, showChart = !cloudMode))
+        add(RingMetricUi(RingMetricType.BLOOD_OXYGEN, "血氧", spo2Text, "%", capabilityStatus(RingMetricType.BLOOD_OXYGEN, spo2PeriodStatus), Icons.Outlined.DataUsage, Color(0xFF148BFF), manualMeasure = RingMetricType.BLOOD_OXYGEN in state.manuallyMeasurableMetrics, showAction = !cloudMode, showChart = !cloudMode))
+        add(RingMetricUi(RingMetricType.BLOOD_PRESSURE, "血压", bpText, "mmHg", capabilityStatus(RingMetricType.BLOOD_PRESSURE, periodLabel), Icons.Outlined.FavoriteBorder, Color(0xFF8B63F6), manualMeasure = RingMetricType.BLOOD_PRESSURE in state.manuallyMeasurableMetrics, showAction = !cloudMode, showChart = !cloudMode))
+        if (!cloudMode && hrvRecord != null) {
             val canMeasure = RingMetricType.HRV in state.manuallyMeasurableMetrics
             add(RingMetricUi(RingMetricType.HRV, "HRV", hrvText, "ms", periodLabel, Icons.Outlined.Timeline, Color(0xFF00A6A6), manualMeasure = canMeasure, showAction = canMeasure))
         }
-        add(RingMetricUi(RingMetricType.BLOOD_GLUCOSE, "血糖", decimalMeasurement(RingMetricType.BLOOD_GLUCOSE), measurementUnit(RingMetricType.BLOOD_GLUCOSE, "设备单位"), capabilityStatus(RingMetricType.BLOOD_GLUCOSE, "设备估算，仅供健康参考"), Icons.Outlined.DataUsage, Color(0xFFE06B57), manualMeasure = RingMetricType.BLOOD_GLUCOSE in state.manuallyMeasurableMetrics, showAction = true))
-        if (stressRecord != null) {
+        if (!cloudMode) add(RingMetricUi(RingMetricType.BLOOD_GLUCOSE, "血糖", decimalMeasurement(RingMetricType.BLOOD_GLUCOSE), measurementUnit(RingMetricType.BLOOD_GLUCOSE, "设备单位"), capabilityStatus(RingMetricType.BLOOD_GLUCOSE, "设备估算，仅供健康参考"), Icons.Outlined.DataUsage, Color(0xFFE06B57), manualMeasure = RingMetricType.BLOOD_GLUCOSE in state.manuallyMeasurableMetrics, showAction = true))
+        if (!cloudMode && stressRecord != null) {
             val canMeasure = RingMetricType.STRESS in state.manuallyMeasurableMetrics
             add(RingMetricUi(RingMetricType.STRESS, "压力", measurement(RingMetricType.STRESS), "分", periodLabel, Icons.Outlined.Timeline, Color(0xFF7B61B8), manualMeasure = canMeasure, showAction = canMeasure))
         }
-        if (metRecord != null) {
+        if (!cloudMode && metRecord != null) {
             add(RingMetricUi(RingMetricType.MET, "MET", decimalMeasurement(RingMetricType.MET), "MET", "设备历史数据", Icons.Outlined.ShowChart, Color(0xFF2E8B72)))
         }
-        add(RingMetricUi(RingMetricType.ECG, "ECG", ecgText, "bpm", capabilityStatus(RingMetricType.ECG, ecgStatus), Icons.Outlined.Assessment, Color(0xFF009688), manualMeasure = RingMetricType.ECG in state.manuallyMeasurableMetrics, showAction = true))
+        if (!cloudMode) add(RingMetricUi(RingMetricType.ECG, "ECG", ecgText, "bpm", capabilityStatus(RingMetricType.ECG, ecgStatus), Icons.Outlined.Assessment, Color(0xFF009688), manualMeasure = RingMetricType.ECG in state.manuallyMeasurableMetrics, showAction = true))
     }
     val bloodComponentTypes = listOf(
         RingMetricType.URIC_ACID,
@@ -361,17 +369,17 @@ internal fun DataScreen(
                 measureEnabled = !state.isSyncing,
             )
         }
-        item {
+        if (!cloudMode) item {
             EcgDetailEntryCard(
                 latest = state.ecgHistory.firstOrNull(),
                 isMeasuring = state.measuringMetric == RingMetricType.ECG,
                 onClick = { showEcgDetail = true },
             )
         }
-        item {
+        if (!cloudMode) item {
             DashboardSectionHeader(Icons.Outlined.DataUsage, "血液成分")
         }
-        item {
+        if (!cloudMode) item {
             MetricGrid(
                 metrics = bloodComponentMetrics,
                 measuringMetric = state.measuringMetric,
@@ -379,10 +387,10 @@ internal fun DataScreen(
                 measureEnabled = !state.isSyncing,
             )
         }
-        item {
+        if (!cloudMode) item {
             DashboardSectionHeader(Icons.Outlined.Assessment, "身体成分")
         }
-        item {
+        if (!cloudMode) item {
             MetricGrid(
                 metrics = bodyComponentMetrics,
                 measuringMetric = state.measuringMetric,
@@ -393,10 +401,10 @@ internal fun DataScreen(
                 measureEnabled = !state.isSyncing,
             )
         }
-        item {
+        if (!cloudMode) item {
             DashboardSectionHeader(Icons.Outlined.AutoAwesome, "设备健康设置")
         }
-        item {
+        if (!cloudMode) item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 DeviceFeatureCard(
                     title = "血糖校准",
@@ -415,7 +423,10 @@ internal fun DataScreen(
             }
         }
         item {
-            DashboardSectionHeader(Icons.Outlined.Timeline, "睡眠与活动")
+            DashboardSectionHeader(
+                Icons.Outlined.Timeline,
+                if (cloudMode) "云米云端数据" else "睡眠与活动",
+            )
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -432,20 +443,30 @@ internal fun DataScreen(
                         modifier = Modifier.size(18.dp),
                     )
                     Text(
-                        if (state.isSyncing) "正在同步 ${state.syncProgress}%" else "同步睡眠、步数与活动",
+                        if (state.isSyncing) {
+                            "正在同步 ${state.syncProgress}%"
+                        } else if (cloudMode) {
+                            "同步云米健康数据"
+                        } else {
+                            "同步睡眠、步数与活动"
+                        },
                         modifier = Modifier.padding(start = 8.dp),
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
                 Text(
-                    "从设备读取历史数据，保存到本机后加入云端同步队列",
+                    if (cloudMode) {
+                        "从云米云端获取心率、血氧和血压；后端持久化成功后保存到本机。首次最多回填 31 天。"
+                    } else {
+                        "从设备读取历史数据，保存到本机后加入云端同步队列"
+                    },
                     color = Muted,
                     fontSize = 10.sp,
                     modifier = Modifier.padding(horizontal = 4.dp),
                 )
             }
         }
-        item {
+        if (!cloudMode) item {
             MetricGrid(dailyMetrics)
         }
         item {
@@ -465,7 +486,11 @@ internal fun DataScreen(
                 Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
                     Text("健康洞察 · AI 提醒", color = Mint, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     Text(
-                        "当前为智能戒指采集数据。血压、血氧等结果仅用于健康管理参考。",
+                        if (cloudMode) {
+                            "当前为云米云端手表历史数据。血压、血氧等结果仅用于健康管理参考，不能替代医疗诊断。"
+                        } else {
+                            "当前为智能戒指采集数据。血压、血氧等结果仅用于健康管理参考。"
+                        },
                         color = Muted,
                         fontSize = 9.sp,
                         lineHeight = 13.sp,
@@ -833,6 +858,7 @@ internal fun dataHealthIndexPresentation(
 
 @Composable
 private fun SmartRingOverviewCard(state: RingUiState, modifier: Modifier) {
+    val cloudMode = state.acquisitionMode == RingAcquisitionMode.CLOUD
     val hasConnectedDevice = state.connectedDevice != null
     val hasLocalData = state.measurements.isNotEmpty() || state.sleep != null
     Column(
@@ -842,7 +868,7 @@ private fun SmartRingOverviewCard(state: RingUiState, modifier: Modifier) {
             .padding(11.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("睿禾智能戒指", color = Ink, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.weight(1f))
+                Text(if (cloudMode) "云米云端手表" else "睿禾智能戒指", color = Ink, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.weight(1f))
             Box(Modifier.size(16.dp).clip(CircleShape).background(Mint), contentAlignment = Alignment.Center) {
                 Text("✓", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
             }
@@ -850,7 +876,7 @@ private fun SmartRingOverviewCard(state: RingUiState, modifier: Modifier) {
         }
         Text(
             when {
-                hasConnectedDevice -> "设备已连接"
+                hasConnectedDevice -> if (cloudMode) "设备已绑定" else "设备已连接"
                 hasLocalData -> "有历史数据，需重新连接"
                 else -> "设备未连接"
             },
@@ -859,12 +885,21 @@ private fun SmartRingOverviewCard(state: RingUiState, modifier: Modifier) {
             modifier = Modifier.padding(top = 2.dp),
         )
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            androidx.compose.foundation.Image(
-                painter = painterResource(R.drawable.smart_ring),
-                contentDescription = "睿禾智能戒指",
-                modifier = Modifier.fillMaxWidth().height(67.dp),
-                contentScale = ContentScale.Fit,
-            )
+            if (cloudMode) {
+                Icon(
+                    Icons.Outlined.Watch,
+                    contentDescription = "云米云端手表",
+                    tint = Mint,
+                    modifier = Modifier.size(56.dp),
+                )
+            } else {
+                androidx.compose.foundation.Image(
+                    painter = painterResource(R.drawable.smart_ring),
+                    contentDescription = "睿禾智能戒指",
+                    modifier = Modifier.fillMaxWidth().height(67.dp),
+                    contentScale = ContentScale.Fit,
+                )
+            }
         }
         Row(
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp))
@@ -981,7 +1016,7 @@ private fun DashboardMetricCard(
                     }
                 }
             }
-            if (!metric.showAction) {
+            if (!metric.showAction && metric.showChart) {
                 MiniChart(
                     points = if (metric.type == RingMetricType.SLEEP || metric.type == RingMetricType.STEPS) {
                         listOf(.25f, .72f, .38f, .82f, .52f, .75f)

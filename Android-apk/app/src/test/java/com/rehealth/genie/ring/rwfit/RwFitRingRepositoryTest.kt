@@ -230,10 +230,13 @@ private class TrackingRingDataDao : RingDataDao {
     override fun observeActivities(limit: Int): Flow<List<RingActivityEntity>> = emptyFlow()
     override fun observeSignalChunks(signalType: String, limit: Int): Flow<List<RingSignalChunkEntity>> = emptyFlow()
     override fun observeLatestMeasurements(): Flow<List<RingMeasurementEntity>> = emptyFlow()
+    override fun observeLatestMeasurementsForBinding(ownerUserId: String, deviceId: String, source: String): Flow<List<RingMeasurementEntity>> = emptyFlow()
     override fun observeLatestSleepSession(): Flow<RingSleepSessionEntity?> = emptyFlow()
     override fun observeLatestActivity(): Flow<RingActivityEntity?> = emptyFlow()
     override fun observeLatestSignalChunks(): Flow<List<RingSignalChunkEntity>> = emptyFlow()
     override suspend fun getMeasurementsSince(since: Long): List<RingMeasurementEntity> = emptyList()
+    override suspend fun getMeasurementsSinceForBinding(since: Long, ownerUserId: String, deviceId: String, source: String): List<RingMeasurementEntity> = emptyList()
+    override suspend fun getLatestMeasuredAtForBinding(ownerUserId: String, deviceId: String, source: String): Long? = null
     override suspend fun getLatestMeasurement(metricType: String): RingMeasurementEntity? = null
     override suspend fun getActivitiesSince(since: Long): List<RingActivityEntity> = emptyList()
     override suspend fun getSleepSessionsSince(since: Long): List<RingSleepSessionEntity> = emptyList()

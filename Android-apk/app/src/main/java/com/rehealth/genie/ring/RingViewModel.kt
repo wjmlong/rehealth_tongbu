@@ -22,17 +22,23 @@ import com.rehealth.genie.ring.data.RingMeasurementEntity
 import com.rehealth.genie.ring.data.RingSignalChunkEntity
 import com.rehealth.genie.ring.data.RingSleepSessionEntity
 import com.rehealth.genie.ring.provider.ActiveWearableManager
+import com.rehealth.genie.ring.provider.WearableVendor
+import com.rehealth.genie.ring.viomi.VIOMI_SOURCE
+import com.rehealth.genie.ring.viomi.viomiDeviceId
 import com.rehealth.genie.service.RingForegroundService
 import java.util.Calendar
 import java.time.Instant
 import java.time.ZoneId
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -83,6 +89,7 @@ data class PeriodAggregate(
     val windowDays: Int,
     val avgHeartRate: Double? = null,
     val avgSpo2: Double? = null,
+    val minSpo2: Double? = null,
     val avgSbp: Double? = null,
     val avgDbp: Double? = null,
     val avgTemp: Double? = null,
@@ -114,6 +121,7 @@ internal fun aggregateLocalDayActivitySteps(
     return today.sumOf { it.steps.coerceAtLeast(0).toLong() }
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class RingViewModel(
     private val repository: RingRepository,
     private val dao: RingDataDao,
@@ -121,6 +129,7 @@ class RingViewModel(
     private val wearableManager: ActiveWearableManager? = null,
     private val allowWearableProductSwitch: Boolean = false,
     private val riskHistoryRepository: RiskHistoryRepository? = null,
+    private val currentUserIdProvider: () -> String? = { null },
 ) : ViewModel() {
     private val mutableUiState = MutableStateFlow(
         RingUiState(acquisitionMode = repository.acquisitionMode, supportedMetrics = repository.supportedMetrics),
@@ -153,6 +162,11 @@ class RingViewModel(
                         it.copy(
                             activeProductCode = binding.productCode,
                             acquisitionMode = repository.acquisitionMode,
+                            measurements = if (binding.vendor == WearableVendor.VIOMI_CLOUD) {
+                                emptyMap()
+                            } else {
+                                it.measurements
+                            },
                         )
                     }
                 }
@@ -184,8 +198,22 @@ class RingViewModel(
             }
         }
         viewModelScope.launch {
+            val latestMeasurements = wearableManager?.activeBinding?.flatMapLatest { binding ->
+                if (binding.vendor != WearableVendor.VIOMI_CLOUD) {
+                    dao.observeLatestMeasurements()
+                } else {
+                    val ownerUserId = currentUserIdProvider()?.takeIf(String::isNotBlank)
+                    val deviceId = binding.modelCode
+                        ?: binding.address?.takeIf(String::isNotBlank)?.let(::viomiDeviceId)
+                    if (ownerUserId == null || deviceId == null) {
+                        flowOf(emptyList())
+                    } else {
+                        dao.observeLatestMeasurementsForBinding(ownerUserId, deviceId, VIOMI_SOURCE)
+                    }
+                }
+            } ?: dao.observeLatestMeasurements()
             combine(
-                dao.observeLatestMeasurements(),
+                latestMeasurements,
                 dao.observeLatestSleepSession(),
                 dao.observeActivities(),
                 dao.observeLatestSignalChunks(),
@@ -194,16 +222,17 @@ class RingViewModel(
             }.collect { snapshot ->
                 lastRingVector = vectorFromMeasurements(snapshot.measurements)
                 mutableUiState.update { state ->
+                    val cloudMode = state.acquisitionMode == RingAcquisitionMode.CLOUD
                     state.copy(
                         measurements = snapshot.measurements.mapNotNull { record ->
                             runCatching { RingMetricType.valueOf(record.metricType) }
                                 .getOrNull()
                                 ?.let { it to record }
                         }.toMap(),
-                        sleep = snapshot.sleep,
-                        activity = snapshot.activities.firstOrNull(),
-                        todayActivitySteps = aggregateLocalDayActivitySteps(snapshot.activities),
-                        signals = snapshot.signals.mapNotNull { record ->
+                        sleep = if (cloudMode) null else snapshot.sleep,
+                        activity = if (cloudMode) null else snapshot.activities.firstOrNull(),
+                        todayActivitySteps = if (cloudMode) null else aggregateLocalDayActivitySteps(snapshot.activities),
+                        signals = if (cloudMode) emptyMap() else snapshot.signals.mapNotNull { record ->
                             runCatching { RingMetricType.valueOf(record.signalType) }
                                 .getOrNull()
                                 ?.let { it to record }
@@ -374,6 +403,7 @@ class RingViewModel(
             mutableUiState.update { it.copy(message = "正在连接 ${device.name ?: "智能戒指"}") }
             runCatching { repository.connect(device) }
                 .onSuccess {
+                    val cloudMode = repository.acquisitionMode == RingAcquisitionMode.CLOUD
                     val binding = if (repository.acquisitionMode == RingAcquisitionMode.CLOUD) {
                         null
                     } else {
@@ -381,13 +411,15 @@ class RingViewModel(
                     }
                     mutableUiState.update {
                         it.copy(
+                            connectionState = repository.connectionState.value,
                             message = if (binding == null || binding.isSuccess) {
-                                "设备已连接"
+                                if (cloudMode) "云米设备已绑定，正在同步健康数据" else "设备已连接"
                             } else {
                                 "设备已连接，云端绑定失败，可稍后重新连接重试"
                             },
                         )
                     }
+                    if (cloudMode) syncAll()
                 }
                 .onFailure { error ->
                     mutableUiState.update { it.copy(message = error.message ?: "连接失败") }
@@ -418,14 +450,23 @@ class RingViewModel(
 
     fun syncAll() {
         viewModelScope.launch {
+            val cloudMode = repository.acquisitionMode == RingAcquisitionMode.CLOUD
             if (mutableUiState.value.connectionState != RingConnectionState.CONNECTED) {
                 mutableUiState.update {
-                    it.copy(isSyncing = false, syncProgress = 0, message = "请先连接设备，再同步睡眠、步数与活动")
+                    it.copy(
+                        isSyncing = false,
+                        syncProgress = 0,
+                        message = if (cloudMode) "请先绑定云米设备" else "请先连接设备，再同步睡眠、步数与活动",
+                    )
                 }
                 return@launch
             }
             mutableUiState.update {
-                it.copy(isSyncing = true, syncProgress = 5, message = "正在同步睡眠、步数与活动")
+                it.copy(
+                    isSyncing = true,
+                    syncProgress = 5,
+                    message = if (cloudMode) "正在同步云米心率、血氧和血压" else "正在同步睡眠、步数与活动",
+                )
             }
             val targetProgress = MutableStateFlow(5)
             val progressJob = launch {
@@ -440,7 +481,7 @@ class RingViewModel(
                 }
             }
             runCatching {
-                repository.sync(DAILY_SYNC_METRICS) { progress ->
+                repository.sync(if (cloudMode) CLOUD_SYNC_METRICS else DAILY_SYNC_METRICS) { progress ->
                     targetProgress.update { current -> maxOf(current, progress.coerceIn(5, 95)) }
                 }
             }
@@ -565,18 +606,40 @@ class RingViewModel(
      */
     suspend fun loadPeriodAggregate(windowDays: Int): PeriodAggregate {
         val since = periodStartMillis(windowDays)
-        val measurements = dao.getMeasurementsSince(since)
-        val activities = dao.getActivitiesSince(since)
-        val sleep = dao.getSleepSessionsSince(since)
+        val cloudMode = repository.acquisitionMode == RingAcquisitionMode.CLOUD
+        val viomiScope = currentViomiScope()
+        val measurements = if (cloudMode && viomiScope != null) {
+            dao.getMeasurementsSinceForBinding(
+                since = since,
+                ownerUserId = viomiScope.first,
+                deviceId = viomiScope.second,
+                source = VIOMI_SOURCE,
+            )
+        } else if (cloudMode) {
+            emptyList()
+        } else {
+            dao.getMeasurementsSince(since)
+        }
+        val activities = if (cloudMode) emptyList() else dao.getActivitiesSince(since)
+        val sleep = if (cloudMode) emptyList() else dao.getSleepSessionsSince(since)
 
-        fun avg(metricType: String): Double? {
-            val values = measurements.filter { it.metricType == metricType }.map { it.primaryValue }
-            return if (values.isEmpty()) null else values.average()
+        fun average(metricType: String, value: (RingMeasurementEntity) -> Double?): Double? {
+            val matching = measurements.filter { it.metricType == metricType }
+            val values = if (cloudMode) {
+                matching
+                    .groupBy { localDateAt(it.measuredAt) }
+                    .values
+                    .mapNotNull { rows ->
+                        rows.mapNotNull(value).takeIf { it.isNotEmpty() }?.average()
+                    }
+            } else {
+                matching.mapNotNull(value)
+            }
+            return values.takeIf { it.isNotEmpty() }?.average()
         }
-        fun avgSecondary(metricType: String): Double? {
-            val values = measurements.filter { it.metricType == metricType }.mapNotNull { it.secondaryValue }
-            return if (values.isEmpty()) null else values.average()
-        }
+        val spo2Values = measurements
+            .filter { it.metricType == RingMetricType.BLOOD_OXYGEN.name }
+            .map { it.primaryValue }
         val totalSteps = activities.sumOf { it.steps.toLong() }
         val daysWithSteps = activities.map { localDateAt(it.startedAt) }.distinct().size
         val avgSleep = averageDailySleepMinutes(sleep)
@@ -585,11 +648,12 @@ class RingViewModel(
 
         return PeriodAggregate(
             windowDays = windowDays,
-            avgHeartRate = avg(RingMetricType.HEART_RATE.name),
-            avgSpo2 = avg(RingMetricType.BLOOD_OXYGEN.name),
-            avgSbp = avg(RingMetricType.BLOOD_PRESSURE.name),
-            avgDbp = avgSecondary(RingMetricType.BLOOD_PRESSURE.name),
-            avgTemp = avg(RingMetricType.TEMPERATURE.name),
+            avgHeartRate = average(RingMetricType.HEART_RATE.name) { it.primaryValue },
+            avgSpo2 = average(RingMetricType.BLOOD_OXYGEN.name) { it.primaryValue },
+            minSpo2 = spo2Values.minOrNull(),
+            avgSbp = average(RingMetricType.BLOOD_PRESSURE.name) { it.primaryValue },
+            avgDbp = average(RingMetricType.BLOOD_PRESSURE.name) { it.secondaryValue },
+            avgTemp = average(RingMetricType.TEMPERATURE.name) { it.primaryValue },
             totalSteps = totalSteps,
             avgDailySteps = if (daysWithSteps > 0) totalSteps.toDouble() / daysWithSteps else null,
             avgSleepMinutes = avgSleep,
@@ -598,6 +662,16 @@ class RingViewModel(
             healthIndex = riskSummary?.averageHealthIndex,
             daysWithRiskScore = riskSummary?.daysWithScore ?: 0,
         )
+    }
+
+    private fun currentViomiScope(): Pair<String, String>? {
+        val binding = wearableManager?.activeBinding?.value ?: return null
+        if (binding.vendor != WearableVendor.VIOMI_CLOUD) return null
+        val ownerUserId = currentUserIdProvider()?.takeIf(String::isNotBlank) ?: return null
+        val deviceId = binding.modelCode
+            ?: binding.address?.takeIf(String::isNotBlank)?.let(::viomiDeviceId)
+            ?: return null
+        return ownerUserId to deviceId
     }
 
     fun setBloodGlucoseCalibration(enabled: Boolean, referenceValue: Double) {
@@ -730,6 +804,7 @@ class RingViewModel(
         private val wearableManager: ActiveWearableManager? = null,
         private val allowWearableProductSwitch: Boolean = false,
         private val riskHistoryRepository: RiskHistoryRepository? = null,
+        private val currentUserIdProvider: () -> String? = { null },
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
@@ -740,6 +815,7 @@ class RingViewModel(
                 wearableManager,
                 allowWearableProductSwitch,
                 riskHistoryRepository,
+                currentUserIdProvider,
             ) as T
     }
 }
@@ -757,6 +833,11 @@ private val DAILY_SYNC_METRICS = setOf(
     RingMetricType.SLEEP,
     RingMetricType.STEPS,
     RingMetricType.ACTIVITY,
+)
+private val CLOUD_SYNC_METRICS = setOf(
+    RingMetricType.HEART_RATE,
+    RingMetricType.BLOOD_OXYGEN,
+    RingMetricType.BLOOD_PRESSURE,
 )
 internal fun canonicalSleepMinutes(session: RingSleepSessionEntity): Int? {
     session.totalSleepMinutes?.takeIf { it > 0 }?.let { return it }

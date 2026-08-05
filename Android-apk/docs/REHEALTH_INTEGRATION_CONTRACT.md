@@ -1,6 +1,6 @@
 # ReHealth Android / Backend MVP Integration Contract
 
-Status: canonical Android contract, updated 2026-07-31.
+Status: canonical Android contract, updated 2026-08-05.
 
 ## Runtime Boundary
 
@@ -17,7 +17,10 @@ health record in Room before it creates an upload item. Backend or model-service
 failure must not stop BLE collection.
 
 Android keeps exactly one active wearable binding in encrypted preferences. The
-Release registry contains MRD, RWFit, and HBand. HBand activation is selected by
+Release registry contains MRD, RWFit, HBand, and Viomi Cloud. Viomi is a non-BLE
+provider: binding uses IMEI through authenticated JeecgBoot APIs, vendor credentials
+remain server-only, and only backend-persisted heart-rate, SpO₂, and blood-pressure
+records enter Room. HBand activation is selected by
 `RH-HB-E01`; its physical-device acceptance remains pending. Switching a product
 disconnects the old Provider and does not delete historical `ring_*` rows. Vendor SDK objects do not cross the
 `RingRepository` boundary into UI/ViewModel/Room entities.
@@ -33,6 +36,13 @@ for other Providers and existing rows; this changes no endpoint or DTO schema.
 
 This local routing change does not change endpoint paths, authentication, DTOs,
 durable acknowledgement, or backend PIAS behavior.
+
+Room schema 15 adds nullable `owner_user_id` and `device_id` to `ring_measurements`
+plus an index over owner, device, source, metric and time. Viomi writes both fields
+and the Data screen queries by current authenticated user, hashed backend device ID,
+and `source=viomi_cloud`; the 14→15 migration preserves pre-existing rows with null
+scope. First bind triggers an up-to-31-day pull, while later pulls overlap the latest
+scoped record by two days for idempotent recovery.
 
 Debug default base URL (committed `gradle.properties` for internal testing):
 

@@ -129,9 +129,12 @@ device identity in software_db, and scopes the binding to the authenticated user
 Device-list requests use the `UserId` returned by Viomi's token response; the
 configured `REHEALTH_VIOMI_USER_ID` is only a compatibility fallback when that
 field is absent.
-Sync supports `HEART_RATE`, `BLOOD_PRESSURE`, and `BLOOD_OXYGEN`, parses vendor
-timestamps as UTC, and caps a request at 31 days. Records are returned to Android
-only after durable hardware ingest succeeds. `NO_NEW_DATA` is a successful no-op.
+Sync supports `HEART_RATE`, `BLOOD_PRESSURE`, and `BLOOD_OXYGEN`, interprets vendor
+timestamps without an explicit offset in `Asia/Shanghai`, and caps a request at 31 days.
+It rejects non-finite or physiologically invalid samples (heart rate 20–250 bpm,
+SpO₂ 50–100%, systolic 50–260 mmHg, diastolic 30–180 mmHg, and systolic greater than
+diastolic). Records are returned to Android only after durable hardware ingest succeeds.
+`NO_NEW_DATA` is a successful no-op.
 
 `POST /rehealth/viomi/report` lets the Viomi (miwitracker) platform push wearable
 telemetry to this backend. The watch does **not** call `measurements/batch`

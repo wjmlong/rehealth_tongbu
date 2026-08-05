@@ -51,6 +51,30 @@ interface RingDataDao {
     )
     fun observeLatestMeasurements(): Flow<List<RingMeasurementEntity>>
 
+    @Query(
+        """
+        SELECT measurement.* FROM ring_measurements AS measurement
+        INNER JOIN (
+            SELECT metric_type, MAX(measured_at) AS latest_at
+            FROM ring_measurements
+            WHERE owner_user_id = :ownerUserId
+              AND device_id = :deviceId
+              AND source = :source
+            GROUP BY metric_type
+        ) AS latest
+        ON measurement.metric_type = latest.metric_type
+        AND measurement.measured_at = latest.latest_at
+        WHERE measurement.owner_user_id = :ownerUserId
+          AND measurement.device_id = :deviceId
+          AND measurement.source = :source
+        """,
+    )
+    fun observeLatestMeasurementsForBinding(
+        ownerUserId: String,
+        deviceId: String,
+        source: String,
+    ): Flow<List<RingMeasurementEntity>>
+
     @Query("SELECT * FROM ring_sleep_sessions ORDER BY started_at DESC LIMIT 1")
     fun observeLatestSleepSession(): Flow<RingSleepSessionEntity?>
 
@@ -73,6 +97,37 @@ interface RingDataDao {
 
     @Query("SELECT * FROM ring_measurements WHERE measured_at >= :since ORDER BY measured_at DESC")
     suspend fun getMeasurementsSince(since: Long): List<RingMeasurementEntity>
+
+    @Query(
+        """
+        SELECT * FROM ring_measurements
+        WHERE measured_at >= :since
+          AND owner_user_id = :ownerUserId
+          AND device_id = :deviceId
+          AND source = :source
+        ORDER BY measured_at DESC
+        """,
+    )
+    suspend fun getMeasurementsSinceForBinding(
+        since: Long,
+        ownerUserId: String,
+        deviceId: String,
+        source: String,
+    ): List<RingMeasurementEntity>
+
+    @Query(
+        """
+        SELECT MAX(measured_at) FROM ring_measurements
+        WHERE owner_user_id = :ownerUserId
+          AND device_id = :deviceId
+          AND source = :source
+        """,
+    )
+    suspend fun getLatestMeasuredAtForBinding(
+        ownerUserId: String,
+        deviceId: String,
+        source: String,
+    ): Long?
 
     @Query(
         "SELECT * FROM ring_measurements WHERE metric_type = :metricType ORDER BY measured_at DESC LIMIT 1",

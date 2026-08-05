@@ -7,7 +7,10 @@ import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "ring_measurements",
-    indices = [Index(value = ["metric_type", "measured_at"])],
+    indices = [
+        Index(value = ["metric_type", "measured_at"]),
+        Index(value = ["owner_user_id", "device_id", "source", "metric_type", "measured_at"]),
+    ],
 )
 data class RingMeasurementEntity(
     @PrimaryKey val id: String,
@@ -19,6 +22,8 @@ data class RingMeasurementEntity(
     val quality: Int? = null,
     val source: String,
     @ColumnInfo(name = "raw_payload") val rawPayload: String? = null,
+    @ColumnInfo(name = "owner_user_id") val ownerUserId: String? = null,
+    @ColumnInfo(name = "device_id") val deviceId: String? = null,
 )
 
 @Entity(tableName = "ring_sleep_sessions")

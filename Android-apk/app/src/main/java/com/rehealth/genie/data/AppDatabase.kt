@@ -79,7 +79,7 @@ data class AttributionLogEntity(
         RhiDataQualitySnapshotEntity::class,
         DietRecordEntity::class,
     ],
-    version = 14,
+    version = 15,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -96,6 +96,19 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun dietRecordDao(): DietRecordDao
 
     companion object {
+        /** Adds nullable owner/device scope to wearable measurements without deleting legacy rows. */
+        val Migration14To15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE ring_measurements ADD COLUMN owner_user_id TEXT")
+                db.execSQL("ALTER TABLE ring_measurements ADD COLUMN device_id TEXT")
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS " +
+                        "index_ring_measurements_owner_user_id_device_id_source_metric_type_measured_at " +
+                        "ON ring_measurements(owner_user_id, device_id, source, metric_type, measured_at)",
+                )
+            }
+        }
+
         /**
          * Splits RHI daily persistence into index / domain / feature / quality
          * tables. Purely additive: no existing table is altered or dropped, so
@@ -674,6 +687,7 @@ abstract class AppDatabase : RoomDatabase() {
                     Migration11To12,
                     Migration12To13,
                     Migration13To14,
+                    Migration14To15,
                 )
                 .build()
     }

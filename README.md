@@ -1,7 +1,7 @@
 # ReHealth AI / 睿禾健康
 
 ReHealth 是面向可穿戴设备和健康干预场景的软硬件一体化系统。当前 MVP
-以 MRD、RWFit 智能戒指和 HBand 手表/手环为设备接入，完成从设备采集、本地持久化、离线上传、
+以 MRD、RWFit 智能戒指、HBand 手表/手环及云米云端手表为设备接入，完成从设备采集、本地持久化、离线上传、
 云端时序存储，到 CVD 风险评分、干预建议和用户反馈的闭环。
 
 本文档是仓库级项目入口和结构说明。具体接口、数据契约、部署细节和当前
@@ -24,7 +24,11 @@ ReHealth 是面向可穿戴设备和健康干预场景的软硬件一体化系�
   -> 用户反馈与风险趋势
 ```
 
-Android 按 `productCode` 选择单一有效 Provider，Release 已注册 MRD、RWFit 和 HBand。
+云米 S8/S9/GS20/GS17/A67/K9L 使用独立云端拉取链路：App 以 IMEI 绑定，JeecgBoot
+持有厂商凭据并先将心率、血氧、血压持久化到硬件库，再返回 App 写入 Room。首次绑定
+回填最多 31 天，后续增量同步；Room v15 按登录用户、设备和来源隔离该类测量。
+
+Android 按 `productCode` 选择单一有效 Provider，Release 已注册 MRD、RWFit、HBand 和 Viomi Cloud。
 RWFit 使用固定版本官方 SDK，当前仍需采购型号的真机能力和单位验证；HBand 已完成
 隔离 Provider 并进入真机联调，已按设备能力接入心率、步数/活动、睡眠、血氧、HRV、血压、
 血糖、压力、MET、ECG、血液成分和身体成分的测量或历史同步，并接入血糖校准与经期设置；

@@ -24,12 +24,12 @@ import static org.mockito.Mockito.when;
 
 class ViomiPullServiceTest {
     @Test
-    void syncNormalizesUtcHistoryAndPersistsBeforeReturning() throws Exception {
+    void syncNormalizesShanghaiHistoryAndPersistsBeforeReturning() throws Exception {
         ViomiOpenApiGateway gateway = mock(ViomiOpenApiGateway.class);
         ReHealthBusinessRepository repository = mock(ReHealthBusinessRepository.class);
         HardwareIngestionPort ingestion = mock(HardwareIngestionPort.class);
         ObjectMapper mapper = new ObjectMapper();
-        JsonNode row = mapper.readTree("{\"Systolic\":128,\"Diastolic\":79,\"BpTime\":\"2026-08-05 04:30:00\"}");
+        JsonNode row = mapper.readTree("{\"Systolic\":128,\"Diastolic\":79,\"BpTime\":\"2026-08-05 12:30:00\"}");
         when(repository.hasActiveDeviceBinding(anyString(), anyString())).thenReturn(true);
         when(gateway.history(anyString(), anyString(), any(), any())).thenReturn(List.of(row));
         TelemetryBatchResponseDto receipt = new TelemetryBatchResponseDto();
@@ -40,7 +40,7 @@ class ViomiPullServiceTest {
 
         ViomiSyncRequestDto request = new ViomiSyncRequestDto();
         request.imei = "123456789012345";
-        request.beginAt = 1_754_368_200_000L;
+        request.beginAt = 1_785_900_000_000L;
         request.endAt = request.beginAt + 86_400_000L;
         request.metrics = Set.of("BLOOD_PRESSURE");
         ViomiSyncResponseDto response = new ViomiPullService(gateway, repository, ingestion).sync("user-1", request);
@@ -49,9 +49,35 @@ class ViomiPullServiceTest {
         assertEquals(1, response.recordCount);
         assertEquals(128.0, response.measurements.get(0).primaryValue);
         assertEquals(79.0, response.measurements.get(0).secondaryValue);
+        assertEquals(1_785_904_200_000L, response.measurements.get(0).measuredAt);
         ArgumentCaptor<TelemetryBatchRequestDto> batch = ArgumentCaptor.forClass(TelemetryBatchRequestDto.class);
         verify(ingestion).acceptBatch(batch.capture());
         assertEquals("viomi_cloud", batch.getValue().source);
         assertEquals("BLOOD_PRESSURE", batch.getValue().measurements.get(0).get("metricType"));
+    }
+
+    @Test
+    void syncDropsOutOfRangeMeasurementsWithoutPersistingEmptyBatch() throws Exception {
+        ViomiOpenApiGateway gateway = mock(ViomiOpenApiGateway.class);
+        ReHealthBusinessRepository repository = mock(ReHealthBusinessRepository.class);
+        HardwareIngestionPort ingestion = mock(HardwareIngestionPort.class);
+        JsonNode row = new ObjectMapper().readTree(
+                "{\"Systolic\":70,\"Diastolic\":120,\"BpTime\":\"2026-08-05 12:30:00\"}"
+        );
+        when(repository.hasActiveDeviceBinding(anyString(), anyString())).thenReturn(true);
+        when(gateway.history(anyString(), anyString(), any(), any())).thenReturn(List.of(row));
+
+        ViomiSyncRequestDto request = new ViomiSyncRequestDto();
+        request.imei = "123456789012345";
+        request.beginAt = 1_785_900_000_000L;
+        request.endAt = request.beginAt + 86_400_000L;
+        request.metrics = Set.of("BLOOD_PRESSURE");
+
+        ViomiSyncResponseDto response = new ViomiPullService(gateway, repository, ingestion)
+                .sync("user-1", request);
+
+        assertTrue(response.persisted);
+        assertEquals("NO_NEW_DATA", response.status);
+        assertEquals(0, response.recordCount);
     }
 }

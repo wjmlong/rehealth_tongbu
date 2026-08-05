@@ -1,15 +1,23 @@
 # D2 Telemetry Sync Status and Remaining QA
 
-Status: implemented software path; updated 2026-07-31.
+Status: implemented software path; updated 2026-08-05.
 
 ## Implemented
 
 ### Viomi cloud pull path (2026-08-05)
 
 - `VIOMI_CLOUD` is a non-BLE `RingRepository` provider for S8/S9/GS20/GS17/A67/K9L.
-- Binding and seven-day history sync use authenticated backend endpoints; vendor credentials never enter the APK.
+- Binding and history sync use authenticated backend endpoints; vendor credentials never enter the APK.
+- A successful bind triggers the first sync automatically. The first pull requests up to 31 days;
+  later pulls start two days before the latest scoped local record and remain capped at 31 days.
 - Backend persistence is the authority. Only a persisted response is imported to Room.
 - Imported `viomi_cloud` records set `RingSyncResult.requiresUpload=false`, preventing an upload echo loop.
+- Room v15 adds nullable measurement owner/device columns and a composite lookup index. Viomi
+  observations are read by authenticated user + hashed backend device + `viomi_cloud` source,
+  while migration 14→15 preserves legacy rows with null scope.
+- The cloud Data screen exposes only heart rate, blood oxygen and blood pressure. It uses real
+  samples for trends, daily-balanced period means, and period-minimum SpO₂; unsupported sections
+  and synthetic mini-charts are hidden.
 
 - MRD/RWFit/HBand collection writes to Room before any network operation.
 - Successful manual/automatic sync creates a durable `telemetry_batch` queue item.
@@ -78,6 +86,8 @@ Status: implemented software path; updated 2026-07-31.
   single enqueue after a delayed device binding; migration 10→11 has an
   instrumentation migration test.
 - Debug Kotlin compilation, JVM unit tests, and debug APK assembly.
+- Viomi mapping/range/scope unit tests, Room 14→15 migration-test compilation, and backend
+  Shanghai-time/range validation tests.
 
 ## HARDWARE_QA_PENDING
 

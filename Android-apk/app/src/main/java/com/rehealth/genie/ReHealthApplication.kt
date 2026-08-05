@@ -191,6 +191,7 @@ class ReHealthApplication : Application() {
                 protocolAdapter = mrdProtocolAdapter,
                 activeWearableStore = activeWearableStore,
                 apiClient = authenticatedApiClient,
+                userIdProvider = { sessionStore.userId },
             ),
         )
     }

@@ -24,6 +24,7 @@ internal fun createRuntimeRingProviderFactories(
     protocolAdapter: MrdProtocolAdapter,
     activeWearableStore: ActiveWearableBindingStore,
     apiClient: AuthenticatedApiClient,
+    userIdProvider: () -> String?,
 ): Map<WearableVendor, () -> RingRepository> = mapOf(
     WearableVendor.MRD to {
         MrdBleRingRepository(context, dao, protocolAdapter, activeWearableStore)
@@ -47,7 +48,9 @@ internal fun createRuntimeRingProviderFactories(
             expectedMetrics = product.expectedMetrics,
         )
     },
-    WearableVendor.VIOMI_CLOUD to { ViomiCloudRingRepository(dao, apiClient, activeWearableStore) },
+    WearableVendor.VIOMI_CLOUD to {
+        ViomiCloudRingRepository(dao, apiClient, activeWearableStore, userIdProvider)
+    },
 )
 
 internal fun runtimeDefaultWearableSelection(): Pair<String, WearableVendor> =

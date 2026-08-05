@@ -61,7 +61,7 @@ Only `GET /rehealth/mobile/health` is marked `@IgnoreAuth`. All production-style
 | `GET` | `/rehealth/mobile/interviews/latest` | Reads the current authenticated user's latest persisted interview. |
 | `POST` | `/rehealth/mobile/devices/bind` | Persists the current authenticated user's binding when software_db is enabled. |
 | `POST` | `/rehealth/mobile/viomi/bind` | Verifies an IMEI against the server-side Viomi account and persists a hashed ReHealth binding. |
-| `POST` | `/rehealth/mobile/viomi/sync` | Pulls heart-rate, blood-pressure, and blood-oxygen history for a maximum 31-day UTC window, persists it through hardware ingest, then returns normalized records. |
+| `POST` | `/rehealth/mobile/viomi/sync` | Pulls heart-rate, blood-pressure, and blood-oxygen history for a maximum 31-day epoch-ms window, interprets offset-less vendor timestamps in Asia/Shanghai, rejects invalid physiological values, persists through hardware ingest, then returns normalized records. |
 | `POST` | `/rehealth/mobile/measurements/batch` | Gateway-routed Device Service authority validates `telemetry-v2` and transactionally writes measurement/sleep/activity/diet rows to TimescaleDB; duplicate retries return the existing receipt. |
 | `GET` | `/rehealth/mobile/measurements/recent?limit=50` | Reads only the authenticated user's newest normalized measurement, sleep, and activity rows; `limit` is clamped to 1–200 and raw signal payloads are never returned. |
 | `POST` | `/rehealth/mobile/features/evaluate` | Calls `model-service` `POST /v1/cvd/risk/evaluate`; returns controlled error if unavailable; 透传 model-service 的 model_trace 由 M1 引入的 governance trace 块到 Android 客户端，nullable 字段；详见 model-service/docs/MODEL_REGISTRY.md. |

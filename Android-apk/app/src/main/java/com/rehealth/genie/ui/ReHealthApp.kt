@@ -96,6 +96,7 @@ fun ReHealthApp() {
                 application.activeWearableManager,
                 BuildConfig.ALLOW_WEARABLE_PRODUCT_SWITCH,
                 application.riskHistoryRepository,
+                { application.sessionStore.userId },
             )
         },
     )
