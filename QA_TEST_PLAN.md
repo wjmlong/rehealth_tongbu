@@ -36,7 +36,7 @@ $env:REHEALTH_RELEASE_API_BASE_URL="https://api.example.com/jeecg-boot/"
 cd ..
 ```
 
-Release 产物还必须执行 APK 内容审计：合并商品资源只允许 MRD/RWFit/HBand；不得包含
+Release 产物还必须执行 APK 内容审计：合并商品资源只允许 HBand/Viomi Cloud；不得包含
 Mock 商品、全链路演练文案、`synthetic_qa`、Debug Factor16 版本、测试码、占位地址或
 Provider API Key。Manifest 必须为 `debuggable=false`、`usesCleartextTraffic=false`，且不得
 声明 `QUERY_ALL_PACKAGES` 或尚未接线的 Health Connect 写权限；最后使用 `apksigner verify`
@@ -198,7 +198,10 @@ git diff --check
 5. Ring scan/connect
    - Turn Bluetooth on.
    - Scan from device binding screen.
-   - Connect the wearable selected by the current `productCode` (MRD, RWFit, or HBand).
+   - Confirm the Release page offers exactly “HBand（MT116 蓝牙）” and “云米（IMEI 云端）”.
+   - Select HBand and connect the MT116 chosen by the current `productCode`.
+   - Confirm a fresh Release install defaults to HBand; an upgraded MRD/RWFit selection migrates
+     to HBand, while an existing Viomi binding remains selected.
    - Confirm connection state updates, the active binding survives app restart,
      and no duplicate scan/connect loop is created.
    - After clearing app data, start background collection before binding and

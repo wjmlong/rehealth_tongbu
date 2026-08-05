@@ -42,6 +42,7 @@ class ActiveWearableStore(
     defaultProductCode: String = DEFAULT_MRD_PRODUCT_CODE,
     defaultVendor: WearableVendor = WearableVendor.MRD,
     forceDefaultSelection: Boolean = false,
+    allowedVendors: Set<WearableVendor>? = null,
 ) : ActiveWearableBindingStore {
     private val defaultBinding = ActiveWearableBinding(
         productCode = defaultProductCode,
@@ -64,9 +65,18 @@ class ActiveWearableStore(
         EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
     )
-    private val mutableActiveBinding = MutableStateFlow(
-        resolveInitialWearableBinding(defaultBinding, readBinding(), forceDefaultSelection),
+    private val storedBinding = readBinding()
+    private val initialBinding = resolveInitialWearableBinding(
+        defaultBinding = defaultBinding,
+        storedBinding = storedBinding,
+        forceDefaultSelection = forceDefaultSelection,
+        allowedVendors = allowedVendors,
     )
+    private val mutableActiveBinding = MutableStateFlow(initialBinding)
+
+    init {
+        if (initialBinding != storedBinding) persist(initialBinding)
+    }
 
     override val activeBinding: StateFlow<ActiveWearableBinding> = mutableActiveBinding.asStateFlow()
 
@@ -182,6 +192,11 @@ class ActiveWearableStore(
     }
 
     private fun update(binding: ActiveWearableBinding) {
+        persist(binding)
+        mutableActiveBinding.value = binding
+    }
+
+    private fun persist(binding: ActiveWearableBinding) {
         preferences.edit()
             .putString(KEY_PRODUCT_CODE, binding.productCode)
             .putString(KEY_VENDOR, binding.vendor.name)
@@ -193,7 +208,6 @@ class ActiveWearableStore(
             .putLong(KEY_BOUND_AT, binding.boundAt)
             .putLong(KEY_LAST_DEVICE_CHANGED_AT, binding.lastDeviceChangedAt)
             .apply()
-        mutableActiveBinding.value = binding
     }
 
     private fun readBinding(): ActiveWearableBinding {
@@ -248,7 +262,9 @@ internal fun resolveInitialWearableBinding(
     defaultBinding: ActiveWearableBinding,
     storedBinding: ActiveWearableBinding,
     forceDefaultSelection: Boolean,
+    allowedVendors: Set<WearableVendor>? = null,
 ): ActiveWearableBinding {
+    if (allowedVendors != null && storedBinding.vendor !in allowedVendors) return defaultBinding
     if (!forceDefaultSelection) return storedBinding
     return storedBinding.takeIf { stored ->
         stored.productCode == defaultBinding.productCode && stored.vendor == defaultBinding.vendor

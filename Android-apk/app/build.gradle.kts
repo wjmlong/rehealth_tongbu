@@ -68,13 +68,13 @@ fun releaseVersionCode(): Int =
     (localProps.getProperty("rehealth.version.code")
         ?: System.getenv("REHEALTH_VERSION_CODE")
         ?: providers.gradleProperty("rehealth.version.code").orNull
-        ?: "1").toInt()
+        ?: "2").toInt()
 
 fun releaseVersionName(): String =
     (localProps.getProperty("rehealth.version.name")
         ?: System.getenv("REHEALTH_VERSION_NAME")
         ?: providers.gradleProperty("rehealth.version.name").orNull
-        ?: "1.0.0").trim()
+        ?: "1.0.1").trim()
 
 fun releaseSigningValue(propertyName: String, environmentName: String): String? =
     (localProps.getProperty(propertyName)
@@ -160,6 +160,13 @@ android {
 
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
+    }
+
+    lint {
+        // AGP 8.10.1 can load the Compose detector without its generated helper class
+        // after a clean build, crashing lint before it reports project findings.
+        // Keep all other Release checks enabled until the toolchain is upgraded together.
+        disable += "MutableCollectionMutableState"
     }
 
     compileOptions {

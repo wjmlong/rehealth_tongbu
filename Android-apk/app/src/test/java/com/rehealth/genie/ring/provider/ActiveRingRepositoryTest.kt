@@ -31,6 +31,31 @@ class ActiveRingRepositoryTest {
     }
 
     @Test
+    fun releaseMigratesLegacyProviderSelectionToHBandDefault() {
+        val hband = profile(HBAND_PRODUCT_CODE, WearableVendor.HBAND).toBinding()
+        val oldMrd = profile(DEFAULT_MRD_PRODUCT_CODE, WearableVendor.MRD).toBinding()
+        val allowed = setOf(WearableVendor.HBAND, WearableVendor.VIOMI_CLOUD)
+
+        assertEquals(
+            hband,
+            resolveInitialWearableBinding(hband, oldMrd, forceDefaultSelection = false, allowedVendors = allowed),
+        )
+    }
+
+    @Test
+    fun releaseKeepsExistingViomiBinding() {
+        val hband = profile(HBAND_PRODUCT_CODE, WearableVendor.HBAND).toBinding()
+        val viomi = profile("RH-VM-K9L", WearableVendor.VIOMI_CLOUD).toBinding()
+            .copy(address = "masked-imei", boundAt = 10L)
+        val allowed = setOf(WearableVendor.HBAND, WearableVendor.VIOMI_CLOUD)
+
+        assertEquals(
+            viomi,
+            resolveInitialWearableBinding(hband, viomi, forceDefaultSelection = false, allowedVendors = allowed),
+        )
+    }
+
+    @Test
     fun registryCreatesOnlyRequestedProviderAndCachesIt() {
         var mrdCreations = 0
         var mockCreations = 0

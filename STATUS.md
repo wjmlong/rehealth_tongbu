@@ -3,11 +3,18 @@
 > 最后核对：2026-08-05。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
 > `docs/archive/acceptance/`，不得作为当前实现或发布状态的依据。
 
+当前待发布 Android 版本为 `1.0.1 (versionCode 2)`；该版本包含 HBand/云米连接方式选择，
+不再使用容易与厂商 SDK 版本混淆的显示编号。
+Release Lint 保留全部既有门禁，但临时禁用会因 AGP 8.10.1/Compose lint 类加载缺失而直接崩溃的
+`MutableCollectionMutableState` 单项检测；升级整套 Android 工具链后必须恢复该检测。
+
 ## 2026-08-05 云米云端手表接入
 
 - 后端已增加 `/rehealth/mobile/viomi/bind` 与 `/viomi/sync`，支持 S8、S9、GS20、GS17、A67、K9L 共用的 IMEI 验证和历史拉取流程。
 - 心率、血压、血氧先经硬件入库端口持久化，再返回 Android 写入 Room；云端来源不会被 App 重复上传。
 - App 已增加 `VIOMI_CLOUD` provider、产品目录与 IMEI 绑定 UI；生产包允许选择真实设备产品。
+- Debug 与 Release 的正式连接选择统一收敛为“HBand（MT116 蓝牙）”和“云米（IMEI 云端）”；
+  Release 默认 HBand，旧 MRD/RWFit 保存选择升级后迁移到 HBand，已有云米绑定保持不变。
 - 绑定成功自动执行首次 31 天回填，后续按设备最新记录以 2 天重叠窗口增量同步；数据页仅展示已支持的心率、血氧、血压。
 - Room v15 为测量增加用户与设备作用域；云米数据查询按用户、设备、`viomi_cloud` 来源隔离，14→15 迁移保留旧记录。
 - 真实联调仍需注入 `REHEALTH_VIOMI_APP_ID`、`REHEALTH_VIOMI_APP_KEY` 和 `REHEALTH_VIOMI_USER_ID`。
@@ -29,6 +36,17 @@ Manifest 禁止 cleartext，所有模拟开关为 `false`。完整 `lintRelease`
 `QUERY_ALL_PACKAGES` 与尚未接线的 Health Connect 写权限，修正后已通过。该阶段的 unsigned
 产物仅用于边界审计，已由下述正式签名产物取代。
 
+2026-08-05 已完成 `1.0.1 (versionCode 2)` 正式签名构建：Debug/Release 连接选择仅展示
+HBand MT116 蓝牙与云米 IMEI 云端，Release 默认 HBand，旧 MRD/RWFit 保存选择迁移到 HBand。
+`testDebugUnitTest`、`verifyPublishConfiguration`、`lintRelease`、R8、`bundleRelease` 与
+`assembleRelease` 均通过。签名 APK SHA-256 为
+`6D9F4C28BAED5F3614D3745CEBAC770FC240A1EC16A8DB41EDE1A0AB62B0728D`，签名 AAB SHA-256 为
+`3437A437BCDB5A86978D8D3DABC352855DF74A924A2D11555BB22F0B617C1EFC`；APK 仅使用批准上传证书的
+v2 签名，证书 SHA-256 与既有批准指纹一致。Release APK 内商品目录只含 HBand 与 Viomi Cloud，
+不含 Debug 增量目录。
+MuMu（API 35）已从同证书 `1.0.0 (1)` 覆盖安装到 `1.0.1 (2)` 并成功启动登录页；
+设备选择页仍需登录后的人工点击验收，物理 MT116 连接继续保持发布阻塞。
+
 2026-08-04 已在仓库外创建 RSA 4096 位 PKCS12 Android Upload Key，并把仓库默认 Release
 地址确认为 `https://rehealth.youngjimmy.store/jeecg-boot/`。上传证书 SHA-256 为
 `84:56:D2:47:A4:9E:A4:71:9B:95:A0:9D:AD:AB:7C:83:0F:1E:1C:74:D8:E3:22:A0:6D:BB:53:D6:A2:BA:C9:75`；
@@ -45,7 +63,7 @@ Play Console 内测、物理设备与完整线上闭环验收仍保持发布阻�
 
 | 范围 | 当前实现 |
 | --- | --- |
-| Android | 单一有效设备 Provider 路由（Release 注册 MRD/RWFit/HBand/Viomi Cloud）、真实 SDK/BLE、云米 IMEI 绑定、Room、本地优先、Foreground Service、WorkManager、CVD 16 特征、认证感知上传队列、风险/干预/反馈 UI；健康初识完成后直接进入首页，设备绑定保留在“我的”；Room v7 按登录用户隔离健康问答会话与消息，6→7 显式迁移保留消息并生成会话，首页支持本机会话列表、新建、切换和确认删除/清空，用户消息先落本机再请求服务端，页面重建/重登后恢复本机及云端最新会话；首页麦克风使用系统语音转文字并回填待确认输入，AI 回复使用不执行 HTML、远程资源或自动链接的受限 Markdown；首页拍照记录调用系统相机，以私有 FileProvider 临时文件上传食物/OCR 照片，并在首页和数据页展示当前用户的今日结构化行为记录；模型页采用固定的端侧学习视觉稿，仅调整展示层，不改变实际云端风险评分链路；“我的”每日步数优先聚合 Room 当地自然日活动，头像经系统照片选择、本机重编码后按用户隔离保存且不上云；健康初识会把可识别的年龄、身高、体重作为结构化 profile 一并排队同步；HBand 心率、步数/活动、睡眠、血氧、HRV、血压、血糖、压力、MET、ECG、血液/身体成分以及血糖校准、经期设置按设备能力接入；MT116 能力判定合并新版分包报告，ECG 以 2 号能力包优先；2026-07-30 真机日志证实固件虽然声明 HRV/压力/MET 独立能力，三项专用命令仍返回全 0 `unknown action`，现已改为 HRV/压力优先走 4 号能力包一键体检、MET 优先获取设备历史，避免 SDK 弹出不支持提示且不生成占位值；固定 SDK 对应四 ABI JNI 已打包，Room v5 保存校准 mV/导联/采样元数据并提供实时及历史单导联波形详情；ECG 与身体成分在用户确认电极接触和稳定姿势说明后才下发测量命令；体温因真机验证不通过已从 HBand 商品能力和数据页移除，其他指标及 ECG 真机准确性仍待验收 |
+| Android | 单一有效设备 Provider 路由；Release 只注册 HBand/Viomi Cloud，正式选择只展示 HBand MT116 蓝牙和云米 IMEI 云端，默认 HBand 并迁移旧 MRD/RWFit 选择；Debug 保留 MRD/RWFit/Mock 工程入口。已接入真实 SDK/BLE、云米 IMEI 绑定、Room、本地优先、Foreground Service、WorkManager、CVD 16 特征、认证感知上传队列及风险/干预/反馈 UI。HBand 已按能力接入心率、步数/活动、睡眠、血氧、HRV、血压、血糖、压力、MET、ECG、血液/身体成分与设备设置；MT116 的 HRV/压力优先走一键体检或真实历史，MET 只读真实历史，体温已移除，完整真机准确性仍待验收。 |
 | Device Service | 遥测校验、TimescaleDB 持久化、幂等批次、Transactional Outbox、Kafka 发布；`telemetry-v2` 新增饮食行为记录，并向受信 Jeecg 调用提供租户/用户/自然日隔离的今日行为与近 7 日描述性变化 |
 | JeecgBoot | 登录与权限、用户/设备绑定、结构化档案/访谈/干预/行为业务数据、风险/干预/反馈编排、LangChain4j 健康问答、视觉食物/OCR 和结构化生活方式干预、安全策略、用户/租户隔离会话历史和 software_db；每次生成干预都重新读取权威画像、最新访谈/风险和 Device Service 行为上下文，不采信客户端画像/风险；拍照分析只持久化验证后的结构化结果，不保存原图；模型证据继续保留版本化 JSON 快照 |
 | model-service | CVD 风险评分、模型制品校验；旧干预生成仍保留作兼容路径；新增隔离的 `/v2/rhi/evaluate` research preview，提供 32 维确定性 RHI、五域、动量和可信度，明确不生成临床概率；旧健康助手接口保留为可配置回退 |
@@ -70,7 +88,7 @@ HBand 的 HRV、压力、MET 页面策略已经按 MT116 实测收紧：HRV/压�
   ViewModel 或 Room Entity；HBand SDK 类型同样被限制在 Gateway 文件内，未支持的指标不生成占位记录，
   ECG 波形只写本地 Room 且不进入云端上传；HBand SDK 疾病风险不作为诊断展示，
   新记录保存校准 mV 和结构化导联/采样元数据，旧整数记录保留并仅按相对幅值展示。
-- Debug 与 Release 设备页均可选择真实设备类型；Debug 另含 Mock 与演练入口。
+- Debug 与 Release 设备页均只向用户提供 HBand MT116 蓝牙与云米 IMEI 云端两种连接方式；Debug 另保留 Mock、MRD/RWFit 工程测试能力与演练入口。
   切换会先暂停采集、断开旧 Provider，且不会删除历史 `ring_*` 数据。
 - 三个真实 Provider 的后台同步只重连已绑定地址且不做环境扫描；前后台操作共享
   路由互斥锁。HBand 恢复画像使用按用户哈希隔离的加密缓存，外部协程取消会断开 SDK。

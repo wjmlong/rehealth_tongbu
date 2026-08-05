@@ -9,6 +9,7 @@
 - [ ] `assembleDebug` 通过并记录 APK SHA-256。
 - [ ] 签名 `assembleRelease` 通过。
 - [ ] `verifyReleaseConfiguration` 与完整 `lintRelease` 通过；禁止使用 `.invalid` 占位地址。
+- [ ] 升级 Android 构建工具链后恢复并通过当前因 lint 类加载崩溃而临时禁用的 `MutableCollectionMutableState` 检测。
 - [ ] `verifyPublishConfiguration` 通过，签名材料全部来自本机或 CI secret。
 - [ ] APK/AAB 上传证书 SHA-256 与批准指纹 `84:56:D2:47:A4:9E:A4:71:9B:95:A0:9D:AD:AB:7C:83:0F:1E:1C:74:D8:E3:22:A0:6D:BB:53:D6:A2:BA:C9:75` 一致。
 - [ ] Release 使用真实 HTTPS API 地址，禁止 cleartext 和调试配置。
@@ -49,11 +50,11 @@
 - [ ] 数据页“同步睡眠、步数与活动”仅在已连接时可用；断连及进入“我的”不触发重连/同步。HBand 首次或缺口补全历史，近期同步使用增量重叠窗口并跳过无缺口的长原始历史；进度单调且完成后卡片从 Room 刷新。
 - [ ] 健康问答默认使用 Java LangChain4j；“我是谁/我叫什么”调用当前认证用户资料工具，客户端或模型参数不能切换到其他用户；Python 对话仅作为显式回滚。
 - [ ] 单导联 ECG 详情可展示实时进度/接触状态/校准波形和最近本机历史；导联未知时不猜测 I/V1，旧整数记录仅标相对幅值。
-- [ ] MRD 扫描、绑定、重连和解绑通过。
-- [ ] RWFit 扫描、绑定、重连、能力读取和首批指标同步通过。
 - [ ] HBand 扫描、Notify、密码验证、真实画像同步、能力读取和首批指标同步通过。
+- [ ] 云米通过 IMEI 验证绑定并完成首次/增量云端同步；云米模式不申请蓝牙权限。
 - [ ] 当前 `productCode` 只激活一个 Provider；Release 未包含 Mock。
-- [ ] Debug 套餐切换按“暂停采集→断开旧 Provider→更新唯一绑定→恢复采集”执行；Release 不显示客户端切换入口。
+- [ ] Debug 与 Release 设备页只展示“HBand（MT116 蓝牙）”和“云米（IMEI 云端）”；切换按“暂停采集→断开旧 Provider→更新唯一绑定→恢复采集”执行。
+- [ ] Release 首次安装默认 HBand；覆盖安装的 MRD/RWFit 保存选择迁移到 HBand，已有云米绑定保持不变。
 - [ ] 首次绑定前后台采集不使用固定地址、不自动扫描，也不写入 0 或模拟指标。
 - [ ] 心率、血氧、HRV、血压、体温、血糖、压力、MET、血液/身体成分、睡眠和活动记录先写入 Room；设备设置不混入测量表。
 - [ ] 断网不阻塞 BLE，待上传数据保留在 durable queue。

@@ -72,7 +72,7 @@ internal fun DeviceBindingDebugSection(
         val product = state.wearableProducts.firstOrNull { it.productCode == productCode }
         AlertDialog(
             onDismissRequest = { pendingProductCode = null },
-            title = { Text("切换设备套餐") },
+            title = { Text("切换连接方式") },
             text = {
                 Text("将断开当前设备并切换到 ${product?.displayName ?: productCode}。历史健康数据会保留。")
             },
@@ -93,9 +93,9 @@ internal fun DeviceBindingDebugSection(
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (state.wearableProducts.isNotEmpty()) {
             ReHealthCardBlock {
-                Text("设备类型", color = Ink, fontWeight = FontWeight.SemiBold)
+                Text("连接方式", color = Ink, fontWeight = FontWeight.SemiBold)
                 Text(
-                    "选择实际佩戴设备；云米使用 IMEI 绑定，其他设备使用蓝牙连接。",
+                    "HBand 用于 MT116 蓝牙连接；云米使用 IMEI 云端绑定。",
                     color = Muted,
                     fontSize = 10.sp,
                 )

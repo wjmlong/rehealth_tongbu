@@ -30,6 +30,7 @@ import com.rehealth.genie.ring.provider.ActiveWearableStore
 import com.rehealth.genie.ring.provider.RingProviderRegistry
 import com.rehealth.genie.ring.provider.WearableProductCatalog
 import com.rehealth.genie.ring.runtimeDefaultWearableSelection
+import com.rehealth.genie.ring.runtimeAllowedWearableVendors
 import com.rehealth.genie.ring.shouldForceRuntimeWearableSelection
 import com.rehealth.genie.work.MeasurementSyncWorker
 import com.rehealth.genie.work.RingBackgroundRecoveryWorker
@@ -181,6 +182,7 @@ class ReHealthApplication : Application() {
             defaultProductCode = productCode,
             defaultVendor = vendor,
             forceDefaultSelection = shouldForceRuntimeWearableSelection(),
+            allowedVendors = runtimeAllowedWearableVendors(),
         )
     }
     val ringProviderRegistry by lazy {

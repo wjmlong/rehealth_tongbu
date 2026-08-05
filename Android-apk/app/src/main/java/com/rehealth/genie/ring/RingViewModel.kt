@@ -22,6 +22,7 @@ import com.rehealth.genie.ring.data.RingMeasurementEntity
 import com.rehealth.genie.ring.data.RingSignalChunkEntity
 import com.rehealth.genie.ring.data.RingSleepSessionEntity
 import com.rehealth.genie.ring.provider.ActiveWearableManager
+import com.rehealth.genie.ring.provider.HBAND_PRODUCT_CODE
 import com.rehealth.genie.ring.provider.WearableVendor
 import com.rehealth.genie.ring.viomi.VIOMI_SOURCE
 import com.rehealth.genie.ring.viomi.viomiDeviceId
@@ -144,7 +145,7 @@ class RingViewModel(
             mutableUiState.update {
                 it.copy(
                     wearableProducts = if (allowWearableProductSwitch) {
-                        collapseViomiProductOptions(
+                        userSelectableWearableProductOptions(
                             products = manager.products.map { product ->
                                 WearableProductOption(product.productCode, product.displayName)
                             },
@@ -994,6 +995,28 @@ private fun pushProfileToRepository(repository: RingRepository, profile: Patient
 }
 
 data class WearableProductOption(val productCode: String, val displayName: String)
+
+/**
+ * The current pilot exposes only the two supported connection workflows:
+ * HBand/MT116 over Bluetooth and Viomi watches through the cloud IMEI flow.
+ * Legacy MRD/RWFit providers remain available only for Debug engineering QA;
+ * Release migrates those stored selections to HBand.
+ */
+internal fun userSelectableWearableProductOptions(
+    products: List<WearableProductOption>,
+    activeProductCode: String?,
+): List<WearableProductOption> = collapseViomiProductOptions(
+    products = products.filter { option ->
+        option.productCode == HBAND_PRODUCT_CODE || option.productCode.startsWith(VIOMI_PRODUCT_CODE_PREFIX)
+    },
+    activeProductCode = activeProductCode,
+).map { option ->
+    when {
+        option.productCode == HBAND_PRODUCT_CODE -> option.copy(displayName = "HBand（MT116 蓝牙）")
+        option.productCode.startsWith(VIOMI_PRODUCT_CODE_PREFIX) -> option.copy(displayName = "云米（IMEI 云端）")
+        else -> option
+    }
+}
 
 /**
  * All supported Viomi watches use the same cloud/IMEI workflow. Keep the concrete

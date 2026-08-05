@@ -106,7 +106,7 @@ internal fun DeviceBindingScreen(
                     Icon(Icons.Outlined.ArrowBack, "返回", tint = Ink)
                 }
                 Column {
-                    Text(if (onboarding) "连接你的智能戒指" else "设备绑定", color = Ink, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    Text(if (onboarding) "连接你的健康设备" else "设备绑定", color = Ink, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                     Text(
                         if (onboarding) "连接后即可进入主页" else "绑定可穿戴设备并同步健康数据",
                         color = Muted,
@@ -134,7 +134,7 @@ internal fun DeviceBindingScreen(
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
                         Text("蓝牙权限", color = Ink, fontWeight = FontWeight.SemiBold)
                         Text(
-                            if (permissionGranted) "已授权，可连接真实戒指" else "真实戒指到货后需要授权",
+                            if (permissionGranted) "已授权，可连接 HBand 设备" else "连接 HBand 设备需要授权",
                             color = Muted,
                             fontSize = 11.sp,
                             modifier = Modifier.padding(top = 3.dp),
@@ -151,7 +151,7 @@ internal fun DeviceBindingScreen(
                     }
                 }
                 Text(
-                    "已切换为真实戒指链路，数据默认保存在本机。",
+                    "已切换为 HBand 蓝牙链路，健康数据会先保存在本机。",
                     color = Muted,
                     fontSize = 10.sp,
                     modifier = Modifier.padding(top = 10.dp),
@@ -229,7 +229,7 @@ internal fun DeviceBindingScreen(
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MintSoft, contentColor = Mint),
                     ) {
-                        Text(if (state.isScanning) "搜索中" else "搜索智能戒指")
+                        Text(if (state.isScanning) "搜索中" else "搜索 HBand 设备")
                     }
                     if (state.connectedDevice != null) {
                         Button(
@@ -297,7 +297,7 @@ internal fun DeviceBindingScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.Devices, null, tint = Mint, modifier = Modifier.size(28.dp))
                     Column(Modifier.weight(1f).padding(start = 10.dp)) {
-                        Text(device.name ?: "智能戒指", color = Ink, fontWeight = FontWeight.SemiBold)
+                        Text(device.name ?: "HBand 设备", color = Ink, fontWeight = FontWeight.SemiBold)
                         Text("${device.address} · ${device.rssi ?: "--"} dBm", color = Muted, fontSize = 10.sp)
                     }
                     Button(
@@ -321,19 +321,19 @@ internal fun DeviceBindingScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = Mint),
                 ) {
                     Text(
-                        if (state.connectedDevice == null) "请先连接戒指" else "完成设置，进入主页",
+                        if (state.connectedDevice == null) "请先连接设备" else "完成设置，进入主页",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
                 Text(
-                    "连接成功后，我们会同步戒指数据并进入主页。",
+                    "连接成功后，我们会同步设备数据并进入主页。",
                     color = Muted,
                     fontSize = 10.sp,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 12.dp),
                 )
-                // 暂时没有戒指：跳过配对，直接进入主页（仍会标记首次引导已完成）
+                // 暂时没有设备：跳过配对，直接进入主页（仍会标记首次引导已完成）
                 OutlinedButton(
                     onClick = { onComplete?.invoke() },
                     modifier = Modifier.fillMaxWidth().height(48.dp),
@@ -341,7 +341,7 @@ internal fun DeviceBindingScreen(
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Mint),
                     border = BorderStroke(1.dp, Mint),
                 ) {
-                    Text("暂时没有戒指，先跳过", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text("暂时没有设备，先跳过", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }

@@ -12,7 +12,7 @@
 数据页按登录用户、云米设备和来源隔离查询；14→15 为纯新增迁移，保留已有记录。
 云端手表模式不申请蓝牙权限，也不启动 BLE 前台服务。
 
-睿禾精灵 Android 客户端，负责 MRD/RWFit 戒指与 HBand 手表/手环采集、本地持久化、轻量健康
+睿禾精灵 Android 客户端，正式提供 HBand MT116 蓝牙采集与云米手表云端同步、本地持久化、轻量健康
 特征提取、离线上传和用户交互。CatBoost、SHAP、LLM 和生产归因均位于云端，
 不进入 Android APK。
 
@@ -21,9 +21,9 @@
 ## 当前能力
 
 - Compose 登录、注册、健康访谈、设备绑定、主页、数据、风险、干预、反馈、归因和健康助手页面。
-- MRD SDK/协议适配，以及固定版本 RWFit、HBand 官方 SDK Provider。
-- 基于 `productCode` 的单一有效设备路由；Release 注册 MRD/RWFit/HBand/Viomi Cloud，Debug 另可
-  注册 Mock 或通过 Gradle 属性生成指定厂商真机测试 APK。
+- 固定版本 HBand 官方 SDK Provider 与 Viomi Cloud Provider；MRD/RWFit 适配仅保留用于 Debug 工程测试。
+- 基于 `productCode` 的单一有效设备路由；Release 只注册 HBand/Viomi Cloud，连接选择仅展示
+  “HBand（MT116 蓝牙）”与“云米（IMEI 云端）”。Debug 另可注册 Mock 或生成旧厂商测试 APK。
 - 心率、HRV、血氧、血压、血糖、压力、MET、ECG、睡眠、步数、活动、血液成分和身体成分等本地记录与数据卡片；能力门控的血糖校准与经期设置。
 - Room 本地优先持久化及显式数据库迁移。
 - 本地 RDI 引擎（设计 6 章：总公式 50+ΣC、领域上限、平滑、个人基线、可信度收缩）。
@@ -98,7 +98,7 @@ HBand ECG 算法还会通过 JNI 加载 `libnative-lib.so`；四个 ABI 的文�
 ## 核心数据流
 
 ```text
-productCode -> ActiveRingRepository -> MRD BLE / RWFit SDK / HBand SDK
+productCode -> ActiveRingRepository -> HBand SDK / Viomi Cloud
   -> RingRepository
   -> Room
   -> UploadQueue
@@ -143,6 +143,7 @@ rehealth.release.api.base.url=https://rehealth.example.com/jeecg-boot/
 仓库当前批准的 Release 地址为 `https://rehealth.youngjimmy.store/jeecg-boot/`；
 `verifyReleaseConfiguration` 会拒绝非 HTTPS、空主机或 `.invalid` 占位地址。切换环境时必须
 由发布负责人明确覆盖，避免产物意外连接联调或占位环境。
+当前默认发布版本为 `1.0.1 (versionCode 2)`；本机或 CI 覆盖时仍必须保证 versionCode 单调递增。
 
 无蓝牙的真机 QA（模拟器 / MuMu）可用 fake-ring 通道替掉 BLE 采集：
 
@@ -276,9 +277,9 @@ Room `ring_activities` 按设备当地自然日聚合的真实活动记录，活
 
 模拟戒指只存在于 `app/src/debug`，由 Debug 专用工厂和
 `USE_FAKE_RING`/`SEED_FAKE_HEALTH_DATA` 控制。`app/src/release` 的工厂只构造
-真实 MRD/RWFit/HBand/Viomi Cloud Provider；远程风险评估失败时显示不可用，不生成本地模拟风险。
-Mock 商品增量目录和设备绑定演练 UI 只存在于 Debug source set；Release 合并资源中只包含
-MRD、RWFit、HBand 与 Viomi Cloud 真实商品。Release 如果遇到覆盖安装遗留的非生产遥测会拒绝上传，
+真实 HBand/Viomi Cloud Provider；远程风险评估失败时显示不可用，不生成本地模拟风险。
+Mock 与旧 MRD/RWFit 商品目录、设备绑定演练 UI 只存在于 Debug source set；Release 合并资源中只包含
+HBand 与 Viomi Cloud 真实商品。Release 如果遇到覆盖安装遗留的非生产遥测会拒绝上传，
 不会把其改写为真实 Provider 数据。
 
 Debug 版“我的 → 设备绑定”另提供唯一的全链路演练入口，且必须在警告对话框中
@@ -352,10 +353,10 @@ rehealth.debug.wearable.product.code=RH-RW-P01
 命令行 `-Prehealth.debug.wearable.product.code=...` 会覆盖本地配置；两者都未设置时
 Debug 默认使用 MRD。切换配置后需重新构建并安装应用。
 
-Debug 的“设备绑定”页也可在确认对话框后切换本地商品目录中的 `productCode`。
+Debug 与 Release 的“设备绑定”页可在确认对话框后切换 HBand 与云米连接方式。
 切换会暂停采集、断开旧 Provider、清空旧绑定并保留全部 Room 历史，再恢复原先
-启用的采集任务。Debug 与 Release 均可选择真实设备类型并通过“云米”入口绑定 IMEI；
-Mock 和全链路演练仍只在 Debug 显示。
+启用的采集任务。Release 首次安装默认 HBand；覆盖安装时旧 MRD/RWFit 保存选择迁移到 HBand，
+已有云米绑定保持不变。Mock、旧 MRD/RWFit 工程入口和全链路演练仍只存在于 Debug。
 
 HBand 真机联调可生成强制选择 `RH-HB-E01` 的专用 APK：
 

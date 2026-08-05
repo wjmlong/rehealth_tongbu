@@ -17,11 +17,14 @@ health record in Room before it creates an upload item. Backend or model-service
 failure must not stop BLE collection.
 
 Android keeps exactly one active wearable binding in encrypted preferences. The
-Release registry contains MRD, RWFit, HBand, and Viomi Cloud. Viomi is a non-BLE
+Release registry contains only HBand and Viomi Cloud. The user-facing selector exposes
+HBand/MT116 Bluetooth and Viomi IMEI cloud binding; Release defaults to HBand and migrates
+stored MRD/RWFit selections to HBand while preserving an existing Viomi binding. Viomi is a non-BLE
 provider: binding uses IMEI through authenticated JeecgBoot APIs, vendor credentials
 remain server-only, and only backend-persisted heart-rate, SpO₂, and blood-pressure
 records enter Room. HBand activation is selected by
-`RH-HB-E01`; its physical-device acceptance remains pending. Switching a product
+`RH-HB-E01`; its physical-device acceptance remains pending. MRD/RWFit remain Debug-only
+engineering providers. Switching a product
 disconnects the old Provider and does not delete historical `ring_*` rows. Vendor SDK objects do not cross the
 `RingRepository` boundary into UI/ViewModel/Room entities.
 

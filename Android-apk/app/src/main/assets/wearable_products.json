@@ -1,19 +1,5 @@
 [
   {
-    "productCode": "RH-MRD-S01",
-    "vendor": "MRD",
-    "displayName": "ReHealth 标准戒指",
-    "modelNameHints": ["MR11", "MRD"],
-    "expectedMetrics": ["HEART_RATE", "STEPS", "SLEEP", "BLOOD_OXYGEN"]
-  },
-  {
-    "productCode": "RH-RW-P01",
-    "vendor": "RWFIT",
-    "displayName": "ReHealth 高端戒指",
-    "modelNameHints": ["RW"],
-    "expectedMetrics": ["HEART_RATE", "HRV", "STEPS", "ACTIVITY", "SLEEP", "BLOOD_OXYGEN"]
-  },
-  {
     "productCode": "RH-HB-E01",
     "vendor": "HBAND",
     "displayName": "ReHealth 基础手环",

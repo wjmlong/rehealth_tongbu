@@ -32,7 +32,8 @@ Status: implemented software path; updated 2026-08-05.
   wearable identity is bound, the row remains local and is queued after binding;
   network availability never blocks entry.
 - Collection is routed through one `productCode`-selected Provider. The Release
-  registry contains MRD/RWFit/HBand and all keep the existing Room batch path.
+  registry contains only HBand and Viomi Cloud; the user chooses MT116 Bluetooth or
+  Viomi IMEI cloud binding. MRD/RWFit remain Debug-only engineering providers.
 - Cloud binding and batch provenance derive from the active domain vendor:
   `mrd-*`/`mrd_room`, `rwfit-*`/`rwfit_room`, or `hband-*`/`hband_room`. The latest snapshot excludes
   records whose entity source belongs to another vendor.

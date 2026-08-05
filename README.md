@@ -1,7 +1,7 @@
 # ReHealth AI / 睿禾健康
 
 ReHealth 是面向可穿戴设备和健康干预场景的软硬件一体化系统。当前 MVP
-以 MRD、RWFit 智能戒指、HBand 手表/手环及云米云端手表为设备接入，完成从设备采集、本地持久化、离线上传、
+正式客户端以 HBand MT116 蓝牙设备和云米云端手表为用户可选接入，完成从设备采集、本地持久化、离线上传、
 云端时序存储，到 CVD 风险评分、干预建议和用户反馈的闭环。
 
 本文档是仓库级项目入口和结构说明。具体接口、数据契约、部署细节和当前
@@ -28,8 +28,8 @@ ReHealth 是面向可穿戴设备和健康干预场景的软硬件一体化系�
 持有厂商凭据并先将心率、血氧、血压持久化到硬件库，再返回 App 写入 Room。首次绑定
 回填最多 31 天，后续增量同步；Room v15 按登录用户、设备和来源隔离该类测量。
 
-Android 按 `productCode` 选择单一有效 Provider，Release 已注册 MRD、RWFit、HBand 和 Viomi Cloud。
-RWFit 使用固定版本官方 SDK，当前仍需采购型号的真机能力和单位验证；HBand 已完成
+Android 按 `productCode` 选择单一有效 Provider，Release 只注册 HBand 和 Viomi Cloud；
+MRD/RWFit 仅保留在 Debug 工程测试目录。HBand 已完成
 隔离 Provider 并进入真机联调，已按设备能力接入心率、步数/活动、睡眠、血氧、HRV、血压、
 血糖、压力、MET、ECG、血液成分和身体成分的测量或历史同步，并接入血糖校准与经期设置；
 固定 SDK 仍保留 HRV/MET 专用 API 及其双能力位识别，但 `RH-HB-E01` 产品流程按 MT116
@@ -43,7 +43,8 @@ HBand ECG 已补齐与固定 SDK 匹配的四 ABI 原生库，实时 ADC 按设�
 保存导联、采样/绘制频率、时长、校准方式、平均心率和接触质量，并提供实时及本机历史单导联波形详情。
 ECG 和身体成分在下发设备测量命令前先展示电极接触与稳定姿势说明，用户确认后才开始测量。
 SDK 疾病风险不作为诊断展示，界面明确标注仅供健康参考、不能替代医疗诊断。
-Debug 设备页可验证套餐切换顺序；Debug 与 Release 均可选择真实设备类型，Mock 与演练入口只存在于 Debug。
+Debug 与 Release 的用户选择器都只展示“HBand（MT116 蓝牙）”和“云米（IMEI 云端）”；Mock 与旧 MRD/RWFit
+工程测试入口只存在于 Debug。Release 首次安装默认 HBand，覆盖安装时旧 MRD/RWFit 选择会迁移到 HBand。
 后台恢复只重连加密保存的当前绑定；HBand 所需四项真实画像使用按用户哈希隔离的
 加密缓存，不使 BLE 采集依赖网络。
 Android 在重新登录和进入个人页时按当前用户读取类型化个人资料及最近健康问答；这些读取与
@@ -150,7 +151,7 @@ rehealth_tongbu/
 ```text
 productCode / 单一有效绑定
   -> ActiveRingRepository
-  -> MRD BLE、RWFit SDK 或 HBand SDK（当前 productCode 对应的唯一 Provider）
+  -> HBand SDK 或 Viomi Cloud（当前 productCode 对应的唯一 Provider）
   -> RingRepository
   -> 规范化测量、睡眠、活动记录
   -> Room
@@ -308,7 +309,7 @@ Debug APK：`Android-apk/app/build/outputs/apk/debug/app-debug.apk`
 
 Release 默认使用已批准的 `https://rehealth.youngjimmy.store/jeecg-boot/`，版本号可由本机或
 CI 覆盖，签名材料必须从仓库外注入且不得进入 Git。Release 合并资源只包含
-MRD、RWFit、HBand 与 Viomi Cloud 四个真实 Provider，非生产遥测会被拒绝上传；
+HBand 与 Viomi Cloud 两个正式 Provider，非生产遥测会被拒绝上传；
 环境覆盖仍由 `verifyReleaseConfiguration` 校验。
 
 ### Device Service 与遥测契约

@@ -70,6 +70,8 @@ internal fun runtimeDefaultWearableSelection(): Pair<String, WearableVendor> =
 internal fun shouldForceRuntimeWearableSelection(): Boolean =
     shouldUseDebugMock() || BuildConfig.DEBUG_WEARABLE_PRODUCT_CODE in setOf(RWFIT_PRODUCT_CODE, HBAND_PRODUCT_CODE)
 
+internal fun runtimeAllowedWearableVendors(): Set<WearableVendor> = WearableVendor.entries.toSet()
+
 private fun shouldUseDebugMock(): Boolean =
     BuildConfig.USE_FAKE_RING || (BuildConfig.SEED_FAKE_HEALTH_DATA && isProbablyEmulator())
 

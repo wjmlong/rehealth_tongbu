@@ -21,6 +21,10 @@ rehealth.debug.wearable.product.code=RH-HB-E01
 Install `app/build/outputs/apk/debug/app-debug.apk`. Confirm the app activates
 only `RH-HB-E01`/`HBAND`; it must not scan or connect MRD/RWFit concurrently.
 
+For Release acceptance, open “我的 → 设备绑定” and confirm the page exposes exactly
+“HBand（MT116 蓝牙）” and “云米（IMEI 云端）”. A fresh install must select HBand by
+default; upgrading a build that stored MRD/RWFit must migrate to an unbound HBand selection.
+
 ## Evidence to record before testing
 
 - purchased product name, SKU, exact model and firmware;
