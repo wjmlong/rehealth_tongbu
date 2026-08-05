@@ -126,6 +126,9 @@ Backend -> normalized persisted measurements -> Android Room
 `AppId`, `AppKey`, and the cached `AccessToken` remain server-side. Bind verifies
 that the IMEI is visible to the configured Viomi account, stores only a hashed
 device identity in software_db, and scopes the binding to the authenticated user.
+Device-list requests use the `UserId` returned by Viomi's token response; the
+configured `REHEALTH_VIOMI_USER_ID` is only a compatibility fallback when that
+field is absent.
 Sync supports `HEART_RATE`, `BLOOD_PRESSURE`, and `BLOOD_OXYGEN`, parses vendor
 timestamps as UTC, and caps a request at 31 days. Records are returned to Android
 only after durable hardware ingest succeeds. `NO_NEW_DATA` is a successful no-op.

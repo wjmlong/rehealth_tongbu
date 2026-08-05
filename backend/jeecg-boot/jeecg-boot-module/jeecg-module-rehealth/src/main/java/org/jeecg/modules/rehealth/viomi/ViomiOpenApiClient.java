@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Component
 public class ViomiOpenApiClient implements ViomiOpenApiGateway {
@@ -38,11 +39,15 @@ public class ViomiOpenApiClient implements ViomiOpenApiGateway {
 
     @Override
     public boolean deviceExists(String imei) {
+        Token current = accessToken();
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("UserId", properties.getUserId());
+        body.put("UserId", current.userId() == null || current.userId().isBlank()
+                ? properties.getUserId() : current.userId());
         body.put("GroupId", "");
         body.put("MapType", "Baidu");
-        JsonNode result = authorizedPost("/api/devicelist/get_devicelist", body).path("Result");
+        JsonNode response = authorizedPost("/api/devicelist/get_devicelist", body, Set.of(0, 1, 1001));
+        if (response.path("Code").asInt(-1) == 1001) return false;
+        JsonNode result = response.path("Result");
         if (!result.isArray()) return false;
         for (JsonNode item : result) {
             if (imei.equals(text(item, "Imei", "IMEI", "imei"))) return true;
@@ -70,15 +75,19 @@ public class ViomiOpenApiClient implements ViomiOpenApiGateway {
     }
 
     private JsonNode authorizedPost(String path, Map<String, Object> body) {
+        return authorizedPost(path, body, Set.of(0, 1));
+    }
+
+    private JsonNode authorizedPost(String path, Map<String, Object> body, Set<Integer> acceptedCodes) {
         Token current = accessToken();
         body.put("AccessToken", current.value());
         try {
-            return post(path, body, current.value());
+            return post(path, body, current.value(), acceptedCodes);
         } catch (UnauthorizedTokenException ignored) {
             token = null;
             Token refreshed = accessToken();
             body.put("AccessToken", refreshed.value());
-            return post(path, body, refreshed.value());
+            return post(path, body, refreshed.value(), acceptedCodes);
         }
     }
 
@@ -93,15 +102,16 @@ public class ViomiOpenApiClient implements ViomiOpenApiGateway {
         body.put("AppId", properties.getAppId());
         body.put("Timestamp", timestamp);
         body.put("Password", md5(properties.getAppKey() + properties.getAppId() + timestamp));
-        JsonNode result = post("/api/token/get_token", body, null).path("Result");
+        JsonNode result = post("/api/token/get_token", body, null, Set.of(0, 1)).path("Result");
         String value = text(result, "AccessToken", "accessToken");
         if (value == null || value.isBlank()) throw new IllegalStateException("Viomi token response is missing AccessToken");
+        String userId = text(result, "UserId", "userId");
         long expires = result.path("ExpiresIn").asLong(7200);
-        token = new Token(value, Instant.now().plusSeconds(Math.max(120, expires)));
+        token = new Token(value, userId, Instant.now().plusSeconds(Math.max(120, expires)));
         return token;
     }
 
-    private JsonNode post(String path, Map<String, Object> body, String accessToken) {
+    private JsonNode post(String path, Map<String, Object> body, String accessToken, Set<Integer> acceptedCodes) {
         try {
             HttpRequest.Builder builder = HttpRequest.newBuilder()
                     .uri(URI.create(properties.getBaseUrl() + path))
@@ -116,7 +126,7 @@ public class ViomiOpenApiClient implements ViomiOpenApiGateway {
             }
             JsonNode json = objectMapper.readTree(response.body());
             int code = json.path("Code").asInt(json.path("code").asInt(-1));
-            if (code != 0 && code != 1) throw new IllegalStateException("Viomi OpenAPI rejected request");
+            if (!acceptedCodes.contains(code)) throw new IllegalStateException("Viomi OpenAPI rejected request");
             return json;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -143,7 +153,7 @@ public class ViomiOpenApiClient implements ViomiOpenApiGateway {
         }
     }
 
-    private record Token(String value, Instant expiresAt) {}
+    private record Token(String value, String userId, Instant expiresAt) {}
 
     private static final class UnauthorizedTokenException extends IllegalStateException {}
 }
