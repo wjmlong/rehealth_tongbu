@@ -10,6 +10,7 @@ import org.jeecg.modules.rehealth.mobile.dto.HealthInterviewSubmitRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateRequestDto;
+import org.jeecg.modules.rehealth.mobile.dto.RhiManualHealthInputDto;
 import org.jeecg.modules.rehealth.model.ModelCallAudit;
 
 import java.util.Optional;
@@ -20,6 +21,10 @@ public interface ReHealthBusinessRepository {
     PatientProfileDto savePatientProfile(String userId, PatientProfileDto profile);
 
     Optional<PatientProfileDto> findPatientProfile(String userId);
+
+    RhiManualHealthInputDto saveRhiManualHealthInput(String userId, RhiManualHealthInputDto input);
+
+    Optional<RhiManualHealthInputDto> findRhiManualHealthInput(String userId);
 
     HealthInterviewSubmitRequestDto saveHealthInterview(String userId, HealthInterviewSubmitRequestDto request);
 

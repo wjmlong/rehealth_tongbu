@@ -10,6 +10,7 @@ import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -116,6 +117,45 @@ class LangChain4jInterventionEngineTest {
         assertTrue(failure.getMessage().contains("medical safety policy"));
     }
 
+    @Test
+    void retriesOnceWhenProviderReturnsEmptyContent() {
+        SequencedChatModel model = new SequencedChatModel(
+                "",
+                """
+                {
+                  "summary":"今日先完成一项可执行活动",
+                  "items":[{
+                    "category":"exercise",
+                    "title":"轻快步行",
+                    "action":"晚餐后轻快步行15分钟",
+                    "rationale":"今天活动分钟数偏少",
+                    "target":"增加15分钟活动",
+                    "timing":"晚餐后",
+                    "evidenceRefs":["telemetry.todayBehavior.activeMinutes"]
+                  }]
+                }
+                """
+        );
+        LangChain4jInterventionEngine engine =
+                new LangChain4jInterventionEngine(model, "test-model", new ObjectMapper());
+
+        var response = engine.generate(
+                "retry-request",
+                new PersonalizedInterventionContext(
+                        PersonalizedInterventionService.CONTEXT_VERSION,
+                        "tenant-secret",
+                        "user-secret",
+                        null,
+                        null,
+                        null,
+                        telemetry()
+                )
+        );
+
+        assertEquals(2, model.callCount);
+        assertEquals("轻快步行", response.items.get(0).title);
+    }
+
     private static DeviceInterventionContext telemetry() {
         DeviceInterventionContext telemetry = new DeviceInterventionContext();
         telemetry.generatedAt = 1785456000000L;
@@ -143,6 +183,24 @@ class LangChain4jInterventionEngineTest {
             this.messages = List.copyOf(messages);
             return ChatResponse.builder()
                     .aiMessage(AiMessage.from(response))
+                    .modelName("test-model")
+                    .build();
+        }
+    }
+
+    private static final class SequencedChatModel implements ChatModel {
+        private final ArrayDeque<String> responses;
+        private int callCount;
+
+        private SequencedChatModel(String... responses) {
+            this.responses = new ArrayDeque<>(List.of(responses));
+        }
+
+        @Override
+        public ChatResponse chat(List<ChatMessage> messages) {
+            callCount++;
+            return ChatResponse.builder()
+                    .aiMessage(AiMessage.from(responses.removeFirst()))
                     .modelName("test-model")
                     .build();
         }

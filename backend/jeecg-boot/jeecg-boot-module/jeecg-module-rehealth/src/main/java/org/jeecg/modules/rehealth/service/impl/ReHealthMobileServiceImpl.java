@@ -24,6 +24,7 @@ import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.RecentTelemetryResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.TelemetryBatchRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.TelemetryBatchResponseDto;
+import org.jeecg.modules.rehealth.mobile.dto.RhiManualHealthInputDto;
 import org.jeecg.modules.rehealth.model.ModelServiceClient;
 import org.jeecg.modules.rehealth.model.ModelCallAudit;
 import org.jeecg.modules.rehealth.model.ModelServiceException;
@@ -110,6 +111,8 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
                 "GET /rehealth/mobile/config",
                 "GET /rehealth/mobile/profile",
                 "PUT /rehealth/mobile/profile",
+                "GET /rehealth/mobile/rhi/manual-inputs",
+                "PUT /rehealth/mobile/rhi/manual-inputs",
                 "POST /rehealth/mobile/interviews",
                 "GET /rehealth/mobile/interviews/latest",
                 "POST /rehealth/mobile/devices/bind",
@@ -147,6 +150,22 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
     public PatientProfileDto profile(String userId) {
         requireSoftwareDb();
         return businessRepository.findPatientProfile(userId).orElse(null);
+    }
+
+    @Override
+    public RhiManualHealthInputDto saveRhiManualHealthInput(
+            String userId,
+            RhiManualHealthInputDto input
+    ) {
+        requireSoftwareDb();
+        validateRhiManualHealthInput(input);
+        return businessRepository.saveRhiManualHealthInput(userId, input);
+    }
+
+    @Override
+    public RhiManualHealthInputDto rhiManualHealthInput(String userId) {
+        requireSoftwareDb();
+        return businessRepository.findRhiManualHealthInput(userId).orElse(null);
     }
 
     @Override
@@ -354,6 +373,59 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
         } catch (RuntimeException failure) {
             recordModelFailure(userId, null, "ATTRIBUTION_EVALUATE", startedNanos, failure);
             throw failure;
+        }
+    }
+
+    private void validateRhiManualHealthInput(RhiManualHealthInputDto input) {
+        if (input == null || input.updatedAt == null || input.updatedAt <= 0L) {
+            throw new IllegalArgumentException("updatedAt is required");
+        }
+        if (input.updatedAt > System.currentTimeMillis() + 86_400_000L) {
+            throw new IllegalArgumentException("updatedAt is too far in the future");
+        }
+        range(input.sedentaryHoursPerDay, 0.0, 24.0, "sedentaryHoursPerDay");
+        range(input.waistCircumferenceCm, 40.0, 200.0, "waistCircumferenceCm");
+        range(input.vo2MaxMlKgMin, 5.0, 100.0, "vo2MaxMlKgMin");
+        range(input.hba1cPercent, 3.0, 20.0, "hba1cPercent");
+        range(input.egfrMlMin173m2, 0.0, 250.0, "egfrMlMin173m2");
+        range(input.cuffSbp7dMean, 70.0, 250.0, "cuffSbp7dMean");
+        range(input.cuffDbp7dMean, 40.0, 150.0, "cuffDbp7dMean");
+        integerRange(input.cuffValidDays, 3, 7, "cuffValidDays");
+        range(input.fastingGlucoseMmolL, 1.0, 40.0, "fastingGlucoseMmolL");
+        range(input.totalCholesterolMmolL, 0.5, 30.0, "totalCholesterolMmolL");
+        range(input.ldlMmolL, 0.1, 20.0, "ldlMmolL");
+        range(input.hdlMmolL, 0.1, 10.0, "hdlMmolL");
+        range(input.triglyceridesMmolL, 0.1, 50.0, "triglyceridesMmolL");
+        if (Boolean.TRUE.equals(input.cuffConfirmed)) {
+            if (input.cuffSbp7dMean == null || input.cuffDbp7dMean == null || input.cuffValidDays == null) {
+                throw new IllegalArgumentException("confirmed cuff data requires SBP, DBP and valid days");
+            }
+            if (input.cuffSbp7dMean <= input.cuffDbp7dMean) {
+                throw new IllegalArgumentException("cuffSbp7dMean must be greater than cuffDbp7dMean");
+            }
+        }
+        boolean hasLab = input.fastingGlucoseMmolL != null
+                || input.totalCholesterolMmolL != null
+                || input.ldlMmolL != null
+                || input.hdlMmolL != null
+                || input.triglyceridesMmolL != null;
+        if (Boolean.TRUE.equals(input.labConfirmed) && (!hasLab || input.labRecordedAt == null)) {
+            throw new IllegalArgumentException("confirmed lab data requires a value and labRecordedAt");
+        }
+        if (input.labRecordedAt != null && input.labRecordedAt > System.currentTimeMillis()) {
+            throw new IllegalArgumentException("labRecordedAt cannot be in the future");
+        }
+    }
+
+    private void range(Double value, double minimum, double maximum, String field) {
+        if (value != null && (!Double.isFinite(value) || value < minimum || value > maximum)) {
+            throw new IllegalArgumentException(field + " is outside the allowed range");
+        }
+    }
+
+    private void integerRange(Integer value, int minimum, int maximum, String field) {
+        if (value != null && (value < minimum || value > maximum)) {
+            throw new IllegalArgumentException(field + " is outside the allowed range");
         }
     }
 

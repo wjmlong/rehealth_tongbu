@@ -59,6 +59,7 @@ queue until the user logs in again; the app does not invent a refresh-token flow
 | Mobile login | `POST /sys/mLogin` | Save the Jeecg token in encrypted session storage. |
 | Health/config | `GET /rehealth/mobile/health`, `GET /rehealth/mobile/config` | Environment and contract diagnostics. |
 | Profile | `GET/PUT /rehealth/mobile/profile` | Authenticated, user-scoped typed profile. Preserve returned `version` on PUT; stale edits return `409`; BMI is server-derived. |
+| Manual RHI health archive | `GET/PUT /rehealth/mobile/rhi/manual-inputs` | Save Room first, then PUT the nullable typed fields with `updatedAt` through the stable upload queue. The server derives ownership from auth; GET restores only a newer cloud copy. |
 | Interview | `POST /rehealth/mobile/interviews`, `GET /rehealth/mobile/interviews/latest` | Store in the Room durable queue before leaving the result screen, retry through WorkManager, and reload the latest typed record after login/profile entry. The optional `profile` object carries parsed age/height/weight and is merged into the typed profile in the same software-db transaction. |
 | Device binding | `POST /rehealth/mobile/devices/bind` | Send a stable device ID and SHA-256 address hash; never send the raw BLE MAC. |
 | Telemetry | `POST /rehealth/mobile/measurements/batch` | Use `telemetry-v2`; upload locally persisted normalized Room records and optional structured `dietRecords` with a stable `batchId`; exclude raw PPG/RRI and meal-image bytes. |
@@ -113,7 +114,10 @@ fields with explicit provenance from Room, a confirmed clinical report, or the
 trusted user profile. Room schema 9 adds nullable sedentary time, waist,
 formal VO2max, HbA1c, and eGFR inputs; schema 10 adds confirmed upper-arm cuff
 seven-day BP and dated hospital-lab values. Migrations 8→9 and 9→10 are explicit
-and preserve existing health records. Unsupported fields remain missing/neutral
+and preserve existing health records. Authenticated edits are additionally synchronized to
+MySQL `rehealth_rhi_manual_health_input`: the app writes Room before enqueueing,
+retries with WorkManager, pauses on 401, and resolves multiple-device copies using
+the client `updatedAt` value. Unsupported fields remain missing/neutral
 with zero confidence; blanks are never replaced with normal values. Cuffless ring
 blood pressure remains display-only. The Attribution improvement score is the
 signed difference between the last and first valid RHI inside the selected

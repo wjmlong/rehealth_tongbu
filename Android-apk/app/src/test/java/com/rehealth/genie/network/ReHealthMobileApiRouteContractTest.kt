@@ -8,6 +8,7 @@ import com.rehealth.genie.network.dto.InterventionFeedbackRequest
 import com.rehealth.genie.network.dto.InterventionGenerateRequestDto
 import com.rehealth.genie.network.dto.HealthInterviewAnswerDto
 import com.rehealth.genie.network.dto.HealthInterviewSubmitRequestDto
+import com.rehealth.genie.network.dto.RhiManualHealthInputDto
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
@@ -84,6 +85,36 @@ class ReHealthMobileApiRouteContractTest {
         assertEquals("POST", request.method)
         assertEquals("synthetic-test-token", request.getHeader("X-Access-Token"))
         assertTrue(request.body.readUtf8().contains("\"questionId\":\"profile\""))
+    }
+
+    @Test
+    fun `reads and writes manual RHI health archive through authenticated routes`() = runTest {
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"success":true,"code":200,"result":null}"""))
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"success":true,"code":200,"result":{"sedentaryHoursPerDay":8.5,"waistCircumferenceCm":92.0,"updatedAt":1720000000000}}""",
+            ),
+        )
+        val api = ReHealthMobileApi(
+            baseUrl = server.url("/jeecg-boot/").toString(),
+            httpClient = OkHttpClient(),
+            apiToken = "synthetic-test-token",
+        )
+
+        assertIs<RemotePhmOutcome.Success<*>>(api.getRhiManualHealthInput())
+        assertRequest("/jeecg-boot/rehealth/mobile/rhi/manual-inputs", "GET")
+
+        assertIs<RemotePhmOutcome.Success<*>>(
+            api.updateRhiManualHealthInput(
+                RhiManualHealthInputDto(
+                    sedentaryHoursPerDay = 8.5,
+                    waistCircumferenceCm = 92.0,
+                    updatedAt = 1_720_000_000_000L,
+                ),
+            ),
+        )
+        assertRequest("/jeecg-boot/rehealth/mobile/rhi/manual-inputs", "PUT")
     }
 
     @Test

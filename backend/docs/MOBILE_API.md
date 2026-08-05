@@ -55,6 +55,8 @@ Only `GET /rehealth/mobile/health` is marked `@IgnoreAuth`. All production-style
 | `GET` | `/rehealth/mobile/config` | Returns API version, endpoint list, model contract, and E1 limitations. |
 | `GET` | `/rehealth/mobile/profile` | Reads the current authenticated user's persisted health profile. |
 | `PUT` | `/rehealth/mobile/profile` | Upserts typed profile fields, calculates BMI server-side, and returns `version`; stale versions return `409`, while disabled software_db returns retryable `503`. |
+| `GET` | `/rehealth/mobile/rhi/manual-inputs` | Reads the authenticated user's nullable manual RHI health archive values from `software_db`; returns `null` when none exist. |
+| `PUT` | `/rehealth/mobile/rhi/manual-inputs` | Validates and upserts sedentary hours, waist, formal VO₂max, HbA1c, eGFR, confirmed cuff means, and dated lab values. Ownership comes only from auth; an older `updatedAt` returns the newer stored copy without overwriting it. |
 | `POST` | `/rehealth/mobile/interviews` | Persists typed answers and baseline summary under the current authenticated user. |
 | `GET` | `/rehealth/mobile/interviews/latest` | Reads the current authenticated user's latest persisted interview. |
 | `POST` | `/rehealth/mobile/devices/bind` | Persists the current authenticated user's binding when software_db is enabled. |
@@ -143,6 +145,11 @@ blood pressure, metabolic and follow-up.
 No deterministic mock plan is returned when Device Service, the provider or
 software persistence is unavailable.
 
+The local DeepSeek v4 provider is called in non-thinking mode for this structured JSON
+operation because thinking mode is enabled by default and may exhaust the completion before
+producing `content`. JSON/schema/evidence/safety validation failures receive one bounded retry;
+no failed or unsafe response is persisted.
+
 Attribution request shape:
 
 ```json
@@ -171,7 +178,7 @@ rehealth:
     enabled: true
 ```
 
-Profiles, interviews, device bindings, feature/risk results, interventions, feedback, and attribution results are scoped using the authenticated `LoginUser.id`. Android stores a completed interview locally first, enqueues the typed payload, and retries it through WorkManager; a disabled software_db never produces a false durable success.
+Profiles, manual RHI health inputs, interviews, device bindings, feature/risk results, interventions, feedback, and attribution results are scoped using the authenticated `LoginUser.id`. Android stores a completed interview or manual health edit locally first, enqueues the typed payload, and retries it through WorkManager; a disabled software_db never produces a false durable success. Existing databases must apply `V20260805_1__add_rhi_manual_health_input.sql`.
 
 `PatientProfileDto.version` is an optimistic-lock token. Clients should GET the profile, preserve the returned
 version while editing, and send it with PUT. The server ignores request `patientId`, derives ownership from the

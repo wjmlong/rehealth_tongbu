@@ -27,6 +27,7 @@ import com.rehealth.genie.network.dto.TelemetryBatchRequestDto
 import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
 import com.rehealth.genie.network.dto.RhiDailySnapshotBatchDto
 import com.rehealth.genie.network.dto.RhiDailySnapshotResponseDto
+import com.rehealth.genie.network.dto.RhiManualHealthInputDto
 import com.rehealth.genie.network.dto.BehaviorRecordDto
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -61,6 +62,14 @@ interface ReHealthApi {
     suspend fun updateProfile(
         @Body request: PatientProfileDto,
     ): Response<JeecgResult<PatientProfileDto>>
+
+    @GET("rehealth/mobile/rhi/manual-inputs")
+    suspend fun getRhiManualHealthInput(): Response<JeecgResult<RhiManualHealthInputDto?>>
+
+    @PUT("rehealth/mobile/rhi/manual-inputs")
+    suspend fun updateRhiManualHealthInput(
+        @Body request: RhiManualHealthInputDto,
+    ): Response<JeecgResult<RhiManualHealthInputDto>>
 
     @POST("rehealth/mobile/devices/bind")
     suspend fun bindDevice(

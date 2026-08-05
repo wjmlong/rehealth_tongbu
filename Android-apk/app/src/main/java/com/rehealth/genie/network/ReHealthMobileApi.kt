@@ -28,6 +28,7 @@ import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
 import com.rehealth.genie.network.dto.BehaviorRecordDto
 import com.rehealth.genie.network.dto.RhiDailySnapshotBatchDto
 import com.rehealth.genie.network.dto.RhiDailySnapshotResponseDto
+import com.rehealth.genie.network.dto.RhiManualHealthInputDto
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
@@ -102,6 +103,14 @@ class ReHealthMobileApi(
 
     suspend fun updateProfile(request: PatientProfileDto): RemotePhmOutcome<PatientProfileDto> =
         unwrap { api.updateProfile(request) }
+
+    suspend fun getRhiManualHealthInput(): RemotePhmOutcome<RhiManualHealthInputDto?> =
+        unwrapNullable { api.getRhiManualHealthInput() }
+
+    suspend fun updateRhiManualHealthInput(
+        request: RhiManualHealthInputDto,
+    ): RemotePhmOutcome<RhiManualHealthInputDto> =
+        unwrap { api.updateRhiManualHealthInput(request) }
 
     suspend fun bindDevice(request: DeviceBindRequestDto): RemotePhmOutcome<DeviceBindResponseDto> =
         unwrap { api.bindDevice(request) }

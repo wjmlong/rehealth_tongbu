@@ -19,6 +19,7 @@ import com.rehealth.genie.phm.RemotePhmService
 import com.rehealth.genie.qa.createRuntimeFullChainSimulationRunner
 import com.rehealth.genie.rdi.RdiRepository
 import com.rehealth.genie.rhi.RhiRepository
+import com.rehealth.genie.rhi.RhiManualHealthInputRepository
 import com.rehealth.genie.ring.RingBackgroundCollectionSettings
 import com.rehealth.genie.ring.RingRepository
 import com.rehealth.genie.ring.createRuntimeRingProviderFactories
@@ -144,6 +145,15 @@ class ReHealthApplication : Application() {
                     is ApiResult.NetworkError -> error(result.message)
                 }
             },
+        )
+    }
+
+    val rhiManualHealthInputRepository by lazy {
+        RhiManualHealthInputRepository(
+            dao = database.rhiManualHealthInputDao(),
+            syncRepository = syncRepository,
+            apiClient = authenticatedApiClient,
+            triggerSync = { MeasurementSyncWorker.triggerImmediate(this) },
         )
     }
 

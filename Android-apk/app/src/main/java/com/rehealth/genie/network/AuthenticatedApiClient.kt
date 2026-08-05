@@ -30,6 +30,16 @@ interface HealthInterviewUploadClient {
     ): ApiResult<HealthInterviewSubmitRequestDto>
 }
 
+interface RhiManualHealthInputSyncClient {
+    val authState: AuthState
+
+    suspend fun getRhiManualHealthInput(): ApiResult<RhiManualHealthInputDto?>
+
+    suspend fun updateRhiManualHealthInput(
+        request: RhiManualHealthInputDto,
+    ): ApiResult<RhiManualHealthInputDto>
+}
+
 /**
  * D3 authenticated API client with 401 detection and queue pause.
  *
@@ -44,7 +54,10 @@ class AuthenticatedApiClient(
     private val baseUrl: String,
     private val httpClient: OkHttpClient,
     private val sessionStore: SessionStore,
-) : MeasurementUploadClient, HealthInterviewUploadClient, RhiSnapshotUploadClient {
+) : MeasurementUploadClient,
+    HealthInterviewUploadClient,
+    RhiSnapshotUploadClient,
+    RhiManualHealthInputSyncClient {
     private var mobileApi = ReHealthMobileApi(
         baseUrl = baseUrl,
         httpClient = httpClient,
@@ -78,6 +91,16 @@ class AuthenticatedApiClient(
 
     suspend fun updateProfile(request: PatientProfileDto): ApiResult<PatientProfileDto> = executeWithAuth {
         mobileApi.updateProfile(request)
+    }
+
+    override suspend fun getRhiManualHealthInput(): ApiResult<RhiManualHealthInputDto?> = executeWithAuth {
+        mobileApi.getRhiManualHealthInput()
+    }
+
+    override suspend fun updateRhiManualHealthInput(
+        request: RhiManualHealthInputDto,
+    ): ApiResult<RhiManualHealthInputDto> = executeWithAuth {
+        mobileApi.updateRhiManualHealthInput(request)
     }
 
     suspend fun bindDevice(request: DeviceBindRequestDto): ApiResult<DeviceBindResponseDto> = executeWithAuth {

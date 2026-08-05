@@ -10,6 +10,7 @@ import org.jeecg.modules.rehealth.mobile.dto.HealthInterviewSubmitRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateRequestDto;
+import org.jeecg.modules.rehealth.mobile.dto.RhiManualHealthInputDto;
 import org.jeecg.modules.rehealth.repository.ReHealthBusinessRepository;
 import org.jeecg.modules.rehealth.model.ModelCallAudit;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,16 @@ public class E1PendingSoftwareDbReHealthBusinessRepository implements ReHealthBu
 
     @Override
     public Optional<PatientProfileDto> findPatientProfile(String userId) {
+        return Optional.empty();
+    }
+
+    @Override
+    public RhiManualHealthInputDto saveRhiManualHealthInput(String userId, RhiManualHealthInputDto input) {
+        return input;
+    }
+
+    @Override
+    public Optional<RhiManualHealthInputDto> findRhiManualHealthInput(String userId) {
         return Optional.empty();
     }
 

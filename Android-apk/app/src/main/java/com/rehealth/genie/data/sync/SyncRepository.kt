@@ -7,11 +7,13 @@ import com.rehealth.genie.network.AuthState
 import com.rehealth.genie.network.MeasurementUploadClient
 import com.rehealth.genie.network.HealthInterviewUploadClient
 import com.rehealth.genie.network.RhiSnapshotUploadClient
+import com.rehealth.genie.network.RhiManualHealthInputSyncClient
 import com.rehealth.genie.network.dto.HealthInterviewSubmitRequestDto
 import com.rehealth.genie.network.dto.RhiDailySnapshotBatchDto
 import com.rehealth.genie.network.dto.RhiDailySnapshotResponseDto
 import com.rehealth.genie.network.dto.TelemetryBatchRequestDto
 import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
+import com.rehealth.genie.network.dto.RhiManualHealthInputDto
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,6 +37,8 @@ class SyncRepository(
     private val nowProvider: () -> Long = System::currentTimeMillis,
     private val healthInterviewClient: HealthInterviewUploadClient? = apiClient as? HealthInterviewUploadClient,
     private val rhiSnapshotClient: RhiSnapshotUploadClient? = apiClient as? RhiSnapshotUploadClient,
+    private val rhiManualHealthInputClient: RhiManualHealthInputSyncClient? =
+        apiClient as? RhiManualHealthInputSyncClient,
 ) {
 
     private val _queueState = MutableStateFlow<QueueState>(QueueState.Active)
@@ -82,6 +86,7 @@ class SyncRepository(
         MEASUREMENT_KIND -> uploadMeasurement(item)
         HEALTH_INTERVIEW_KIND -> uploadHealthInterview(item)
         RHI_SNAPSHOT_KIND -> uploadRhiSnapshot(item)
+        RHI_MANUAL_INPUT_KIND -> uploadRhiManualHealthInput(item)
         else -> MeasurementUploadOutcome.Skipped
     }
 
@@ -144,6 +149,33 @@ class SyncRepository(
             is ApiResult.InvalidResponse -> saveDeadLetter(item, "rhi_snapshot_invalid")
             is ApiResult.NetworkError -> saveRetry(item, "rhi_snapshot_network")
             is ApiResult.ServiceUnavailable -> saveRetry(item, "rhi_snapshot_service_unavailable")
+        }
+    }
+
+    private suspend fun uploadRhiManualHealthInput(item: UploadQueueEntity): MeasurementUploadOutcome {
+        val client = rhiManualHealthInputClient
+            ?: return saveRetry(item, "rhi_manual_input_client_unavailable")
+        val request = try {
+            gson.fromJson(item.payloadJson, RhiManualHealthInputDto::class.java)
+                ?: return deadLetter(item)
+        } catch (_: JsonParseException) {
+            return deadLetter(item)
+        }
+        if (request.updatedAt <= 0L) return deadLetter(item)
+        return when (client.updateRhiManualHealthInput(request)) {
+            is ApiResult.Success -> {
+                dao.update(item.copy(status = "done", lastError = null))
+                MeasurementUploadOutcome.Uploaded
+            }
+            is ApiResult.Unauthorized -> {
+                pauseQueue()
+                MeasurementUploadOutcome.Paused
+            }
+            is ApiResult.Forbidden -> saveDeadLetter(item, "rhi_manual_input_forbidden")
+            is ApiResult.InvalidRequest,
+            is ApiResult.InvalidResponse -> saveDeadLetter(item, "rhi_manual_input_invalid")
+            is ApiResult.NetworkError -> saveRetry(item, "rhi_manual_input_network")
+            is ApiResult.ServiceUnavailable -> saveRetry(item, "rhi_manual_input_service_unavailable")
         }
     }
 
@@ -253,6 +285,7 @@ class SyncRepository(
         const val MEASUREMENT_KIND = "telemetry_batch"
         const val HEALTH_INTERVIEW_KIND = "health_interview"
         const val RHI_SNAPSHOT_KIND = "rhi_daily_snapshot"
+        const val RHI_MANUAL_INPUT_KIND = "rhi_manual_health_input"
     }
 }
 

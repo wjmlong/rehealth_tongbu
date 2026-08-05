@@ -337,12 +337,22 @@ git diff --check
       diagnosis or medication change, `is_mock=false`, and `medical_disclaimer` is present.
     - Confirm a Device Service/LLM/software_db failure returns controlled failure and
       does not persist or display a fabricated fallback plan.
+    - With DeepSeek v4, confirm the structured intervention call disables thinking mode,
+      returns non-empty JSON `content`, and a validation retry still persists at most one plan.
     - In the Android attribution page, record a meal while offline and confirm it
       appears immediately from Room with a local-only status. Restore a real device
       binding and network, then confirm one stable `telemetry-v2` queue item is created,
       WorkManager retries safely, and the row changes to synced only after durable
       server persistence. Reopen the app and confirm the current user's meal remains;
       another authenticated user must not see it.
+
+12a. Manual RHI health archive persistence
+    - Log in as `admin`, edit sedentary hours and waist in “我的 > 健康档案”, then save.
+    - Confirm Room updates immediately and one stable `rhi-manual:<userId>` queue row is created.
+    - Confirm `PUT /rehealth/mobile/rhi/manual-inputs`, subsequent GET, and
+      `rehealth_rhi_manual_health_input` contain the same nullable values and `updatedAt`.
+    - Save offline, restore the network, and confirm WorkManager retries without losing local data.
+    - Send an older `updatedAt` from another client and confirm it cannot overwrite the newer row.
 
 13. Feedback submission
     - Submit `POST /rehealth/mobile/interventions/{id}/feedback`.

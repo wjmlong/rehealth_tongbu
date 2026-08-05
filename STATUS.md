@@ -71,7 +71,7 @@ HBand 的 HRV、压力、MET 页面策略已经按 MT116 实测收紧：HRV/压�
 - 拍照行为记录已完成系统相机、私有临时 URI、方向校正/缩放重编码、认证上传、Java LangChain4j 视觉分析、用户/租户隔离幂等落库及首页/数据页今日展示；本地 MySQL 迁移、Provider 模型目录、后端测试和 Debug APK 构建已验证，真实手机拍摄的食物/OCR 准确性与失败恢复仍待手工 QA。
 - MIUI 相机返回早于私有文件完全写稳时，拍照读取现会等待文件大小稳定并直接从受控缓存路径解码；Android 14 真机仪器测试已覆盖延迟写入和 2400×1800 JPEG 的 1600 边界压缩，真实食物拍摄仍需用户手工确认。
 - 拍照识别现使用独立于普通 API 的长超时：Android 最多等待 110 秒，JeecgBoot 单次视觉调用默认 75 秒且不自动重试；Provider 超时会显示“图片识别超时”而非误报网络断开。真实食物图片在修复后的端到端结果仍需真机复测。
-- RHI v2 已完成研究规划、32 维 typed schema、确定性预览引擎、验证工具和 Android 未接线 DTO/迁移映射；Android 本地 `rhi-deterministic-preview-2.2.0-android-lite` 已接入 Room 可穿戴数据、可信个人资料及“我的 > 健康档案”手填指标。Room v9/v10 以显式 8→9→10 迁移保存久坐、腰围、正式 VO₂max、HbA1c、eGFR、确认袖带血压和带日期医院血检；空白值不补正常值，无袖带戒指血压不进入 RHI。当前仍没有 JeecgBoot 公共路由或云端日快照表，不能作为经验证临床能力，生产风险仍走 CVD-16。
+- RHI v2 已完成研究规划、32 维 typed schema、确定性预览引擎、验证工具和 Android DTO/迁移映射；Android 本地 `rhi-deterministic-preview-2.2.0-android-lite` 已接入 Room 可穿戴数据、可信个人资料及“我的 > 健康档案”手填指标。Room v9/v10 以显式 8→9→10 迁移保存久坐、腰围、正式 VO₂max、HbA1c、eGFR、确认袖带血压和带日期医院血检；空白值不补正常值，无袖带戒指血压不进入 RHI。手填健康档案现为 Room-first，并通过稳定队列同步到 MySQL `rehealth_rhi_manual_health_input`，GET/PUT 按认证用户和 `updatedAt` 合并；这不改变 RHI 的研究预览属性，生产风险仍走 CVD-16。
 - RHI 2.2.0 修正四处计算缺陷并落地日度持久化，未改动 UI：按
   LITE/STANDARD/CLINICAL 分级判定可信度分母（分级由实际提取到的证据决定，
   不区分手填或设备同步），消除 `total_cholesterol` 重复计数与纯可穿戴用户被

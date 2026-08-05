@@ -16,6 +16,7 @@ import org.jeecg.modules.rehealth.mobile.dto.ModelTraceDto;
 import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
+import org.jeecg.modules.rehealth.mobile.dto.RhiManualHealthInputDto;
 import org.jeecg.modules.rehealth.repository.ReHealthBusinessRepository;
 import org.jeecg.modules.rehealth.model.ModelCallAudit;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -142,6 +143,70 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
         profile.medications = profileItems("rehealth_patient_medication", persisted.id());
         profile.allergies = profileItems("rehealth_patient_allergy", persisted.id());
         return Optional.of(profile);
+    }
+
+    @Override
+    @Transactional
+    public RhiManualHealthInputDto saveRhiManualHealthInput(
+            String userId,
+            RhiManualHealthInputDto input
+    ) {
+        requireUser(userId);
+        if (input == null || input.updatedAt == null || input.updatedAt <= 0L) {
+            throw new IllegalArgumentException("updatedAt is required");
+        }
+        List<Long> versions = jdbcTemplate.query(
+                "SELECT client_updated_at FROM rehealth_rhi_manual_health_input WHERE user_id = ? FOR UPDATE",
+                (resultSet, rowNum) -> resultSet.getLong("client_updated_at"),
+                userId
+        );
+        if (!versions.isEmpty() && versions.get(0) > input.updatedAt) {
+            return findRhiManualHealthInput(userId).orElseThrow();
+        }
+        Timestamp now = Timestamp.from(Instant.now());
+        Object[] values = rhiManualInputValues(input);
+        if (versions.isEmpty()) {
+            jdbcTemplate.update("""
+                    INSERT INTO rehealth_rhi_manual_health_input (
+                        user_id, sedentary_hours_per_day, waist_circumference_cm,
+                        vo2_max_ml_kg_min, hba1c_percent, egfr_ml_min_1_73m2,
+                        cuff_sbp_7d_mean, cuff_dbp_7d_mean, cuff_valid_days, cuff_confirmed,
+                        fasting_glucose_mmol_l, total_cholesterol_mmol_l, ldl_mmol_l,
+                        hdl_mmol_l, triglycerides_mmol_l, lab_confirmed, lab_recorded_at,
+                        client_updated_at, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, prependAndAppend(userId, values, now, now));
+        } else {
+            jdbcTemplate.update("""
+                    UPDATE rehealth_rhi_manual_health_input
+                    SET sedentary_hours_per_day = ?, waist_circumference_cm = ?,
+                        vo2_max_ml_kg_min = ?, hba1c_percent = ?, egfr_ml_min_1_73m2 = ?,
+                        cuff_sbp_7d_mean = ?, cuff_dbp_7d_mean = ?, cuff_valid_days = ?,
+                        cuff_confirmed = ?, fasting_glucose_mmol_l = ?,
+                        total_cholesterol_mmol_l = ?, ldl_mmol_l = ?, hdl_mmol_l = ?,
+                        triglycerides_mmol_l = ?, lab_confirmed = ?, lab_recorded_at = ?,
+                        client_updated_at = ?, updated_at = ?
+                    WHERE user_id = ?
+                    """, append(values, now, userId));
+        }
+        return findRhiManualHealthInput(userId).orElseThrow();
+    }
+
+    @Override
+    public Optional<RhiManualHealthInputDto> findRhiManualHealthInput(String userId) {
+        requireUser(userId);
+        List<RhiManualHealthInputDto> rows = jdbcTemplate.query("""
+                        SELECT sedentary_hours_per_day, waist_circumference_cm,
+                               vo2_max_ml_kg_min, hba1c_percent, egfr_ml_min_1_73m2,
+                               cuff_sbp_7d_mean, cuff_dbp_7d_mean, cuff_valid_days,
+                               cuff_confirmed, fasting_glucose_mmol_l,
+                               total_cholesterol_mmol_l, ldl_mmol_l, hdl_mmol_l,
+                               triglycerides_mmol_l, lab_confirmed, lab_recorded_at,
+                               client_updated_at
+                        FROM rehealth_rhi_manual_health_input
+                        WHERE user_id = ?
+                        """, (resultSet, rowNum) -> mapRhiManualHealthInput(resultSet), userId);
+        return rows.stream().findFirst();
     }
 
     @Override
@@ -893,6 +958,11 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
         return value == null ? null : value.doubleValue();
     }
 
+    private Long nullableLong(ResultSet resultSet, String column) throws SQLException {
+        Number value = (Number) resultSet.getObject(column);
+        return value == null ? null : value.longValue();
+    }
+
     private Boolean nullableBoolean(ResultSet resultSet, String column) throws SQLException {
         Object value = resultSet.getObject(column);
         if (value == null) {
@@ -902,6 +972,55 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
             return bool;
         }
         return ((Number) value).intValue() != 0;
+    }
+
+    private RhiManualHealthInputDto mapRhiManualHealthInput(ResultSet resultSet) throws SQLException {
+        RhiManualHealthInputDto input = new RhiManualHealthInputDto();
+        input.sedentaryHoursPerDay = nullableDouble(resultSet, "sedentary_hours_per_day");
+        input.waistCircumferenceCm = nullableDouble(resultSet, "waist_circumference_cm");
+        input.vo2MaxMlKgMin = nullableDouble(resultSet, "vo2_max_ml_kg_min");
+        input.hba1cPercent = nullableDouble(resultSet, "hba1c_percent");
+        input.egfrMlMin173m2 = nullableDouble(resultSet, "egfr_ml_min_1_73m2");
+        input.cuffSbp7dMean = nullableDouble(resultSet, "cuff_sbp_7d_mean");
+        input.cuffDbp7dMean = nullableDouble(resultSet, "cuff_dbp_7d_mean");
+        input.cuffValidDays = nullableInteger(resultSet, "cuff_valid_days");
+        input.cuffConfirmed = nullableBoolean(resultSet, "cuff_confirmed");
+        input.fastingGlucoseMmolL = nullableDouble(resultSet, "fasting_glucose_mmol_l");
+        input.totalCholesterolMmolL = nullableDouble(resultSet, "total_cholesterol_mmol_l");
+        input.ldlMmolL = nullableDouble(resultSet, "ldl_mmol_l");
+        input.hdlMmolL = nullableDouble(resultSet, "hdl_mmol_l");
+        input.triglyceridesMmolL = nullableDouble(resultSet, "triglycerides_mmol_l");
+        input.labConfirmed = nullableBoolean(resultSet, "lab_confirmed");
+        input.labRecordedAt = nullableLong(resultSet, "lab_recorded_at");
+        input.updatedAt = resultSet.getLong("client_updated_at");
+        return input;
+    }
+
+    private Object[] rhiManualInputValues(RhiManualHealthInputDto input) {
+        return new Object[]{
+                input.sedentaryHoursPerDay, input.waistCircumferenceCm,
+                input.vo2MaxMlKgMin, input.hba1cPercent, input.egfrMlMin173m2,
+                input.cuffSbp7dMean, input.cuffDbp7dMean, input.cuffValidDays,
+                Boolean.TRUE.equals(input.cuffConfirmed), input.fastingGlucoseMmolL,
+                input.totalCholesterolMmolL, input.ldlMmolL, input.hdlMmolL,
+                input.triglyceridesMmolL, Boolean.TRUE.equals(input.labConfirmed),
+                input.labRecordedAt, input.updatedAt
+        };
+    }
+
+    private Object[] prependAndAppend(Object first, Object[] middle, Object... tail) {
+        Object[] result = new Object[1 + middle.length + tail.length];
+        result[0] = first;
+        System.arraycopy(middle, 0, result, 1, middle.length);
+        System.arraycopy(tail, 0, result, 1 + middle.length, tail.length);
+        return result;
+    }
+
+    private Object[] append(Object[] first, Object... tail) {
+        Object[] result = new Object[first.length + tail.length];
+        System.arraycopy(first, 0, result, 0, first.length);
+        System.arraycopy(tail, 0, result, first.length, tail.length);
+        return result;
     }
 
     private String json(Object value) {

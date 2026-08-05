@@ -54,6 +54,7 @@ class RhiManualInputViewModel(context: Context) : ViewModel() {
         observedUserId = userId
         observeJob?.cancel()
         observeJob = viewModelScope.launch {
+            launch { app.rhiManualHealthInputRepository.refreshFromCloud(userId) }
             app.database.rhiManualHealthInputDao().observe(userId).collect { input ->
                 _uiState.value = _uiState.value.copy(input = input)
             }
@@ -77,7 +78,7 @@ class RhiManualInputViewModel(context: Context) : ViewModel() {
                     userId = userId,
                     updatedAt = System.currentTimeMillis(),
                 )
-                app.database.rhiManualHealthInputDao().upsert(
+                app.rhiManualHealthInputRepository.save(
                     existing.copy(
                         sedentaryHoursPerDay = parsed.sedentaryHoursPerDay,
                         waistCircumferenceCm = parsed.waistCircumferenceCm,

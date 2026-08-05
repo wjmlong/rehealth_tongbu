@@ -12,6 +12,7 @@ import org.jeecg.modules.rehealth.mobile.dto.HealthInterviewAnswerDto;
 import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
+import org.jeecg.modules.rehealth.mobile.dto.RhiManualHealthInputDto;
 import org.jeecg.modules.rehealth.model.ModelCallAudit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -210,6 +211,28 @@ class JdbcSoftwareDbReHealthBusinessRepositoryTest {
         assertEquals(List.of("sleep"),
                 repository.findLatestHealthInterview("user-a").orElseThrow().focusAreas);
         assertTrue(repository.findLatestHealthInterview("user-b").isEmpty());
+    }
+
+    @Test
+    void persistsManualRhiInputAndRejectsAnOlderClientCopy() {
+        RhiManualHealthInputDto current = new RhiManualHealthInputDto();
+        current.sedentaryHoursPerDay = 8.5;
+        current.waistCircumferenceCm = 92.0;
+        current.cuffConfirmed = false;
+        current.labConfirmed = false;
+        current.updatedAt = 2_000L;
+
+        repository.saveRhiManualHealthInput("user-a", current);
+
+        RhiManualHealthInputDto stale = new RhiManualHealthInputDto();
+        stale.sedentaryHoursPerDay = 1.0;
+        stale.updatedAt = 1_000L;
+        RhiManualHealthInputDto persisted = repository.saveRhiManualHealthInput("user-a", stale);
+
+        assertEquals(1, count("rehealth_rhi_manual_health_input"));
+        assertEquals(8.5, persisted.sedentaryHoursPerDay);
+        assertEquals(92.0, repository.findRhiManualHealthInput("user-a").orElseThrow().waistCircumferenceCm);
+        assertTrue(repository.findRhiManualHealthInput("user-b").isEmpty());
     }
 
     @Test

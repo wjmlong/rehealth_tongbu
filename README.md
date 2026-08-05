@@ -223,7 +223,9 @@ rhi-deterministic-preview-2.1.0-android-lite` 从 Room、经核对的健康档�
 `0.25/0.75` 平滑与 RHI v2 预览规范一致。Room v10 通过显式 8→9→10
 迁移保存日均久坐、腰围、正式 VO₂max、HbA1c、eGFR、经确认上臂袖带
 7 日血压和医院血检。无法安全推导的字段保持缺失/中性而不填正常值，
-戒指无袖带血压不进入 RHI。
+戒指无袖带血压不进入 RHI。登录用户保存这些字段时先写 Room，再以稳定队列项调用
+`PUT /rehealth/mobile/rhi/manual-inputs` 写入 MySQL；重新登录或打开健康档案时按
+`updatedAt` 合并云端较新副本。
 模型页采用固定的端侧学习视觉稿，仅调整展示层，不改变实际云端风险评分链路。
 原 RDI 骨架可从 Room 的近
 7/28 日活动、睡眠及满足同设备/有效天数要求的 HRV 生成近期可干预负荷，
@@ -273,7 +275,7 @@ Release 对应工厂固定不可用。演练数据统一标记 `synthetic_qa`，
 | --- | --- | --- |
 | Android 本地遥测和待上传任务 | Room | 本地优先、离线可用 |
 | Android 每日 RDI 与贡献证据 | Room v8 | 本地产品趋势；不作为临床概率或云端权威风险 |
-| Android RHI 手填指标与已确认临床输入 | Room v9/v10 | 按用户隔离；空白保存为 `NULL`，当前不是云端权威病历 |
+| Android RHI 手填指标与已确认临床输入 | Room v9/v10 + MySQL `rehealth_rhi_manual_health_input` | 本地先写、按用户隔离、稳定队列重试；空白保存为 `NULL`，按客户端 `updatedAt` 防止旧副本覆盖新值 |
 | Android 手工饮食记录 | Room v11 | 先本地持久化，再通过 durable queue 以 `telemetry-v2 dietRecords` 上传；显式 10→11 迁移保留既有健康数据 |
 | 规范化硬件时序数据 | TimescaleDB | Device Service 独占写入和读取 |
 | 用户、档案、绑定、风险、干预、反馈、健康问答历史 | MySQL `software_db` | JeecgBoot 业务权威；聊天按用户+租户隔离 |

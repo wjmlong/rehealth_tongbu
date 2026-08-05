@@ -4,9 +4,11 @@ import com.rehealth.genie.network.ApiResult
 import com.rehealth.genie.network.AuthState
 import com.rehealth.genie.network.MeasurementUploadClient
 import com.rehealth.genie.network.HealthInterviewUploadClient
+import com.rehealth.genie.network.RhiManualHealthInputSyncClient
 import com.rehealth.genie.network.dto.HealthInterviewSubmitRequestDto
 import com.rehealth.genie.network.dto.TelemetryBatchRequestDto
 import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
+import com.rehealth.genie.network.dto.RhiManualHealthInputDto
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -132,6 +134,32 @@ class SyncRepositoryMeasurementTest {
         assertEquals("profile", client.interviewRequests.single().answers.single().questionId)
     }
 
+    @Test
+    fun `uploads manual RHI health input and marks stable queue row done`() = runTest {
+        val dao = FakeUploadQueueDao()
+        val client = FakeMeasurementUploadClient(ApiResult.NetworkError("unused"))
+        val repository = SyncRepository(dao, client, nowProvider = { NOW })
+        val input = RhiManualHealthInputDto(
+            sedentaryHoursPerDay = 8.5,
+            waistCircumferenceCm = 92.0,
+            updatedAt = NOW,
+        )
+        val item = UploadQueueEntity(
+            id = "rhi-manual:user-a",
+            kind = "rhi_manual_health_input",
+            payloadJson = com.google.gson.Gson().toJson(input),
+            status = "pending",
+            createdAt = NOW,
+            nextRetryAt = NOW,
+        )
+
+        val outcome = repository.uploadQueuedItem(item)
+
+        assertIs<MeasurementUploadOutcome.Uploaded>(outcome)
+        assertEquals("done", dao.saved.single().status)
+        assertEquals(8.5, client.manualInputRequests.single().sedentaryHoursPerDay)
+    }
+
     private fun validQueueItem(
         attempts: Int = 0,
         payloadJson: String = VALID_PAYLOAD,
@@ -161,10 +189,11 @@ class SyncRepositoryMeasurementTest {
 private class FakeMeasurementUploadClient(
     private val result: ApiResult<TelemetryBatchResponseDto>,
     private val interviewResult: ApiResult<HealthInterviewSubmitRequestDto> = ApiResult.NetworkError("unused"),
-) : MeasurementUploadClient, HealthInterviewUploadClient {
+) : MeasurementUploadClient, HealthInterviewUploadClient, RhiManualHealthInputSyncClient {
     override var authState: AuthState = AuthState.Authorized
     val requests = mutableListOf<TelemetryBatchRequestDto>()
     val interviewRequests = mutableListOf<HealthInterviewSubmitRequestDto>()
+    val manualInputRequests = mutableListOf<RhiManualHealthInputDto>()
 
     override suspend fun uploadMeasurements(
         request: TelemetryBatchRequestDto,
@@ -180,6 +209,16 @@ private class FakeMeasurementUploadClient(
         interviewRequests += request
         if (interviewResult is ApiResult.Unauthorized) authState = AuthState.Unauthorized
         return interviewResult
+    }
+
+    override suspend fun getRhiManualHealthInput(): ApiResult<RhiManualHealthInputDto?> =
+        ApiResult.Success(null)
+
+    override suspend fun updateRhiManualHealthInput(
+        request: RhiManualHealthInputDto,
+    ): ApiResult<RhiManualHealthInputDto> {
+        manualInputRequests += request
+        return ApiResult.Success(request)
     }
 }
 

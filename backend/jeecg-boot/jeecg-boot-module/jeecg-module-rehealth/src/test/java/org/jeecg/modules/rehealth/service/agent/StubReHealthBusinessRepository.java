@@ -10,6 +10,7 @@ import org.jeecg.modules.rehealth.mobile.dto.InterventionGenerateResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
+import org.jeecg.modules.rehealth.mobile.dto.RhiManualHealthInputDto;
 import org.jeecg.modules.rehealth.model.ModelCallAudit;
 import org.jeecg.modules.rehealth.repository.ReHealthBusinessRepository;
 
@@ -66,6 +67,16 @@ class StubReHealthBusinessRepository implements ReHealthBusinessRepository {
         this.profile = profile;
         profileSaveCount++;
         return profile;
+    }
+
+    @Override
+    public RhiManualHealthInputDto saveRhiManualHealthInput(String userId, RhiManualHealthInputDto input) {
+        return input;
+    }
+
+    @Override
+    public Optional<RhiManualHealthInputDto> findRhiManualHealthInput(String userId) {
+        return Optional.empty();
     }
 
     @Override

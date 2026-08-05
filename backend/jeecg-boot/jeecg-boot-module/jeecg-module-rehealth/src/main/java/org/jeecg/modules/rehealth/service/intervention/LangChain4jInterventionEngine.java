@@ -114,7 +114,33 @@ public class LangChain4jInterventionEngine {
                 SystemMessage.from(systemPrompt()),
                 UserMessage.from("请基于以下服务端授权上下文生成今日干预计划：\n" + authorizedContext)
         );
-        ChatResponse modelResponse = model().chat(messages);
+        ChatModel provider = model();
+        ChatResponse modelResponse = provider.chat(messages);
+        try {
+            return decode(requestId, context, modelResponse);
+        } catch (IllegalStateException firstFailure) {
+            List<ChatMessage> retryMessages = List.of(
+                    SystemMessage.from(systemPrompt()),
+                    UserMessage.from(
+                            "上一次输出未通过 JSON、证据引用或医疗安全校验。"
+                                    + "请重新生成，只输出符合约定结构的 JSON：\n"
+                                    + authorizedContext
+                    )
+            );
+            try {
+                return decode(requestId, context, provider.chat(retryMessages));
+            } catch (IllegalStateException retryFailure) {
+                retryFailure.addSuppressed(firstFailure);
+                throw retryFailure;
+            }
+        }
+    }
+
+    private InterventionGenerateResponseDto decode(
+            String requestId,
+            PersonalizedInterventionContext context,
+            ChatResponse modelResponse
+    ) {
         String text = modelResponse == null || modelResponse.aiMessage() == null
                 ? null
                 : modelResponse.aiMessage().text();
@@ -238,6 +264,8 @@ public class LangChain4jInterventionEngine {
                         .modelName(modelName)
                         .temperature(0.1)
                         .maxTokens(maxTokens)
+                        .responseFormat("json_object")
+                        .customParameters(Map.of("thinking", Map.of("type", "disabled")))
                         .timeout(timeout)
                         .maxRetries(1)
                         .logRequests(false)

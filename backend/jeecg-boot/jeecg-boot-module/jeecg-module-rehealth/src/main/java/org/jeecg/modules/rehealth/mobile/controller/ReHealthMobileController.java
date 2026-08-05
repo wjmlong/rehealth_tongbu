@@ -27,6 +27,7 @@ import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.RecentTelemetryResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.TelemetryBatchRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.TelemetryBatchResponseDto;
+import org.jeecg.modules.rehealth.mobile.dto.RhiManualHealthInputDto;
 import org.jeecg.modules.rehealth.model.ModelServiceException;
 import org.jeecg.modules.rehealth.ingest.writer.HardwarePersistenceUnavailableException;
 import org.jeecg.modules.rehealth.service.ReHealthMobileService;
@@ -179,6 +180,30 @@ public class ReHealthMobileController {
             return Result.error(400, e.getMessage());
         } catch (IllegalStateException | ModelServiceException e) {
             return Result.error(503, "RHI remote evaluation unavailable; retry later");
+        }
+    }
+
+    @GetMapping("/rhi/manual-inputs")
+    @Operation(summary = "Get current authenticated user's manual RHI health archive values")
+    public Result<RhiManualHealthInputDto> rhiManualHealthInput() {
+        try {
+            return Result.OK(mobileService.rhiManualHealthInput(currentUserId()));
+        } catch (IllegalStateException e) {
+            return Result.error(503, "software_db persistence unavailable; retry manual health input read");
+        }
+    }
+
+    @PutMapping("/rhi/manual-inputs")
+    @Operation(summary = "Persist current authenticated user's manual RHI health archive values")
+    public Result<RhiManualHealthInputDto> updateRhiManualHealthInput(
+            @RequestBody RhiManualHealthInputDto input
+    ) {
+        try {
+            return Result.OK(mobileService.saveRhiManualHealthInput(currentUserId(), input));
+        } catch (IllegalArgumentException e) {
+            return Result.error(400, e.getMessage());
+        } catch (IllegalStateException e) {
+            return Result.error(503, "software_db persistence unavailable; retry manual health input update");
         }
     }
 

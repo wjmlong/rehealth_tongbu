@@ -9,9 +9,9 @@ import androidx.room.PrimaryKey
  * intervention feedback) enqueue payloads; a flusher drains them to the WSL2
  * backend and updates status with exponential backoff.
  *
- * kind values: "telemetry_batch" | "feature_evaluate" | "intervention_feedback"
- *              | "device_bind" | "attribution_events" | "health_interview"
- * status values: "pending" | "uploading" | "done" | "failed"
+ * Active kind values include "telemetry_batch", "health_interview",
+ * "rhi_daily_snapshot", and "rhi_manual_health_input".
+ * status values: "pending" | "uploading" | "done" | "failed" | "dead_letter"
  */
 @Entity(tableName = "sync_upload_queue")
 data class UploadQueueEntity(

@@ -18,6 +18,7 @@ import org.jeecg.modules.rehealth.mobile.dto.RiskEvaluateResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.RecentTelemetryResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.TelemetryBatchRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.TelemetryBatchResponseDto;
+import org.jeecg.modules.rehealth.mobile.dto.RhiManualHealthInputDto;
 
 public interface ReHealthMobileService {
     HealthResponseDto health();
@@ -27,6 +28,10 @@ public interface ReHealthMobileService {
     PatientProfileDto saveProfile(String userId, PatientProfileDto profile);
 
     PatientProfileDto profile(String userId);
+
+    RhiManualHealthInputDto saveRhiManualHealthInput(String userId, RhiManualHealthInputDto input);
+
+    RhiManualHealthInputDto rhiManualHealthInput(String userId);
 
     HealthInterviewSubmitRequestDto submitInterview(String userId, HealthInterviewSubmitRequestDto request);
 
