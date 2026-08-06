@@ -75,6 +75,13 @@ git diff --check
      Confirm the profile, typed health-history fields, latest interview baseline and focus areas
      are queried and displayed without requiring another edit. Make the risk/model endpoint
      unavailable and confirm profile/history reading still succeeds.
+   - Clear the Debug app's local Room data while keeping the server-side account telemetry,
+     then log in. Confirm exactly one authenticated `GET /measurements/recent?limit=200` is made
+     for that login token before profile refresh, returned measurement/sleep/activity rows are
+     restored with stable IDs, and the Data page recomputes RHI with non-zero valid days. Repeat
+     profile refresh in the same session and confirm it does not issue another restore request.
+     Repeat login with the backend unavailable and confirm Home still opens, BLE collection remains
+     available, and a later foreground refresh can retry the restore.
    - Confirm completing the first health interview enters the main screen directly without
      forcing device setup. Open “我的 > 设备绑定” and confirm wearable binding remains available.
      Log out and back in during the same app process and confirm the completed interview is not

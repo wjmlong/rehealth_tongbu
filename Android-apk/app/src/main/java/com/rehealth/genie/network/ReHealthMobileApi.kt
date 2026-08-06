@@ -29,6 +29,7 @@ import com.rehealth.genie.network.dto.BehaviorRecordDto
 import com.rehealth.genie.network.dto.RhiDailySnapshotBatchDto
 import com.rehealth.genie.network.dto.RhiDailySnapshotResponseDto
 import com.rehealth.genie.network.dto.RhiManualHealthInputDto
+import com.rehealth.genie.network.dto.RecentTelemetryResponseDto
 import com.rehealth.genie.network.dto.ViomiBindRequestDto
 import com.rehealth.genie.network.dto.ViomiBindResponseDto
 import com.rehealth.genie.network.dto.ViomiSyncRequestDto
@@ -161,6 +162,11 @@ suspend fun uploadRhiSnapshot(
         request: TelemetryBatchRequestDto,
     ): RemotePhmOutcome<TelemetryBatchResponseDto> =
         unwrap { api.uploadMeasurements(request) }
+
+    suspend fun getRecentTelemetry(
+        limit: Int,
+    ): RemotePhmOutcome<RecentTelemetryResponseDto> =
+        unwrap { api.getRecentTelemetry(limit) }
 
     suspend fun submitHealthInterview(
         request: HealthInterviewSubmitRequestDto,

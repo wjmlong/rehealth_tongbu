@@ -131,6 +131,57 @@ data class TelemetryBatchResponseDto(
 )
 
 @JsonClass(generateAdapter = true)
+data class RecentTelemetryResponseDto(
+    val userId: String? = null,
+    val limit: Int = 0,
+    val measurements: List<RecentMeasurementDto> = emptyList(),
+    val sleepSessions: List<RecentSleepSessionDto> = emptyList(),
+    val activities: List<RecentActivityDto> = emptyList(),
+)
+
+@JsonClass(generateAdapter = true)
+data class RecentMeasurementDto(
+    val id: String? = null,
+    val deviceId: String? = null,
+    val metricType: String? = null,
+    val measuredAt: Long? = null,
+    val primaryValue: Double? = null,
+    val secondaryValue: Double? = null,
+    val unit: String? = null,
+    val qualityCode: String? = null,
+    val source: String? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class RecentSleepSessionDto(
+    val id: String? = null,
+    val deviceId: String? = null,
+    val startedAt: Long? = null,
+    val endedAt: Long? = null,
+    val deepMinutes: Int? = null,
+    val lightMinutes: Int? = null,
+    val awakeMinutes: Int? = null,
+    val remMinutes: Int? = null,
+    val interruptionMinutes: Int? = null,
+    val source: String? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class RecentActivityDto(
+    val id: String? = null,
+    val deviceId: String? = null,
+    val startedAt: Long? = null,
+    val endedAt: Long? = null,
+    val activityType: String? = null,
+    val steps: Int? = null,
+    val distanceMeters: Double? = null,
+    val caloriesKcal: Double? = null,
+    val durationMinutes: Int? = null,
+    val averageHeartRate: Double? = null,
+    val source: String? = null,
+)
+
+@JsonClass(generateAdapter = true)
 data class ViomiBindRequestDto(val imei: String, val productCode: String)
 
 @JsonClass(generateAdapter = true)

@@ -824,6 +824,16 @@ class RingViewModel(
         if (!silent) {
             mutableUiState.update { it.copy(isPatientMvpLoading = true, message = "正在读取个人资料与健康档案") }
         }
+        client.restoreRecentTelemetryOncePerSession()
+            .onSuccess { restoredCount ->
+                if (restoredCount > 0) {
+                    mutableUiState.update { it.copy(lastSyncAt = System.currentTimeMillis()) }
+                }
+            }
+            .onFailure { error ->
+                if (error is CancellationException) throw error
+                Log.w(TAG, "login telemetry restore failed type=${error::class.java.simpleName}")
+            }
         client.fetchPatientMvp()
             .onSuccess { mvp ->
                 val risk = mvp.risk

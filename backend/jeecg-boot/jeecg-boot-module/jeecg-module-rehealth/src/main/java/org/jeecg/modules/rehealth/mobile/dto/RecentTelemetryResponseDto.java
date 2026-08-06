@@ -11,6 +11,7 @@ public class RecentTelemetryResponseDto {
     public List<Activity> activities = new ArrayList<>();
 
     public static class Measurement {
+        public String id;
         public String deviceId;
         public String metricType;
         public Long measuredAt;
@@ -22,6 +23,7 @@ public class RecentTelemetryResponseDto {
     }
 
     public static class SleepSession {
+        public String id;
         public String deviceId;
         public Long startedAt;
         public Long endedAt;
@@ -34,6 +36,7 @@ public class RecentTelemetryResponseDto {
     }
 
     public static class Activity {
+        public String id;
         public String deviceId;
         public Long startedAt;
         public Long endedAt;

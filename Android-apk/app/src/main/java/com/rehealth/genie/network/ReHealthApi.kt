@@ -28,6 +28,7 @@ import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
 import com.rehealth.genie.network.dto.RhiDailySnapshotBatchDto
 import com.rehealth.genie.network.dto.RhiDailySnapshotResponseDto
 import com.rehealth.genie.network.dto.RhiManualHealthInputDto
+import com.rehealth.genie.network.dto.RecentTelemetryResponseDto
 import com.rehealth.genie.network.dto.ViomiBindRequestDto
 import com.rehealth.genie.network.dto.ViomiBindResponseDto
 import com.rehealth.genie.network.dto.ViomiSyncRequestDto
@@ -124,6 +125,11 @@ interface ReHealthApi {
     suspend fun uploadMeasurements(
         @Body request: TelemetryBatchRequestDto,
     ): Response<JeecgResult<TelemetryBatchResponseDto>>
+
+    @GET("rehealth/mobile/measurements/recent")
+    suspend fun getRecentTelemetry(
+        @Query("limit") limit: Int,
+    ): Response<JeecgResult<RecentTelemetryResponseDto>>
 
     @POST("rehealth/mobile/interviews")
     suspend fun submitHealthInterview(

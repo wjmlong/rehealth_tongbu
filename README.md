@@ -176,6 +176,11 @@ GET  /jeecg-boot/rehealth/mobile/measurements/recent
 POST /jeecg-boot/rehealth/viomi/report        (云米/viomi 平台主动上报回调；JWT HS256 验签)
 ```
 
+Android 在每次登录令牌建立后（以及持有有效会话的进程重启后）优先调用一次
+`measurements/recent?limit=200`，校验返回用户归属并按稳定记录 ID 幂等回填测量、睡眠和活动到
+Room，再刷新档案。回填成功会触发本地 RHI 重算；网络或硬件库查询失败不会阻塞登录、BLE
+采集或后续重试。App 不直接连接数据库，数据库访问始终经过认证 API。
+
 `/rehealth/viomi/report` 是手表厂商（云米 miwitracker）主动上报的回调端点：云米平台
 先把数据发给自己的云，再按我们提供的回调地址（AppId/AppKey 鉴权）推送到本端点，
 复用与手机 batch 同一条 `hardware` 落库链路。端点契约与字段映射见

@@ -128,6 +128,10 @@ class AuthenticatedApiClient(
         mobileApi.uploadMeasurements(request)
     }
 
+    suspend fun getRecentTelemetry(limit: Int): ApiResult<RecentTelemetryResponseDto> = executeWithAuth {
+        mobileApi.getRecentTelemetry(limit)
+    }
+
     override suspend fun submitHealthInterview(
         request: HealthInterviewSubmitRequestDto,
     ): ApiResult<HealthInterviewSubmitRequestDto> = executeWithAuth {

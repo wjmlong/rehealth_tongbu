@@ -1,5 +1,9 @@
 package com.rehealth.genie.data.sync
 
+import com.rehealth.genie.network.dto.RecentActivityDto
+import com.rehealth.genie.network.dto.RecentMeasurementDto
+import com.rehealth.genie.network.dto.RecentSleepSessionDto
+import com.rehealth.genie.network.dto.RecentTelemetryResponseDto
 import com.rehealth.genie.ring.RingDevice
 import com.rehealth.genie.ring.data.RingMeasurementEntity
 import com.rehealth.genie.ring.provider.WearableVendor
@@ -10,6 +14,90 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class RingCloudRepositoryTest {
+    @Test
+    fun `maps recent cloud telemetry into stable scoped room records`() {
+        val response = RecentTelemetryResponseDto(
+            userId = "admin-user",
+            limit = 200,
+            measurements = listOf(
+                RecentMeasurementDto(
+                    id = "measurement-1",
+                    deviceId = "ring-1",
+                    metricType = "HEART_RATE",
+                    measuredAt = 1_720_000_000_000L,
+                    primaryValue = 72.0,
+                    unit = "bpm",
+                    qualityCode = "VALID",
+                    source = "MRD",
+                ),
+            ),
+            sleepSessions = listOf(
+                RecentSleepSessionDto(
+                    id = "sleep-1",
+                    deviceId = "ring-1",
+                    startedAt = 1_719_970_000_000L,
+                    endedAt = 1_720_000_000_000L,
+                    deepMinutes = 90,
+                    lightMinutes = 280,
+                    awakeMinutes = 20,
+                    remMinutes = 110,
+                    interruptionMinutes = 5,
+                    source = "MRD",
+                ),
+            ),
+            activities = listOf(
+                RecentActivityDto(
+                    id = "activity-1",
+                    deviceId = "ring-1",
+                    startedAt = 1_720_000_000_000L,
+                    endedAt = 1_720_003_600_000L,
+                    activityType = "DAILY",
+                    steps = 8_500,
+                    distanceMeters = 6_100.0,
+                    caloriesKcal = 430.0,
+                    durationMinutes = 60,
+                    averageHeartRate = 105.0,
+                    source = "MRD",
+                ),
+            ),
+        )
+
+        val batch = RingCloudRepository.telemetryRestoreBatch(response, "admin-user")
+
+        assertEquals(3, batch.size)
+        assertEquals("measurement-1", batch.measurements.single().id)
+        assertEquals("admin-user", batch.measurements.single().ownerUserId)
+        assertEquals("ring-1", batch.measurements.single().deviceId)
+        assertEquals(100, batch.measurements.single().quality)
+        assertEquals("sleep-1", batch.sleepSessions.single().id)
+        assertEquals("activity-1", batch.activities.single().id)
+    }
+
+    @Test
+    fun `drops malformed recent telemetry and derives deterministic fallback ids`() {
+        val valid = RecentMeasurementDto(
+            deviceId = "ring-1",
+            metricType = "BLOOD_OXYGEN",
+            measuredAt = 1_720_000_000_000L,
+            primaryValue = 98.0,
+            unit = "%",
+        )
+        val response = RecentTelemetryResponseDto(
+            measurements = listOf(
+                valid,
+                valid.copy(measuredAt = -1L),
+                valid.copy(primaryValue = Double.NaN),
+            ),
+        )
+
+        val first = RingCloudRepository.telemetryRestoreBatch(response, "admin-user")
+        val second = RingCloudRepository.telemetryRestoreBatch(response, "admin-user")
+
+        assertEquals(1, first.measurements.size)
+        assertEquals(first.measurements.single().id, second.measurements.single().id)
+        assertTrue(first.measurements.single().id.startsWith("cloud-measurement-"))
+    }
+
     @Test
     fun `preserves hband advanced metric types in telemetry payload`() {
         val metricTypes = listOf("BLOOD_GLUCOSE", "TEMPERATURE", "STRESS", "MET")

@@ -29,6 +29,28 @@ class ReHealthMobileApiRouteContractTest {
     }
 
     @Test
+    fun `reads authenticated recent telemetry for login restore`() = runTest {
+        server.start()
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"success":true,"code":200,"result":{"userId":"admin-user","limit":200,"measurements":[{"id":"m-1","deviceId":"ring-1","metricType":"HEART_RATE","measuredAt":1720000000000,"primaryValue":72.0,"unit":"bpm"}],"sleepSessions":[],"activities":[]}}""",
+            ),
+        )
+        val api = ReHealthMobileApi(
+            baseUrl = server.url("/jeecg-boot/").toString(),
+            httpClient = OkHttpClient(),
+            apiToken = "synthetic-test-token",
+        )
+
+        val result = assertIs<RemotePhmOutcome.Success<*>>(api.getRecentTelemetry(200))
+        val telemetry = result.data as com.rehealth.genie.network.dto.RecentTelemetryResponseDto
+
+        assertEquals("admin-user", telemetry.userId)
+        assertEquals("m-1", telemetry.measurements.single().id)
+        assertRequest("/jeecg-boot/rehealth/mobile/measurements/recent?limit=200", "GET")
+    }
+
+    @Test
     fun `preserves Jeecg context for evaluate risk intervention and feedback`() = runTest {
         server.start()
         repeat(4) {

@@ -29,7 +29,8 @@ public class JdbcHardwareTelemetryQuery implements HardwareTelemetryQuery {
         response.userId = userId;
         response.limit = boundedLimit;
         response.measurements = jdbcTemplate.query("""
-                        SELECT device_id, metric_type, measured_at, primary_value, secondary_value,
+                        SELECT COALESCE(client_record_id, id) AS source_record_id,
+                               device_id, metric_type, measured_at, primary_value, secondary_value,
                                unit, quality_code, source
                         FROM hardware_measurement
                         WHERE user_id = ?
@@ -38,6 +39,7 @@ public class JdbcHardwareTelemetryQuery implements HardwareTelemetryQuery {
                         """,
                 (resultSet, rowNum) -> {
                     RecentTelemetryResponseDto.Measurement item = new RecentTelemetryResponseDto.Measurement();
+                    item.id = resultSet.getString("source_record_id");
                     item.deviceId = resultSet.getString("device_id");
                     item.metricType = resultSet.getString("metric_type");
                     item.measuredAt = epochMillis(resultSet.getTimestamp("measured_at"));
@@ -49,7 +51,8 @@ public class JdbcHardwareTelemetryQuery implements HardwareTelemetryQuery {
                     return item;
                 }, userId, boundedLimit);
         response.sleepSessions = jdbcTemplate.query("""
-                        SELECT device_id, started_at, ended_at, deep_minutes, light_minutes,
+                        SELECT COALESCE(client_record_id, id) AS source_record_id,
+                               device_id, started_at, ended_at, deep_minutes, light_minutes,
                                awake_minutes, rem_minutes, interruption_minutes, source
                         FROM hardware_sleep_session
                         WHERE user_id = ?
@@ -58,6 +61,7 @@ public class JdbcHardwareTelemetryQuery implements HardwareTelemetryQuery {
                         """,
                 (resultSet, rowNum) -> {
                     RecentTelemetryResponseDto.SleepSession item = new RecentTelemetryResponseDto.SleepSession();
+                    item.id = resultSet.getString("source_record_id");
                     item.deviceId = resultSet.getString("device_id");
                     item.startedAt = epochMillis(resultSet.getTimestamp("started_at"));
                     item.endedAt = epochMillis(resultSet.getTimestamp("ended_at"));
@@ -70,7 +74,8 @@ public class JdbcHardwareTelemetryQuery implements HardwareTelemetryQuery {
                     return item;
                 }, userId, boundedLimit);
         response.activities = jdbcTemplate.query("""
-                        SELECT device_id, started_at, ended_at, activity_type, steps,
+                        SELECT COALESCE(client_record_id, id) AS source_record_id,
+                               device_id, started_at, ended_at, activity_type, steps,
                                distance_meters, calories_kcal, duration_minutes,
                                average_heart_rate, source
                         FROM hardware_activity
@@ -80,6 +85,7 @@ public class JdbcHardwareTelemetryQuery implements HardwareTelemetryQuery {
                         """,
                 (resultSet, rowNum) -> {
                     RecentTelemetryResponseDto.Activity item = new RecentTelemetryResponseDto.Activity();
+                    item.id = resultSet.getString("source_record_id");
                     item.deviceId = resultSet.getString("device_id");
                     item.startedAt = epochMillis(resultSet.getTimestamp("started_at"));
                     item.endedAt = epochMillis(resultSet.getTimestamp("ended_at"));

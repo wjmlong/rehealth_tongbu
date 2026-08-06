@@ -48,6 +48,7 @@ class JdbcHardwareTelemetryQueryTest {
         RecentTelemetryResponseDto response = query.recentForUser("user-a", 1);
 
         assertEquals(1, response.measurements.size());
+        assertEquals("batch-c-measurement", response.measurements.get(0).id);
         assertEquals(75.0, response.measurements.get(0).primaryValue);
         assertEquals("user-a", response.userId);
         assertTrue(response.sleepSessions.isEmpty());

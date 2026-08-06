@@ -13,10 +13,12 @@ import com.rehealth.genie.network.dto.DeviceBindResponseDto
 import com.rehealth.genie.network.dto.InterventionGenerateRequestDto
 import com.rehealth.genie.network.dto.InterventionPlanDto
 import com.rehealth.genie.network.dto.PatientProfileDto
+import com.rehealth.genie.network.dto.RecentTelemetryResponseDto
 import com.rehealth.genie.network.dto.RiskResultDto
 import com.rehealth.genie.network.dto.TelemetryBatchRequestDto
 import com.rehealth.genie.ring.RingDevice
 import com.rehealth.genie.ring.data.RingActivityEntity
+import com.rehealth.genie.ring.data.RingDataBatch
 import com.rehealth.genie.ring.data.RingDataDao
 import com.rehealth.genie.ring.data.RingMeasurementEntity
 import com.rehealth.genie.ring.data.RingSleepSessionEntity
@@ -37,6 +39,8 @@ class RingCloudRepository(
     private val nowProvider: () -> Long = System::currentTimeMillis,
     private val wearableBindingProvider: () -> ActiveWearableBinding? = { null },
 ) {
+    private var restoredSessionToken: String? = null
+
     suspend fun bindDevice(device: RingDevice): Result<DeviceBindResponseDto> = runCatching {
         val addressHash = WearableCloudIdentity.addressHash(device.address)
         val binding = wearableBindingProvider()
@@ -99,6 +103,30 @@ class RingCloudRepository(
         )
     }
 
+    /**
+     * Restores the authenticated user's newest cloud telemetry into Room once per login token.
+     * A failed attempt is deliberately not remembered so a later foreground refresh can retry.
+     */
+    suspend fun restoreRecentTelemetryOncePerSession(): Result<Int> = runCatching {
+        val token = sessionStore.token?.takeIf(String::isNotBlank)
+            ?: error("Login is required before restoring cloud telemetry.")
+        if (restoredSessionToken == token) return@runCatching 0
+        val expectedUserId = sessionStore.userId?.takeIf(String::isNotBlank)
+            ?: error("Authenticated user identity is unavailable.")
+        val response = when (val result = apiClient.getRecentTelemetry(RECENT_TELEMETRY_LIMIT)) {
+            is ApiResult.Success -> result.data
+            else -> error(safeMessage(result, "Cloud telemetry restore failed."))
+        }
+        val responseUserId = response.userId?.takeIf(String::isNotBlank)
+        check(responseUserId == null || responseUserId == expectedUserId) {
+            "Cloud telemetry ownership did not match the authenticated user."
+        }
+        val batch = telemetryRestoreBatch(response, expectedUserId)
+        dao.insertBatch(batch)
+        restoredSessionToken = token
+        batch.size
+    }
+
     suspend fun generateIntervention(): Result<List<PatientInterventionPayload>> = runCatching {
         check(sessionStore.isLoggedIn) { "登录已失效，请重新登录后生成计划。" }
         val response = apiClient.generateIntervention(
@@ -110,6 +138,80 @@ class RingCloudRepository(
     }
 
     companion object {
+        internal fun telemetryRestoreBatch(
+            response: RecentTelemetryResponseDto,
+            ownerUserId: String,
+        ): RingDataBatch = RingDataBatch(
+            measurements = response.measurements.mapNotNull { record ->
+                val metricType = record.metricType?.trim()?.takeIf(String::isNotEmpty)
+                    ?: return@mapNotNull null
+                val measuredAt = record.measuredAt?.takeIf { it > 0L } ?: return@mapNotNull null
+                val primaryValue = record.primaryValue?.takeIf(Double::isFinite)
+                    ?: return@mapNotNull null
+                val deviceId = record.deviceId?.trim()?.takeIf(String::isNotEmpty)
+                val source = record.source.normalizedCloudSource()
+                RingMeasurementEntity(
+                    id = stableCloudRecordId(
+                        "measurement",
+                        record.id,
+                        "$ownerUserId|$deviceId|$metricType|$measuredAt|$source",
+                    ),
+                    metricType = metricType,
+                    measuredAt = measuredAt,
+                    primaryValue = primaryValue,
+                    secondaryValue = record.secondaryValue?.takeIf(Double::isFinite),
+                    unit = record.unit?.trim().orEmpty(),
+                    quality = record.qualityCode.toRoomQuality(),
+                    source = source,
+                    ownerUserId = ownerUserId,
+                    deviceId = deviceId,
+                )
+            },
+            sleepSessions = response.sleepSessions.mapNotNull { record ->
+                val startedAt = record.startedAt?.takeIf { it > 0L } ?: return@mapNotNull null
+                val endedAt = record.endedAt?.takeIf { it > startedAt } ?: return@mapNotNull null
+                val source = record.source.normalizedCloudSource()
+                RingSleepSessionEntity(
+                    id = stableCloudRecordId(
+                        "sleep",
+                        record.id,
+                        "$ownerUserId|${record.deviceId}|$startedAt|$endedAt|$source",
+                    ),
+                    startedAt = startedAt,
+                    endedAt = endedAt,
+                    deepMinutes = record.deepMinutes.nonNegative(),
+                    lightMinutes = record.lightMinutes.nonNegative(),
+                    awakeMinutes = record.awakeMinutes.nonNegative(),
+                    remMinutes = record.remMinutes.nonNegative(),
+                    interruptionMinutes = record.interruptionMinutes.nonNegative(),
+                    source = source,
+                )
+            },
+            activities = response.activities.mapNotNull { record ->
+                val startedAt = record.startedAt?.takeIf { it > 0L } ?: return@mapNotNull null
+                val endedAt = record.endedAt?.takeIf { it >= startedAt }
+                val activityType = record.activityType?.trim()?.takeIf(String::isNotEmpty)
+                    ?: return@mapNotNull null
+                val source = record.source.normalizedCloudSource()
+                RingActivityEntity(
+                    id = stableCloudRecordId(
+                        "activity",
+                        record.id,
+                        "$ownerUserId|${record.deviceId}|$startedAt|$activityType|$source",
+                    ),
+                    startedAt = startedAt,
+                    endedAt = endedAt,
+                    activityType = activityType,
+                    steps = record.steps.nonNegative(),
+                    distanceMeters = record.distanceMeters.nonNegativeFinite(),
+                    caloriesKcal = record.caloriesKcal.nonNegativeFinite(),
+                    durationMinutes = record.durationMinutes.nonNegative(),
+                    averageHeartRate = record.averageHeartRate?.takeIf { it.isFinite() && it > 0.0 },
+                    source = source,
+                )
+            },
+        )
+
         internal fun telemetryBatchPayload(
         device: RingDevice,
         collectedAt: Long,
@@ -200,8 +302,29 @@ class RingCloudRepository(
     }
 
         private const val DEFAULT_MRD_MODEL = "MR11"
+        private const val RECENT_TELEMETRY_LIMIT = 200
     }
 }
+
+private fun stableCloudRecordId(kind: String, serverId: String?, identity: String): String =
+    serverId?.trim()?.takeIf(String::isNotEmpty)
+        ?: "cloud-$kind-${UUID.nameUUIDFromBytes(identity.toByteArray(StandardCharsets.UTF_8))}"
+
+private fun String?.normalizedCloudSource(): String =
+    this?.trim()?.takeIf(String::isNotEmpty) ?: "cloud_restore"
+
+private fun String?.toRoomQuality(): Int? = when (this?.trim()?.uppercase()) {
+    null, "" -> null
+    "VALID", "GOOD", "HIGH" -> 100
+    "FAIR", "MEDIUM" -> 70
+    "LOW", "POOR" -> 30
+    else -> toIntOrNull()?.coerceIn(0, 100)
+}
+
+private fun Int?.nonNegative(): Int = this?.coerceAtLeast(0) ?: 0
+
+private fun Double?.nonNegativeFinite(): Double =
+    this?.takeIf { it.isFinite() && it >= 0.0 } ?: 0.0
 
 private fun String.matchesVendor(vendor: WearableVendor): Boolean = when (vendor) {
     WearableVendor.RWFIT -> startsWith("rwfit", ignoreCase = true)
