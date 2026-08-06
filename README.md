@@ -56,6 +56,9 @@ Room v8 本地库（v7 会话/消息表及可空的设备睡眠总时长），�
 `allSleepTime`，不会把起止跨度或清醒时长计为实际睡眠；同一晚的累积回调按结束日只取最终
 最大值，周期睡眠只平均每天最终值。周期健康指数仅聚合已确认的
 每日真实风险结果。
+注册短信在本地可通过 `JEECG_SMS_DEV_MODE=true` 使用固定测试码；生产由 JeecgBoot 使用独立的
+阿里云短信 RAM AccessKey、审核通过的签名和 `${code}` 注册模板发送，配置缺失时失败关闭，且不再
+复用 OSS 凭据或旧 Jeecg 默认模板。具体部署入口见 `backend/deploy/rehealth/README.md`。
 健康问答默认由 JeecgBoot Java LangChain4j 执行；身份类问题通过只绑定当前认证账号、且不接受
 `userId` 参数的服务端资料工具读取最新昵称与基本资料，`model-service` 对话接口仅保留为显式回滚。
 首页拍照记录使用系统相机的应用私有临时文件，经客户端方向校正、缩放和重编码后上传到 JeecgBoot；
@@ -332,7 +335,7 @@ Device Service 的 TimescaleDB/Kafka 集成测试需要 Docker 和对应测试�
 ### JeecgBoot ReHealth 模块
 
 ```powershell
-mvn -f backend/jeecg-boot/pom.xml -pl jeecg-boot-module/jeecg-module-rehealth -am test
+mvn -f backend/jeecg-boot/pom.xml -pl jeecg-boot-module/jeecg-module-rehealth -am -DskipTests=false test
 ```
 
 ### model-service

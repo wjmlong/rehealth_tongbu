@@ -67,7 +67,7 @@ queue until the user logs in again; the app does not invent a refresh-token flow
 
 | Function | Method and path | Android behavior |
 | --- | --- | --- |
-| Registration SMS | `POST /sys/sms` | Pre-auth request with `X-Sign` and `X-Timestamp`. Local `JEECG_SMS_DEV_MODE=true` stores fixed code `123456` without calling the SMS Provider. |
+| Registration SMS | `POST /sys/sms` | Pre-auth request with `X-Sign` and `X-Timestamp`. Local `JEECG_SMS_DEV_MODE=true` stores fixed code `123456` without calling the provider. Production uses dedicated server-side Aliyun SMS credentials, an approved sign, and a registration template whose variable is `${code}`; missing configuration fails closed. |
 | Account registration | `POST /sys/user/register` | Submit phone, six-digit SMS code and password, then perform mobile login on success. |
 | Mobile login | `POST /sys/mLogin` | Save the Jeecg token in encrypted session storage. Explicit logout or a paused unauthorized session clears the session at the app root and navigates directly to Login. |
 | Health/config | `GET /rehealth/mobile/health`, `GET /rehealth/mobile/config` | Environment and contract diagnostics. |
@@ -249,7 +249,9 @@ HTTP/Jeecg success envelope without a durable acknowledgement as completed.
 
 The fixed registration code and Jeecg development signature default are Debug/local
 behavior only. Release does not contain either value. Production keeps random codes
-and the real SMS Provider, and must use a reviewed mobile-safe signing/attestation
+and the real Aliyun SMS provider with a dedicated RAM AccessKey, approved sign and
+`${code}` registration template. SMS credentials stay server-side and are not shared
+with OSS configuration. The request must use a reviewed mobile-safe signing/attestation
 strategy rather than embedding a production shared secret in the APK.
 
 Telemetry completion requires all of:

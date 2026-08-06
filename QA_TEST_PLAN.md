@@ -46,7 +46,7 @@ Provider API Key。Manifest 必须为 `debuggable=false`、`usesCleartextTraffic
 ```powershell
 mvn -f backend/contracts/telemetry/pom.xml test
 mvn -f backend/device-service/pom.xml test
-mvn -f backend/jeecg-boot/pom.xml -pl jeecg-boot-module/jeecg-module-rehealth -am test
+mvn -f backend/jeecg-boot/pom.xml -pl jeecg-boot-module/jeecg-module-rehealth -am -DskipTests=false test
 ```
 
 ```powershell
@@ -65,6 +65,12 @@ git diff --check
      `X-Sign` plus `X-Timestamp` without returning “请求参数不完整”.
    - With local `JEECG_SMS_DEV_MODE=true`, confirm the successful response auto-fills
      `123456`; a failed request must not fill any code. Complete registration and auto-login.
+   - In staging, set `JEECG_SMS_DEV_MODE=false` and enable Aliyun SMS with dedicated
+     secret files, an approved sign, and a `${code}` registration template. Confirm the
+     test phone receives the six-digit random code, Redis retains it for ten minutes,
+     registration succeeds once, and neither the phone, code, nor AccessKey appears in logs.
+     Repeat with one required value missing and confirm the endpoint fails without falling
+     back to the fixed code, OSS credentials, or Jeecg's legacy sign/template.
    - Save a personal profile and complete a health interview, log out, then log in again.
      Confirm the profile, typed health-history fields, latest interview baseline and focus areas
      are queried and displayed without requiring another edit. Make the risk/model endpoint

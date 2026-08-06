@@ -323,7 +323,7 @@ public class LoginController {
 		String mobile = jsonObject.get("mobile").toString();
 		//手机号模式 登录模式: "2"  注册模式: "1"
 		String smsmode=jsonObject.get("smsmode").toString();
-		log.info("-------- IP:{}, 手机号：{}，获取绑定验证码", clientIp, mobile);
+		log.info("手机号 {} 请求短信验证码", maskMobile(mobile));
 		
 		if(oConvertUtils.isEmpty(mobile)){
 			result.setMessage("手机号不允许为空！");
@@ -344,7 +344,7 @@ public class LoginController {
 		//-------------------------------------------------------------------------------------
 		//增加 check防止恶意刷短信接口
 		if(!DySmsLimit.canSendSms(clientIp)){
-			log.warn("--------[警告] IP地址:{}, 短信接口请求太多-------", clientIp);
+			log.warn("短信接口请求过多，已触发限流");
 			result.setMessage("短信接口请求太多，请稍后再试！");
 			result.setCode(CommonConstant.PHONE_SMS_FAIL_CODE);
 			result.setSuccess(false);
@@ -361,7 +361,7 @@ public class LoginController {
 		// 便于在无短信网关的本地/测试环境走通「获取验证码 → 注册 → 自动登录」完整链路。
 		if (smsDevMode) {
 			redisUtil.set(redisKey, captcha, 600);
-			log.warn("【DEV短信验证码】手机号 {} 的注册验证码 = {}（开发模式，未真实下发短信）", mobile, captcha);
+			log.warn("【DEV短信】已为手机号 {} 生成固定测试验证码（未真实下发短信）", maskMobile(mobile));
 			result.setSuccess(true);
 			result.setMessage("测试验证码已生成");
 			return result;
@@ -422,11 +422,18 @@ public class LoginController {
 			result.setSuccess(true);
 
 		} catch (ClientException e) {
-			e.printStackTrace();
+			log.warn("短信发送失败，错误码={}", e.getErrCode());
 			result.error500(" 短信接口未配置，请联系管理员！");
 			return result;
 		}
 		return result;
+	}
+
+	private static String maskMobile(String mobile) {
+		if (mobile == null || mobile.length() < 7) {
+			return "***";
+		}
+		return mobile.substring(0, 3) + "****" + mobile.substring(mobile.length() - 4);
 	}
 	
 
@@ -893,7 +900,7 @@ public class LoginController {
             redisUtil.set(redisKey, obj.toJSONString(), 300);
 			result.setSuccess(true);
 		} catch (ClientException e) {
-			e.printStackTrace();
+			log.warn("修改密码短信发送失败，错误码={}", e.getErrCode());
 			result.error500(" 短信接口未配置，请联系管理员！");
 			return result;
 		}

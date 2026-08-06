@@ -32,6 +32,8 @@
 		<!-- JDK版本支持17、21、24、25 -->
 		<java.version>17</java.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<!-- Jeecg packaging remains fast by default; CI/QA can opt in with -DskipTests=false. -->
+		<skipTests>true</skipTests>
 
 		<!-- 微服务 -->
 		<spring-cloud.version>2025.0.0</spring-cloud.version>
@@ -580,7 +582,7 @@
 		        <groupId>org.apache.maven.plugins</groupId>
 		        <artifactId>maven-surefire-plugin</artifactId>
 		        <configuration>
-		          <skipTests>true</skipTests>
+		          <skipTests>${skipTests}</skipTests>
 		        </configuration>
 	        </plugin>
 	         <!-- 避免font文件的二进制文件格式压缩破坏 -->

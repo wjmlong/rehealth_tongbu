@@ -16,6 +16,8 @@
 - [ ] 生产 Gateway/API 不产生 HTTPS→HTTP 降级跳转，可信代理协议头与重定向地址已验收。
 - [ ] Release APK 不包含 Provider secret、内部 token、数据库凭据或本地配置文件。
 - [ ] Release APK 的 `JEECG_SIGN_SECRET` 与 `SMS_TEST_CODE` 为空；生产 `/sys/sms` 使用已评审的移动端安全签名/证明方案和真实短信 Provider，不接受固定测试码或 APK 内共享密钥。
+- [ ] 生产 `JEECG_SMS_DEV_MODE=false` 且 `JEECG_SMS_ALIYUN_ENABLED=true`；阿里云短信专用 RAM 用户、审核通过的签名和含 `${code}` 的注册模板已配置并完成真实收码/注册验收。
+- [ ] 阿里云短信 AccessKey 只存在于部署 secret 文件或密钥管理器，不复用 OSS 凭据，不进入 `.env`、APK、镜像层、日志或受版本控制文件；缺配置时接口失败关闭。
 - [ ] Release 不会静默使用 Mock 戒指、Mock 风险或 Mock 归因。
 - [ ] Release APK 扫描确认不包含 Mock 商品、演练 UI、`synthetic_qa`、Debug Factor16 版本、测试地址或 API Key 样式值。
 - [ ] Release Manifest 不声明 `QUERY_ALL_PACKAGES` 或尚未实现的 Health Connect 写权限。

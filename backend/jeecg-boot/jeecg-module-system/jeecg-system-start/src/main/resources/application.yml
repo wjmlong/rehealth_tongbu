@@ -13,3 +13,18 @@ rehealth:
   device-service:
     base-url: http://localhost:8082
     credential: ${REHEALTH_DEVICE_CREDENTIAL:}
+
+# 阿里云短信仅在服务端启用。生产凭据优先从挂载的 secret 文件读取，
+# 不得复用 OSS AccessKey，也不得写入 Android 包或受版本控制的配置。
+jeecg:
+  sms:
+    aliyun:
+      enabled: ${JEECG_SMS_ALIYUN_ENABLED:false}
+      access-key-id: ${JEECG_SMS_ALIYUN_ACCESS_KEY_ID:}
+      access-key-secret: ${JEECG_SMS_ALIYUN_ACCESS_KEY_SECRET:}
+      access-key-id-file: ${JEECG_SMS_ALIYUN_ACCESS_KEY_ID_FILE:}
+      access-key-secret-file: ${JEECG_SMS_ALIYUN_ACCESS_KEY_SECRET_FILE:}
+      sign-name: ${JEECG_SMS_ALIYUN_SIGN_NAME:}
+      register-template-code: ${JEECG_SMS_ALIYUN_REGISTER_TEMPLATE_CODE:}
+      login-template-code: ${JEECG_SMS_ALIYUN_LOGIN_TEMPLATE_CODE:}
+      change-password-template-code: ${JEECG_SMS_ALIYUN_CHANGE_PASSWORD_TEMPLATE_CODE:}

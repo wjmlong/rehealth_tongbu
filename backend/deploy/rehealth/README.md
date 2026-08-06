@@ -237,8 +237,13 @@ suffixes internally.
 
 `start-local-apps.ps1` 为本地 JeecgBoot 设置 `JEECG_SMS_DEV_MODE=true`。此模式下
 `POST /jeecg-boot/sys/sms` 仍要求正常请求签名，但不会调用短信网关，而是在 Redis 中
-保存固定测试验证码 `123456`。未启用该变量时保留随机验证码和真实短信 Provider 链路；
-staging/production 禁止启用该测试开关。
+保存固定测试验证码 `123456`。staging/production 必须在 `.env` 中设置
+`JEECG_SMS_DEV_MODE=false`、`JEECG_SMS_ALIYUN_ENABLED=true`，填写审核通过的短信签名和
+注册模板 Code，并把专用 RAM 用户的 AccessKey ID/Secret 分别写入忽略跟踪的
+`secrets/aliyun_sms_access_key_id` 与 `secrets/aliyun_sms_access_key_secret`。注册模板变量必须
+命名为 `${code}`。登录和修改密码模板只有启用对应短信入口时才需要填写。短信凭据不得复用
+OSS AccessKey，也不得进入 `.env`、Android APK、日志或受版本控制的 YAML；任一生产必填项
+缺失时发送会失败关闭，不会回退到旧默认签名或模板。
 
 该本地启动脚本还会启用
 `REHEALTH_QA_SYNTHETIC_ATTRIBUTION_HISTORY_ENABLED=true`，仅供 Debug APK 的
