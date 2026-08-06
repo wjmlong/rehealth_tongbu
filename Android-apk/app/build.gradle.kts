@@ -74,7 +74,7 @@ fun releaseVersionName(): String =
     (localProps.getProperty("rehealth.version.name")
         ?: System.getenv("REHEALTH_VERSION_NAME")
         ?: providers.gradleProperty("rehealth.version.name").orNull
-        ?: "1.0.1").trim()
+        ?: "1.0.0").trim()
 
 fun releaseSigningValue(propertyName: String, environmentName: String): String? =
     (localProps.getProperty(propertyName)
