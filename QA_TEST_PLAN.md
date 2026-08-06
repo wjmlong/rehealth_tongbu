@@ -334,6 +334,16 @@ git diff --check
      Without verified control-support trend the 20% component remains exactly zero.
    - Confirm Android/backend map snake_case response fields to camelCase DTO properties where needed.
    - Confirm `is_mock=true` is visible and not described as production model output.
+   - For local `admin` RHI QA, run
+     `backend/deploy/rehealth/scripts/seed-admin-rhi-test-data.ps1`. Confirm it
+     reports 1,180 measurements, 118 sleep sessions, 118 activities, 118
+     distinct history days, seven confirmed cuff days, and confirmed labs.
+     Confirm the fixed TimescaleDB batch can be re-seeded without increasing
+     these counts and all synthetic rows remain marked `LOCAL_TEST_SEED`.
+   - Use the seeded inputs to exercise local or remote preview calculation, but
+     do not interpret the result as a disease probability or an authoritative
+     cloud RHI snapshot. The current backend still expects the client/feature
+     pipeline to assemble the 32-field RHI request.
    - In “个人风险趋势”, confirm the blue solid line uses only confirmed RDI-16 history
      from the selected 7/30/90-day window. Until the RDI-16 contract supplies native scenario
      fields, “维持现状”, “执行计划”, “预计降低” and “95% 区间” must remain visibly

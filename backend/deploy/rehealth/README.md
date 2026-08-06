@@ -166,6 +166,25 @@ authenticate as `admin`, retain its login tenant header, and call
 `POST /rehealth/mobile/interventions/generate` with a stable `request_id` to
 exercise the real LangChain4j generation and persistence path.
 
+For local RHI calculation QA, seed the active `admin` account with the same
+50-year-old male synthetic profile and improving 118-day history used by the
+Android Debug full-chain rehearsal:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File `
+  backend/deploy/rehealth/scripts/seed-admin-rhi-test-data.ps1
+```
+
+The RHI seed upserts the MySQL profile, complete confirmed RHI manual inputs,
+and a synthetic device binding, then replaces one stable TimescaleDB batch with
+1,180 measurements, 118 sleep sessions, and 118 activities. Pass
+`-AnchorDate yyyy-MM-dd` to reproduce a specific scoring window. Re-running the
+script is idempotent for its fixed batch and binding IDs. All rows are marked
+`LOCAL_TEST_SEED` and are for QA only. Because the profile and manual-input rows
+are shared per user, run the desired admin scenario seed immediately before its
+test. This seed persists RHI inputs; it does not create an authoritative cloud
+RHI snapshot, which is not part of the current preview architecture.
+
 To keep using the legacy model-service health Q&A locally with the YAML-first path:
 
 1. Copy `model-service/config/ai-chat.example.yml` to the ignored
