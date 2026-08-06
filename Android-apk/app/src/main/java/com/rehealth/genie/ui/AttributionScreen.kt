@@ -26,8 +26,6 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.Button
@@ -96,9 +94,6 @@ fun AttributionScreen(
     onGenerateIntervention: () -> Unit,
 ) {
     val application = LocalContext.current.applicationContext as ReHealthApplication
-    val feedbackViewModel: InterventionFeedbackViewModel = viewModel(
-        factory = InterventionFeedbackViewModel.Factory(LocalContext.current),
-    )
     val dietEntryViewModel: DietEntryViewModel = viewModel(
         factory = DietEntryViewModel.Factory(LocalContext.current),
     )
@@ -254,7 +249,6 @@ fun AttributionScreen(
         state = uiState,
         rhiImprovement = rhiImprovement,
         rhiError = rhiRefreshError,
-        feedbackViewModel = feedbackViewModel,
         dietEntryState = dietEntryState,
         onSaveDietRecord = dietEntryViewModel::save,
         onClearDietMessage = dietEntryViewModel::clearMessage,
@@ -283,7 +277,6 @@ private fun AttributionContent(
     state: AttributionUiState,
     rhiImprovement: AttributionRhiImprovementUi,
     rhiError: String?,
-    feedbackViewModel: InterventionFeedbackViewModel,
     dietEntryState: DietEntryUiState,
     onSaveDietRecord: (com.rehealth.genie.diet.DietRecordDraft) -> Unit,
     onClearDietMessage: () -> Unit,
@@ -351,7 +344,6 @@ private fun AttributionContent(
         item {
             AttributionPlanCard(
                 interventions = state.interventions,
-                feedbackViewModel = feedbackViewModel,
                 isGenerating = isInterventionGenerating,
                 generationError = interventionGenerationError,
                 onGenerate = onGenerateIntervention,
@@ -1090,92 +1082,99 @@ private fun AttributionFactorRow(
 @Composable
 private fun AttributionPlanCard(
     interventions: List<AttributionInterventionUi>,
-    feedbackViewModel: InterventionFeedbackViewModel,
     isGenerating: Boolean,
     generationError: String?,
     onGenerate: () -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val feedbackState by feedbackViewModel.uiState.collectAsState()
-    AttributionCard {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("个性化干预计划", color = Palette.TextPrimary, style = Type.CardTitle)
-                Text("仅展示带真实服务端 ID 的计划", color = Palette.TextSecondary, style = Type.Detail)
-            }
-            Text("${interventions.size} 项", color = Palette.Accent, style = Type.Body)
-        }
-        if (interventions.isEmpty()) {
-            AttributionCompactMessage("暂无可展示的服务端干预计划；本地启发式建议不会显示为真实计划。")
-        } else {
-            if (expanded) {
-                interventions.forEachIndexed { index, intervention ->
-                    AttributionInterventionRow(
-                        number = index + 1,
-                        intervention = intervention,
-                        enabled = !feedbackState.isSubmitting,
-                        onFeedback = { status ->
-                            feedbackViewModel.submitFeedback(intervention.id, status, null)
-                        },
-                    )
-                }
-                feedbackState.message?.let { message ->
+    var expanded by remember(interventions) { mutableStateOf(interventions.isNotEmpty()) }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Dimensions.PlanCardRadius),
+        colors = CardDefaults.cardColors(containerColor = Palette.Surface),
+        border = BorderStroke(Dimensions.CardBorder, Palette.Border),
+    ) {
+        Column(Modifier.padding(Dimensions.PlanCardPadding)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("个性化干预计划", color = Palette.TextPrimary, style = Type.PlanTitle)
                     Text(
-                        message,
-                        color = Palette.Accent,
-                        style = Type.Detail,
-                        modifier = Modifier.padding(top = Dimensions.PlanFeedbackTop),
+                        interventionPlanSubtitle(AttributionUiMapper.CANONICAL_FACTOR_KEYS.size),
+                        color = Palette.TextSecondary,
+                        style = Type.PlanSubtitle,
+                        modifier = Modifier.padding(top = Dimensions.PlanSubtitleTop),
                     )
                 }
-            }
-            Button(
-                onClick = { expanded = !expanded },
-                modifier = Modifier.fillMaxWidth().padding(top = Dimensions.PlanButtonTop)
-                    .height(Dimensions.PlanButtonHeight),
-                shape = RoundedCornerShape(Dimensions.PlanButtonRadius),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (expanded) Palette.AccentSoft else Palette.Accent,
-                    contentColor = if (expanded) Palette.Accent else Palette.OnAccent,
-                ),
-            ) {
-                Text(if (expanded) "收起干预计划" else "查看详细干预计划", style = Type.ButtonLabel)
-            }
-        }
-        generationError?.let { error ->
-            Text(
-                text = error,
-                color = Palette.ContributionRisk,
-                style = Type.Detail,
-                modifier = Modifier.padding(top = Dimensions.PlanFeedbackTop),
-            )
-        }
-        Button(
-            onClick = onGenerate,
-            enabled = !isGenerating,
-            modifier = Modifier.fillMaxWidth().padding(top = Dimensions.PlanButtonTop)
-                .height(Dimensions.PlanButtonHeight),
-            shape = RoundedCornerShape(Dimensions.PlanButtonRadius),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Palette.Accent,
-                contentColor = Palette.OnAccent,
-            ),
-        ) {
-            if (isGenerating) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    color = Palette.OnAccent,
-                    strokeWidth = 2.dp,
-                )
                 Text(
-                    "正在生成今日计划",
-                    style = Type.ButtonLabel,
-                    modifier = Modifier.padding(start = 8.dp),
+                    interventionPlanStateLabel(interventions.isNotEmpty(), expanded),
+                    color = Palette.Accent,
+                    style = Type.PlanState,
                 )
-            } else {
+            }
+
+            if (interventions.isEmpty()) {
+                AttributionCompactMessage("暂无可展示的服务端干预计划；本地启发式建议不会显示为真实计划。")
+            } else if (expanded) {
+                Column(
+                    modifier = Modifier.padding(top = Dimensions.PlanItemsTop),
+                    verticalArrangement = Arrangement.spacedBy(Dimensions.PlanItemGap),
+                ) {
+                    interventions.forEachIndexed { index, intervention ->
+                        AttributionInterventionRow(number = index + 1, intervention = intervention)
+                    }
+                }
+            }
+
+            if (interventions.isNotEmpty()) {
+                Button(
+                    onClick = { expanded = !expanded },
+                    modifier = Modifier.fillMaxWidth().padding(top = Dimensions.PlanButtonTop)
+                        .height(Dimensions.PlanButtonHeight),
+                    shape = RoundedCornerShape(Dimensions.PlanButtonRadius),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Palette.AccentSoft,
+                        contentColor = Palette.Accent,
+                    ),
+                ) {
+                    Text(interventionPlanToggleLabel(expanded), style = Type.PlanButtonLabel)
+                }
+            }
+
+            generationError?.let { error ->
                 Text(
-                    if (interventions.isEmpty()) "生成个性化干预计划" else "重新生成今日计划",
-                    style = Type.ButtonLabel,
+                    text = error,
+                    color = Palette.ContributionRisk,
+                    style = Type.Detail,
+                    modifier = Modifier.padding(top = Dimensions.PlanFeedbackTop),
                 )
+            }
+
+            if (interventions.isEmpty()) {
+                Button(
+                    onClick = onGenerate,
+                    enabled = !isGenerating,
+                    modifier = Modifier.fillMaxWidth().padding(top = Dimensions.PlanButtonTop)
+                        .height(Dimensions.PlanButtonHeight),
+                    shape = RoundedCornerShape(Dimensions.PlanButtonRadius),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Palette.Accent,
+                        contentColor = Palette.OnAccent,
+                    ),
+                ) {
+                    if (isGenerating) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = Palette.OnAccent,
+                            strokeWidth = 2.dp,
+                        )
+                        Text(
+                            "正在生成今日计划",
+                            style = Type.ButtonLabel,
+                            modifier = Modifier.padding(start = 8.dp),
+                        )
+                    } else {
+                        Text("生成个性化干预计划", style = Type.ButtonLabel)
+                    }
+                }
             }
         }
     }
@@ -1185,105 +1184,33 @@ private fun AttributionPlanCard(
 private fun AttributionInterventionRow(
     number: Int,
     intervention: AttributionInterventionUi,
-    enabled: Boolean,
-    onFeedback: (String) -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth().padding(top = Dimensions.InterventionTop)) {
-        Row(verticalAlignment = Alignment.Top) {
-            Box(
-                Modifier.size(Dimensions.InterventionRankSize).clip(CircleShape).background(Palette.AccentSoft),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    number.toString().padStart(2, '0'),
-                    color = Palette.Accent,
-                    style = Type.Micro,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-            Column(Modifier.weight(1f).padding(start = Dimensions.InterventionContentGap)) {
-                Text(
-                    intervention.title,
-                    color = Palette.TextPrimary,
-                    style = Type.Selector,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                intervention.action?.let {
-                    Text(
-                        it,
-                        color = Palette.TextPrimary,
-                        style = Type.Detail,
-                        modifier = Modifier.padding(top = Dimensions.InterventionSupportingTop),
-                    )
-                }
-                val detail = listOfNotNull(intervention.duration, intervention.reason).joinToString(" · ")
-                if (detail.isNotBlank()) {
-                    Text(
-                        detail,
-                        color = Palette.TextSecondary,
-                        style = Type.Micro,
-                        modifier = Modifier.padding(top = Dimensions.InterventionSupportingTop),
-                    )
-                }
-            }
-        }
-        Row(
-            Modifier.fillMaxWidth().padding(
-                start = Dimensions.InterventionActionIndent,
-                top = Dimensions.InterventionActionsTop,
-            ),
-            horizontalArrangement = Arrangement.spacedBy(Dimensions.InterventionActionGap),
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+        Box(
+            Modifier.size(Dimensions.InterventionRankSize).clip(CircleShape).background(Palette.AccentSoft),
+            contentAlignment = Alignment.Center,
         ) {
-            AttributionFeedbackButton(
-                label = "完成",
-                enabled = enabled && intervention.feedbackEnabled,
-                primary = true,
-                modifier = Modifier.weight(1f),
-                onClick = { onFeedback("completed") },
-            )
-            AttributionFeedbackButton(
-                label = "不适用",
-                enabled = enabled && intervention.feedbackEnabled,
-                modifier = Modifier.weight(1f),
-                onClick = { onFeedback("not_applicable") },
-            )
-            AttributionFeedbackButton(
-                label = "稍后",
-                enabled = enabled && intervention.feedbackEnabled,
-                modifier = Modifier.weight(1f),
-                onClick = { onFeedback("skipped") },
+            Text(
+                number.toString().padStart(2, '0'),
+                color = Palette.Accent,
+                style = Type.PlanRank,
             )
         }
-        HorizontalDivider(color = Palette.Border, modifier = Modifier.padding(top = Dimensions.InterventionDividerTop))
-    }
-}
-
-@Composable
-private fun AttributionFeedbackButton(
-    label: String,
-    enabled: Boolean,
-    modifier: Modifier,
-    primary: Boolean = false,
-    onClick: () -> Unit,
-) {
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = modifier.height(Dimensions.FeedbackButtonHeight),
-        contentPadding = PaddingValues(horizontal = Dimensions.FeedbackButtonHorizontalPadding),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (primary) Palette.Accent else Palette.Surface,
-            contentColor = if (primary) Palette.OnAccent else Palette.Accent,
-        ),
-    ) {
-        if (primary) {
-            Icon(Icons.Outlined.Check, null, modifier = Modifier.size(Dimensions.FeedbackIconSize))
-            Spacer(Modifier.width(Dimensions.FeedbackIconGap))
-        } else if (label == "不适用") {
-            Icon(Icons.Outlined.Close, null, modifier = Modifier.size(Dimensions.FeedbackIconSize))
-            Spacer(Modifier.width(Dimensions.FeedbackIconGap))
+        Column(Modifier.weight(1f).padding(start = Dimensions.InterventionContentGap)) {
+            Text(
+                intervention.title,
+                color = Palette.TextPrimary,
+                style = Type.PlanItemTitle,
+            )
+            interventionPlanActionText(intervention.action, intervention.duration)?.let { action ->
+                Text(
+                    action,
+                    color = Palette.TextSecondary,
+                    style = Type.PlanItemBody,
+                    modifier = Modifier.padding(top = Dimensions.InterventionSupportingTop),
+                )
+            }
         }
-        Text(label, style = Type.Micro)
     }
 }
 

@@ -48,6 +48,13 @@ internal object AttributionTypography {
     val FactorScore = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Bold)
     val ForecastMetric = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Bold)
     val ButtonLabel = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium)
+    val PlanTitle = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.Bold)
+    val PlanSubtitle = TextStyle(fontSize = 11.sp, lineHeight = 17.sp)
+    val PlanState = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Medium)
+    val PlanRank = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Bold)
+    val PlanItemTitle = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+    val PlanItemBody = TextStyle(fontSize = 11.sp, lineHeight = 18.sp)
+    val PlanButtonLabel = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
 }
 
 internal object AttributionDimensions {
@@ -115,23 +122,18 @@ internal object AttributionDimensions {
     val FactorDividerTop = 12.dp
 
     val PlanFeedbackTop = 8.dp
-    val PlanButtonTop = 12.dp
-    val PlanButtonHeight = 46.dp
+    val PlanCardRadius = 24.dp
+    val PlanCardPadding = 20.dp
+    val PlanSubtitleTop = 6.dp
+    val PlanItemsTop = 18.dp
+    val PlanItemGap = 20.dp
+    val PlanButtonTop = 20.dp
+    val PlanButtonHeight = 52.dp
     val PlanButtonRadius = 14.dp
 
-    val InterventionTop = 12.dp
-    val InterventionRankSize = 27.dp
-    val InterventionContentGap = 9.dp
-    val InterventionSupportingTop = 3.dp
-    val InterventionActionIndent = 36.dp
-    val InterventionActionsTop = 8.dp
-    val InterventionActionGap = 6.dp
-    val InterventionDividerTop = 10.dp
-
-    val FeedbackButtonHeight = 32.dp
-    val FeedbackButtonHorizontalPadding = 5.dp
-    val FeedbackIconSize = 12.dp
-    val FeedbackIconGap = 3.dp
+    val InterventionRankSize = 34.dp
+    val InterventionContentGap = 12.dp
+    val InterventionSupportingTop = 7.dp
 
     val CardRadius = 18.dp
     val CardBorder = 1.dp

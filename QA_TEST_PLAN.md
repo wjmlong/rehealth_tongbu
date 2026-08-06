@@ -358,7 +358,10 @@ git diff --check
       silently POST during profile refresh. Tap once, confirm the button is disabled with a
       progress state, and verify a successful snake_case or deployed camelCase response is
       rendered immediately. On failure, verify the controlled server message remains visible
-      and the button can retry. With an existing plan, verify “重新生成今日计划” is explicit.
+      and the button can retry. With an existing plan, confirm the attribution page defaults to
+      an expanded 01–05 numbered action list, shows “围绕 16 项健康输入安排下一步行动” and
+      “已展开”, and the full-width “收起干预计划” button changes the card to “已收起” with an
+      “展开干预计划” action. Existing plans must not show an extra regenerate button.
     - With DeepSeek v4, confirm the structured intervention call disables thinking mode,
       returns non-empty JSON `content`, and a validation retry still persists at most one plan.
     - In the Android attribution page, record a meal while offline and confirm it
