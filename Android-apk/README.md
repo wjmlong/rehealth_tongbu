@@ -143,7 +143,7 @@ rehealth.release.api.base.url=https://rehealth.example.com/jeecg-boot/
 仓库当前批准的 Release 地址为 `https://rehealth.youngjimmy.store/jeecg-boot/`；
 `verifyReleaseConfiguration` 会拒绝非 HTTPS、空主机或 `.invalid` 占位地址。切换环境时必须
 由发布负责人明确覆盖，避免产物意外连接联调或占位环境。
-当前默认发布版本为 `1.0.0 (versionCode 2)`；本机或 CI 覆盖时仍必须保证 versionCode 单调递增。
+当前默认发布版本为 `1.0.0 (versionCode 1)`；正式发布后的后续版本仍必须保证 versionCode 单调递增。
 
 无蓝牙的真机 QA（模拟器 / MuMu）可用 fake-ring 通道替掉 BLE 采集：
 

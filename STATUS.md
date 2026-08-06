@@ -3,8 +3,8 @@
 > 最后核对：2026-08-06。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
 > `docs/archive/acceptance/`，不得作为当前实现或发布状态的依据。
 
-当前待发布 Android 版本为 `1.0.0 (versionCode 2)`；该版本包含 HBand/云米连接方式选择，
-显示版本固定为产品要求的 `1.0.0`，内部 `versionCode` 保持递增。
+当前待发布 Android 版本为 `1.0.0 (versionCode 1)`；该版本包含 HBand/云米连接方式选择，
+显示版本和内部版本号均按产品要求固定为 `1.0.0 (1)`。
 Release Lint 保留全部既有门禁，但临时禁用会因 AGP 8.10.1/Compose lint 类加载缺失而直接崩溃的
 `MutableCollectionMutableState` 单项检测；升级整套 Android 工具链后必须恢复该检测。
 
@@ -36,15 +36,15 @@ Manifest 禁止 cleartext，所有模拟开关为 `false`。完整 `lintRelease`
 `QUERY_ALL_PACKAGES` 与尚未接线的 Health Connect 写权限，修正后已通过。该阶段的 unsigned
 产物仅用于边界审计，已由下述正式签名产物取代。
 
-2026-08-06 已按产品要求重新完成 `1.0.0 (versionCode 2)` 正式签名构建。
+2026-08-06 已按产品要求重新完成 `1.0.0 (versionCode 1)` 正式签名构建。
 `testDebugUnitTest`、`verifyPublishConfiguration`、`lintRelease`、R8、`bundleRelease` 与
 `assembleRelease` 均通过。签名 APK SHA-256 为
-`8537A56ED13AAF19F1AC88AF28A9677DA929256D06CD829F9D1F70BC99D693BF`，签名 AAB SHA-256 为
-`80FF66790BE53A627F4DC39F144180FE095B6A6FB756BAA69BC3B562A6AAD03D`；APK 使用既有批准证书的
+`5EC3E54093FBB5F842ECF34ACC8111E33F3589C42747FFAF9DCCD1C945E40E40`，签名 AAB SHA-256 为
+`6137E651B7925941B2F7ADB1AE86E3A725F6E6EB0A15D31E7E7F9BDD0ABBF869`；APK 使用既有批准证书的
 v2 签名。Release APK 内仅包含 HBand 与 Viomi Cloud 商品目录，不包含 Debug 商品目录。
-MuMu（API 35）中的旧应用及本地数据已先卸载，再全新安装该 APK；安装成功，包信息显示
-`versionName=1.0.0`、`versionCode=2`，并已成功启动登录页。设备选择页和物理 MT116 连接仍需
-登录后的人工真机验收。
+MuMu（API 35）中的 `versionCode 2` 应用及本地数据已先卸载，再全新安装该 APK；安装成功，
+包信息显示 `versionName=1.0.0`、`versionCode=1`，并已成功启动账号登录页。设备选择页和
+物理 MT116 连接仍需登录后的人工真机验收。
 
 2026-08-05 已完成 `1.0.1 (versionCode 2)` 正式签名构建：Debug/Release 连接选择仅展示
 HBand MT116 蓝牙与云米 IMEI 云端，Release 默认 HBand，旧 MRD/RWFit 保存选择迁移到 HBand。

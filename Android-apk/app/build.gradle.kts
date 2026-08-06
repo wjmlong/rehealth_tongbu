@@ -68,7 +68,7 @@ fun releaseVersionCode(): Int =
     (localProps.getProperty("rehealth.version.code")
         ?: System.getenv("REHEALTH_VERSION_CODE")
         ?: providers.gradleProperty("rehealth.version.code").orNull
-        ?: "2").toInt()
+        ?: "1").toInt()
 
 fun releaseVersionName(): String =
     (localProps.getProperty("rehealth.version.name")
