@@ -64,6 +64,8 @@ data class RingUiState(
     val cloudRiskSummary: String? = initialFallbackMvp.risk?.summary,
     val patientMvp: PatientMvpPayload? = initialFallbackMvp,
     val isPatientMvpLoading: Boolean = false,
+    val isInterventionGenerating: Boolean = false,
+    val interventionGenerationError: String? = null,
     val measurements: Map<RingMetricType, RingMeasurementEntity> = emptyMap(),
     val sleep: RingSleepSessionEntity? = null,
     val activity: RingActivityEntity? = null,
@@ -535,6 +537,57 @@ class RingViewModel(
         }
     }
 
+    fun generateIntervention() {
+        if (mutableUiState.value.isInterventionGenerating) return
+        val client = cloudRepository
+        if (client == null) {
+            mutableUiState.update {
+                it.copy(interventionGenerationError = "当前环境未配置个性化干预服务。")
+            }
+            return
+        }
+        viewModelScope.launch {
+            mutableUiState.update {
+                it.copy(
+                    isInterventionGenerating = true,
+                    interventionGenerationError = null,
+                    message = "正在基于最新健康档案生成个性化干预计划",
+                )
+            }
+            client.generateIntervention()
+                .onSuccess { plans ->
+                    mutableUiState.update { state ->
+                        state.copy(
+                            patientMvp = state.patientMvp?.copy(
+                                interventionPlan = plans,
+                                updatedAt = System.currentTimeMillis(),
+                            ) ?: PatientMvpPayload(
+                                profile = null,
+                                risk = null,
+                                interventionPlan = plans,
+                                recentCheckins = emptyList(),
+                                updatedAt = System.currentTimeMillis(),
+                            ),
+                            isInterventionGenerating = false,
+                            interventionGenerationError = null,
+                            message = "个性化干预计划已生成",
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    if (error is CancellationException) return@onFailure
+                    mutableUiState.update {
+                        it.copy(
+                            isInterventionGenerating = false,
+                            interventionGenerationError = error.message
+                                ?: "个性化干预计划生成失败，请稍后重试。",
+                            message = "个性化干预计划生成失败",
+                        )
+                    }
+                }
+        }
+    }
+
     fun clearPatientSession() {
         patientRefreshJob?.cancel()
         patientRefreshJob = null
@@ -543,6 +596,8 @@ class RingViewModel(
             it.copy(
                 patientMvp = null,
                 isPatientMvpLoading = false,
+                isInterventionGenerating = false,
+                interventionGenerationError = null,
                 cloudRiskLevel = null,
                 cloudRiskScore = null,
                 cloudRiskMode = null,

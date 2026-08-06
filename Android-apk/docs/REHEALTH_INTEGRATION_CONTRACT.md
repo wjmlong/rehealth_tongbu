@@ -69,7 +69,7 @@ queue until the user logs in again; the app does not invent a refresh-token flow
 | --- | --- | --- |
 | Registration SMS | `POST /sys/sms` | Pre-auth request with `X-Sign` and `X-Timestamp`. Local `JEECG_SMS_DEV_MODE=true` stores fixed code `123456` without calling the SMS Provider. |
 | Account registration | `POST /sys/user/register` | Submit phone, six-digit SMS code and password, then perform mobile login on success. |
-| Mobile login | `POST /sys/mLogin` | Save the Jeecg token in encrypted session storage. |
+| Mobile login | `POST /sys/mLogin` | Save the Jeecg token in encrypted session storage. Explicit logout or a paused unauthorized session clears the session at the app root and navigates directly to Login. |
 | Health/config | `GET /rehealth/mobile/health`, `GET /rehealth/mobile/config` | Environment and contract diagnostics. |
 | Profile | `GET/PUT /rehealth/mobile/profile` | Authenticated, user-scoped typed profile. Preserve returned `version` on PUT; stale edits return `409`; BMI is server-derived. |
 | Manual RHI health archive | `GET/PUT /rehealth/mobile/rhi/manual-inputs` | Save Room first, then PUT the nullable typed fields with `updatedAt` through the stable upload queue. The server derives ownership from auth; GET restores only a newer cloud copy. |
@@ -77,7 +77,7 @@ queue until the user logs in again; the app does not invent a refresh-token flow
 | Device binding | `POST /rehealth/mobile/devices/bind` | Send a stable device ID and SHA-256 address hash; never send the raw BLE MAC. |
 | Telemetry | `POST /rehealth/mobile/measurements/batch` | Use `telemetry-v2`; upload locally persisted normalized Room records and optional structured `dietRecords` with a stable `batchId`; exclude raw PPG/RRI and meal-image bytes. |
 | Risk | `POST /rehealth/mobile/features/evaluate`, `GET /risk/latest` | Use the authenticated client and persisted server result. |
-| Intervention | `POST /interventions/generate`, `GET /interventions/today` | Generate only when today's persisted plan is absent. Send only a stable `request_id`; the server reloads profile/interview/risk and tenant-scoped TimescaleDB context and returns ordered structured `items`. |
+| Intervention | `POST /interventions/generate`, `GET /interventions/today` | GET today's persisted plan on load; generation is an explicit user action with visible loading/failure state. Send only a stable `request_id`; the server reloads profile/interview/risk and tenant-scoped TimescaleDB context and returns ordered structured `items`. Android accepts canonical snake_case plus the deployed camelCase response during compatibility rollout. |
 | Feedback | `POST /interventions/{id}/feedback` | Mark local feedback complete only when `persisted=true`. |
 | Attribution | `POST /rehealth/mobile/attribution/events` | Authenticated individual attribution only. |
 | Health assistant | `POST /rehealth/mobile/agent/messages`, `GET /rehealth/mobile/agent/conversations/latest` | Persist the user message in Room before sending. `conversationId`, `clientMessageId`, and `requestId` make retries stable; restore the latest user/tenant-scoped server conversation after login. JeecgBoot extracts only explicit self-reported name, gender, age, height and weight, merges changed values into the typed profile before assembling that turn's prompt, and appends a Chinese field-update confirmation to the persisted answer. Hypothetical or third-party values are not profile updates. Provider credentials remain server-only. |
@@ -195,6 +195,10 @@ server-owned `factor_contributions` with rule version `factor16-rule-v1.0.0`;
 it is not RDI16 and does not replace the CVD probability or PIAS causal output.
 `feature_contributions` remains the model/SHAP field. The values shown beside the
 16 rows come from the exact local vector sent in the same evaluation request.
+Saving the typed profile or confirmed clinical archive triggers a fresh feature
+evaluation. During that refresh, the latest typed profile fields override stale
+profile values from the prior vector while confirmed BP/lab values remain tied to
+the newly evaluated Room snapshot.
 Factor16 confirmation is keyed by its own rule version, so a deterministic
 Factor16 result may be shown even when `is_mock=true` for the separate CVD scorer;
 the mock CVD risk score itself remains hidden.

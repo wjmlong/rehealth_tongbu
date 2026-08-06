@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -55,12 +56,23 @@ import com.rehealth.genie.ui.theme.Canvas
 import com.rehealth.genie.ui.theme.Mint
 import com.rehealth.genie.ui.theme.Muted
 import com.rehealth.genie.ui.components.QueueStatusBanner
+import com.rehealth.genie.data.sync.QueueState
+import com.rehealth.genie.network.AuthState
+import com.rehealth.genie.work.MeasurementSyncWorker
 import kotlinx.coroutines.launch
 
 internal enum class AppStage { Splash, Login, Register, InterviewSession, Main }
 
 internal fun stageAfterAuthentication(requiresOnboarding: Boolean): AppStage =
     if (requiresOnboarding) AppStage.InterviewSession else AppStage.Main
+
+internal fun shouldReturnToLogin(
+    stage: AppStage,
+    queueState: QueueState,
+    authState: AuthState,
+): Boolean = stage == AppStage.Main &&
+    queueState == QueueState.Paused &&
+    authState == AuthState.Unauthorized
 
 private enum class Tab(val label: String, val icon: ImageVector) {
     Home("首页", Icons.Outlined.Home),
@@ -101,6 +113,21 @@ fun ReHealthApp() {
         },
     )
     val ringState by ringViewModel.uiState.collectAsState()
+    val queueState by application.syncRepository.queueState.collectAsState()
+    val endSession: () -> Unit = {
+        MeasurementSyncWorker.cancel(application)
+        application.authenticatedApiClient.onLogout()
+        application.syncRepository.pauseQueue()
+        ringViewModel.stopBackgroundCollection(application)
+        ringViewModel.disconnect()
+        ringViewModel.clearPatientSession()
+        stage = AppStage.Login
+    }
+    LaunchedEffect(stage, queueState) {
+        if (shouldReturnToLogin(stage, queueState, application.authenticatedApiClient.authState)) {
+            endSession()
+        }
+    }
     LaunchedEffect(stage) {
         if (stage == AppStage.Main) {
             ringViewModel.refreshPatientMvp()
@@ -164,10 +191,7 @@ fun ReHealthApp() {
                     stage = AppStage.InterviewSession
                 },
                 onGoToLogin = {
-                    ringViewModel.stopBackgroundCollection(application)
-                    ringViewModel.disconnect()
-                    ringViewModel.clearPatientSession()
-                    stage = AppStage.Login
+                    endSession()
                 },
             )
         }
@@ -199,9 +223,12 @@ private fun MainShell(
     var simulationRunning by remember { mutableStateOf(false) }
     var simulationReport by remember { mutableStateOf<FullChainSimulationReport?>(null) }
     val canonicalRiskStatus = remember { mutableStateOf<RemoteFeatureEvaluateStatus?>(null) }
+    var featureRefreshKey by remember { mutableIntStateOf(0) }
     LaunchedEffect(
         ringState.lastSyncAt,
         ringState.collectedMetricCount,
+        ringState.patientMvp?.profile?.updatedAt,
+        featureRefreshKey,
     ) {
         refreshRemoteFeatureEvaluateStatus(application, ringState, canonicalRiskStatus)
     }
@@ -292,6 +319,7 @@ private fun MainShell(
                         Tab.Attribution -> AttributionScreen(
                             ringState = ringState,
                             evaluation = canonicalRiskStatus.value?.toAttributionRiskEvaluation(),
+                            onGenerateIntervention = ringViewModel::generateIntervention,
                         )
                         Tab.Model -> ModelScreen(ringState, canonicalRiskStatus)
                         Tab.Profile -> ProfileScreen(
@@ -302,6 +330,7 @@ private fun MainShell(
                             onStartInterview = { showInterview = true },
                             onProfileUpdated = ringViewModel::refreshPatientMvp,
                             onRefreshProfile = ringViewModel::refreshPatientMvp,
+                            onHealthMetricsUpdated = { featureRefreshKey += 1 },
                         )
                     }
                 }

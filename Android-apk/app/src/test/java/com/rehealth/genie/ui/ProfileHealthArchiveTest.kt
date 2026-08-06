@@ -57,4 +57,40 @@ class ProfileHealthArchiveTest {
         assertEquals("暂无健康问答记录", rows["关注方向"])
         assertTrue(rows.values.none { it == "无" })
     }
+
+    @Test
+    fun latestProfileOverridesStaleAttributionValuesAndKeepsClinicalFields() {
+        val profile = PatientProfilePayload(
+            patientId = "patient-1",
+            name = "测试用户",
+            gender = "female",
+            age = 42,
+            heightCm = 165.0,
+            weightKg = 60.0,
+            bmi = 22.0,
+            diagnoses = emptyList(),
+            medications = emptyList(),
+            allergies = emptyList(),
+            familyHistory = true,
+            smoking = true,
+            drinking = false,
+            diabetesHistory = false,
+            hypertensionHistory = true,
+            updatedAt = 3L,
+        )
+
+        val values = mergedAttributionFactorValues(
+            evaluatedValues = mapOf(
+                "age" to "40 岁",
+                "smoking" to "否",
+                "fasting_glucose" to "5.20 mmol/L",
+            ),
+            profile = profile,
+        )
+
+        assertEquals("42 岁", values["age"])
+        assertEquals("是", values["smoking"])
+        assertEquals("有", values["family_history"])
+        assertEquals("5.20 mmol/L", values["fasting_glucose"])
+    }
 }

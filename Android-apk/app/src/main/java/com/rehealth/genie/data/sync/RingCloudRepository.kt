@@ -88,14 +88,7 @@ class RingCloudRepository(
         val profile = apiClient.getProfile().successOrThrow("健康档案读取失败。")
         val latestHealthInterview = apiClient.getLatestHealthInterview().successOrNull()
         val risk = apiClient.getRiskLatest().successOrNull()
-        var intervention = apiClient.getInterventionsToday().successOrNull()
-        if (intervention == null && risk?.normalizedRiskScore != null) {
-            intervention = apiClient.generateIntervention(
-                InterventionGenerateRequestDto(
-                    requestId = UUID.randomUUID().toString(),
-                ),
-            ).successOrNull()
-        }
+        val intervention = apiClient.getInterventionsToday().successOrNull()
         PatientMvpPayload(
             profile = profile?.toPayload(),
             risk = risk?.toPayload(),
@@ -104,6 +97,16 @@ class RingCloudRepository(
             updatedAt = nowProvider(),
             latestHealthInterview = latestHealthInterview,
         )
+    }
+
+    suspend fun generateIntervention(): Result<List<PatientInterventionPayload>> = runCatching {
+        check(sessionStore.isLoggedIn) { "登录已失效，请重新登录后生成计划。" }
+        val response = apiClient.generateIntervention(
+            InterventionGenerateRequestDto(requestId = UUID.randomUUID().toString()),
+        ).successOrThrow("个性化干预计划生成失败，请稍后重试。")
+        response.toPatientInterventionPayloads().also { plans ->
+            check(plans.isNotEmpty()) { "服务端未返回可展示的个性化干预计划。" }
+        }
     }
 
     companion object {
@@ -257,7 +260,7 @@ private fun RiskResultDto.toPayload(): PatientRiskPayload = PatientRiskPayload(
 )
 
 internal fun InterventionPlanDto.toPatientInterventionPayloads(): List<PatientInterventionPayload> {
-    val planId = plan_id?.takeIf(String::isNotBlank) ?: return emptyList()
+    val planId = normalizedPlanId?.takeIf(String::isNotBlank) ?: return emptyList()
     val structured = items.orEmpty()
         .sortedBy { it.priority ?: Int.MAX_VALUE }
         .mapNotNull { item ->
@@ -272,16 +275,16 @@ internal fun InterventionPlanDto.toPatientInterventionPayloads(): List<PatientIn
                 reason = item.rationale,
                 status = "active",
             )
-        }
+    }
     if (structured.isNotEmpty()) return structured
     return listOf(
         PatientInterventionPayload(
             id = planId,
-            title = priority_intervention,
-            goal = expected_impact,
+            title = normalizedPriorityIntervention,
+            goal = normalizedExpectedImpact,
             action = rationale,
             duration = null,
-            reason = medical_disclaimer,
+            reason = normalizedMedicalDisclaimer,
             status = "active",
         ),
     )

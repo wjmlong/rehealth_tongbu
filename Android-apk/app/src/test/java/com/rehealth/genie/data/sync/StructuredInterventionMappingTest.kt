@@ -42,4 +42,21 @@ class StructuredInterventionMappingTest {
         assertEquals("plan-1", actions[0].id)
         assertEquals("睡眠", actions[1].title)
     }
+
+    @Test
+    fun `maps current backend camel case intervention response`() {
+        val plan = InterventionPlanDto(
+            planId = "plan-camel",
+            priorityIntervention = "餐后步行",
+            expectedImpact = "增加日常活动",
+            medicalDisclaimer = "仅供健康管理参考",
+        )
+
+        val actions = plan.toPatientInterventionPayloads()
+
+        assertEquals(1, actions.size)
+        assertEquals("plan-camel", actions.single().id)
+        assertEquals("餐后步行", actions.single().title)
+        assertEquals("增加日常活动", actions.single().goal)
+    }
 }

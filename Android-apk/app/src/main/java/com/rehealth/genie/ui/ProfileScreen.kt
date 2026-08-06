@@ -1,6 +1,5 @@
 package com.rehealth.genie.ui
 
-import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -74,7 +73,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.rehealth.genie.work.MeasurementSyncWorker
 
 internal fun healthArchiveRows(
     profile: PatientProfilePayload?,
@@ -116,6 +114,7 @@ internal fun ProfileScreen(
     onStartInterview: () -> Unit = {},
     onProfileUpdated: () -> Unit = {},
     onRefreshProfile: () -> Unit = {},
+    onHealthMetricsUpdated: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -156,7 +155,10 @@ internal fun ProfileScreen(
         }
     }
     LaunchedEffect(rhiInputState.savedVersion) {
-        if (rhiInputState.savedVersion > 0) showRhiInputDialog = false
+        if (rhiInputState.savedVersion > 0) {
+            showRhiInputDialog = false
+            onHealthMetricsUpdated()
+        }
     }
     Page("我的") {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -361,7 +363,6 @@ internal fun ProfileScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        performLogout(context)
                         showLogoutDialog = false
                         onGoToLogin()
                     },
@@ -530,14 +531,6 @@ private fun reHealthTextFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedContainerColor = Color.White,
     unfocusedContainerColor = Color.White,
 )
-
-/** D3 logout: cancel the sync worker, clear the auth session, and pause the upload queue. */
-private fun performLogout(context: Context) {
-    val app = context.applicationContext as ReHealthApplication
-    MeasurementSyncWorker.cancel(context)
-    app.authenticatedApiClient.onLogout()
-    app.syncRepository.pauseQueue()
-}
 
 @Composable
 private fun ProfileEditDialog(

@@ -120,22 +120,45 @@ data class RiskResultDto(
 @JsonClass(generateAdapter = true)
 data class InterventionPlanDto(
     val plan_id: String? = null,
+    val planId: String? = null,
     val generated_at: String? = null,
+    val generatedAt: String? = null,
     val priority_intervention: String? = null,
+    val priorityIntervention: String? = null,
     val rationale: String? = null,
     val expected_impact: String? = null,
+    val expectedImpact: String? = null,
     val contraindications: List<String>? = null,
     val confidence: Double? = null,
     val model_version: String? = null,
+    val modelVersion: String? = null,
     val is_mock: Boolean? = null,
+    val isMock: Boolean? = null,
     val medical_disclaimer: String? = null,
+    val medicalDisclaimer: String? = null,
     val summary: String? = null,
     val items: List<InterventionActionDto>? = null,
     val focus_date: String? = null,
+    val focusDate: String? = null,
     val context_version: String? = null,
+    val contextVersion: String? = null,
     val context_generated_at: Long? = null,
+    val contextGeneratedAt: Long? = null,
     val latest_data_at: Long? = null,
-)
+    val latestDataAt: Long? = null,
+) {
+    val normalizedPlanId: String?
+        get() = plan_id ?: planId
+
+    val normalizedPriorityIntervention: String?
+        get() = priority_intervention ?: priorityIntervention
+
+    val normalizedExpectedImpact: String?
+        get() = expected_impact ?: expectedImpact
+
+    val normalizedMedicalDisclaimer: String?
+        get() = medical_disclaimer ?: medicalDisclaimer
+}
 
 @JsonClass(generateAdapter = true)
 data class InterventionActionDto(

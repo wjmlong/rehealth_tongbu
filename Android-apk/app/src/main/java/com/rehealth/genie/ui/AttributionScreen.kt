@@ -93,6 +93,7 @@ import kotlinx.coroutines.CancellationException
 fun AttributionScreen(
     ringState: RingUiState,
     evaluation: AttributionRiskEvaluation?,
+    onGenerateIntervention: () -> Unit,
 ) {
     val application = LocalContext.current.applicationContext as ReHealthApplication
     val feedbackViewModel: InterventionFeedbackViewModel = viewModel(
@@ -226,8 +227,10 @@ fun AttributionScreen(
                 )
             },
             allowDebugReplay = BuildConfig.DEBUG,
-            factorValues = evaluation?.factorValues?.takeIf { it.isNotEmpty() }
-                ?: attributionFactorValues(attributionProfile),
+            factorValues = mergedAttributionFactorValues(
+                evaluatedValues = evaluation?.factorValues.orEmpty(),
+                profile = attributionProfile,
+            ),
             interventions = ringState.patientMvp?.interventionPlan.orEmpty().map { intervention ->
                 AttributionInterventionInput(
                     id = intervention.id,
@@ -255,6 +258,9 @@ fun AttributionScreen(
         dietEntryState = dietEntryState,
         onSaveDietRecord = dietEntryViewModel::save,
         onClearDietMessage = dietEntryViewModel::clearMessage,
+        isInterventionGenerating = ringState.isInterventionGenerating,
+        interventionGenerationError = ringState.interventionGenerationError,
+        onGenerateIntervention = onGenerateIntervention,
         onPeriodSelected = { selectedPeriod = it },
         onRetry = {
             retryKey += 1
@@ -281,6 +287,9 @@ private fun AttributionContent(
     dietEntryState: DietEntryUiState,
     onSaveDietRecord: (com.rehealth.genie.diet.DietRecordDraft) -> Unit,
     onClearDietMessage: () -> Unit,
+    isInterventionGenerating: Boolean,
+    interventionGenerationError: String?,
+    onGenerateIntervention: () -> Unit,
     onPeriodSelected: (AttributionPeriod) -> Unit,
     onRetry: () -> Unit,
     rdiPeriodImpact: RdiPeriodImpact?,
@@ -339,7 +348,15 @@ private fun AttributionContent(
         }
         item { AttributionActivityCard(state.activity, behaviorRecords) }
         item { AttributionFactorsCard(state.factorGroups) }
-        item { AttributionPlanCard(state.interventions, feedbackViewModel) }
+        item {
+            AttributionPlanCard(
+                interventions = state.interventions,
+                feedbackViewModel = feedbackViewModel,
+                isGenerating = isInterventionGenerating,
+                generationError = interventionGenerationError,
+                onGenerate = onGenerateIntervention,
+            )
+        }
         item {
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(Dimensions.DisclaimerRadius))
@@ -1074,6 +1091,9 @@ private fun AttributionFactorRow(
 private fun AttributionPlanCard(
     interventions: List<AttributionInterventionUi>,
     feedbackViewModel: InterventionFeedbackViewModel,
+    isGenerating: Boolean,
+    generationError: String?,
+    onGenerate: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val feedbackState by feedbackViewModel.uiState.collectAsState()
@@ -1119,6 +1139,43 @@ private fun AttributionPlanCard(
                 ),
             ) {
                 Text(if (expanded) "收起干预计划" else "查看详细干预计划", style = Type.ButtonLabel)
+            }
+        }
+        generationError?.let { error ->
+            Text(
+                text = error,
+                color = Palette.ContributionRisk,
+                style = Type.Detail,
+                modifier = Modifier.padding(top = Dimensions.PlanFeedbackTop),
+            )
+        }
+        Button(
+            onClick = onGenerate,
+            enabled = !isGenerating,
+            modifier = Modifier.fillMaxWidth().padding(top = Dimensions.PlanButtonTop)
+                .height(Dimensions.PlanButtonHeight),
+            shape = RoundedCornerShape(Dimensions.PlanButtonRadius),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Palette.Accent,
+                contentColor = Palette.OnAccent,
+            ),
+        ) {
+            if (isGenerating) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    color = Palette.OnAccent,
+                    strokeWidth = 2.dp,
+                )
+                Text(
+                    "正在生成今日计划",
+                    style = Type.ButtonLabel,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            } else {
+                Text(
+                    if (interventions.isEmpty()) "生成个性化干预计划" else "重新生成今日计划",
+                    style = Type.ButtonLabel,
+                )
             }
         }
     }
@@ -1529,7 +1586,12 @@ private fun AttributionForecastChart(
     }
 }
 
-private fun attributionFactorValues(profile: PatientProfilePayload?): Map<String, String> = buildMap {
+internal fun mergedAttributionFactorValues(
+    evaluatedValues: Map<String, String>,
+    profile: PatientProfilePayload?,
+): Map<String, String> = evaluatedValues + attributionFactorValues(profile)
+
+internal fun attributionFactorValues(profile: PatientProfilePayload?): Map<String, String> = buildMap {
     profile?.age?.let { put("age", "$it 岁") }
     profile?.gender?.let { gender ->
         put("gender", when (gender.lowercase()) { "male" -> "男"; "female" -> "女"; else -> gender })

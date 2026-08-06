@@ -237,7 +237,7 @@ class ReHealthMobileApiRouteContractTest {
             """{"success":true,"code":200,"result":{"modelContract":"cvd-feature-vector-v1"}}""",
             """{"success":true,"code":200,"result":{"patientId":"patient-1","age":42}}""",
             """{"success":true,"code":200,"result":{"deviceId":"mrd-a1","status":"BOUND","persisted":true,"persistenceStage":"software_db"}}""",
-            """{"success":true,"code":200,"result":{"plan_id":"plan-9","priority_intervention":"步行"}}""",
+            """{"success":true,"code":200,"result":{"planId":"plan-9","priorityIntervention":"步行"}}""",
             """{"success":true,"code":200,"result":{"interventionId":"plan-9","status":"completed","persisted":true,"persistenceStage":"software_db"}}""",
             """{"success":true,"code":200,"result":{"request_id":"agent-1","status":"ok","answer":"请保持规律作息","provider":"model-service"}}""",
         ).forEach { server.enqueue(MockResponse().setResponseCode(200).setBody(it)) }
@@ -260,9 +260,10 @@ class ReHealthMobileApiRouteContractTest {
         assertTrue(bind.persisted)
         assertRequest("/jeecg-boot/rehealth/mobile/devices/bind", "POST")
 
-        assertIs<RemotePhmOutcome.Success<*>>(
+        val intervention = assertIs<RemotePhmOutcome.Success<*>>(
             api.generateIntervention(InterventionGenerateRequestDto()),
-        )
+        ).data as com.rehealth.genie.network.dto.InterventionPlanDto
+        assertEquals("plan-9", intervention.normalizedPlanId)
         assertRequest("/jeecg-boot/rehealth/mobile/interventions/generate", "POST")
 
         val feedback = assertIs<RemotePhmOutcome.Success<*>>(

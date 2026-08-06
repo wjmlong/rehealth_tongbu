@@ -140,6 +140,10 @@ git diff --check
    - Confirm “编辑个人资料” and “健康与归因指标” use the app's white rounded dialog,
      dark title, mint focused input border and mint primary action. The health indicator dialog
      must not expose internal contribution-weight calculation text.
+   - Change age, gender, BMI or a history/lifestyle field in the typed profile and save.
+     Open Attribution and confirm the matching factor value updates without a device sync,
+     then confirm a new feature evaluation is requested. Repeat with confirmed cuff BP or
+     dated lab values and verify those factors update from the new Room snapshot.
    - Confirm RHI accepts SBP/DBP only after the user confirms a valid 3–7 day upper-arm cuff
      mean. Cuffless ring BP remains visible in Data but does not change RHI.
    - Confirm a hospital lab requires at least one value, a valid report date and explicit
@@ -350,6 +354,11 @@ git diff --check
       diagnosis or medication change, `is_mock=false`, and `medical_disclaimer` is present.
     - Confirm a Device Service/LLM/software_db failure returns controlled failure and
       does not persist or display a fabricated fallback plan.
+    - With no persisted plan, confirm Android shows “生成个性化干预计划” and does not
+      silently POST during profile refresh. Tap once, confirm the button is disabled with a
+      progress state, and verify a successful snake_case or deployed camelCase response is
+      rendered immediately. On failure, verify the controlled server message remains visible
+      and the button can retry. With an existing plan, verify “重新生成今日计划” is explicit.
     - With DeepSeek v4, confirm the structured intervention call disables thinking mode,
       returns non-empty JSON `content`, and a validation retry still persists at most one plan.
     - In the Android attribution page, record a meal while offline and confirm it
