@@ -17,6 +17,7 @@ class RwFitRingRepository internal constructor(
     private val activeWearableStore: ActiveWearableBindingStore,
     private val gateway: RwFitSdkGateway,
     private val modelNameHints: Set<String>,
+    private val userIdProvider: () -> String? = { "local-device" },
 ) : RingRepository {
     override val connectionState: StateFlow<RingConnectionState> = gateway.connectionState
     override val connectedDevice: StateFlow<RingDevice?> = gateway.connectedDevice
@@ -83,7 +84,9 @@ class RwFitRingRepository internal constructor(
     private suspend fun persist(payload: RwFitPayload): RingSyncResult {
         val deviceKey = connectedDevice.value?.address ?: activeBindingAddress()
         if (deviceKey.isNullOrBlank()) return emptyResult()
-        val batch = RwFitDataMapper.toEntities(payload, deviceKey)
+        val ownerUserId = userIdProvider()?.takeIf(String::isNotBlank) ?: return emptyResult()
+        val batch = RwFitDataMapper.toEntities(payload, "$ownerUserId|$deviceKey")
+            .ownedBy(ownerUserId, deviceKey)
         if (batch.size > 0) dao.insertBatch(batch)
         return result(batch)
     }

@@ -24,8 +24,6 @@ import com.rehealth.genie.ring.data.RingSleepSessionEntity
 import com.rehealth.genie.ring.provider.ActiveWearableManager
 import com.rehealth.genie.ring.provider.HBAND_PRODUCT_CODE
 import com.rehealth.genie.ring.provider.WearableVendor
-import com.rehealth.genie.ring.viomi.VIOMI_SOURCE
-import com.rehealth.genie.ring.viomi.viomiDeviceId
 import com.rehealth.genie.service.RingForegroundService
 import java.util.Calendar
 import java.time.Instant
@@ -84,6 +82,33 @@ data class RingUiState(
             if (sleep != null) 1 else 0
 }
 
+internal fun RingUiState.clearedForPatientSession(): RingUiState = copy(
+    devices = emptyList(),
+    isScanning = false,
+    isSyncing = false,
+    measuringMetric = null,
+    configuringFeature = null,
+    syncProgress = 0,
+    lastSyncAt = null,
+    message = null,
+    cloudSnapshotId = null,
+    cloudRiskLevel = null,
+    cloudRiskScore = null,
+    cloudRiskMode = null,
+    cloudRiskSummary = null,
+    patientMvp = null,
+    isPatientMvpLoading = false,
+    isInterventionGenerating = false,
+    interventionGenerationError = null,
+    measurements = emptyMap(),
+    sleep = null,
+    activity = null,
+    todayActivitySteps = null,
+    signals = emptyMap(),
+    ecgHistory = emptyList(),
+    liveEcg = RingEcgLiveState(),
+)
+
 /**
  * Real aggregated health stats for a rolling window, computed from local Room history.
  * Used by the Data screen period selector so switching 今日/7天/30天/90天 changes the data.
@@ -141,6 +166,9 @@ class RingViewModel(
     private var autoCollectionJob: Job? = null
     private var patientRefreshJob: Job? = null
     private var lastRingVector: CvdFeatureVector = CvdFeatureVector()
+    private val activePatientUserId = MutableStateFlow(
+        currentUserIdProvider()?.takeIf(String::isNotBlank),
+    )
 
     init {
         wearableManager?.let { manager ->
@@ -201,27 +229,19 @@ class RingViewModel(
             }
         }
         viewModelScope.launch {
-            val latestMeasurements = wearableManager?.activeBinding?.flatMapLatest { binding ->
-                if (binding.vendor != WearableVendor.VIOMI_CLOUD) {
-                    dao.observeLatestMeasurements()
+            activePatientUserId.flatMapLatest { ownerUserId ->
+                if (ownerUserId == null) {
+                    flowOf(RingDatabaseSnapshot(emptyList(), null, emptyList(), emptyList()))
                 } else {
-                    val ownerUserId = currentUserIdProvider()?.takeIf(String::isNotBlank)
-                    val deviceId = binding.modelCode
-                        ?: binding.address?.takeIf(String::isNotBlank)?.let(::viomiDeviceId)
-                    if (ownerUserId == null || deviceId == null) {
-                        flowOf(emptyList())
-                    } else {
-                        dao.observeLatestMeasurementsForBinding(ownerUserId, deviceId, VIOMI_SOURCE)
+                    combine(
+                        dao.observeLatestMeasurementsForOwner(ownerUserId),
+                        dao.observeLatestSleepSessionForOwner(ownerUserId),
+                        dao.observeActivitiesForOwner(ownerUserId),
+                        dao.observeLatestSignalChunksForOwner(ownerUserId),
+                    ) { measurements, sleep, activities, signals ->
+                        RingDatabaseSnapshot(measurements, sleep, activities, signals)
                     }
                 }
-            } ?: dao.observeLatestMeasurements()
-            combine(
-                latestMeasurements,
-                dao.observeLatestSleepSession(),
-                dao.observeActivities(),
-                dao.observeLatestSignalChunks(),
-            ) { measurements, sleep, activities, signals ->
-                RingDatabaseSnapshot(measurements, sleep, activities, signals)
             }.collect { snapshot ->
                 lastRingVector = vectorFromMeasurements(snapshot.measurements)
                 mutableUiState.update { state ->
@@ -245,13 +265,16 @@ class RingViewModel(
             }
         }
         viewModelScope.launch {
-            dao.observeSignalChunks(RingMetricType.ECG.name, ECG_HISTORY_LIMIT).collect { records ->
-                mutableUiState.update { it.copy(ecgHistory = records) }
-            }
+            activePatientUserId.flatMapLatest { ownerUserId ->
+                if (ownerUserId == null) flowOf(emptyList())
+                else dao.observeSignalChunksForOwner(ownerUserId, RingMetricType.ECG.name, ECG_HISTORY_LIMIT)
+            }.collect { records -> mutableUiState.update { it.copy(ecgHistory = records) } }
         }
         (repository as? RingEcgRepository)?.let { ecgRepository ->
             viewModelScope.launch {
-                ecgRepository.liveEcg.collect { live ->
+                combine(activePatientUserId, ecgRepository.liveEcg) { ownerUserId, live ->
+                    if (ownerUserId == null) RingEcgLiveState() else live
+                }.collect { live ->
                     mutableUiState.update { it.copy(liveEcg = live) }
                 }
             }
@@ -531,6 +554,7 @@ class RingViewModel(
     }
 
     fun refreshPatientMvp() {
+        activePatientUserId.value = currentUserIdProvider()?.takeIf(String::isNotBlank)
         patientRefreshJob?.cancel()
         patientRefreshJob = viewModelScope.launch {
             refreshPatientMvp(silent = false)
@@ -591,20 +615,10 @@ class RingViewModel(
     fun clearPatientSession() {
         patientRefreshJob?.cancel()
         patientRefreshJob = null
+        activePatientUserId.value = null
+        lastRingVector = CvdFeatureVector()
         pushProfileToRepository(repository, null)
-        mutableUiState.update {
-            it.copy(
-                patientMvp = null,
-                isPatientMvpLoading = false,
-                isInterventionGenerating = false,
-                interventionGenerationError = null,
-                cloudRiskLevel = null,
-                cloudRiskScore = null,
-                cloudRiskMode = null,
-                cloudRiskSummary = null,
-                message = null,
-            )
-        }
+        mutableUiState.update(RingUiState::clearedForPatientSession)
     }
 
     fun measure(type: RingMetricType) {
@@ -663,21 +677,10 @@ class RingViewModel(
     suspend fun loadPeriodAggregate(windowDays: Int): PeriodAggregate {
         val since = periodStartMillis(windowDays)
         val cloudMode = repository.acquisitionMode == RingAcquisitionMode.CLOUD
-        val viomiScope = currentViomiScope()
-        val measurements = if (cloudMode && viomiScope != null) {
-            dao.getMeasurementsSinceForBinding(
-                since = since,
-                ownerUserId = viomiScope.first,
-                deviceId = viomiScope.second,
-                source = VIOMI_SOURCE,
-            )
-        } else if (cloudMode) {
-            emptyList()
-        } else {
-            dao.getMeasurementsSince(since)
-        }
-        val activities = if (cloudMode) emptyList() else dao.getActivitiesSince(since)
-        val sleep = if (cloudMode) emptyList() else dao.getSleepSessionsSince(since)
+        val ownerUserId = activePatientUserId.value ?: return PeriodAggregate(windowDays)
+        val measurements = dao.getMeasurementsSinceForOwner(since, ownerUserId)
+        val activities = if (cloudMode) emptyList() else dao.getActivitiesSinceForOwner(since, ownerUserId)
+        val sleep = if (cloudMode) emptyList() else dao.getSleepSessionsSinceForOwner(since, ownerUserId)
 
         fun average(metricType: String, value: (RingMeasurementEntity) -> Double?): Double? {
             val matching = measurements.filter { it.metricType == metricType }
@@ -718,16 +721,6 @@ class RingViewModel(
             healthIndex = riskSummary?.averageHealthIndex,
             daysWithRiskScore = riskSummary?.daysWithScore ?: 0,
         )
-    }
-
-    private fun currentViomiScope(): Pair<String, String>? {
-        val binding = wearableManager?.activeBinding?.value ?: return null
-        if (binding.vendor != WearableVendor.VIOMI_CLOUD) return null
-        val ownerUserId = currentUserIdProvider()?.takeIf(String::isNotBlank) ?: return null
-        val deviceId = binding.modelCode
-            ?: binding.address?.takeIf(String::isNotBlank)?.let(::viomiDeviceId)
-            ?: return null
-        return ownerUserId to deviceId
     }
 
     fun setBloodGlucoseCalibration(enabled: Boolean, referenceValue: Double) {
@@ -797,7 +790,8 @@ class RingViewModel(
     }
 
     suspend fun loadHealthHistory(limitPerType: Int = 50): RingHealthHistory =
-        dao.loadRingHealthHistory(limitPerType)
+        activePatientUserId.value?.let { dao.loadRingHealthHistory(it, limitPerType) }
+            ?: RingHealthHistory()
 
     private data class RingDatabaseSnapshot(
         val measurements: List<RingMeasurementEntity>,

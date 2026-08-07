@@ -42,6 +42,7 @@ class MrdBleRingRepository(
     private val dao: RingDataDao,
     private val protocol: MrdProtocolAdapter,
     private val activeWearableStore: ActiveWearableBindingStore,
+    private val userIdProvider: () -> String? = { "local-device" },
 ) : RingRepository {
     private val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val adapter: BluetoothAdapter?
@@ -341,6 +342,10 @@ class MrdBleRingRepository(
 
     private suspend fun persistPackets(): RingSyncResult {
         val now = System.currentTimeMillis()
+        val ownerUserId = userIdProvider()?.takeIf(String::isNotBlank)
+            ?: return RingSyncResult(emptySet(), 0, now)
+        val deviceId = connectedDevice.value?.address ?: boundDevice()?.address
+            ?: return RingSyncResult(emptySet(), 0, now)
         val parsedPackets = packets.mapNotNull { packet ->
             runCatching { protocol.parse(packet) to packet }
                 .onSuccess { (request, packet) ->
@@ -364,20 +369,20 @@ class MrdBleRingRepository(
                 source = "mrd_ring",
             )
         }
-        dao.insertBatch(
+        val scopedBatch =
             RingDataBatch(
                 measurements = parsedBatch.measurements,
                 sleepSessions = parsedBatch.sleepSessions,
                 activities = parsedBatch.activities,
                 signalChunks = rawChunks,
-            ),
-        )
+            ).ownedBy(ownerUserId, deviceId)
+        dao.insertBatch(scopedBatch)
         mutableConnectionState.value = RingConnectionState.CONNECTED
         return RingSyncResult(
             collectedTypes = parsedBatch.measurements.mapNotNull { record ->
                 runCatching { RingMetricType.valueOf(record.metricType) }.getOrNull()
             }.toSet() + if (parsedBatch.sleepSessions.isNotEmpty()) setOf(RingMetricType.SLEEP) else emptySet(),
-            recordsWritten = parsedBatch.size + rawChunks.size,
+            recordsWritten = scopedBatch.size,
             completedAt = now,
         )
     }

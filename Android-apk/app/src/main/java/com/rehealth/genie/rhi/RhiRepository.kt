@@ -48,11 +48,11 @@ class RhiRepository(
             .atStartOfDay(zoneId)
             .toInstant()
             .toEpochMilli()
-        val activities = ringDataDao.getActivitiesSince(since)
-        val sleepSessions = ringDataDao.getSleepSessionsSince(since)
-        val measurements = ringDataDao.getMeasurementsSince(since)
         val authenticatedUserId = userIdProvider()?.takeIf { it.isNotBlank() }
         val persistenceUserId = authenticatedUserId ?: LOCAL_DEVICE_USER
+        val activities = ringDataDao.getActivitiesSinceForOwner(since, persistenceUserId)
+        val sleepSessions = ringDataDao.getSleepSessionsSinceForOwner(since, persistenceUserId)
+        val measurements = ringDataDao.getMeasurementsSinceForOwner(since, persistenceUserId)
         val manual = authenticatedUserId?.let { manualInputDao?.get(it) }
         val feedback = interventionFeedbackDao?.completedFeedbackSince(since).orEmpty()
         val daily = withContext(Dispatchers.Default) {

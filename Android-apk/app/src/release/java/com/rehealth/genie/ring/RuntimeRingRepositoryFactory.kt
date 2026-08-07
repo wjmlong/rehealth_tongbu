@@ -31,6 +31,7 @@ internal fun createRuntimeRingProviderFactories(
             gateway = RealHBandSdkGateway(context),
             modelNameHints = product.modelNameHints,
             expectedMetrics = product.expectedMetrics,
+            userIdProvider = userIdProvider,
         )
     },
     WearableVendor.VIOMI_CLOUD to {

@@ -14,6 +14,8 @@ import com.rehealth.genie.ring.data.RingDataDao
 import com.rehealth.genie.ring.data.RingMeasurementEntity
 import com.rehealth.genie.ring.provider.ActiveWearableBindingStore
 import com.rehealth.genie.ring.provider.WearableVendor
+import java.nio.charset.StandardCharsets
+import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -141,7 +143,9 @@ internal fun com.rehealth.genie.network.dto.ViomiMeasurementDto.toScopedEntityOr
         else -> return null
     }
     return RingMeasurementEntity(
-        id = id,
+        id = "viomi-measurement-${UUID.nameUUIDFromBytes(
+            "$ownerUserId|$deviceId|$id".toByteArray(StandardCharsets.UTF_8),
+        )}",
         metricType = metricType,
         measuredAt = measuredAt,
         primaryValue = primaryValue,

@@ -26,7 +26,10 @@ data class RingMeasurementEntity(
     @ColumnInfo(name = "device_id") val deviceId: String? = null,
 )
 
-@Entity(tableName = "ring_sleep_sessions")
+@Entity(
+    tableName = "ring_sleep_sessions",
+    indices = [Index(value = ["owner_user_id", "ended_at"])],
+)
 data class RingSleepSessionEntity(
     @PrimaryKey val id: String,
     @ColumnInfo(name = "started_at") val startedAt: Long,
@@ -40,9 +43,14 @@ data class RingSleepSessionEntity(
     @ColumnInfo(name = "raw_payload") val rawPayload: String? = null,
     /** Vendor-reported sleep duration. Null means the provider did not expose an authoritative total. */
     @ColumnInfo(name = "total_sleep_minutes") val totalSleepMinutes: Int? = null,
+    @ColumnInfo(name = "owner_user_id") val ownerUserId: String? = null,
+    @ColumnInfo(name = "device_id") val deviceId: String? = null,
 )
 
-@Entity(tableName = "ring_activities")
+@Entity(
+    tableName = "ring_activities",
+    indices = [Index(value = ["owner_user_id", "started_at"])],
+)
 data class RingActivityEntity(
     @PrimaryKey val id: String,
     @ColumnInfo(name = "started_at") val startedAt: Long,
@@ -55,11 +63,16 @@ data class RingActivityEntity(
     @ColumnInfo(name = "average_heart_rate") val averageHeartRate: Double?,
     val source: String,
     @ColumnInfo(name = "raw_payload") val rawPayload: String? = null,
+    @ColumnInfo(name = "owner_user_id") val ownerUserId: String? = null,
+    @ColumnInfo(name = "device_id") val deviceId: String? = null,
 )
 
 @Entity(
     tableName = "ring_signal_chunks",
-    indices = [Index(value = ["signal_type", "started_at"])],
+    indices = [
+        Index(value = ["signal_type", "started_at"]),
+        Index(value = ["owner_user_id", "signal_type", "started_at"]),
+    ],
 )
 data class RingSignalChunkEntity(
     @PrimaryKey val id: String,
@@ -77,6 +90,8 @@ data class RingSignalChunkEntity(
     @ColumnInfo(name = "calibration_type") val calibrationType: String? = null,
     @ColumnInfo(name = "average_heart_rate") val averageHeartRate: Int? = null,
     @ColumnInfo(name = "contact_quality") val contactQuality: String? = null,
+    @ColumnInfo(name = "owner_user_id") val ownerUserId: String? = null,
+    @ColumnInfo(name = "device_id") val deviceId: String? = null,
 ) {
     override fun equals(other: Any?): Boolean =
         other is RingSignalChunkEntity &&

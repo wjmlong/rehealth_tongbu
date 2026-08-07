@@ -12,7 +12,9 @@ Status: implemented software path; updated 2026-08-05.
   later pulls start two days before the latest scoped local record and remain capped at 31 days.
 - Backend persistence is the authority. Only a persisted response is imported to Room.
 - Imported `viomi_cloud` records set `RingSyncResult.requiresUpload=false`, preventing an upload echo loop.
-- Room v15 adds nullable measurement owner/device columns and a composite lookup index. Viomi
+- Room v15 adds nullable measurement owner/device columns and a composite lookup index. Room v16
+  applies nullable owner/device scope to sleep, activity, and signal/ECG rows so account switching
+  cannot expose another user's cached health telemetry. Viomi
   observations are read by authenticated user + hashed backend device + `viomi_cloud` source,
   while migration 14→15 preserves legacy rows with null scope.
 - The cloud Data screen exposes only heart rate, blood oxygen and blood pressure. It uses real

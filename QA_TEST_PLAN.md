@@ -176,7 +176,9 @@ git diff --check
    - On Home, tap “拍照记录”, grant camera permission, and confirm the system camera writes to an
      app-private `FileProvider` URI. Cancel once and confirm no upload or record is created. Capture
      one meal and one text document; confirm upload progress is visible and FOOD/OCR results appear
-     in “今日行为记录” on both Home and Data with the correct local time.
+     in “今日行为记录” on both Home and Data with the correct local time. Confirm a FOOD result with
+     valid estimated calories also appears exactly once in the current user's “今日餐食记录”, uses
+     the local-time meal slot, and enters the existing durable diet queue; OCR/OTHER must not.
    - On a MIUI device, capture immediately after the camera opens and confirm the app waits for the
      private file write to stabilize before decoding. Repeat after an Activity recreation; neither
      case may show “照片读取失败” for a valid non-empty JPEG. Confirm high-resolution input is sampled
@@ -187,6 +189,8 @@ git diff --check
    - Reuse the same `requestId` and expect the existing owner-scoped record without a second model
      call. Log in as another user/tenant and confirm the first user's record is absent. Disable the
      network or provider and confirm a controlled error is shown without a fake behavior record.
+     Also confirm the previous account's meal list, RHI/RDI summary, measurements, sleep, activity,
+     ECG, profile, and risk values are not visible while the new account is loading.
    - Delay a valid vision response beyond the shared 20-second API read timeout but within the
      configured 75-second provider timeout. Confirm photo analysis continues and persists exactly
      one record. Delay it past the provider timeout and confirm the app shows “图片识别超时” instead

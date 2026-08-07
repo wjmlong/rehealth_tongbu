@@ -3,6 +3,7 @@ package com.rehealth.genie.ring.viomi
 import com.rehealth.genie.network.dto.ViomiMeasurementDto
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -25,6 +26,17 @@ class ViomiMeasurementMappingTest {
         assertEquals("user-1", row.ownerUserId)
         assertEquals("viomi-device-1", row.deviceId)
         assertEquals(VIOMI_SOURCE, row.source)
+
+        val otherOwnerRow = ViomiMeasurementDto(
+            id = "bp-1",
+            metricType = "BLOOD_PRESSURE",
+            measuredAt = 1_000L,
+            primaryValue = 128.0,
+            secondaryValue = 79.0,
+            unit = "vendor-unit",
+        ).toScopedEntityOrNull("user-2", "viomi-device-1", now = 2_000L)
+        requireNotNull(otherOwnerRow)
+        assertNotEquals(row.id, otherOwnerRow.id)
     }
 
     @Test

@@ -65,12 +65,14 @@ class RingCloudRepository(
         trigger: String,
     ): Result<String> = runCatching {
         check(sessionStore.isLoggedIn) { "登录已失效，请重新登录后同步。" }
+        val ownerUserId = sessionStore.userId?.takeIf(String::isNotBlank)
+            ?: error("Authenticated user identity is unavailable.")
         val vendor = wearableBindingProvider()?.vendor ?: WearableVendor.MRD
-        val measurements = dao.observeLatestMeasurements().first()
+        val measurements = dao.observeLatestMeasurementsForOwner(ownerUserId).first()
             .filter { entity -> entity.source.matchesVendor(vendor) }
-        val sleep = dao.observeLatestSleepSession().first()
+        val sleep = dao.observeLatestSleepSessionForOwner(ownerUserId).first()
             ?.takeIf { entity -> entity.source.matchesVendor(vendor) }
-        val activity = dao.observeLatestActivity().first()
+        val activity = dao.observeActivitiesForOwner(ownerUserId, limit = 1).first().firstOrNull()
             ?.takeIf { entity -> entity.source.matchesVendor(vendor) }
         val request = telemetryBatchPayload(device, collectedAt, trigger, measurements, sleep, activity, vendor)
         val now = nowProvider()
@@ -185,6 +187,8 @@ class RingCloudRepository(
                     remMinutes = record.remMinutes.nonNegative(),
                     interruptionMinutes = record.interruptionMinutes.nonNegative(),
                     source = source,
+                    ownerUserId = ownerUserId,
+                    deviceId = record.deviceId?.trim()?.takeIf(String::isNotEmpty),
                 )
             },
             activities = response.activities.mapNotNull { record ->
@@ -208,6 +212,8 @@ class RingCloudRepository(
                     durationMinutes = record.durationMinutes.nonNegative(),
                     averageHeartRate = record.averageHeartRate?.takeIf { it.isFinite() && it > 0.0 },
                     source = source,
+                    ownerUserId = ownerUserId,
+                    deviceId = record.deviceId?.trim()?.takeIf(String::isNotEmpty),
                 )
             },
         )
@@ -307,8 +313,9 @@ class RingCloudRepository(
 }
 
 private fun stableCloudRecordId(kind: String, serverId: String?, identity: String): String =
-    serverId?.trim()?.takeIf(String::isNotEmpty)
-        ?: "cloud-$kind-${UUID.nameUUIDFromBytes(identity.toByteArray(StandardCharsets.UTF_8))}"
+    "cloud-$kind-${UUID.nameUUIDFromBytes(
+        "${serverId?.trim().orEmpty()}|$identity".toByteArray(StandardCharsets.UTF_8),
+    )}"
 
 private fun String?.normalizedCloudSource(): String =
     this?.trim()?.takeIf(String::isNotEmpty) ?: "cloud_restore"

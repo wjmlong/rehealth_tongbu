@@ -23,7 +23,9 @@ data class BehaviorRecordUiState(
 )
 
 class BehaviorRecordViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = (application as ReHealthApplication).behaviorRecordRepository
+    private val app = application as ReHealthApplication
+    private val repository = app.behaviorRecordRepository
+    private val dietRepository = app.dietRecordRepository
     private val _state = MutableStateFlow(BehaviorRecordUiState())
     val state: StateFlow<BehaviorRecordUiState> = _state.asStateFlow()
 
@@ -33,11 +35,34 @@ class BehaviorRecordViewModel(application: Application) : AndroidViewModel(appli
             _state.value = _state.value.copy(isUploading = true, message = null, error = null)
             when (val result = repository.analyzeCameraPhoto(photoFile)) {
                 is ApiResult.Success -> {
-                    _state.value = _state.value.copy(
-                        records = listOf(result.data) + _state.value.records.filterNot { it.id == result.data.id },
-                        isUploading = false,
-                        message = "已识别并写入今日行为记录",
-                    )
+                    val records = listOf(result.data) + _state.value.records.filterNot { it.id == result.data.id }
+                    if (result.data.category.equals("FOOD", ignoreCase = true)) {
+                        runCatching { dietRepository.saveAnalyzedFood(result.data) }
+                            .onSuccess { meal ->
+                                _state.value = _state.value.copy(
+                                    records = records,
+                                    isUploading = false,
+                                    message = if (meal != null) {
+                                        "已识别并加入今日行为和餐食记录"
+                                    } else {
+                                        "已写入今日行为记录；营养信息不完整，请手动补录餐食"
+                                    },
+                                )
+                            }
+                            .onFailure {
+                                _state.value = _state.value.copy(
+                                    records = records,
+                                    isUploading = false,
+                                    error = "识别成功，但加入今日餐食记录失败，请手动补录",
+                                )
+                            }
+                    } else {
+                        _state.value = _state.value.copy(
+                            records = records,
+                            isUploading = false,
+                            message = "已识别并写入今日行为记录",
+                        )
+                    }
                 }
                 else -> _state.value = _state.value.copy(
                     isUploading = false,

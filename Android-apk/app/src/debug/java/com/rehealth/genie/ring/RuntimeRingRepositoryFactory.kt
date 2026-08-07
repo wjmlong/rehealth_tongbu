@@ -28,9 +28,9 @@ internal fun createRuntimeRingProviderFactories(
     apiClient: AuthenticatedApiClient,
     userIdProvider: () -> String?,
 ): Map<WearableVendor, () -> RingRepository> = mapOf(
-    WearableVendor.MOCK to { MockRingRepository(dao) },
+    WearableVendor.MOCK to { MockRingRepository(dao, userIdProvider) },
     WearableVendor.MRD to {
-        MrdBleRingRepository(context, dao, protocolAdapter, activeWearableStore)
+        MrdBleRingRepository(context, dao, protocolAdapter, activeWearableStore, userIdProvider)
     },
     WearableVendor.RWFIT to {
         RwFitRingRepository(
@@ -38,6 +38,7 @@ internal fun createRuntimeRingProviderFactories(
             activeWearableStore = activeWearableStore,
             gateway = RealRwFitSdkGateway(context),
             modelNameHints = WearableProductCatalog(context).find(RWFIT_PRODUCT_CODE)?.modelNameHints.orEmpty(),
+            userIdProvider = userIdProvider,
         )
     },
     WearableVendor.HBAND to {
@@ -49,6 +50,7 @@ internal fun createRuntimeRingProviderFactories(
             gateway = RealHBandSdkGateway(context),
             modelNameHints = product.modelNameHints,
             expectedMetrics = product.expectedMetrics,
+            userIdProvider = userIdProvider,
         )
     },
     WearableVendor.VIOMI_CLOUD to {

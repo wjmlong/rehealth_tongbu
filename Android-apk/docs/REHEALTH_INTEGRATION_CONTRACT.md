@@ -47,6 +47,12 @@ and `source=viomi_cloud`; the 14→15 migration preserves pre-existing rows with
 scope. First bind triggers an up-to-31-day pull, while later pulls overlap the latest
 scoped record by two days for idempotent recovery.
 
+Room schema 16 extends the same nullable `owner_user_id` and `device_id` scope to
+sleep, activity, and signal/ECG rows. HBand/MRD/RWFit collection and authenticated cloud restore
+write the current owner, while UI, RHI/RDI calculation, history, and upload queries use
+that owner. Migration 15→16 preserves legacy rows with null ownership; those rows are
+retained for recovery but are not exposed to a different signed-in account.
+
 Debug default base URL (committed `gradle.properties` for internal testing):
 
 ```text
@@ -82,7 +88,7 @@ queue until the user logs in again; the app does not invent a refresh-token flow
 | Feedback | `POST /interventions/{id}/feedback` | Mark local feedback complete only when `persisted=true`. |
 | Attribution | `POST /rehealth/mobile/attribution/events` | Authenticated individual attribution only. |
 | Health assistant | `POST /rehealth/mobile/agent/messages`, `GET /rehealth/mobile/agent/conversations/latest` | Persist the user message in Room before sending. `conversationId`, `clientMessageId`, and `requestId` make retries stable; restore the latest user/tenant-scoped server conversation after login. JeecgBoot extracts only explicit self-reported name, gender, age, height and weight, merges changed values into the typed profile before assembling that turn's prompt, and appends a Chinese field-update confirmation to the persisted answer. Hypothetical or third-party values are not profile updates. Provider credentials remain server-only. |
-| Photo behavior record | `POST /rehealth/mobile/behavior-records/analyze-photo`, `GET /rehealth/mobile/behavior-records/today` | Capture with the system camera into app-private cache, normalize and upload JPEG/PNG/WebP up to 4 MB with an owner-stable `requestId`, then render the persisted FOOD/OCR result on Home and Data. The upload uses a dedicated client timeout longer than the server's vision timeout; provider timeout is surfaced separately from connectivity failure. Never include a provider credential in Android. |
+| Photo behavior record | `POST /rehealth/mobile/behavior-records/analyze-photo`, `GET /rehealth/mobile/behavior-records/today` | Capture with the system camera into app-private cache, normalize and upload JPEG/PNG/WebP up to 4 MB with an owner-stable `requestId`, then render the persisted FOOD/OCR result on Home and Data. A FOOD result with valid calories is also inserted idempotently into the current owner's Room meal log by behavior id and queued as `telemetry-v2 dietRecords`; OCR/OTHER and incomplete nutrition never create placeholder meals. The upload uses a dedicated client timeout longer than the server's vision timeout; provider timeout is surfaced separately from connectivity failure. Never include a provider credential in Android. |
 
 RHI v2 now has an authenticated, non-authoritative preview path:
 `POST /rehealth/mobile/rhi/evaluate-series`. Android sends a bounded series of

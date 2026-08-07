@@ -9,12 +9,16 @@ import com.rehealth.genie.network.AuthState
 import com.rehealth.genie.network.MeasurementUploadClient
 import com.rehealth.genie.network.dto.TelemetryBatchRequestDto
 import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
+import com.rehealth.genie.network.dto.BehaviorRecordDto
 import com.rehealth.genie.ring.provider.ActiveWearableBinding
 import com.rehealth.genie.ring.provider.WearableVendor
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -69,14 +73,64 @@ class DietRecordRepositoryTest {
         assertEquals(1, queueDao.rows.size)
     }
 
+    @Test
+    fun analyzedFoodIsPersistedOnceAndQueuedWithPhotoProvenance() = runTest {
+        val dietDao = FakeDietRecordDao()
+        val queueDao = FakeUploadQueueDao()
+        val repository = repository(dietDao, queueDao, binding = { binding() })
+        val analyzed = BehaviorRecordDto(
+            id = "behavior-1",
+            category = "FOOD",
+            title = "午餐",
+            items = listOf("米饭", "青菜"),
+            caloriesKcal = 520.0,
+            proteinGrams = 22.0,
+            carbohydrateGrams = 68.0,
+            fatGrams = 15.0,
+            occurredAt = NOW,
+        )
+
+        val first = repository.saveAnalyzedFood(analyzed)
+        val duplicate = repository.saveAnalyzedFood(analyzed)
+
+        assertTrue(requireNotNull(first).inserted)
+        assertFalse(requireNotNull(duplicate).inserted)
+        assertEquals(1, dietDao.records.size)
+        assertTrue(dietDao.records.single().id.matches(Regex("[0-9a-f-]{36}")))
+        assertEquals("camera_food_analysis", dietDao.records.single().source)
+        assertEquals("米饭 + 青菜", dietDao.records.single().description)
+        assertEquals(1, queueDao.rows.size)
+        val request = Gson().fromJson(queueDao.rows.single().payloadJson, TelemetryBatchRequestDto::class.java)
+        assertEquals("camera_food_analysis", request.quality?.get("provenance"))
+    }
+
+    @Test
+    fun photoMappingUsesLocalMealTimeAndRejectsIncompleteOrNonFoodRecords() {
+        val lunchAtUtc = LocalDateTime.of(2026, 8, 7, 12, 30).toInstant(ZoneOffset.UTC).toEpochMilli()
+        val food = BehaviorRecordDto(
+            category = "FOOD",
+            items = listOf("面条"),
+            caloriesKcal = 430.0,
+            occurredAt = lunchAtUtc,
+        )
+
+        val draft = food.toDietRecordDraftOrNull(ZoneOffset.UTC)
+
+        assertEquals("lunch", draft?.mealType)
+        assertEquals(lunchAtUtc, draft?.consumedAt)
+        assertEquals(null, food.copy(caloriesKcal = null).toDietRecordDraftOrNull(ZoneOffset.UTC))
+        assertEquals(null, food.copy(category = "OCR").toDietRecordDraftOrNull(ZoneOffset.UTC))
+    }
+
     private fun repository(
         dietDao: FakeDietRecordDao,
         queueDao: FakeUploadQueueDao,
         binding: () -> ActiveWearableBinding?,
+        userId: String = "user-1",
     ): DietRecordRepository = DietRecordRepository(
         dao = dietDao,
         syncRepository = SyncRepository(queueDao, FakeMeasurementUploadClient()),
-        userIdProvider = { "user-1" },
+        userIdProvider = { userId },
         wearableBindingProvider = binding,
         triggerSync = {},
         nowProvider = { NOW },
@@ -118,11 +172,24 @@ private class FakeDietRecordDao : DietRecordDao {
         publish()
     }
 
+    override suspend fun insertIfAbsent(record: DietRecordEntity): Long {
+        if (records.any { it.id == record.id }) return -1L
+        records += record
+        publish()
+        return records.size.toLong()
+    }
+
     override fun observeBetween(
         userId: String,
         fromInclusive: Long,
         toExclusive: Long,
-    ): Flow<List<DietRecordWithUploadState>> = observed
+    ): Flow<List<DietRecordWithUploadState>> = observed.map { rows ->
+        rows.filter {
+            it.record.userId == userId &&
+                it.record.consumedAt >= fromInclusive &&
+                it.record.consumedAt < toExclusive
+        }
+    }
 
     override suspend fun findNotQueued(userId: String): List<DietRecordEntity> =
         records.filter { it.userId == userId && it.uploadBatchId == null }

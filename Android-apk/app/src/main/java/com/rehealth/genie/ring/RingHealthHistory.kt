@@ -14,22 +14,25 @@ data class RingHealthHistory(
     val signals: Map<RingMetricType, List<RingSignalChunkEntity>> = emptyMap(),
 )
 
-internal suspend fun RingDataDao.loadRingHealthHistory(limitPerType: Int = 50): RingHealthHistory {
+internal suspend fun RingDataDao.loadRingHealthHistory(
+    ownerUserId: String,
+    limitPerType: Int = 50,
+): RingHealthHistory {
     require(limitPerType > 0)
     val measurements = RingMetricType.entries.mapNotNull { type ->
-        observeMeasurements(type.name, limitPerType).first()
+        observeMeasurementsForOwner(ownerUserId, type.name, limitPerType).first()
             .takeIf { it.isNotEmpty() }
             ?.let { type to it }
     }.toMap()
     val signals = RingMetricType.entries.mapNotNull { type ->
-        observeSignalChunks(type.name, limitPerType).first()
+        observeSignalChunksForOwner(ownerUserId, type.name, limitPerType).first()
             .takeIf { it.isNotEmpty() }
             ?.let { type to it }
     }.toMap()
     return RingHealthHistory(
         measurements = measurements,
-        sleepSessions = observeSleepSessions(limitPerType).first(),
-        activities = observeActivities(limitPerType).first(),
+        sleepSessions = getSleepSessionsSinceForOwner(0L, ownerUserId).take(limitPerType),
+        activities = getActivitiesSinceForOwner(0L, ownerUserId).take(limitPerType),
         signals = signals,
     )
 }

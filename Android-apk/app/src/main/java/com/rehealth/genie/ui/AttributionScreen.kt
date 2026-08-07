@@ -94,21 +94,28 @@ fun AttributionScreen(
     onGenerateIntervention: () -> Unit,
 ) {
     val application = LocalContext.current.applicationContext as ReHealthApplication
-    val dietEntryViewModel: DietEntryViewModel = viewModel(
-        factory = DietEntryViewModel.Factory(LocalContext.current),
-    )
-    val dietEntryState by dietEntryViewModel.state.collectAsState()
-    val activeWearableBinding by application.activeWearableStore.activeBinding.collectAsState()
-    val rhiViewModel: RhiViewModel = viewModel(factory = RhiViewModel.Factory(LocalContext.current))
-    val rhiPeriodSummary by rhiViewModel.periodSummary.collectAsState()
-    val rhiRefreshError by rhiViewModel.refreshError.collectAsState()
-    val rdiViewModel: RdiViewModel = viewModel(factory = RdiViewModel.Factory(LocalContext.current))
-    val rdiPeriodSummary by rdiViewModel.periodSummary.collectAsState()
     val behaviorOwnerKey = remember(application.sessionStore.userId, application.sessionStore.username) {
         profileAvatarStorageKey(
             application.sessionStore.userId ?: application.sessionStore.username ?: "signed-out",
         )
     }
+    val dietEntryViewModel: DietEntryViewModel = viewModel(
+        key = "diet-entry-$behaviorOwnerKey",
+        factory = DietEntryViewModel.Factory(LocalContext.current),
+    )
+    val dietEntryState by dietEntryViewModel.state.collectAsState()
+    val activeWearableBinding by application.activeWearableStore.activeBinding.collectAsState()
+    val rhiViewModel: RhiViewModel = viewModel(
+        key = "rhi-$behaviorOwnerKey",
+        factory = RhiViewModel.Factory(LocalContext.current),
+    )
+    val rhiPeriodSummary by rhiViewModel.periodSummary.collectAsState()
+    val rhiRefreshError by rhiViewModel.refreshError.collectAsState()
+    val rdiViewModel: RdiViewModel = viewModel(
+        key = "rdi-$behaviorOwnerKey",
+        factory = RdiViewModel.Factory(LocalContext.current),
+    )
+    val rdiPeriodSummary by rdiViewModel.periodSummary.collectAsState()
     val behaviorViewModel: BehaviorRecordViewModel = viewModel(
         key = "behavior-records-$behaviorOwnerKey",
         factory = remember(application) { BehaviorRecordViewModel.Factory(application) },

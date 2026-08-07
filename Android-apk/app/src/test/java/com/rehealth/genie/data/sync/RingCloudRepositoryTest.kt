@@ -65,12 +65,21 @@ class RingCloudRepositoryTest {
         val batch = RingCloudRepository.telemetryRestoreBatch(response, "admin-user")
 
         assertEquals(3, batch.size)
-        assertEquals("measurement-1", batch.measurements.single().id)
+        assertTrue(batch.measurements.single().id.startsWith("cloud-measurement-"))
         assertEquals("admin-user", batch.measurements.single().ownerUserId)
         assertEquals("ring-1", batch.measurements.single().deviceId)
         assertEquals(100, batch.measurements.single().quality)
-        assertEquals("sleep-1", batch.sleepSessions.single().id)
-        assertEquals("activity-1", batch.activities.single().id)
+        assertTrue(batch.sleepSessions.single().id.startsWith("cloud-sleep-"))
+        assertEquals("admin-user", batch.sleepSessions.single().ownerUserId)
+        assertEquals("ring-1", batch.sleepSessions.single().deviceId)
+        assertTrue(batch.activities.single().id.startsWith("cloud-activity-"))
+        assertEquals("admin-user", batch.activities.single().ownerUserId)
+        assertEquals("ring-1", batch.activities.single().deviceId)
+
+        val otherOwnerBatch = RingCloudRepository.telemetryRestoreBatch(response, "other-user")
+        assertNotEquals(batch.measurements.single().id, otherOwnerBatch.measurements.single().id)
+        assertNotEquals(batch.sleepSessions.single().id, otherOwnerBatch.sleepSessions.single().id)
+        assertNotEquals(batch.activities.single().id, otherOwnerBatch.activities.single().id)
     }
 
     @Test

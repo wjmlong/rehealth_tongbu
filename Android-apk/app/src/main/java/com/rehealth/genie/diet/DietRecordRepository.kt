@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import com.rehealth.genie.data.sync.SyncRepository
 import com.rehealth.genie.data.sync.UploadQueueEntity
 import com.rehealth.genie.network.dto.TelemetryBatchRequestDto
+import com.rehealth.genie.network.dto.BehaviorRecordDto
 import com.rehealth.genie.ring.provider.ActiveWearableBinding
 import com.rehealth.genie.ring.provider.WearableCloudIdentity
 import java.nio.charset.StandardCharsets
@@ -56,6 +57,45 @@ class DietRecordRepository(
         val queued = runCatching { queue(record) }.getOrDefault(false)
         if (queued) triggerSync()
         return DietSaveResult(record, queued)
+    }
+
+    /**
+     * Mirrors a successfully persisted FOOD photo analysis into the local-first meal log.
+     * The server behavior id makes the import idempotent across Activity recreation/retries.
+     * Non-food or nutrition-incomplete analyses remain behavior records and are not invented
+     * into a meal with placeholder calories.
+     */
+    suspend fun saveAnalyzedFood(record: BehaviorRecordDto): DietSaveResult? {
+        val draft = record.toDietRecordDraftOrNull() ?: return null
+        val userId = userIdProvider()?.takeIf(String::isNotBlank)
+            ?: error("登录已失效，请重新登录后记录餐食。")
+        val sourceId = record.id?.takeIf(String::isNotBlank)
+            ?: record.requestId?.takeIf(String::isNotBlank)
+            ?: UUID.randomUUID().toString()
+        val now = nowProvider()
+        val entity = DietRecordEntity(
+            id = UUID.nameUUIDFromBytes(
+                "photo-diet|$userId|$sourceId".toByteArray(StandardCharsets.UTF_8),
+            ).toString(),
+            userId = userId,
+            consumedAt = draft.consumedAt,
+            mealType = draft.mealType,
+            description = draft.description,
+            caloriesKcal = draft.caloriesKcal,
+            proteinGrams = draft.proteinGrams,
+            carbohydrateGrams = draft.carbohydrateGrams,
+            fatGrams = draft.fatGrams,
+            fiberGrams = draft.fiberGrams,
+            sodiumMilligrams = draft.sodiumMilligrams,
+            source = PHOTO_SOURCE,
+            createdAt = now,
+            uploadBatchId = null,
+        )
+        val inserted = dao.insertIfAbsent(entity) != -1L
+        if (!inserted) return DietSaveResult(entity, queued = false, inserted = false)
+        val queued = runCatching { queue(entity) }.getOrDefault(false)
+        if (queued) triggerSync()
+        return DietSaveResult(entity, queued, inserted = true)
     }
 
     suspend fun preparePendingUploads(): Int {
@@ -133,7 +173,7 @@ class DietRecordRepository(
                 ),
             ),
             signalChunks = emptyList(),
-            quality = mapOf("provenance" to SOURCE, "rawSignalExcluded" to true),
+            quality = mapOf("provenance" to source, "rawSignalExcluded" to true),
         )
 
     private fun mapOfNotNull(vararg pairs: Pair<String, Any?>): Map<String, Any> = buildMap {
@@ -142,11 +182,44 @@ class DietRecordRepository(
 
     private companion object {
         const val SOURCE = "manual_diet_room"
+        const val PHOTO_SOURCE = "camera_food_analysis"
         const val MAX_DESCRIPTION_LENGTH = 256
     }
+}
+
+internal fun BehaviorRecordDto.toDietRecordDraftOrNull(
+    zoneId: ZoneId = ZoneId.systemDefault(),
+): DietRecordDraft? {
+    if (!category.equals("FOOD", ignoreCase = true)) return null
+    val calories = caloriesKcal?.takeIf { it.isFinite() && it > 0.0 } ?: return null
+    val timestamp = occurredAt?.takeIf { it > 0L } ?: System.currentTimeMillis()
+    val description = when {
+        items.isNotEmpty() -> items.filter(String::isNotBlank).joinToString(" + ")
+        !title.isNullOrBlank() -> title
+        !summary.isNullOrBlank() -> summary
+        else -> null
+    }?.trim()?.take(256) ?: return null
+    if (description.isBlank()) return null
+    val hour = Instant.ofEpochMilli(timestamp).atZone(zoneId).hour
+    val mealType = when (hour) {
+        in 5..10 -> DietMealType.BREAKFAST.wireValue
+        in 11..14 -> DietMealType.LUNCH.wireValue
+        in 17..21 -> DietMealType.DINNER.wireValue
+        else -> DietMealType.SNACK.wireValue
+    }
+    return DietRecordDraft(
+        mealType = mealType,
+        description = description,
+        caloriesKcal = calories,
+        proteinGrams = proteinGrams?.takeIf { it.isFinite() && it >= 0.0 },
+        carbohydrateGrams = carbohydrateGrams?.takeIf { it.isFinite() && it >= 0.0 },
+        fatGrams = fatGrams?.takeIf { it.isFinite() && it >= 0.0 },
+        consumedAt = timestamp,
+    )
 }
 
 data class DietSaveResult(
     val record: DietRecordEntity,
     val queued: Boolean,
+    val inserted: Boolean = true,
 )

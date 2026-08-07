@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.StateFlow
  */
 class MockRingRepository(
     private val dao: RingDataDao,
+    private val userIdProvider: () -> String? = { "local-device" },
 ) : RingRepository, SimulatedRingProfileSink {
     private val mutableConnectionState = MutableStateFlow(RingConnectionState.DISCONNECTED)
     private val mutableConnectedDevice = MutableStateFlow<RingDevice?>(null)
@@ -81,7 +82,7 @@ class MockRingRepository(
         seedBaselineIfNeeded()
         val now = System.currentTimeMillis()
         val batch = generateCurrentBatch(now)
-        dao.insertBatch(batch)
+        dao.insertBatch(batch.forCurrentUser())
         mutableConnectionState.value = RingConnectionState.CONNECTED
         return RingSyncResult(
             collectedTypes = setOf(
@@ -134,7 +135,7 @@ class MockRingRepository(
             RingMetricType.PPG -> RingDataBatch(signalChunks = listOf(ppgSignal(now)))
             else -> RingDataBatch()
         }
-        dao.insertBatch(batch)
+        dao.insertBatch(batch.forCurrentUser())
         mutableConnectionState.value = RingConnectionState.CONNECTED
         return RingSyncResult(
             collectedTypes = if (batch.size > 0) setOf(type) else emptySet(),
@@ -169,7 +170,7 @@ class MockRingRepository(
         val now = System.currentTimeMillis()
         (MOCK_HISTORY_DAYS - 1 downTo 1).forEach { daysAgo ->
             val dayStart = startOfDay(now - daysAgo * DAY_MS)
-            dao.insertBatch(generateDailyBatch(dayStart, daysAgo))
+            dao.insertBatch(generateDailyBatch(dayStart, daysAgo).forCurrentUser())
         }
     }
 
@@ -335,6 +336,11 @@ class MockRingRepository(
     )
 
     private fun round(value: Double): Double = (value * 10.0).roundToInt() / 10.0
+
+    private fun RingDataBatch.forCurrentUser(): RingDataBatch {
+        val ownerUserId = userIdProvider()?.takeIf(String::isNotBlank) ?: "local-device"
+        return ownedBy(ownerUserId, mutableConnectedDevice.value?.address ?: "MOCK:RING:01")
+    }
 
     private fun startOfDay(timestamp: Long): Long = timestamp - timestamp % DAY_MS
 

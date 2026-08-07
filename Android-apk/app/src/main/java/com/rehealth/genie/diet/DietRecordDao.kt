@@ -11,6 +11,9 @@ interface DietRecordDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(record: DietRecordEntity)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIfAbsent(record: DietRecordEntity): Long
+
     @Query(
         """
         SELECT diet_records.*, sync_upload_queue.status AS upload_status

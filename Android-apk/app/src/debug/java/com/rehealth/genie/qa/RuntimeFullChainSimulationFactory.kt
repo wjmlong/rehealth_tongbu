@@ -84,7 +84,9 @@ private class DebugFullChainSimulationRunner(
             )
             application.database.rhiManualHealthInputDao().upsert(manual)
             application.database.ringDataDao().deleteSourceData(SOURCE)
-            application.database.ringDataDao().insertBatch(normalWearableBatch(firstDay, today))
+            application.database.ringDataDao().insertBatch(
+                normalWearableBatch(firstDay, today).ownedBy(userId, SIMULATED_DEVICE.address),
+            )
         }.fold(
             onSuccess = {
                 stages += success(

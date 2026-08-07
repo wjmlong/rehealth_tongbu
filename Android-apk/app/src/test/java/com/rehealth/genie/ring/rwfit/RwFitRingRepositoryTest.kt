@@ -35,7 +35,7 @@ class RwFitRingRepositoryTest {
                 ),
             ),
         )
-        val repository = RwFitRingRepository(dao, store, gateway, setOf("RW"))
+        val repository = RwFitRingRepository(dao, store, gateway, setOf("RW")) { "user-1" }
         val device = RingDevice("AA:BB:CC:DD:EE:FF", "RW Ring", -45)
 
         repository.connect(device)
@@ -46,6 +46,8 @@ class RwFitRingRepositoryTest {
         assertTrue(store.activeBinding.value.capabilityJson.orEmpty().contains("heartRate"))
         assertEquals(1, dao.measurements.size)
         assertEquals("rwfit", dao.measurements.single().source)
+        assertEquals("user-1", dao.measurements.single().ownerUserId)
+        assertEquals(device.address, dao.measurements.single().deviceId)
         assertEquals(setOf(RingMetricType.HEART_RATE), result.collectedTypes)
     }
 
@@ -226,20 +228,29 @@ private class TrackingRingDataDao : RingDataDao {
     }
 
     override fun observeMeasurements(metricType: String, limit: Int): Flow<List<RingMeasurementEntity>> = emptyFlow()
+    override fun observeMeasurementsForOwner(ownerUserId: String, metricType: String, limit: Int): Flow<List<RingMeasurementEntity>> = emptyFlow()
     override fun observeSleepSessions(limit: Int): Flow<List<RingSleepSessionEntity>> = emptyFlow()
     override fun observeActivities(limit: Int): Flow<List<RingActivityEntity>> = emptyFlow()
     override fun observeSignalChunks(signalType: String, limit: Int): Flow<List<RingSignalChunkEntity>> = emptyFlow()
     override fun observeLatestMeasurements(): Flow<List<RingMeasurementEntity>> = emptyFlow()
+    override fun observeLatestMeasurementsForOwner(ownerUserId: String): Flow<List<RingMeasurementEntity>> = emptyFlow()
     override fun observeLatestMeasurementsForBinding(ownerUserId: String, deviceId: String, source: String): Flow<List<RingMeasurementEntity>> = emptyFlow()
     override fun observeLatestSleepSession(): Flow<RingSleepSessionEntity?> = emptyFlow()
+    override fun observeLatestSleepSessionForOwner(ownerUserId: String): Flow<RingSleepSessionEntity?> = emptyFlow()
     override fun observeLatestActivity(): Flow<RingActivityEntity?> = emptyFlow()
+    override fun observeActivitiesForOwner(ownerUserId: String, limit: Int): Flow<List<RingActivityEntity>> = emptyFlow()
     override fun observeLatestSignalChunks(): Flow<List<RingSignalChunkEntity>> = emptyFlow()
+    override fun observeLatestSignalChunksForOwner(ownerUserId: String): Flow<List<RingSignalChunkEntity>> = emptyFlow()
+    override fun observeSignalChunksForOwner(ownerUserId: String, signalType: String, limit: Int): Flow<List<RingSignalChunkEntity>> = emptyFlow()
     override suspend fun getMeasurementsSince(since: Long): List<RingMeasurementEntity> = emptyList()
+    override suspend fun getMeasurementsSinceForOwner(since: Long, ownerUserId: String): List<RingMeasurementEntity> = measurements.filter { it.ownerUserId == ownerUserId && it.measuredAt >= since }
     override suspend fun getMeasurementsSinceForBinding(since: Long, ownerUserId: String, deviceId: String, source: String): List<RingMeasurementEntity> = emptyList()
     override suspend fun getLatestMeasuredAtForBinding(ownerUserId: String, deviceId: String, source: String): Long? = null
     override suspend fun getLatestMeasurement(metricType: String): RingMeasurementEntity? = null
     override suspend fun getActivitiesSince(since: Long): List<RingActivityEntity> = emptyList()
+    override suspend fun getActivitiesSinceForOwner(since: Long, ownerUserId: String): List<RingActivityEntity> = activities.filter { it.ownerUserId == ownerUserId && it.startedAt >= since }
     override suspend fun getSleepSessionsSince(since: Long): List<RingSleepSessionEntity> = emptyList()
+    override suspend fun getSleepSessionsSinceForOwner(since: Long, ownerUserId: String): List<RingSleepSessionEntity> = sleep.filter { it.ownerUserId == ownerUserId && it.endedAt >= since }
     override suspend fun deleteMeasurementsBySource(source: String) { measurements.removeAll { it.source == source } }
     override suspend fun deleteSleepSessionsBySource(source: String) { sleep.removeAll { it.source == source } }
     override suspend fun deleteActivitiesBySource(source: String) { activities.removeAll { it.source == source } }

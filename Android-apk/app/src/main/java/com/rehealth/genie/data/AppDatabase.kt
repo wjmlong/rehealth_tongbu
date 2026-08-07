@@ -79,7 +79,7 @@ data class AttributionLogEntity(
         RhiDataQualitySnapshotEntity::class,
         DietRecordEntity::class,
     ],
-    version = 15,
+    version = 16,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -96,6 +96,30 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun dietRecordDao(): DietRecordDao
 
     companion object {
+        /** Adds authenticated-owner scope to sleep, activity, and signal rows. */
+        val Migration15To16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE ring_sleep_sessions ADD COLUMN owner_user_id TEXT")
+                db.execSQL("ALTER TABLE ring_sleep_sessions ADD COLUMN device_id TEXT")
+                db.execSQL("ALTER TABLE ring_activities ADD COLUMN owner_user_id TEXT")
+                db.execSQL("ALTER TABLE ring_activities ADD COLUMN device_id TEXT")
+                db.execSQL("ALTER TABLE ring_signal_chunks ADD COLUMN owner_user_id TEXT")
+                db.execSQL("ALTER TABLE ring_signal_chunks ADD COLUMN device_id TEXT")
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_ring_sleep_sessions_owner_user_id_ended_at " +
+                        "ON ring_sleep_sessions(owner_user_id, ended_at)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_ring_activities_owner_user_id_started_at " +
+                        "ON ring_activities(owner_user_id, started_at)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_ring_signal_chunks_owner_user_id_signal_type_started_at " +
+                        "ON ring_signal_chunks(owner_user_id, signal_type, started_at)",
+                )
+            }
+        }
+
         /** Adds nullable owner/device scope to wearable measurements without deleting legacy rows. */
         val Migration14To15 = object : Migration(14, 15) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -688,6 +712,7 @@ abstract class AppDatabase : RoomDatabase() {
                     Migration12To13,
                     Migration13To14,
                     Migration14To15,
+                    Migration15To16,
                 )
                 .build()
     }

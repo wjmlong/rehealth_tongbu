@@ -28,6 +28,7 @@ class HBandRingRepository internal constructor(
     private val gateway: HBandSdkGateway,
     private val modelNameHints: Set<String>,
     private val expectedMetrics: Set<RingMetricType>,
+    private val userIdProvider: () -> String? = { "local-device" },
 ) : RingRepository, WearableUserProfileSink, RingFeatureRepository, RingEcgRepository {
     override var wearableUserProfile: BaselineHealthProfile? = null
     override val connectionState: StateFlow<RingConnectionState> = gateway.connectionState
@@ -135,7 +136,9 @@ class HBandRingRepository internal constructor(
     private suspend fun persist(payload: HBandPayload): RingSyncResult {
         val deviceKey = connectedDevice.value?.address ?: activeBindingAddress()
         if (deviceKey.isNullOrBlank()) return emptyResult()
-        val batch = HBandDataMapper.toEntities(payload, deviceKey)
+        val ownerUserId = userIdProvider()?.takeIf(String::isNotBlank) ?: return emptyResult()
+        val batch = HBandDataMapper.toEntities(payload, "$ownerUserId|$deviceKey")
+            .ownedBy(ownerUserId, deviceKey)
         if (batch.size > 0) dao.insertBatch(batch)
         return result(batch)
     }
