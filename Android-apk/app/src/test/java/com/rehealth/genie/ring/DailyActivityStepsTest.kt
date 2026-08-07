@@ -8,7 +8,7 @@ import org.junit.Test
 
 class DailyActivityStepsTest {
     @Test
-    fun `aggregates only activities from the current local calendar day`() {
+    fun `uses highest cumulative watch total from current local calendar day`() {
         val localNoon = Calendar.getInstance().apply {
             set(2026, Calendar.JULY, 30, 12, 0, 0)
             set(Calendar.MILLISECOND, 0)
@@ -27,7 +27,17 @@ class DailyActivityStepsTest {
             now = localNoon,
         )
 
-        assertEquals(3_500L, total)
+        assertEquals(2_300L, total)
+        assertEquals(
+            listOf(2_300L, 9_999L),
+            dailyActivityStepTotals(
+                listOf(
+                    activity("morning", localNoon - 2 * 60 * 60 * 1_000L, 1_200),
+                    activity("afternoon", localNoon + 2 * 60 * 60 * 1_000L, 2_300),
+                    activity("yesterday", previousDay, 9_999),
+                ),
+            ).values.sorted(),
+        )
     }
 
     @Test

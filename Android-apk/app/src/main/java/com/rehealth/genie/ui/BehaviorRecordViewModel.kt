@@ -76,7 +76,16 @@ class BehaviorRecordViewModel(application: Application) : AndroidViewModel(appli
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             when (val result = repository.today()) {
-                is ApiResult.Success -> _state.value = _state.value.copy(records = result.data, isLoading = false)
+                is ApiResult.Success -> {
+                    val mealRestoreError = runCatching {
+                        dietRepository.restoreAnalyzedFoods(result.data)
+                    }.exceptionOrNull()
+                    _state.value = _state.value.copy(
+                        records = result.data,
+                        isLoading = false,
+                        error = mealRestoreError?.let { "今日行为已加载，但餐食记录恢复失败，请稍后重试" },
+                    )
+                }
                 else -> _state.value = _state.value.copy(
                     isLoading = false,
                     error = result.userMessage("今日行为记录加载失败"),

@@ -22,6 +22,7 @@ import com.rehealth.genie.ring.data.RingDataBatch
 import com.rehealth.genie.ring.data.RingDataDao
 import com.rehealth.genie.ring.data.RingMeasurementEntity
 import com.rehealth.genie.ring.data.RingSleepSessionEntity
+import com.rehealth.genie.ring.preferredSleepSession
 import com.rehealth.genie.ring.provider.ActiveWearableBinding
 import com.rehealth.genie.ring.provider.WearableVendor
 import com.rehealth.genie.ring.provider.WearableCloudIdentity
@@ -69,11 +70,18 @@ class RingCloudRepository(
             ?: error("Authenticated user identity is unavailable.")
         val vendor = wearableBindingProvider()?.vendor ?: WearableVendor.MRD
         val measurements = dao.observeLatestMeasurementsForOwner(ownerUserId).first()
-            .filter { entity -> entity.source.matchesVendor(vendor) }
-        val sleep = dao.observeLatestSleepSessionForOwner(ownerUserId).first()
-            ?.takeIf { entity -> entity.source.matchesVendor(vendor) }
-        val activity = dao.observeActivitiesForOwner(ownerUserId, limit = 1).first().firstOrNull()
-            ?.takeIf { entity -> entity.source.matchesVendor(vendor) }
+            .filter { entity -> entity.isLocallyCollectedFor(vendor) }
+        val sleep = preferredSleepSession(
+            dao.getSleepSessionsSinceForOwner(0L, ownerUserId)
+                .filter { entity -> entity.isLocallyCollectedFor(vendor) },
+        )
+        val activity = dao.observeActivitiesForOwner(ownerUserId).first()
+            .filter { entity -> entity.isLocallyCollectedFor(vendor) }
+            .maxWithOrNull(
+                compareBy<RingActivityEntity> { it.startedAt }
+                    .thenBy { it.steps }
+                    .thenBy { it.endedAt ?: it.startedAt },
+            )
         val request = telemetryBatchPayload(device, collectedAt, trigger, measurements, sleep, activity, vendor)
         val now = nowProvider()
         syncRepository.enqueue(
@@ -143,8 +151,8 @@ class RingCloudRepository(
         internal fun telemetryRestoreBatch(
             response: RecentTelemetryResponseDto,
             ownerUserId: String,
-        ): RingDataBatch = RingDataBatch(
-            measurements = response.measurements.mapNotNull { record ->
+        ): RingDataBatch {
+            val measurements = response.measurements.mapNotNull { record ->
                 val metricType = record.metricType?.trim()?.takeIf(String::isNotEmpty)
                     ?: return@mapNotNull null
                 val measuredAt = record.measuredAt?.takeIf { it > 0L } ?: return@mapNotNull null
@@ -168,8 +176,8 @@ class RingCloudRepository(
                     ownerUserId = ownerUserId,
                     deviceId = deviceId,
                 )
-            },
-            sleepSessions = response.sleepSessions.mapNotNull { record ->
+            }.distinctBy { it.id }
+            val sleepSessions = response.sleepSessions.mapNotNull { record ->
                 val startedAt = record.startedAt?.takeIf { it > 0L } ?: return@mapNotNull null
                 val endedAt = record.endedAt?.takeIf { it > startedAt } ?: return@mapNotNull null
                 val source = record.source.normalizedCloudSource()
@@ -190,8 +198,14 @@ class RingCloudRepository(
                     ownerUserId = ownerUserId,
                     deviceId = record.deviceId?.trim()?.takeIf(String::isNotEmpty),
                 )
-            },
-            activities = response.activities.mapNotNull { record ->
+            }.groupBy { it.id }.values.map { duplicateRecords ->
+                duplicateRecords.maxWith(
+                    compareBy<RingSleepSessionEntity> { it.endedAt }
+                        .thenBy { it.deepMinutes + it.lightMinutes + it.remMinutes }
+                        .thenBy { it.startedAt },
+                )
+            }
+            val activities = response.activities.mapNotNull { record ->
                 val startedAt = record.startedAt?.takeIf { it > 0L } ?: return@mapNotNull null
                 val endedAt = record.endedAt?.takeIf { it >= startedAt }
                 val activityType = record.activityType?.trim()?.takeIf(String::isNotEmpty)
@@ -215,8 +229,19 @@ class RingCloudRepository(
                     ownerUserId = ownerUserId,
                     deviceId = record.deviceId?.trim()?.takeIf(String::isNotEmpty),
                 )
-            },
-        )
+            }.groupBy { it.id }.values.map { duplicateRecords ->
+                duplicateRecords.maxWith(
+                    compareBy<RingActivityEntity> { it.steps }
+                        .thenBy { it.endedAt ?: it.startedAt }
+                        .thenBy { it.durationMinutes },
+                )
+            }
+            return RingDataBatch(
+                measurements = measurements,
+                sleepSessions = sleepSessions,
+                activities = activities,
+            )
+        }
 
         internal fun telemetryBatchPayload(
         device: RingDevice,
@@ -343,6 +368,17 @@ private fun String.matchesVendor(vendor: WearableVendor): Boolean = when (vendor
     WearableVendor.HBAND -> startsWith("hband", ignoreCase = true)
     WearableVendor.VIOMI_CLOUD -> startsWith("viomi_cloud", ignoreCase = true)
 }
+
+private fun RingMeasurementEntity.isLocallyCollectedFor(vendor: WearableVendor): Boolean =
+    !id.startsWith("cloud-") && source.matchesVendor(vendor)
+
+private fun RingSleepSessionEntity.isLocallyCollectedFor(
+    vendor: WearableVendor,
+): Boolean = !id.startsWith("cloud-") && source.matchesVendor(vendor)
+
+private fun RingActivityEntity.isLocallyCollectedFor(
+    vendor: WearableVendor,
+): Boolean = !id.startsWith("cloud-") && source.matchesVendor(vendor)
 
 private fun <T> ApiResult<T>.successOrThrow(fallback: String): T = when (this) {
     is ApiResult.Success -> data

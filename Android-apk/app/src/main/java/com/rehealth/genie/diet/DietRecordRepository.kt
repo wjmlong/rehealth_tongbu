@@ -71,7 +71,12 @@ class DietRecordRepository(
             ?: error("登录已失效，请重新登录后记录餐食。")
         val sourceId = record.id?.takeIf(String::isNotBlank)
             ?: record.requestId?.takeIf(String::isNotBlank)
-            ?: UUID.randomUUID().toString()
+            ?: listOf(
+                record.occurredAt,
+                record.title,
+                record.items.joinToString("|"),
+                record.caloriesKcal,
+            ).joinToString("|")
         val now = nowProvider()
         val entity = DietRecordEntity(
             id = UUID.nameUUIDFromBytes(
@@ -96,6 +101,18 @@ class DietRecordRepository(
         val queued = runCatching { queue(entity) }.getOrDefault(false)
         if (queued) triggerSync()
         return DietSaveResult(entity, queued, inserted = true)
+    }
+
+    /**
+     * Backfills nutrition-complete FOOD behavior records returned by the server into Room.
+     * This covers app restarts and sign-ins where the photo callback is no longer available.
+     */
+    suspend fun restoreAnalyzedFoods(records: List<BehaviorRecordDto>): Int {
+        var insertedCount = 0
+        records.filter { it.category.equals("FOOD", ignoreCase = true) }.forEach { record ->
+            if (saveAnalyzedFood(record)?.inserted == true) insertedCount += 1
+        }
+        return insertedCount
     }
 
     suspend fun preparePendingUploads(): Int {

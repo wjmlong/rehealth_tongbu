@@ -105,6 +105,26 @@ class DietRecordRepositoryTest {
     }
 
     @Test
+    fun restoredTodayFoodBehaviorsAreBackfilledIdempotently() = runTest {
+        val dietDao = FakeDietRecordDao()
+        val queueDao = FakeUploadQueueDao()
+        val repository = repository(dietDao, queueDao, binding = { binding() })
+        val food = BehaviorRecordDto(
+            id = "restored-food-1",
+            category = "FOOD",
+            items = listOf("米饭", "青菜"),
+            caloriesKcal = 420.0,
+            occurredAt = NOW,
+        )
+        val records = listOf(food, food, food.copy(id = "non-food", category = "EXERCISE"))
+
+        assertEquals(1, repository.restoreAnalyzedFoods(records))
+        assertEquals(0, repository.restoreAnalyzedFoods(records))
+        assertEquals(1, dietDao.records.size)
+        assertEquals(1, queueDao.rows.size)
+    }
+
+    @Test
     fun photoMappingUsesLocalMealTimeAndRejectsIncompleteOrNonFoodRecords() {
         val lunchAtUtc = LocalDateTime.of(2026, 8, 7, 12, 30).toInstant(ZoneOffset.UTC).toEpochMilli()
         val food = BehaviorRecordDto(

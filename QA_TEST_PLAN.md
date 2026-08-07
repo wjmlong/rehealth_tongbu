@@ -179,7 +179,8 @@ git diff --check
      one meal and one text document; confirm upload progress is visible and FOOD/OCR results appear
      in “今日行为记录” on both Home and Data with the correct local time. Confirm a FOOD result with
      valid estimated calories also appears exactly once in the current user's “今日餐食记录”, uses
-     the local-time meal slot, and enters the existing durable diet queue; OCR/OTHER must not.
+     the local-time meal slot, and enters the existing durable diet queue; OCR/OTHER must not. Restart
+     or sign out/in, refresh today's behavior records, and confirm the FOOD meal is restored exactly once.
    - On a MIUI device, capture immediately after the camera opens and confirm the app waits for the
      private file write to stabilize before decoding. Repeat after an Activity recreation; neither
      case may show “照片读取失败” for a valid non-empty JPEG. Confirm high-resolution input is sampled
@@ -232,9 +233,9 @@ git diff --check
    - In Debug, confirm switching products requires confirmation, pauses active
      collection, disconnects the old Provider, preserves Room history, and does
      not let the old Provider reconnect. Confirm the selector is absent in Release.
-   - Sync two valid activity rows for the current local calendar day and one for the previous
-     day. Confirm “我的 > 每日步数” sums only the current-day Room activity rows and does not
-     prefer a stale standalone `STEPS` measurement.
+   - Sync overlapping local and cloud activity snapshots for the current local calendar day and one
+     row for the previous day. Confirm “我的 > 每日步数” displays the current-day maximum cumulative
+     watch total (not the sum of duplicate rows) and does not prefer a stale standalone `STEPS` measurement.
    - For RWFit, build with
      `-Prehealth.debug.wearable.product.code=RH-RW-P01`, then record model,
      firmware and capability output per `Android-apk/docs/wearable/RWFIT_DEVICE_QA.md`.

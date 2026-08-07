@@ -90,6 +90,26 @@ class SleepAggregationTest {
         assertEquals(444.5, averageDailySleepMinutes(sessions))
     }
 
+    @Test
+    fun `vendor authoritative sleep wins duplicate cloud stages at same wake time`() {
+        val wakeAt = LocalDateTime.of(2026, 8, 7, 7, 30)
+            .atZone(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+        val vendor = sleepSnapshot("vendor", wakeAt, 410)
+        val cloud = vendor.copy(
+            id = "cloud",
+            source = "hband_cloud_restore",
+            totalSleepMinutes = null,
+            deepMinutes = 120,
+            lightMinutes = 250,
+            remMinutes = 80,
+        )
+
+        assertEquals("vendor", preferredSleepSession(listOf(cloud, vendor))?.id)
+        assertEquals(410.0, averageDailySleepMinutes(listOf(cloud, vendor)))
+    }
+
     private fun sleepSnapshot(id: String, endedAt: Long, totalMinutes: Int) =
         RingSleepSessionEntity(
             id = id,

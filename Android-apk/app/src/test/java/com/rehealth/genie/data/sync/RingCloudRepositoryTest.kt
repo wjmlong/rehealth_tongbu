@@ -108,6 +108,40 @@ class RingCloudRepositoryTest {
     }
 
     @Test
+    fun `cloud restore keeps newest cumulative values for duplicate client records`() {
+        val activity = RecentActivityDto(
+            id = "same-client-activity",
+            deviceId = "hband-1",
+            startedAt = 1_720_000_000_000L,
+            endedAt = 1_720_003_600_000L,
+            activityType = "DAILY",
+            steps = 8_500,
+            source = "hband_wearable",
+        )
+        val sleep = RecentSleepSessionDto(
+            id = "same-client-sleep",
+            deviceId = "hband-1",
+            startedAt = 1_719_970_000_000L,
+            endedAt = 1_720_000_000_000L,
+            deepMinutes = 80,
+            lightMinutes = 220,
+            remMinutes = 70,
+            source = "hband_wearable",
+        )
+        val response = RecentTelemetryResponseDto(
+            activities = listOf(activity, activity.copy(steps = 5_000)),
+            sleepSessions = listOf(sleep.copy(lightMinutes = 100), sleep),
+        )
+
+        val batch = RingCloudRepository.telemetryRestoreBatch(response, "admin-user")
+
+        assertEquals(1, batch.activities.size)
+        assertEquals(8_500, batch.activities.single().steps)
+        assertEquals(1, batch.sleepSessions.size)
+        assertEquals(370, batch.sleepSessions.single().deepMinutes + batch.sleepSessions.single().lightMinutes + batch.sleepSessions.single().remMinutes)
+    }
+
+    @Test
     fun `preserves hband advanced metric types in telemetry payload`() {
         val metricTypes = listOf("BLOOD_GLUCOSE", "TEMPERATURE", "STRESS", "MET")
         val measurements = metricTypes.mapIndexed { index, metricType ->

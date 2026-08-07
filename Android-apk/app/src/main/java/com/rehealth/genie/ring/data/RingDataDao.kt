@@ -110,7 +110,18 @@ interface RingDataDao {
     fun observeLatestSleepSession(): Flow<RingSleepSessionEntity?>
 
     @Query(
-        "SELECT * FROM ring_sleep_sessions WHERE owner_user_id = :ownerUserId ORDER BY started_at DESC LIMIT 1",
+        """
+        SELECT * FROM ring_sleep_sessions
+        WHERE owner_user_id = :ownerUserId
+        ORDER BY ended_at DESC,
+                 CASE WHEN total_sleep_minutes > 0 THEN 1 ELSE 0 END DESC,
+                 (CASE WHEN total_sleep_minutes > 0
+                       THEN total_sleep_minutes
+                       ELSE deep_minutes + light_minutes + rem_minutes END) DESC,
+                 started_at DESC,
+                 id DESC
+        LIMIT 1
+        """,
     )
     fun observeLatestSleepSessionForOwner(ownerUserId: String): Flow<RingSleepSessionEntity?>
 

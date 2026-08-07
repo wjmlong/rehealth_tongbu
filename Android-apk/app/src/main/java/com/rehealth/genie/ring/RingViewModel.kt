@@ -25,9 +25,10 @@ import com.rehealth.genie.ring.provider.ActiveWearableManager
 import com.rehealth.genie.ring.provider.HBAND_PRODUCT_CODE
 import com.rehealth.genie.ring.provider.WearableVendor
 import com.rehealth.genie.service.RingForegroundService
-import java.util.Calendar
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
+import java.util.Calendar
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -134,20 +135,23 @@ internal fun aggregateLocalDayActivitySteps(
     activities: List<RingActivityEntity>,
     now: Long = System.currentTimeMillis(),
 ): Long? {
-    val dayStart = Calendar.getInstance().apply {
-        timeInMillis = now
-        set(Calendar.HOUR_OF_DAY, 0)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-    }
-    val startMillis = dayStart.timeInMillis
-    dayStart.add(Calendar.DAY_OF_MONTH, 1)
-    val endMillis = dayStart.timeInMillis
-    val today = activities.filter { it.startedAt in startMillis until endMillis }
-    if (today.isEmpty()) return null
-    return today.sumOf { it.steps.coerceAtLeast(0).toLong() }
+    val today = localDateAt(now)
+    return dailyActivityStepTotals(activities)[today]
 }
+
+/**
+ * Daily sport records contain cumulative watch totals. Local device collection and cloud
+ * restore can legitimately represent the same day more than once, so summing rows inflates
+ * the watch value. Keep the highest cumulative total for each local calendar day.
+ */
+internal fun dailyActivityStepTotals(
+    activities: List<RingActivityEntity>,
+): Map<LocalDate, Long> = activities
+    .filter { it.startedAt > 0L }
+    .groupBy { localDateAt(it.startedAt) }
+    .mapValues { (_, dailyRecords) ->
+        dailyRecords.maxOf { it.steps.coerceAtLeast(0).toLong() }
+    }
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class RingViewModel(
@@ -699,8 +703,9 @@ class RingViewModel(
         val spo2Values = measurements
             .filter { it.metricType == RingMetricType.BLOOD_OXYGEN.name }
             .map { it.primaryValue }
-        val totalSteps = activities.sumOf { it.steps.toLong() }
-        val daysWithSteps = activities.map { localDateAt(it.startedAt) }.distinct().size
+        val dailySteps = dailyActivityStepTotals(activities)
+        val totalSteps = dailySteps.values.sum()
+        val daysWithSteps = dailySteps.size
         val avgSleep = averageDailySleepMinutes(sleep)
         val daysWithMeasurements = measurements.map { localDateAt(it.measuredAt) }.distinct().size
         val riskSummary = riskHistoryRepository?.periodSummary(windowDays)
@@ -909,9 +914,20 @@ internal fun canonicalSleepMinutes(session: RingSleepSessionEntity): Int? {
         .takeIf { it > 0 }
 }
 
+/** Selects the same final nightly record used by both the Data and Profile surfaces. */
+internal fun preferredSleepSession(
+    sessions: List<RingSleepSessionEntity>,
+): RingSleepSessionEntity? = sessions.maxWithOrNull(
+    compareBy<RingSleepSessionEntity> { it.endedAt }
+        .thenBy { if ((it.totalSleepMinutes ?: 0) > 0) 1 else 0 }
+        .thenBy { canonicalSleepMinutes(it) ?: 0 }
+        .thenBy { it.startedAt }
+        .thenBy { it.id },
+)
+
 /**
  * Vendor SDKs may emit several cumulative snapshots while assembling one night's sleep.
- * Select the final (largest) duration for each local wake-up day before averaging days,
+ * Select the same preferred final result for each local wake-up day before averaging days,
  * otherwise one night is incorrectly counted several times.
  */
 internal fun averageDailySleepMinutes(sessions: List<RingSleepSessionEntity>): Double? {
@@ -919,7 +935,7 @@ internal fun averageDailySleepMinutes(sessions: List<RingSleepSessionEntity>): D
         .groupBy { localDateAt(it.endedAt) }
         .values
         .mapNotNull { dailySessions ->
-            dailySessions.mapNotNull(::canonicalSleepMinutes).maxOrNull()
+            preferredSleepSession(dailySessions)?.let(::canonicalSleepMinutes)
         }
     return dailyMinutes.takeIf(List<Int>::isNotEmpty)?.average()
 }
