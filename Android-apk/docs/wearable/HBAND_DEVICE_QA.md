@@ -44,7 +44,9 @@ default; upgrading a build that stored MRD/RWFit must migrate to an unbound HBan
 
 ## Connection sequence
 
-1. Grant Bluetooth scan/connect and notification permissions.
+1. Grant Bluetooth scan/connect and notification permissions. Before Bluetooth
+   permission is granted, the HBand search button must remain disabled and the
+   vendor SDK must not receive a scan request.
 2. Open the personal-profile editor, select sex, and enter an age in `1..120`,
    height in `50..250 cm`, and weight in `10..300 kg`; save and refresh the profile.
 3. Scan and confirm only SDK-recognized VeePoo/HBand candidates are shown.
@@ -59,6 +61,10 @@ default; upgrading a build that stored MRD/RWFit must migrate to an unbound HBan
    `McuMgrBleTransport`, or Nordic scanner classes and no `UnsatisfiedLinkError`
    for `libnative-lib.so`, and that a full APK install,
    rather than Apply Changes, was used after SDK dependency changes.
+   For a minified Release build, also switch HBand -> Viomi -> HBand and scan
+   again. The app process must remain alive; Release mapping must keep
+   `com.veepoo`, `com.inuker.bluetooth.library`, `com.jieli`, and the ReHealth
+   HBand adapter classes from being renamed or removed.
 6. Test wrong password/confirmation timeout and verify the app reports an error,
    writes no telemetry, and can recover after disconnect/retry.
 7. Remove one required profile field (sex, age, height, or weight) and verify

@@ -38,6 +38,15 @@
 # MRD SDK uses runtime model lookup and BLE callbacks that are not visible to R8.
 -keep class com.manridy.** { *; }
 
+# The pinned HBand stack uses reflection, Binder callbacks, and JNI across the
+# VeePoo Bluetooth/protocol and JieLi companion AARs. Those AARs do not ship
+# complete consumer rules, so allowing R8 to rename or merge these classes can
+# crash Release-only provider switching and BLE scans.
+-keep class com.veepoo.** { *; }
+-keep class com.inuker.bluetooth.library.** { *; }
+-keep class com.jieli.** { *; }
+-keep class com.rehealth.genie.ring.hband.** { *; }
+
 # Release builds must not emit identifiers, raw BLE frames, or health values via logcat.
 -assumenosideeffects class android.util.Log {
     public static *** v(...);

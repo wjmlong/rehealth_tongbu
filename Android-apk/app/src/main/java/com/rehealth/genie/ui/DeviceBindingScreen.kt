@@ -224,7 +224,11 @@ internal fun DeviceBindingScreen(
                 ) {
                     if (state.acquisitionMode == RingAcquisitionMode.BLUETOOTH) Button(
                         onClick = onScan,
-                        enabled = !state.isScanning && !state.isSyncing,
+                        enabled = canStartBluetoothScan(
+                            permissionGranted = permissionGranted,
+                            isScanning = state.isScanning,
+                            isSyncing = state.isSyncing,
+                        ),
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MintSoft, contentColor = Mint),
@@ -379,6 +383,12 @@ private fun hasBluetoothPermission(context: Context): Boolean {
         ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
     }
 }
+
+internal fun canStartBluetoothScan(
+    permissionGranted: Boolean,
+    isScanning: Boolean,
+    isSyncing: Boolean,
+): Boolean = permissionGranted && !isScanning && !isSyncing
 
 private fun connectionLabel(state: RingConnectionState): String = when (state) {
     RingConnectionState.SCANNING -> "搜索中"

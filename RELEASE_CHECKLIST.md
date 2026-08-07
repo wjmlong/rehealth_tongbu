@@ -56,6 +56,7 @@
 - [ ] 云米通过 IMEI 验证绑定并完成首次/增量云端同步；云米模式不申请蓝牙权限。
 - [ ] 当前 `productCode` 只激活一个 Provider；Release 未包含 Mock。
 - [ ] Debug 与 Release 设备页只展示“HBand（MT116 蓝牙）”和“云米（IMEI 云端）”；切换按“暂停采集→断开旧 Provider→更新唯一绑定→恢复采集”执行。
+- [ ] Release 在未授予蓝牙权限时禁用 HBand 搜索；授权后完成 HBand→云米→HBand 切换与再次搜索，进程不退出，且 R8 未重命名或裁剪 VeePoo/Inuker/JieLi/HBand 运行时类。
 - [ ] Release 首次安装默认 HBand；覆盖安装的 MRD/RWFit 保存选择迁移到 HBand，已有云米绑定保持不变。
 - [ ] 首次绑定前后台采集不使用固定地址、不自动扫描，也不写入 0 或模拟指标。
 - [ ] 心率、血氧、HRV、血压、体温、血糖、压力、MET、血液/身体成分、睡眠和活动记录先写入 Room；设备设置不混入测量表。
