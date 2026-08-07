@@ -41,7 +41,7 @@ class RhiRepository(
         profile: PatientProfilePayload? = null,
         calculationSource: RhiCalculationSource = RhiCalculationSource.LOCAL,
     ): RhiPeriodSummary {
-        require(periodDays in setOf(7, 30, 90)) { "RHI period must be 7, 30, or 90 days" }
+        require(periodDays in setOf(1, 7, 30, 90)) { "RHI period must be 1, 7, 30, or 90 days" }
         val calculationDays = maxOf(periodDays, PERSONAL_BASELINE_DAYS)
         val historyWarmupDays = 42
         val since = scoredOn.minusDays((calculationDays + historyWarmupDays).toLong())

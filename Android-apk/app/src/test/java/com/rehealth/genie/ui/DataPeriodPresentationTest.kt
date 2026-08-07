@@ -10,5 +10,7 @@ class DataPeriodPresentationTest {
 
         assertEquals("今日", defaultPeriod.first)
         assertEquals(0, defaultPeriod.second)
+        assertEquals(1, dataRhiPeriodDays(defaultPeriod.second))
+        assertEquals(7, dataRhiPeriodDays(DATA_PERIOD_OPTIONS[1].second))
     }
 }

@@ -166,9 +166,10 @@ git diff --check
      for a reachable, finite, in-range `isMock=false` response from the existing 16-feature
      evaluation path. Mock, failed, invalid, or absent results must
      display `--`; no local fallback risk may be invented.
-   - Confirm the Data health-index ring is not a fixed value: Today/7 days display the
-     current RHI, 30/90 days display the valid-day median, the arc follows the score, and
-     insufficient data displays the RHI accumulating state.
+   - Confirm the Data health-index ring is not a fixed value: Today displays only the current
+     calendar day's valid RHI; 7/30/90 days display the valid-day median for that calendar
+     window with 3/7/14-day minimum coverage. Fewer than three valid days in the 7-day view
+     must show accumulation instead of copying Today; the arc must follow the selected score.
    - Open “我的” and confirm the avatar has no bottom-right camera badge. Tap the avatar and
      select an image through the Android system picker.
      Confirm the preview updates, survives app restart and same-user re-login, and is not visible

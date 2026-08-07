@@ -230,8 +230,10 @@ The Data UI follows the same separation. Its risk card is labeled RDI-16 and reu
 the existing CVD-16 feature-evaluation path with the clinical BP source gate above. It renders
 a score only when the response is reachable, finite, in `[0, 1]`, and explicitly
 `isMock=false`; mock or failed output remains unavailable. Its health-index ring renders Android RHI Lite:
-Today/7-day selections use the current seven-day RHI, while 30/90-day selections
-use the valid-day median and the same 7/14-day minimums.
+Today displays the current calendar day's valid RHI. The 7-day selection uses the
+median of valid daily RHI values from the latest seven calendar days and requires
+at least three valid days; 30/90-day selections use the same robust median with
+7/14-day minimums. A period with insufficient coverage remains in accumulation state.
 
 The full synthetic-chain entry remains the confirmation-gated Debug action under
 Profile -> Device binding. The Debug mock provider seeds 118 days (90 visible

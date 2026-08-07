@@ -9,16 +9,45 @@ class RhiPeriodAggregatorTest {
     private val today = LocalDate.of(2026, 7, 31)
 
     @Test
-    fun `seven day period uses the current RHI`() {
+    fun `today period uses only the current RHI`() {
         val current = RhiDailyScore(today, 72.46, 0.82)
         val result = RhiPeriodAggregator.summarize(
-            periodDays = 7,
+            periodDays = 1,
             current = current,
             dailyScores = scores(7) { 60.0 + it },
         )
 
         assertEquals(72.5, result.score)
-        assertEquals(RhiPeriodAggregation.CURRENT_7_DAY, result.aggregation)
+        assertEquals(RhiPeriodAggregation.CURRENT_DAY, result.aggregation)
+        assertEquals(1, result.validDays)
+    }
+
+    @Test
+    fun `seven day period uses a robust median distinct from today`() {
+        val history = listOf(61.0, 62.0, 64.0, 66.0, 68.0, 70.0, 92.0)
+            .mapIndexed { index, score -> RhiDailyScore(today.minusDays((6 - index).toLong()), score, 0.8) }
+        val result = RhiPeriodAggregator.summarize(
+            periodDays = 7,
+            current = RhiDailyScore(today, 92.0, 0.8),
+            dailyScores = history,
+        )
+
+        assertEquals(66.0, result.score)
+        assertEquals(RhiPeriodAggregation.ROBUST_MEDIAN, result.aggregation)
+        assertEquals(3, result.requiredValidDays)
+    }
+
+    @Test
+    fun `seven day period waits for three valid days`() {
+        val result = RhiPeriodAggregator.summarize(
+            periodDays = 7,
+            current = RhiDailyScore(today, 72.0, 0.8),
+            dailyScores = scores(2) { 70.0 + it },
+        )
+
+        assertNull(result.score)
+        assertEquals(2, result.validDays)
+        assertEquals(3, result.requiredValidDays)
     }
 
     @Test
@@ -55,7 +84,7 @@ class RhiPeriodAggregatorTest {
     }
 
     @Test
-    fun `summary exposes truthful period movement without changing the aggregate score`() {
+    fun `summary exposes truthful period movement alongside the aggregate score`() {
         val history = listOf(
             RhiDailyScore(today.minusDays(2), 64.2, 0.8),
             RhiDailyScore(today.minusDays(1), 65.7, 0.8),
@@ -68,7 +97,7 @@ class RhiPeriodAggregatorTest {
             dailyScores = history,
         )
 
-        assertEquals(68.9, result.score)
+        assertEquals(65.7, result.score)
         assertEquals(4.7, result.trendDelta)
     }
 

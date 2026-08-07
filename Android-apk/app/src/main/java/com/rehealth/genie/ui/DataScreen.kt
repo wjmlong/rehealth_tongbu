@@ -109,6 +109,9 @@ internal val DATA_PERIOD_OPTIONS = listOf(
     "90 天" to 90,
 )
 
+internal fun dataRhiPeriodDays(dataPeriodDays: Int): Int =
+    if (dataPeriodDays == 0) 1 else dataPeriodDays
+
 @Composable
 internal fun DataScreen(
     state: RingUiState,
@@ -144,11 +147,7 @@ internal fun DataScreen(
         val windowDays = DATA_PERIOD_OPTIONS[selectedPeriod].second
         aggregate = ringViewModel.loadPeriodAggregate(windowDays)
     }
-    val rhiPeriodDays = when (selectedPeriod) {
-        2 -> 30
-        3 -> 90
-        else -> 7
-    }
+    val rhiPeriodDays = dataRhiPeriodDays(DATA_PERIOD_OPTIONS[selectedPeriod].second)
     LaunchedEffect(
         rhiPeriodDays,
         state.lastSyncAt,
@@ -839,8 +838,8 @@ internal fun dataHealthIndexPresentation(
         score >= 50.0 -> "平稳"
         else -> "待改善"
     }
-    val periodText = if (summary.aggregation == RhiPeriodAggregation.CURRENT_7_DAY) {
-        "近7日有效数据"
+    val periodText = if (summary.aggregation == RhiPeriodAggregation.CURRENT_DAY) {
+        "今日有效数据"
     } else {
         "${summary.periodDays}日稳健中位数"
     }

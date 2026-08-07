@@ -67,7 +67,12 @@ class RhiSnapshotPersistenceTest {
         val dao = database.rhiSnapshotDao()
         val index = dao.getIndex(userId, today.toString())
         assertNotNull("index row must be persisted", index)
-        assertEquals(summary.score!!, index!!.displayScore, 0.001)
+        assertEquals(
+            "the persisted row is today's daily RHI, not the seven-day median",
+            summary.history.last { it.date == today }.score,
+            index!!.displayScore,
+            0.001,
+        )
         assertEquals(RHI_LITE_ALGORITHM_VERSION, index.algorithmVersion)
         assertEquals("local", index.calculationSource)
         assertEquals(RHI_DISPLAY_SMOOTHING_ALPHA, index.smoothingAlpha, 0.0001)
@@ -97,6 +102,19 @@ class RhiSnapshotPersistenceTest {
         assertNotNull("quality snapshot must be persisted", quality)
         assertEquals(index.dataConfidence, quality!!.confidenceScore, 0.001)
         assertEquals(rhiConfidenceGrade(index.dataConfidence), quality.confidenceGrade)
+    }
+
+    @Test
+    fun refreshPeriod_todayUsesTheCurrentPersistedDailyRhi() = runBlocking {
+        seedActivities(steps = 7_000)
+        val summary = repository().refreshPeriod(periodDays = 1, scoredOn = today)
+
+        val index = database.rhiSnapshotDao().getIndex(userId, today.toString())
+        assertNotNull("today's RHI row must be persisted", index)
+        assertEquals(1, summary.periodDays)
+        assertEquals(1, summary.history.size)
+        assertEquals(today, summary.history.single().date)
+        assertEquals(index!!.displayScore, summary.score!!, 0.001)
     }
 
     @Test
@@ -135,7 +153,7 @@ class RhiSnapshotPersistenceTest {
 
     @Test
     fun anonymousSessionScoresWithoutPersisting() = runBlocking {
-        seedActivities(steps = 7_000)
+        seedActivities(steps = 7_000, ownerUserId = LOCAL_DEVICE_USER)
         val repository = RhiRepository(
             ringDataDao = database.ringDataDao(),
             snapshotDao = database.rhiSnapshotDao(),
@@ -194,7 +212,7 @@ class RhiSnapshotPersistenceTest {
             com.rehealth.genie.network.ApiResult.NetworkError("stub")
     }
 
-    private suspend fun seedActivities(steps: Int) {
+    private suspend fun seedActivities(steps: Int, ownerUserId: String = userId) {
         val activities = (0L..34L).map { daysAgo ->
             val date = today.minusDays(daysAgo)
             RingActivityEntity(
@@ -208,9 +226,15 @@ class RhiSnapshotPersistenceTest {
                 durationMinutes = 0,
                 averageHeartRate = null,
                 source = "TEST_DEVICE",
+                ownerUserId = ownerUserId,
+                deviceId = "test-ring",
             )
         }
         database.ringDataDao().insertActivities(activities)
+    }
+
+    private companion object {
+        const val LOCAL_DEVICE_USER = "__local_device__"
     }
 }
 

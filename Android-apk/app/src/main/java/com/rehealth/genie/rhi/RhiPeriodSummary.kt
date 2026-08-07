@@ -36,7 +36,7 @@ enum class RhiCalculationSource {
 }
 
 enum class RhiPeriodAggregation {
-    CURRENT_7_DAY,
+    CURRENT_DAY,
     ROBUST_MEDIAN,
 }
 
@@ -51,19 +51,20 @@ object RhiPeriodAggregator {
         delta28d: Double? = null,
         baseline90d: RhiDailyScore? = null,
     ): RhiPeriodSummary {
-        require(periodDays in SUPPORTED_PERIODS) { "RHI period must be 7, 30, or 90 days" }
+        require(periodDays in SUPPORTED_PERIODS) { "RHI period must be 1, 7, 30, or 90 days" }
         val ordered = dailyScores.sortedBy { it.date }.takeLast(periodDays)
         val required = when (periodDays) {
-            7 -> 1
+            1 -> 1
+            7 -> 3
             30 -> 7
             else -> 14
         }
-        val score = if (periodDays == 7) {
+        val score = if (periodDays == 1) {
             current?.score
         } else {
             ordered.map { it.score }.takeIf { it.size >= required }?.median()
         }
-        val confidence = if (periodDays == 7) {
+        val confidence = if (periodDays == 1) {
             current?.confidence
         } else {
             ordered.map { it.confidence }.takeIf { it.size >= required }?.median()
@@ -74,8 +75,8 @@ object RhiPeriodAggregator {
             confidence = confidence?.round3(),
             validDays = ordered.size,
             requiredValidDays = required,
-            aggregation = if (periodDays == 7) {
-                RhiPeriodAggregation.CURRENT_7_DAY
+            aggregation = if (periodDays == 1) {
+                RhiPeriodAggregation.CURRENT_DAY
             } else {
                 RhiPeriodAggregation.ROBUST_MEDIAN
             },
@@ -104,7 +105,7 @@ object RhiPeriodAggregator {
     }
 
     const val MIN_VALID_CONFIDENCE = 0.10
-    private val SUPPORTED_PERIODS = setOf(7, 30, 90)
+    private val SUPPORTED_PERIODS = setOf(1, 7, 30, 90)
 }
 
 private fun List<Double>.median(): Double {

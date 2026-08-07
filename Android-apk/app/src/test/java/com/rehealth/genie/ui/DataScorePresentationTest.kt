@@ -61,19 +61,19 @@ class DataScorePresentationTest {
     }
 
     @Test
-    fun `health index displays current RHI with one decimal`() {
+    fun `health index displays today's RHI with one decimal`() {
         val presentation = dataHealthIndexPresentation(
             summary = summary(
-                periodDays = 7,
+                periodDays = 1,
                 score = 72.4,
-                aggregation = RhiPeriodAggregation.CURRENT_7_DAY,
+                aggregation = RhiPeriodAggregation.CURRENT_DAY,
             ),
             error = null,
         )
 
         assertEquals("72.4", presentation.scoreText)
         assertEquals("良好", presentation.statusText)
-        assertEquals("RHI-100 · 近7日有效数据", presentation.supportingText)
+        assertEquals("RHI-100 · 今日有效数据", presentation.supportingText)
         assertEquals(260.64f, presentation.sweepAngle, absoluteTolerance = 0.01f)
     }
 
