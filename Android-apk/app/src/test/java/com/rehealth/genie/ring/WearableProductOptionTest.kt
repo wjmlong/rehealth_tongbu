@@ -18,7 +18,7 @@ class WearableProductOptionTest {
 
         assertEquals(
             listOf(
-                WearableProductOption("RH-HB-E01", "HBand（MT116 蓝牙）"),
+                WearableProductOption("RH-HB-E01", "HBand"),
                 WearableProductOption("RH-VM-S8", "云米（IMEI 云端）"),
             ),
             visible,

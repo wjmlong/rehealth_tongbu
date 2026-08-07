@@ -1063,7 +1063,7 @@ data class WearableProductOption(val productCode: String, val displayName: Strin
 
 /**
  * The current pilot exposes only the two supported connection workflows:
- * HBand/MT116 over Bluetooth and Viomi watches through the cloud IMEI flow.
+ * HBand over Bluetooth and Viomi watches through the cloud IMEI flow.
  * Legacy MRD/RWFit providers remain available only for Debug engineering QA;
  * Release migrates those stored selections to HBand.
  */
@@ -1077,7 +1077,7 @@ internal fun userSelectableWearableProductOptions(
     activeProductCode = activeProductCode,
 ).map { option ->
     when {
-        option.productCode == HBAND_PRODUCT_CODE -> option.copy(displayName = "HBand（MT116 蓝牙）")
+        option.productCode == HBAND_PRODUCT_CODE -> option.copy(displayName = "HBand")
         option.productCode.startsWith(VIOMI_PRODUCT_CODE_PREFIX) -> option.copy(displayName = "云米（IMEI 云端）")
         else -> option
     }

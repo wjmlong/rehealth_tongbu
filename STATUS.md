@@ -1,6 +1,6 @@
 # ReHealth 当前状态
 
-> 最后核对：2026-08-06。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
+> 最后核对：2026-08-07。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
 > `docs/archive/acceptance/`，不得作为当前实现或发布状态的依据。
 
 当前待发布 Android 版本为 `1.0.0 (versionCode 1)`；该版本包含 HBand/云米连接方式选择，
@@ -13,8 +13,8 @@ Release Lint 保留全部既有门禁，但临时禁用会因 AGP 8.10.1/Compose
 - 后端已增加 `/rehealth/mobile/viomi/bind` 与 `/viomi/sync`，支持 S8、S9、GS20、GS17、A67、K9L 共用的 IMEI 验证和历史拉取流程。
 - 心率、血压、血氧先经硬件入库端口持久化，再返回 Android 写入 Room；云端来源不会被 App 重复上传。
 - App 已增加 `VIOMI_CLOUD` provider、产品目录与 IMEI 绑定 UI；生产包允许选择真实设备产品。
-- Debug 与 Release 的正式连接选择统一收敛为“HBand（MT116 蓝牙）”和“云米（IMEI 云端）”；
-  Release 默认 HBand，旧 MRD/RWFit 保存选择升级后迁移到 HBand，已有云米绑定保持不变。
+- Debug 与 Release 的正式连接选择统一收敛为“HBand”和“云米（IMEI 云端）”；
+  两种构建默认 HBand，旧 MRD/RWFit 保存选择升级后迁移到 HBand，已有云米绑定保持不变。
 - 绑定成功自动执行首次 31 天回填，后续按设备最新记录以 2 天重叠窗口增量同步；数据页仅展示已支持的心率、血氧、血压。
 - Room v15 为测量增加用户与设备作用域；云米数据查询按用户、设备、`viomi_cloud` 来源隔离，14→15 迁移保留旧记录。
 - 真实联调仍需注入 `REHEALTH_VIOMI_APP_ID`、`REHEALTH_VIOMI_APP_KEY` 和 `REHEALTH_VIOMI_USER_ID`。
@@ -106,7 +106,7 @@ HBand 的 HRV、压力、MET 页面策略已经按 MT116 实测收紧：HRV/压�
 - Android 重新登录和进入个人页会刷新当前用户的类型化个人资料与最近健康问答，且不再受风险/干预接口失败影响；每个新登录令牌（以及有效会话的进程重启）会先通过认证 `GET /measurements/recent?limit=200` 幂等恢复当前用户的测量、睡眠和活动到 Room 并触发本地 RHI 重算，失败不阻塞登录或 BLE；健康初识完成前先持久化 Room 队列，麦克风入口具备用途说明、运行时授权和拒绝后的设置引导。
 - Android 归因页只读取今日已持久化干预，空计划由用户按钮显式生成并展示加载和失败状态；已有计划默认按 01–05 编号行动清单展开，显示 16 项健康输入说明、展开状态和整宽收起/展开按钮，不重复显示重新生成按钮。客户端兼容 snake_case/camelCase 计划响应。类型化档案字段保存后同步覆盖贡献因素展示并触发新一轮特征评估，经确认血压/血检保存同样触发重算。退出登录或未授权暂停会话由根导航直接返回登录页。
 - 健康问答 Java 纵向链路已实现：可在 `model-service` 与 `langchain4j` 间配置切换，每轮装配类型化画像/访谈/风险/干预，问答中明确自述的五项基本资料先合并入库再装配同轮画像，MySQL 会话与消息按用户+租户隔离，Android Room v7 本地先写并管理会话；后端仍只有最新会话恢复，没有列表/删除契约，生产数据库迁移、真实 Provider 和跨设备手工 QA 仍待执行。
-- 拍照行为记录已完成系统相机、私有临时 URI、方向校正/缩放重编码、认证上传、Java LangChain4j 视觉分析、用户/租户隔离幂等落库及首页/数据页今日展示；本地 MySQL 迁移、Provider 模型目录、后端测试和 Debug APK 构建已验证，真实手机拍摄的食物/OCR 准确性与失败恢复仍待手工 QA。
+- 拍照行为记录已完成系统相机、私有临时 URI、方向校正/缩放重编码、认证上传、Java LangChain4j 视觉分析、用户/租户隔离幂等落库及首页/数据页今日展示；服务端按设备本地日查询，Android 再按本地自然日边界过滤；本地 MySQL 迁移、Provider 模型目录、后端测试和 Debug APK 构建已验证，真实手机拍摄的食物/OCR 准确性与失败恢复仍待手工 QA。
 - MIUI 相机返回早于私有文件完全写稳时，拍照读取现会等待文件大小稳定并直接从受控缓存路径解码；Android 14 真机仪器测试已覆盖延迟写入和 2400×1800 JPEG 的 1600 边界压缩，真实食物拍摄仍需用户手工确认。
 - 拍照识别现使用独立于普通 API 的长超时：Android 最多等待 110 秒，JeecgBoot 单次视觉调用默认 75 秒且不自动重试；Provider 超时会显示“图片识别超时”而非误报网络断开。真实食物图片在修复后的端到端结果仍需真机复测。
 - RHI v2 已完成研究规划、32 维 typed schema、确定性预览引擎、验证工具和 Android DTO/迁移映射；Android 本地 `rhi-deterministic-preview-2.2.0-android-lite` 已接入 Room 可穿戴数据、可信个人资料及“我的 > 健康档案”手填指标。Room v9/v10 以显式 8→9→10 迁移保存久坐、腰围、正式 VO₂max、HbA1c、eGFR、确认袖带血压和带日期医院血检；空白值不补正常值，无袖带戒指血压不进入 RHI。手填健康档案现为 Room-first，并通过稳定队列同步到 MySQL `rehealth_rhi_manual_health_input`，GET/PUT 按认证用户和 `updatedAt` 合并；这不改变 RHI 的研究预览属性，生产风险仍走 CVD-16。

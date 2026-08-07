@@ -45,7 +45,7 @@ fun debugWearableProductCode(): String {
         providers.gradleProperty("rehealth.debug.wearable.product.code")
             .orNull
             ?: localProps.getProperty("rehealth.debug.wearable.product.code")
-            ?: "RH-MRD-S01"
+            ?: "RH-HB-E01"
         ).trim()
     require(normalizedProductCode in setOf("RH-MRD-S01", "RH-RW-P01", "RH-HB-E01")) {
         "rehealth.debug.wearable.product.code must be RH-MRD-S01, RH-RW-P01, or RH-HB-E01"
