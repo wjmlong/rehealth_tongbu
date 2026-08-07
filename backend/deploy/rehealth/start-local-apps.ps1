@@ -47,6 +47,20 @@ function Read-LocalSetting {
     return $entry.Substring($entry.IndexOf('=') + 1).Trim()
 }
 
+function Read-LocalSettingOrEnvironment {
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][AllowEmptyString()][string]$DefaultValue
+    )
+    $processValue = [Environment]::GetEnvironmentVariable($Name, 'Process')
+    $fallback = if ([string]::IsNullOrWhiteSpace($processValue)) {
+        $DefaultValue
+    } else {
+        $processValue
+    }
+    return Read-LocalSetting $Name $fallback
+}
+
 function Test-ManagedProcess {
     param([Parameter(Mandatory)][string]$Name)
     $pidFile = Join-Path $runtimeDir "$Name.pid"
@@ -202,6 +216,21 @@ $env:REHEALTH_ATTRIBUTION_PROVENANCE = 'pias'
 $env:REHEALTH_KAFKA_CONSUMER_ENABLED = 'true'
 $env:SPRING_KAFKA_BOOTSTRAP_SERVERS = '127.0.0.1:29092'
 $env:JEECG_SMS_DEV_MODE = 'true'
+$env:REHEALTH_VIOMI_ENABLED = Read-LocalSettingOrEnvironment 'REHEALTH_VIOMI_ENABLED' 'true'
+$env:REHEALTH_VIOMI_APP_ID = Read-LocalSettingOrEnvironment 'REHEALTH_VIOMI_APP_ID' ''
+$env:REHEALTH_VIOMI_APP_KEY = Read-LocalSettingOrEnvironment 'REHEALTH_VIOMI_APP_KEY' ''
+$env:REHEALTH_VIOMI_REQUIRE_AUTH = Read-LocalSettingOrEnvironment 'REHEALTH_VIOMI_REQUIRE_AUTH' 'true'
+$env:REHEALTH_VIOMI_USER_ID = Read-LocalSettingOrEnvironment 'REHEALTH_VIOMI_USER_ID' 'viomi-gateway'
+$env:REHEALTH_VIOMI_SOURCE = Read-LocalSettingOrEnvironment 'REHEALTH_VIOMI_SOURCE' 'viomi'
+$env:REHEALTH_VIOMI_BASE_URL = Read-LocalSettingOrEnvironment `
+    'REHEALTH_VIOMI_BASE_URL' `
+    'https://openapi.miwitracker.com'
+$env:REHEALTH_VIOMI_CONNECT_TIMEOUT_SECONDS = Read-LocalSettingOrEnvironment `
+    'REHEALTH_VIOMI_CONNECT_TIMEOUT_SECONDS' `
+    '10'
+$env:REHEALTH_VIOMI_REQUEST_TIMEOUT_SECONDS = Read-LocalSettingOrEnvironment `
+    'REHEALTH_VIOMI_REQUEST_TIMEOUT_SECONDS' `
+    '30'
 
 $jeecgJar = Join-Path $repoRoot 'backend\jeecg-boot\jeecg-server-cloud\jeecg-system-cloud-start\target\jeecg-system-cloud-start-3.9.2.jar'
 $jeecgConfig = (Join-Path $repoRoot 'backend\jeecg-boot\jeecg-module-system\jeecg-system-start\src\main\resources\application-dev.yml').Replace('\', '/')

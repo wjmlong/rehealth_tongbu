@@ -234,6 +234,14 @@ powershell -ExecutionPolicy Bypass -File backend/deploy/rehealth/start-local-app
 powershell -ExecutionPolicy Bypass -File backend/deploy/rehealth/stop-local-apps.ps1
 ```
 
+The local launcher runs JeecgBoot with the `development` profile, so it does not
+load Viomi defaults from `application-prod.yml`. For local Viomi binding, place
+`REHEALTH_VIOMI_APP_ID`, `REHEALTH_VIOMI_APP_KEY`, and optionally
+`REHEALTH_VIOMI_USER_ID` in the ignored `backend/deploy/rehealth/.env` file.
+`start-local-apps.ps1` loads those values into the JeecgBoot process while
+preserving already supplied process environment variables as fallbacks. Never
+commit the local `.env` file or print the AppKey in logs.
+
 Before the first local Jeecg run against a new `software-db` volume, import the
 base Jeecg schema and apply the add-only ReHealth migrations. The local Debug
 launcher maps its legacy-compatible `hardware` datasource to
