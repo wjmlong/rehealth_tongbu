@@ -503,7 +503,9 @@ INSERT INTO `flyway_schema_history` VALUES (13, '3.9.0.4', 'add onlineuser perms
 INSERT INTO `flyway_schema_history` VALUES (14, '3.9.1.0', 'all upgrade', 'SQL', 'V3.9.1_0__all_upgrade.sql', -498300865, 'root', '2026-01-28 15:19:13', 65, 1);
 INSERT INTO `flyway_schema_history` VALUES (15, '3.9.1.1', 'add aiapp img gen', 'SQL', 'V3.9.1_1__add_aiapp_img_gen.sql', 1451785654, 'root', '2026-01-28 15:19:42', 21, 1);
 INSERT INTO `flyway_schema_history` VALUES (16, '3.9.1.2', 'add aiwriteblog', 'SQL', 'V3.9.1_2__add_aiwriteblog.sql', -331573873, 'root', '2026-04-10 20:47:55', 20, 1);
-INSERT INTO `flyway_schema_history` VALUES (17, '3.9.2.0', 'all upgrade', 'SQL', 'V3.9.2_0__all_upgrade.sql', -1769021348, 'root', '2026-05-11 16:21:41', 48, 0);
+-- The vendor export's failed 3.9.2.0 row is intentionally omitted. A failed
+-- history record makes fail-closed Cloud startup reject an otherwise usable
+-- seed before ReHealth-owned migrations can run.
 
 -- ----------------------------
 -- Table structure for jeecg_order_customer

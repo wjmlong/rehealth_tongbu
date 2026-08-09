@@ -157,8 +157,23 @@ attach it to a broad default or anonymous role.
 Compose packages the migration from
 `jeecg-server-cloud/jeecg-system-cloud-start/src/main/resources/flyway/sql/mysql`
 into the deployed Cloud JAR and forces `SPRING_FLYWAY_ENABLED=true` with that
-classpath location. The copy under the monolithic start module is retained for
+classpath location. Cloud startup uses a dedicated fail-closed configuration to
+select only the dynamic `master` MySQL datasource, baseline an existing untracked
+3.9.2 schema at `3.9.2.0`, tolerate older history entries absent from the Cloud
+artifact, validate the current checksum, and execute `3.9.2.1`. Any selection,
+validation, or migration failure aborts startup. The copy under the monolithic start module is retained for
 non-Cloud deployments.
+
+The current database seed omits the vendor dump's known failed
+`3.9.2.0 / V3.9.2_0__all_upgrade.sql / -1769021348` history row. An
+existing volume created from the older dump must be backed up before startup
+and repaired once with an exact, row-count-checked delete of only that failed
+row. Refuse the repair when any other failed migration exists; do not run an
+unscoped automatic `repair`. Flyway 7 also probes
+`performance_schema.user_variables_by_thread` on MySQL. Give the migration
+principal `SELECT` on that table only (plus its required target-schema DDL), or
+use a dedicated migration principal; do not grant global `PROCESS`, global
+`SELECT`, or administrative privileges.
 
 Health chat now supports two server-side engines behind the unchanged mobile API:
 
@@ -295,11 +310,9 @@ Get-Content -Raw $migration | docker exec -i rehealth-software-db-1 `
 
 This migration is intentionally explicit because JeecgBoot disables Flyway
 auto-configuration. Apply it once to a fresh volume; do not replay it after the
-tables exist. Quartz uses the official uppercase `QRTZ_*` table names. If an
-older Jeecg base dump created lowercase `qrtz_*` names, normalize those names
-before startup when Docker MySQL runs with case-sensitive table names; changing
-only `tablePrefix` is insufficient because Quartz appends uppercase table-name
-suffixes internally.
+tables exist. The ReHealth launcher and Compose deployment set Quartz's
+`tablePrefix` to lowercase `qrtz_`, matching the lowercase `qrtz_*` tables in
+the MySQL schema when `lower_case_table_names=0`.
 
 `start-local-apps.ps1` 为本地 JeecgBoot 设置 `JEECG_SMS_DEV_MODE=true`。此模式下
 `POST /jeecg-boot/sys/sms` 仍要求正常请求签名，但不会调用短信网关，而是在 Redis 中

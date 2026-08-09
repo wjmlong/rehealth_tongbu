@@ -8,6 +8,7 @@ spring:
     enabled: ${SPRING_FLYWAY_ENABLED:true}
     locations: ${SPRING_FLYWAY_LOCATIONS:classpath:flyway/sql/mysql}
     baseline-on-migrate: ${SPRING_FLYWAY_BASELINE_ON_MIGRATE:true}
+    baseline-version: ${SPRING_FLYWAY_BASELINE_VERSION:3.9.2.0}
     validate-on-migrate: true
     clean-disabled: true
   cloud:

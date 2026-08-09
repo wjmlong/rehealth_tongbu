@@ -185,6 +185,7 @@ Start-ManagedProcess `
 $softwarePassword = Read-Secret 'software_db_password'
 $redisPassword = Read-Secret 'redis_password'
 $env:SPRING_PROFILES_ACTIVE = 'development'
+$env:SPRING_QUARTZ_PROPERTIES_ORG_QUARTZ_JOBSTORE_TABLEPREFIX = 'qrtz_'
 $env:SPRING_CLOUD_NACOS_CONFIG_ENABLED = 'false'
 $env:SPRING_CLOUD_NACOS_DISCOVERY_ENABLED = 'false'
 $env:SPRING_CLOUD_NACOS_CONFIG_IMPORT_CHECK_ENABLED = 'false'

@@ -95,6 +95,7 @@ services:
         JAR_FILE: jeecg-boot/jeecg-server-cloud/jeecg-system-cloud-start/target/jeecg-system-cloud-start-3.9.2.jar
     environment:
       SPRING_PROFILES_ACTIVE: ${REHEALTH_RUNTIME_MODE:-development}
+      SPRING_QUARTZ_PROPERTIES_ORG_QUARTZ_JOBSTORE_TABLEPREFIX: qrtz_
       SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
       SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
       REHEALTH_SOFTWARE_DB_URL: jdbc:mysql://software-db:3306/rehealth_software?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC
@@ -116,6 +117,7 @@ services:
       SPRING_FLYWAY_ENABLED: "true"
       SPRING_FLYWAY_LOCATIONS: classpath:flyway/sql/mysql
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
+      SPRING_FLYWAY_BASELINE_VERSION: "3.9.2.0"
       REHEALTH_AGENT_INTERNAL_TOKEN_FILE: /run/secrets/internal_service_credential
       REHEALTH_HEALTH_AGENT_ENGINE: ${REHEALTH_HEALTH_AGENT_ENGINE:-langchain4j}
       REHEALTH_LLM_BASE_URL: ${REHEALTH_LLM_BASE_URL:-https://api.deepseek.com}

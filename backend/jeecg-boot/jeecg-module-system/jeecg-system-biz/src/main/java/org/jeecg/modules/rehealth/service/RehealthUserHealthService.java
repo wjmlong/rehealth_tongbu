@@ -50,11 +50,11 @@ public class RehealthUserHealthService {
                     SELECT user_id, risk_score, risk_level, model_version, evaluated_at,
                            ROW_NUMBER() OVER (
                                PARTITION BY user_id ORDER BY evaluated_at DESC, id DESC
-                           ) AS row_number
+                           ) AS risk_row_num
                     FROM rehealth_cvd_risk_result
                     WHERE COALESCE(is_mock, 0) = 0
                 ) ranked_risk
-                WHERE row_number = 1
+                WHERE risk_row_num = 1
             ) risk ON risk.user_id = u.id
             WHERE sut.tenant_id = ? AND sut.status = '1'
               AND NOT EXISTS (

@@ -12,6 +12,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -26,6 +27,13 @@ class RehealthUserHealthServiceTest {
         assertEquals(20, RehealthUserHealthService.boundPageSize(null));
         assertEquals(1, RehealthUserHealthService.boundPageSize(0));
         assertEquals(100, RehealthUserHealthService.boundPageSize(101));
+    }
+
+    @Test
+    void latestRiskWindowUsesMySqlSafeAlias() {
+        assertTrue(RehealthUserHealthService.BASE_SELECT.contains(") AS risk_row_num"));
+        assertTrue(RehealthUserHealthService.BASE_SELECT.contains("WHERE risk_row_num = 1"));
+        assertFalse(RehealthUserHealthService.BASE_SELECT.contains(") AS row_number"));
     }
 
     @Test
