@@ -3,6 +3,7 @@ package org.jeecg.modules.rehealth.service;
 import com.alibaba.fastjson.JSONObject;
 import org.jeecg.modules.system.entity.SysUserTenant;
 import org.jeecg.modules.system.service.ISysUserTenantService;
+import org.jeecg.modules.rehealth.vo.RehealthUserHealthVO;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -13,6 +14,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -50,6 +52,20 @@ class RehealthUserHealthServiceTest {
         telemetry.put("isSynthetic", true);
 
         assertTrue(RehealthUserHealthService.isSyntheticTelemetry(telemetry));
+
+        RehealthUserHealthVO patient = new RehealthUserHealthVO();
+        assertEquals("unknown", patient.getProvenanceStatus());
+        patient.setLatestRisk(new RehealthUserHealthVO.RiskSummary());
+        RehealthUserHealthService.attachTelemetry(patient, telemetry);
+        assertNull(patient.getLatestRisk());
+        assertEquals("synthetic", patient.getProvenanceStatus());
+
+        JSONObject realTelemetry = new JSONObject();
+        realTelemetry.put("provenance", List.of("hband"));
+        realTelemetry.put("isSynthetic", false);
+        RehealthUserHealthVO realPatient = new RehealthUserHealthVO();
+        RehealthUserHealthService.attachTelemetry(realPatient, realTelemetry);
+        assertEquals("verified_real", realPatient.getProvenanceStatus());
     }
 
     @Test
@@ -85,6 +101,9 @@ class RehealthUserHealthServiceTest {
 
         assertEquals(404, failure.getStatusCode().value());
         assertTrue(jdbc.sql.contains("sut.tenant_id = ?"));
+        assertTrue(jdbc.sql.contains("NOT EXISTS"));
+        assertTrue(jdbc.sql.contains("other_membership.status = '1'"));
+        assertTrue(jdbc.sql.contains("other_membership.tenant_id <> sut.tenant_id"));
         verify(deviceClient, never()).fetch("1000", "outside-user");
     }
 

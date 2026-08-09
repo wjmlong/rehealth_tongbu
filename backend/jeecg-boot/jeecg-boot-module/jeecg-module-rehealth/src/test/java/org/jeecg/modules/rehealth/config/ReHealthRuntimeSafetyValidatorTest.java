@@ -73,6 +73,14 @@ class ReHealthRuntimeSafetyValidatorTest {
     }
 
     @Test
+    void rejectsMissingMountedDeviceCredentialInProduction() {
+        Map<String, Object> properties = safeConfiguration("production");
+        properties.remove("rehealth.device-service.internal-token-file");
+
+        assertRejected(properties, "DEVICE_INTERNAL_TOKEN_REQUIRED");
+    }
+
+    @Test
     void acceptsProtectedLangChain4jWithHttpsAndSecretFile() {
         Map<String, Object> properties = safeConfiguration("production");
         properties.put("rehealth.health-agent.engine", "langchain4j");
@@ -118,6 +126,7 @@ class ReHealthRuntimeSafetyValidatorTest {
         properties.put("rehealth.model-service.require-real-model", "true");
         properties.put("rehealth.model-service.base-url", "https://model.internal.example");
         properties.put("rehealth.device-service.base-url", "https://device.internal.example");
+        properties.put("rehealth.device-service.internal-token-file", "/run/secrets/device-internal");
         properties.put("rehealth.attribution-service.base-url", "https://pias.internal.example");
         properties.put("rehealth.attribution-service.internal-token", "synthetic-test-token");
         properties.put("rehealth.health-agent.internal-token-file", "/run/secrets/agent-internal");

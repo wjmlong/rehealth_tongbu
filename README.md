@@ -302,10 +302,15 @@ Release 对应工厂固定不可用。演练数据统一标记 `synthetic_qa`，
 官网管理后台通过 JeecgBoot 只读聚合 API 接入现有 App 数据，不新增上传或存储链路：
 `GET /rehealth/admin/v1/patients` 提供最大 100 条的租户成员分页、关键词与
 `high|medium|low` 风险筛选；`GET /rehealth/admin/v1/patients/{patientId}` 在再次确认
-目标用户属于同一活动租户后，最多调用一次 Device Service 获取遥测摘要。两个端点均要求
+目标用户属于同一活动租户后，最多调用一次 Device Service 获取遥测摘要。由于档案和风险表
+尚无租户列，具有其他活动租户成员关系的用户会被 fail-closed 排除。两个端点均要求
 标准 `X-Access-Token`、`X-Tenant-Id` 和 `rehealth:admin:patient:view` 权限，不返回手机号、
 邮箱或账号名。遥测详情携带服务端生成的 `provenance` / `isSynthetic`；合成数据不会在详情中
-同时显示为临床风险。旧 `/rehealth/admin/v1/users` 已禁用并返回 410 业务码。
+同时显示为临床风险。生产/预发布需挂载 `REHEALTH_DEVICE_SERVICE_INTERNAL_TOKEN_FILE`，缺失
+凭据或 Device Service 不可用时详情返回 503；权限由 Flyway 初始化但不授予任何默认角色。
+列表为避免逐用户调用 Device Service，逐条返回 `provenanceStatus=unknown`；官网统计不得将
+unknown 记录计入临床风险。
+旧 `/rehealth/admin/v1/users` 已禁用并返回 410 业务码。
 
 | 数据 | 权威存储 | 说明 |
 | --- | --- | --- |

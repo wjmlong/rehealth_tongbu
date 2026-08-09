@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "ReHealth tenant administration API",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Read-only tenant-scoped patient aggregation for the website administration console."
   },
   "servers": [{"url": "/jeecg-boot"}],
@@ -10,7 +10,7 @@
   "paths": {
     "/rehealth/admin/v1/patients": {
       "get": {
-        "description": "Requires rehealth:admin:patient:view. Returns only active members of the authenticated operator's validated tenant. The list never calls Device Service.",
+        "description": "Requires rehealth:admin:patient:view. Returns only active members of the authenticated operator's validated tenant. Because profile and risk tables have no tenant column, users with another active tenant membership are excluded fail-closed. The list never calls Device Service, so every row has provenanceStatus=unknown; consumers MUST NOT include unknown rows in clinical risk statistics.",
         "parameters": [
           {"name": "pageNo", "in": "query", "schema": {"type": "integer", "minimum": 1, "default": 1}},
           {"name": "pageSize", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 20}},
@@ -19,19 +19,21 @@
         ],
         "responses": {
           "200": {"description": "RehealthPatientPageVO in the standard Jeecg Result envelope"},
-          "403": {"description": "Permission or tenant membership denied"}
+          "403": {"description": "Permission or tenant membership denied"},
+          "503": {"description": "Software database unavailable"}
         }
       }
     },
     "/rehealth/admin/v1/patients/{patientId}": {
       "get": {
-        "description": "Requires rehealth:admin:patient:view. Verifies target membership before one tenant-scoped Device Service read. A synthetic telemetry summary sets isSynthetic=true and suppresses latestRisk in this response.",
+        "description": "Requires rehealth:admin:patient:view. Verifies exclusive active target membership before one tenant-scoped Device Service read. Synthetic, mock, demo, sample, LOCAL_TEST_SEED, or ring_sim provenance sets isSynthetic=true and suppresses latestRisk in this response.",
         "parameters": [
           {"name": "patientId", "in": "path", "required": true, "schema": {"type": "string"}}
         ],
         "responses": {
           "200": {"description": "RehealthUserHealthVO in the standard Jeecg Result envelope"},
-          "404": {"description": "Patient is not an active member of the selected tenant"}
+          "404": {"description": "Patient is not an exclusive active member of the selected tenant"},
+          "503": {"description": "Software database, Device Service, or mounted internal credential unavailable"}
         }
       }
     },
@@ -60,6 +62,11 @@
           "createTime": {"type": ["string", "null"], "format": "date-time"},
           "profile": {"type": ["object", "null"]},
           "latestRisk": {"type": ["object", "null"]},
+          "provenanceStatus": {
+            "type": "string",
+            "enum": ["unknown", "verified_real", "synthetic"],
+            "description": "List rows are unknown and must not be counted as clinical risk. Detail rows are authoritative from Device Service."
+          },
           "telemetry": {
             "type": ["object", "null"],
             "properties": {

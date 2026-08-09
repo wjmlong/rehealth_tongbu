@@ -4,6 +4,8 @@ import com.alibaba.fastjson.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.net.URI;
@@ -50,7 +52,7 @@ public class RehealthDeviceHealthClient {
 
     public JSONObject fetch(String tenantId, String userId) {
         if (baseUrl.isBlank() || credential.isBlank()) {
-            return null;
+            throw unavailable("DEVICE_SERVICE_NOT_CONFIGURED", null);
         }
         URI uri = URI.create(baseUrl
                 + "/rehealth/internal/v1/operations/users/" + encode(userId)
@@ -65,18 +67,30 @@ public class RehealthDeviceHealthClient {
             HttpResponse<String> response = httpClient.send(
                     request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                return null;
+                throw unavailable("DEVICE_SERVICE_UNAVAILABLE", null);
             }
             JSONObject envelope = JSONObject.parseObject(response.body());
-            return envelope != null && envelope.getBooleanValue("success")
-                    ? envelope.getJSONObject("result")
-                    : null;
+            if (envelope == null || !envelope.getBooleanValue("success")
+                    || envelope.getJSONObject("result") == null) {
+                throw unavailable("DEVICE_SERVICE_INVALID_RESPONSE", null);
+            }
+            return envelope.getJSONObject("result");
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
-            return null;
-        } catch (IOException | RuntimeException unavailable) {
-            return null;
+            throw unavailable("DEVICE_SERVICE_UNAVAILABLE", interrupted);
+        } catch (IOException unavailable) {
+            throw unavailable("DEVICE_SERVICE_UNAVAILABLE", unavailable);
+        } catch (ResponseStatusException controlled) {
+            throw controlled;
+        } catch (RuntimeException invalidResponse) {
+            throw unavailable("DEVICE_SERVICE_INVALID_RESPONSE", invalidResponse);
         }
+    }
+
+    private static ResponseStatusException unavailable(String reason, Throwable cause) {
+        return cause == null
+                ? new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, reason)
+                : new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, reason, cause);
     }
 
     private static String readCredentialFile(String credentialFile) {

@@ -259,7 +259,10 @@ public class TimescaleTelemetryReader implements TelemetryReadPort {
                 .map(source -> source.toLowerCase(java.util.Locale.ROOT))
                 .anyMatch(source -> source.contains("synthetic")
                         || source.contains("mock")
-                        || source.contains("test_seed"));
+                        || source.contains("test_seed")
+                        || source.contains("ring_sim")
+                        || source.contains("demo")
+                        || source.contains("sample"));
     }
 
     @Override

@@ -20,6 +20,12 @@ public class RehealthUserHealthVO {
     private Date createTime;
     private ProfileSummary profile;
     private RiskSummary latestRisk;
+    /**
+     * `unknown` on list rows because the list deliberately performs no per-user
+     * telemetry calls. Detail responses replace it with `verified_real` or
+     * `synthetic` from the tenant-scoped Device Service summary.
+     */
+    private String provenanceStatus = "unknown";
     private JSONObject telemetry;
 
     @Data

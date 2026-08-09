@@ -71,6 +71,12 @@ public final class ReHealthRuntimeSafetyValidator implements InitializingBean {
                         "rehealth.health-agent.internal-token-file is required in production and staging"
                 );
             }
+            if (property(environment, "rehealth.device-service.internal-token-file", "").isBlank()) {
+                reject(
+                        "DEVICE_INTERNAL_TOKEN_REQUIRED",
+                        "rehealth.device-service.internal-token-file is required in production and staging"
+                );
+            }
             if (!property(environment, "rehealth.provider-credentials.embedded-secret", "").isBlank()) {
                 reject("EMBEDDED_SECRET_FORBIDDEN", "provider credentials must come from an external secret store");
             }

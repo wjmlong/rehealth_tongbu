@@ -23,7 +23,7 @@ import java.util.Set;
 public class RehealthUserHealthService {
     static final int MAX_PAGE_SIZE = 100;
 
-    private static final String BASE_SELECT = """
+    static final String BASE_SELECT = """
             SELECT u.id, u.sex, u.status, u.create_time,
                    p.name, p.gender, p.age, p.height_cm, p.weight_kg, p.bmi,
                    p.family_history, p.smoking, p.drinking,
@@ -45,6 +45,13 @@ public class RehealthUserHealthService {
                 WHERE row_number = 1
             ) risk ON risk.user_id = u.id
             WHERE sut.tenant_id = ? AND sut.status = '1'
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM sys_user_tenant other_membership
+                  WHERE other_membership.user_id = u.id
+                    AND other_membership.status = '1'
+                    AND other_membership.tenant_id <> sut.tenant_id
+              )
             """;
 
     private final ISysUserTenantService userTenantService;
@@ -151,10 +158,7 @@ public class RehealthUserHealthService {
         }
         RehealthUserHealthVO patient = matches.get(0);
         var telemetry = deviceHealthClient.fetch(String.valueOf(tenantId), patientId);
-        patient.setTelemetry(telemetry);
-        if (isSyntheticTelemetry(telemetry)) {
-            patient.setLatestRisk(null);
-        }
+        attachTelemetry(patient, telemetry);
         return patient;
     }
 
@@ -184,6 +188,19 @@ public class RehealthUserHealthService {
 
     static boolean isSyntheticTelemetry(com.alibaba.fastjson.JSONObject telemetry) {
         return telemetry != null && telemetry.getBooleanValue("isSynthetic");
+    }
+
+    static void attachTelemetry(
+            RehealthUserHealthVO patient,
+            com.alibaba.fastjson.JSONObject telemetry
+    ) {
+        patient.setTelemetry(telemetry);
+        if (isSyntheticTelemetry(telemetry)) {
+            patient.setProvenanceStatus("synthetic");
+            patient.setLatestRisk(null);
+        } else {
+            patient.setProvenanceStatus("verified_real");
+        }
     }
 
     private JdbcTemplate requireSoftwareJdbc() {

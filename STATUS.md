@@ -75,9 +75,12 @@ Play Console 内测、物理设备与完整线上闭环验收仍保持发布阻�
 `/rehealth/admin/v1/patients` 分页/搜索/风险等级筛选和患者详情，使用标准登录令牌、
 `rehealth:admin:patient:view` 权限并校验当前管理员的活动租户成员关系。列表批量读取
 `software_db` 的类型化档案和最新非 Mock CVD 风险，不逐用户访问硬件库；详情在目标成员校验
-后仅调用一次 Device Service。Device Service 健康摘要的每条 TimescaleDB 查询均同时限定
-`tenant_id` 与 `user_id`，并返回 `provenance` / `isSynthetic`；`LOCAL_TEST_SEED` 等合成来源
-不会在详情中和临床风险分数同时展示。返回 DTO 不含手机号、邮箱和账号名，旧全库
+后仅调用一次 Device Service。由于软件档案/风险表暂未携带租户列，多活动租户用户会被
+fail-closed 排除。Device Service 健康摘要的每条 TimescaleDB 查询均同时限定 `tenant_id`
+与 `user_id`，并返回 `provenance` / `isSynthetic`；`LOCAL_TEST_SEED`、`ring_sim`、mock、demo、
+sample 和 synthetic 来源不会在详情中和临床风险分数同时展示。凭据缺失或 Device Service
+不可用时详情返回 503。列表逐条标记 `provenanceStatus=unknown`，BFF 不得将 unknown 记录计入
+临床风险统计。Flyway 已初始化可分配权限但未授权任何默认角色。返回 DTO 不含手机号、邮箱和账号名，旧全库
 `/rehealth/admin/v1/users` 已禁用。RHI 云端日快照端点仍未实现，本次未改变该状态。
 
 | 范围 | 当前实现 |

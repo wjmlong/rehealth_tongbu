@@ -122,14 +122,34 @@ Keep passwords and internal service credentials in the ignored
 environment at startup; never copy them into tracked YAML or source files.
 
 The website administration read API uses the same secret-file boundary. Set
-`rehealth.device-service.internal-token-file` (or its environment-backed Spring
-property) to the mounted internal credential file; do not configure the retired
-plaintext `rehealth.device-service.credential` property for this API. Requests to
+`REHEALTH_DEVICE_SERVICE_INTERNAL_TOKEN_FILE` to the mounted internal credential
+file (Compose uses `/run/secrets/internal_service_credential`); do not configure
+the retired plaintext `rehealth.device-service.credential` property for this API.
+For systemd, put
+`REHEALTH_DEVICE_SERVICE_INTERNAL_TOKEN_FILE=/run/secrets/internal_service_credential`
+in the unit's root-owned `EnvironmentFile` (mode `0600`). Missing/unreadable
+credentials or an unavailable Device Service fail the detail API with HTTP 503;
+the response never silently reports telemetry as absent. Requests to
 `/rehealth/admin/v1/patients/**` also require `X-Access-Token`, `X-Tenant-Id`,
 an active membership of that tenant, and `rehealth:admin:patient:view`. The
 Device Service internal health URL requires `tenantId` and scopes every query by
-both tenant and user. Synthetic/test provenance is returned as a summary flag;
+both tenant and user. Because current profile and CVD tables do not carry a tenant
+column, the admin API fails closed and excludes a user who has another active
+tenant membership. Detail reads are bounded to one operator-membership lookup,
+one target aggregation query, and one Device Service summary request. Synthetic,
+mock, demo, sample, `LOCAL_TEST_SEED`, and `ring_sim` provenance is returned as a
+summary flag and suppresses `latestRisk` in detail responses;
 raw telemetry rows and the internal credential are never logged or returned.
+The list deliberately avoids an N+1 Device Service fan-out, so every row returns
+`provenanceStatus=unknown`; website/BFF charts and counters must not include an
+`unknown` row in clinical-risk statistics. A detail read changes the status to
+`verified_real` or `synthetic` from the authoritative Device Service summary.
+
+Flyway migration `V3.9.2_1__rehealth_admin_patient_permission.sql` creates the
+assignable `rehealth:admin:patient:view` permission idempotently and grants it to
+no role. Before enabling the website, use JeecgBoot's role authorization screen
+to assign “查看患者健康数据” only to an approved operations/clinical role; do not
+attach it to a broad default or anonymous role.
 
 Health chat now supports two server-side engines behind the unchanged mobile API:
 

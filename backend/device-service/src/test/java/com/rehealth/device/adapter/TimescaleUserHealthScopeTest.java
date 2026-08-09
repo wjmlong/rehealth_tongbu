@@ -26,8 +26,12 @@ class TimescaleUserHealthScopeTest {
     }
 
     @Test
-    void localTestSeedIsAlwaysMarkedSynthetic() {
-        assertTrue(TimescaleTelemetryReader.isSyntheticProvenance(List.of("LOCAL_TEST_SEED")));
+    void knownSimulationAndSampleSourcesAreAlwaysMarkedSynthetic() {
+        for (String source : List.of(
+                "LOCAL_TEST_SEED", "ring_sim", "mock-provider",
+                "demo-import", "sample_batch", "synthetic-generator")) {
+            assertTrue(TimescaleTelemetryReader.isSyntheticProvenance(List.of(source)), source);
+        }
         assertFalse(TimescaleTelemetryReader.isSyntheticProvenance(List.of("hband")));
     }
 }
