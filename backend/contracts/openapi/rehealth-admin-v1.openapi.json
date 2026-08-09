@@ -1,0 +1,74 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ReHealth tenant administration API",
+    "version": "1.0.0",
+    "description": "Read-only tenant-scoped patient aggregation for the website administration console."
+  },
+  "servers": [{"url": "/jeecg-boot"}],
+  "security": [{"XAccessToken": [], "XTenantId": []}],
+  "paths": {
+    "/rehealth/admin/v1/patients": {
+      "get": {
+        "description": "Requires rehealth:admin:patient:view. Returns only active members of the authenticated operator's validated tenant. The list never calls Device Service.",
+        "parameters": [
+          {"name": "pageNo", "in": "query", "schema": {"type": "integer", "minimum": 1, "default": 1}},
+          {"name": "pageSize", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 20}},
+          {"name": "keyword", "in": "query", "schema": {"type": "string", "maxLength": 128}},
+          {"name": "riskLevel", "in": "query", "schema": {"type": "string", "enum": ["high", "medium", "low"]}}
+        ],
+        "responses": {
+          "200": {"description": "RehealthPatientPageVO in the standard Jeecg Result envelope"},
+          "403": {"description": "Permission or tenant membership denied"}
+        }
+      }
+    },
+    "/rehealth/admin/v1/patients/{patientId}": {
+      "get": {
+        "description": "Requires rehealth:admin:patient:view. Verifies target membership before one tenant-scoped Device Service read. A synthetic telemetry summary sets isSynthetic=true and suppresses latestRisk in this response.",
+        "parameters": [
+          {"name": "patientId", "in": "path", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "200": {"description": "RehealthUserHealthVO in the standard Jeecg Result envelope"},
+          "404": {"description": "Patient is not an active member of the selected tenant"}
+        }
+      }
+    },
+    "/rehealth/admin/v1/users": {
+      "get": {
+        "deprecated": true,
+        "description": "Disabled legacy route. Requires the same patient-view permission and returns code 410 without user data.",
+        "responses": {"200": {"description": "Jeecg error envelope with code 410"}}
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "XAccessToken": {"type": "apiKey", "in": "header", "name": "X-Access-Token"},
+      "XTenantId": {"type": "apiKey", "in": "header", "name": "X-Tenant-Id"}
+    },
+    "schemas": {
+      "PatientSummary": {
+        "type": "object",
+        "description": "PII-minimized patient view; phone, email and account username are never returned.",
+        "properties": {
+          "id": {"type": "string"},
+          "displayName": {"type": "string"},
+          "sex": {"type": ["integer", "null"]},
+          "status": {"type": ["integer", "null"]},
+          "createTime": {"type": ["string", "null"], "format": "date-time"},
+          "profile": {"type": ["object", "null"]},
+          "latestRisk": {"type": ["object", "null"]},
+          "telemetry": {
+            "type": ["object", "null"],
+            "properties": {
+              "provenance": {"type": "array", "items": {"type": "string"}},
+              "isSynthetic": {"type": "boolean"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

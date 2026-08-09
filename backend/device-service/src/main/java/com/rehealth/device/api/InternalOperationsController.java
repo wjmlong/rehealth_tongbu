@@ -34,9 +34,10 @@ public class InternalOperationsController {
     @GetMapping("/users/{userId}/health")
     public ResponseEntity<ApiEnvelope<UserHealthSummary>> userHealth(
             @RequestHeader(value = "X-ReHealth-Service-Credential", required = false) String credential,
-            @PathVariable String userId
+            @PathVariable String userId,
+            @RequestParam String tenantId
     ) {
-        return ResponseEntity.ok(ApiEnvelope.ok(operationsService.userHealth(credential, userId)));
+        return ResponseEntity.ok(ApiEnvelope.ok(operationsService.userHealth(credential, tenantId, userId)));
     }
 
     @GetMapping("/users/{userId}/intervention-context")

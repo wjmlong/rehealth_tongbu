@@ -299,6 +299,14 @@ Release 对应工厂固定不可用。演练数据统一标记 `synthetic_qa`，
 
 ## 5. 数据存储边界
 
+官网管理后台通过 JeecgBoot 只读聚合 API 接入现有 App 数据，不新增上传或存储链路：
+`GET /rehealth/admin/v1/patients` 提供最大 100 条的租户成员分页、关键词与
+`high|medium|low` 风险筛选；`GET /rehealth/admin/v1/patients/{patientId}` 在再次确认
+目标用户属于同一活动租户后，最多调用一次 Device Service 获取遥测摘要。两个端点均要求
+标准 `X-Access-Token`、`X-Tenant-Id` 和 `rehealth:admin:patient:view` 权限，不返回手机号、
+邮箱或账号名。遥测详情携带服务端生成的 `provenance` / `isSynthetic`；合成数据不会在详情中
+同时显示为临床风险。旧 `/rehealth/admin/v1/users` 已禁用并返回 410 业务码。
+
 | 数据 | 权威存储 | 说明 |
 | --- | --- | --- |
 | Android 本地遥测和待上传任务 | Room | 本地优先、离线可用 |
@@ -404,6 +412,7 @@ python backend/qa/rehealth_stack_gate.py topology `
 | `Android-apk/docs/wearable/RWFIT_DEVICE_QA.md` | RWFit 真机安装、采集与证据清单 | RWFit 构建开关、指标映射或真机结果变化时 |
 | `Android-apk/docs/wearable/HBAND_DEVICE_QA.md` | HBand 真机安装、认证、采集与证据清单 | HBand 构建开关、指标映射或真机结果变化时 |
 | `backend/contracts/openapi/rehealth-mobile-v1.openapi.json` | 公共移动 API 机器可读契约 | 公共 API 字段或路径变化时 |
+| `backend/contracts/openapi/rehealth-admin-v1.openapi.json` | 官网管理后台患者只读 API 契约 | 后台路径、权限、租户隔离、筛选或返回字段变化时 |
 | `backend/contracts/adrs/` | 跨服务架构决策 | 权威边界、消息系统、数据库或信任模型变化时 |
 | `backend/deploy/rehealth/README.md` | 部署拓扑和运行方式 | 服务、端口、环境变量、secret、容器变化时 |
 | `model-service/docs/API_CONTRACT.md` | 模型服务接口 | 模型请求/响应、版本或就绪语义变化时 |

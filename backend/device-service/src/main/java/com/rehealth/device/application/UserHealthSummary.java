@@ -16,6 +16,8 @@ public record UserHealthSummary(
         long measurementCount,
         long sleepSessionCount,
         long activityCount,
+        List<String> provenance,
+        boolean isSynthetic,
         List<MetricSummary> latestMetrics
 ) {
 }

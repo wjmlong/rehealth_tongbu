@@ -71,6 +71,15 @@ Play Console 内测、物理设备与完整线上闭环验收仍保持发布阻�
 
 ## 已实现能力
 
+2026-08-09 已补齐官网管理后台与 App 后端的最小安全只读连接：JeecgBoot 新增
+`/rehealth/admin/v1/patients` 分页/搜索/风险等级筛选和患者详情，使用标准登录令牌、
+`rehealth:admin:patient:view` 权限并校验当前管理员的活动租户成员关系。列表批量读取
+`software_db` 的类型化档案和最新非 Mock CVD 风险，不逐用户访问硬件库；详情在目标成员校验
+后仅调用一次 Device Service。Device Service 健康摘要的每条 TimescaleDB 查询均同时限定
+`tenant_id` 与 `user_id`，并返回 `provenance` / `isSynthetic`；`LOCAL_TEST_SEED` 等合成来源
+不会在详情中和临床风险分数同时展示。返回 DTO 不含手机号、邮箱和账号名，旧全库
+`/rehealth/admin/v1/users` 已禁用。RHI 云端日快照端点仍未实现，本次未改变该状态。
+
 | 范围 | 当前实现 |
 | --- | --- |
 | Android | 单一有效设备 Provider 路由；Release 只注册 HBand/Viomi Cloud，正式选择只展示 HBand MT116 蓝牙和云米 IMEI 云端，默认 HBand 并迁移旧 MRD/RWFit 选择；Debug 保留 MRD/RWFit/Mock 工程入口。已接入真实 SDK/BLE、云米 IMEI 绑定、Room、本地优先、Foreground Service、WorkManager、CVD 16 特征、认证感知上传队列及风险/干预/反馈 UI。HBand 已按能力接入心率、步数/活动、睡眠、血氧、HRV、血压、血糖、压力、MET、ECG、血液/身体成分与设备设置；MT116 的 HRV/压力优先走一键体检或真实历史，MET 只读真实历史，体温已移除，完整真机准确性仍待验收。 |

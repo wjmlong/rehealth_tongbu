@@ -32,7 +32,7 @@ public class UnavailableTelemetryStore implements TelemetryWritePort, TelemetryR
     }
 
     @Override
-    public UserHealthSummary healthSummaryForUser(String userId) {
+    public UserHealthSummary healthSummaryForUser(String tenantId, String userId) {
         throw unavailable();
     }
 

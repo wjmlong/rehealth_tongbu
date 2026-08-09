@@ -29,12 +29,15 @@ public class InternalOperationsService {
         return Map.of("service", "device-service", "persistence", "PORT");
     }
 
-    public UserHealthSummary userHealth(String suppliedCredential, String userId) {
+    public UserHealthSummary userHealth(String suppliedCredential, String tenantId, String userId) {
         validateCredential(suppliedCredential);
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new DeviceRequestException(HttpStatus.BAD_REQUEST, "TENANT_ID_REQUIRED");
+        }
         if (userId == null || userId.isBlank()) {
             throw new DeviceRequestException(HttpStatus.BAD_REQUEST, "USER_ID_REQUIRED");
         }
-        return telemetryReader.healthSummaryForUser(userId);
+        return telemetryReader.healthSummaryForUser(tenantId, userId);
     }
 
     public InterventionTelemetryContext interventionContext(

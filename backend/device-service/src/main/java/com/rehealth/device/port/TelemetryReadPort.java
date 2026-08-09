@@ -11,10 +11,10 @@ public interface TelemetryReadPort {
     RecentTelemetryResponse recent(DeviceClaims claims, int limit);
 
     /**
-     * Aggregated, user-scoped health summary across all devices and tenants.
-     * Intended for administrative/diagnostic callers only.
+     * Aggregated health summary for one user inside one validated tenant.
+     * Intended for trusted administrative callers only.
      */
-    default UserHealthSummary healthSummaryForUser(String userId) {
+    default UserHealthSummary healthSummaryForUser(String tenantId, String userId) {
         throw new UnsupportedOperationException("user health summary is not supported");
     }
 

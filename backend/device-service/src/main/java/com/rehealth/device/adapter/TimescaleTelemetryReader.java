@@ -32,6 +32,21 @@ import java.util.List;
 @Primary
 @ConditionalOnProperty(name = "rehealth.hardware-db.enabled", havingValue = "true")
 public class TimescaleTelemetryReader implements TelemetryReadPort {
+    static final List<String> USER_HEALTH_SQL = List.of(
+            "SELECT DISTINCT device_id FROM hardware_measurement WHERE tenant_id = ? AND user_id = ? ORDER BY device_id",
+            "SELECT count(*) FROM hardware_measurement WHERE tenant_id = ? AND user_id = ?",
+            "SELECT count(*) FROM hardware_sleep_session WHERE tenant_id = ? AND user_id = ?",
+            "SELECT count(*) FROM hardware_activity WHERE tenant_id = ? AND user_id = ?",
+            "SELECT min(observed_at) FROM hardware_measurement WHERE tenant_id = ? AND user_id = ?",
+            "SELECT max(observed_at) FROM hardware_measurement WHERE tenant_id = ? AND user_id = ?",
+            "SELECT DISTINCT ON (metric_type) metric_type, primary_value, unit, observed_at "
+                    + "FROM hardware_measurement WHERE tenant_id = ? AND user_id = ? ORDER BY metric_type, observed_at DESC",
+            "SELECT DISTINCT source FROM ("
+                    + "SELECT source FROM hardware_measurement WHERE tenant_id = ? AND user_id = ? "
+                    + "UNION SELECT source FROM hardware_sleep_session WHERE tenant_id = ? AND user_id = ? "
+                    + "UNION SELECT source FROM hardware_activity WHERE tenant_id = ? AND user_id = ?"
+                    + ") scoped_sources WHERE source IS NOT NULL ORDER BY source"
+    );
     private static final String MEASUREMENTS_SQL = """
             SELECT source_record_id, metric_type, observed_at, primary_value,
                    secondary_value, unit, quality_code, source
@@ -185,34 +200,43 @@ public class TimescaleTelemetryReader implements TelemetryReadPort {
     }
 
     @Override
-    public UserHealthSummary healthSummaryForUser(String userId) {
+    public UserHealthSummary healthSummaryForUser(String tenantId, String userId) {
         try {
             List<String> devices = jdbc.queryForList(
-                    "SELECT DISTINCT device_id FROM hardware_measurement WHERE user_id = ? ORDER BY device_id",
+                    USER_HEALTH_SQL.get(0),
                     String.class,
+                    tenantId,
                     userId
             );
             Long measurementCount = jdbc.queryForObject(
-                    "SELECT count(*) FROM hardware_measurement WHERE user_id = ?", Long.class, userId);
+                    USER_HEALTH_SQL.get(1), Long.class, tenantId, userId);
             Long sleepSessionCount = jdbc.queryForObject(
-                    "SELECT count(*) FROM hardware_sleep_session WHERE user_id = ?", Long.class, userId);
+                    USER_HEALTH_SQL.get(2), Long.class, tenantId, userId);
             Long activityCount = jdbc.queryForObject(
-                    "SELECT count(*) FROM hardware_activity WHERE user_id = ?", Long.class, userId);
+                    USER_HEALTH_SQL.get(3), Long.class, tenantId, userId);
             Timestamp firstSeen = jdbc.queryForObject(
-                    "SELECT min(observed_at) FROM hardware_measurement WHERE user_id = ?", Timestamp.class, userId);
+                    USER_HEALTH_SQL.get(4), Timestamp.class, tenantId, userId);
             Timestamp lastSeen = jdbc.queryForObject(
-                    "SELECT max(observed_at) FROM hardware_measurement WHERE user_id = ?", Timestamp.class, userId);
+                    USER_HEALTH_SQL.get(5), Timestamp.class, tenantId, userId);
             List<MetricSummary> latestMetrics = jdbc.query(
-                    "SELECT DISTINCT ON (metric_type) metric_type, primary_value, unit, observed_at "
-                            + "FROM hardware_measurement WHERE user_id = ? ORDER BY metric_type, observed_at DESC",
+                    USER_HEALTH_SQL.get(6),
                     (result, rowNumber) -> new MetricSummary(
                             result.getString("metric_type"),
                             decimal(result, "primary_value"),
                             result.getString("unit"),
                             epochMillis(result.getTimestamp("observed_at"))
                     ),
+                    tenantId,
                     userId
             );
+            List<String> provenance = jdbc.queryForList(
+                    USER_HEALTH_SQL.get(7),
+                    String.class,
+                    tenantId, userId,
+                    tenantId, userId,
+                    tenantId, userId
+            );
+            boolean isSynthetic = isSyntheticProvenance(provenance);
             return new UserHealthSummary(
                     userId,
                     devices,
@@ -221,11 +245,21 @@ public class TimescaleTelemetryReader implements TelemetryReadPort {
                     measurementCount == null ? 0L : measurementCount,
                     sleepSessionCount == null ? 0L : sleepSessionCount,
                     activityCount == null ? 0L : activityCount,
+                    provenance,
+                    isSynthetic,
                     latestMetrics
             );
         } catch (DataAccessException exception) {
             throw unavailable(exception);
         }
+    }
+
+    static boolean isSyntheticProvenance(List<String> provenance) {
+        return provenance.stream()
+                .map(source -> source.toLowerCase(java.util.Locale.ROOT))
+                .anyMatch(source -> source.contains("synthetic")
+                        || source.contains("mock")
+                        || source.contains("test_seed"));
     }
 
     @Override

@@ -73,8 +73,8 @@ class DeviceReadyProfileLiveIT {
         }
 
         @Override
-        public UserHealthSummary healthSummaryForUser(String userId) {
-            return new UserHealthSummary(userId, List.of(), null, null, 0, 0, 0, List.of());
+        public UserHealthSummary healthSummaryForUser(String tenantId, String userId) {
+            return new UserHealthSummary(userId, List.of(), null, null, 0, 0, 0, List.of(), false, List.of());
         }
 
         @Override

@@ -121,6 +121,16 @@ Keep passwords and internal service credentials in the ignored
 `backend/deploy/rehealth/secrets/` files. Load them into the local process
 environment at startup; never copy them into tracked YAML or source files.
 
+The website administration read API uses the same secret-file boundary. Set
+`rehealth.device-service.internal-token-file` (or its environment-backed Spring
+property) to the mounted internal credential file; do not configure the retired
+plaintext `rehealth.device-service.credential` property for this API. Requests to
+`/rehealth/admin/v1/patients/**` also require `X-Access-Token`, `X-Tenant-Id`,
+an active membership of that tenant, and `rehealth:admin:patient:view`. The
+Device Service internal health URL requires `tenantId` and scopes every query by
+both tenant and user. Synthetic/test provenance is returned as a summary flag;
+raw telemetry rows and the internal credential are never logged or returned.
+
 Health chat now supports two server-side engines behind the unchanged mobile API:
 
 - `REHEALTH_HEALTH_AGENT_ENGINE=langchain4j` is the default and runs prompt assembly, bounded
