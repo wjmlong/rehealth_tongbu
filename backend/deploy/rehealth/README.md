@@ -143,13 +143,22 @@ raw telemetry rows and the internal credential are never logged or returned.
 The list deliberately avoids an N+1 Device Service fan-out, so every row returns
 `provenanceStatus=unknown`; website/BFF charts and counters must not include an
 `unknown` row in clinical-risk statistics. A detail read changes the status to
-`verified_real` or `synthetic` from the authoritative Device Service summary.
+`verified_real` only when its non-empty provenance set contains exclusively
+registered real sources (`hband_wearable`, `hband_cloud_restore`, `viomi_cloud`,
+`mrd_ring`, `mrd-sdk`, or `rwfit`). Empty, mixed-unregistered, or unknown sources
+remain `unknown` and suppress `latestRisk`; synthetic sources are `synthetic` and
+also suppress `latestRisk`.
 
 Flyway migration `V3.9.2_1__rehealth_admin_patient_permission.sql` creates the
 assignable `rehealth:admin:patient:view` permission idempotently and grants it to
 no role. Before enabling the website, use JeecgBoot's role authorization screen
 to assign “查看患者健康数据” only to an approved operations/clinical role; do not
 attach it to a broad default or anonymous role.
+Compose packages the migration from
+`jeecg-server-cloud/jeecg-system-cloud-start/src/main/resources/flyway/sql/mysql`
+into the deployed Cloud JAR and forces `SPRING_FLYWAY_ENABLED=true` with that
+classpath location. The copy under the monolithic start module is retained for
+non-Cloud deployments.
 
 Health chat now supports two server-side engines behind the unchanged mobile API:
 

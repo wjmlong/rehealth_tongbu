@@ -113,6 +113,9 @@ services:
       REHEALTH_ATTRIBUTION_SERVICE_INTERNAL_TOKEN_FILE: /run/secrets/internal_service_credential
       REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE: /run/secrets/internal_service_credential
       REHEALTH_DEVICE_SERVICE_INTERNAL_TOKEN_FILE: /run/secrets/internal_service_credential
+      SPRING_FLYWAY_ENABLED: "true"
+      SPRING_FLYWAY_LOCATIONS: classpath:flyway/sql/mysql
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
       REHEALTH_AGENT_INTERNAL_TOKEN_FILE: /run/secrets/internal_service_credential
       REHEALTH_HEALTH_AGENT_ENGINE: ${REHEALTH_HEALTH_AGENT_ENGINE:-langchain4j}
       REHEALTH_LLM_BASE_URL: ${REHEALTH_LLM_BASE_URL:-https://api.deepseek.com}

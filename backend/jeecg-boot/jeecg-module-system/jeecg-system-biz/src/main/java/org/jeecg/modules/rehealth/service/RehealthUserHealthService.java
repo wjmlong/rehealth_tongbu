@@ -15,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -22,6 +23,17 @@ import java.util.Set;
 @Service
 public class RehealthUserHealthService {
     static final int MAX_PAGE_SIZE = 100;
+    private static final Set<String> VERIFIED_REAL_PROVENANCE = Set.of(
+            "hband_wearable",
+            "hband_cloud_restore",
+            "viomi_cloud",
+            "mrd_ring",
+            "mrd-sdk",
+            "rwfit"
+    );
+    private static final Set<String> SYNTHETIC_PROVENANCE_MARKERS = Set.of(
+            "synthetic", "mock", "test_seed", "ring_sim", "demo", "sample"
+    );
 
     static final String BASE_SELECT = """
             SELECT u.id, u.sex, u.status, u.create_time,
@@ -187,7 +199,21 @@ public class RehealthUserHealthService {
     }
 
     static boolean isSyntheticTelemetry(com.alibaba.fastjson.JSONObject telemetry) {
-        return telemetry != null && telemetry.getBooleanValue("isSynthetic");
+        if (telemetry == null) {
+            return false;
+        }
+        if (telemetry.getBooleanValue("isSynthetic")) {
+            return true;
+        }
+        var provenance = telemetry.getJSONArray("provenance");
+        if (provenance == null) {
+            return false;
+        }
+        return provenance.stream()
+                .filter(String.class::isInstance)
+                .map(String.class::cast)
+                .map(source -> source.toLowerCase(Locale.ROOT))
+                .anyMatch(source -> SYNTHETIC_PROVENANCE_MARKERS.stream().anyMatch(source::contains));
     }
 
     static void attachTelemetry(
@@ -195,12 +221,31 @@ public class RehealthUserHealthService {
             com.alibaba.fastjson.JSONObject telemetry
     ) {
         patient.setTelemetry(telemetry);
-        if (isSyntheticTelemetry(telemetry)) {
-            patient.setProvenanceStatus("synthetic");
+        String provenanceStatus = provenanceStatus(telemetry);
+        patient.setProvenanceStatus(provenanceStatus);
+        if (!"verified_real".equals(provenanceStatus)) {
             patient.setLatestRisk(null);
-        } else {
-            patient.setProvenanceStatus("verified_real");
         }
+    }
+
+    static String provenanceStatus(com.alibaba.fastjson.JSONObject telemetry) {
+        if (isSyntheticTelemetry(telemetry)) {
+            return "synthetic";
+        }
+        if (telemetry == null || telemetry.getJSONArray("provenance") == null
+                || telemetry.getJSONArray("provenance").isEmpty()) {
+            return "unknown";
+        }
+        Set<String> normalized = new HashSet<>();
+        for (Object source : telemetry.getJSONArray("provenance")) {
+            if (!(source instanceof String value) || value.isBlank()) {
+                return "unknown";
+            }
+            normalized.add(value.strip().toLowerCase(Locale.ROOT));
+        }
+        return !normalized.isEmpty() && VERIFIED_REAL_PROVENANCE.containsAll(normalized)
+                ? "verified_real"
+                : "unknown";
     }
 
     private JdbcTemplate requireSoftwareJdbc() {

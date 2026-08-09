@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "ReHealth tenant administration API",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "Read-only tenant-scoped patient aggregation for the website administration console."
   },
   "servers": [{"url": "/jeecg-boot"}],
@@ -26,7 +26,7 @@
     },
     "/rehealth/admin/v1/patients/{patientId}": {
       "get": {
-        "description": "Requires rehealth:admin:patient:view. Verifies exclusive active target membership before one tenant-scoped Device Service read. Synthetic, mock, demo, sample, LOCAL_TEST_SEED, or ring_sim provenance sets isSynthetic=true and suppresses latestRisk in this response.",
+        "description": "Requires rehealth:admin:patient:view. Verifies exclusive active target membership before one tenant-scoped Device Service read. Synthetic markers set provenanceStatus=synthetic and suppress latestRisk. Only a non-empty allow-listed real provenance set is verified_real; empty, mixed, or unknown sources stay unknown and also suppress latestRisk.",
         "parameters": [
           {"name": "patientId", "in": "path", "required": true, "schema": {"type": "string"}}
         ],
@@ -65,7 +65,7 @@
           "provenanceStatus": {
             "type": "string",
             "enum": ["unknown", "verified_real", "synthetic"],
-            "description": "List rows are unknown and must not be counted as clinical risk. Detail rows are authoritative from Device Service."
+            "description": "List rows are unknown. Detail is verified_real only for a non-empty allow-listed real source set; empty or unrecognized source sets remain unknown. Only verified_real may be counted as clinical risk."
           },
           "telemetry": {
             "type": ["object", "null"],

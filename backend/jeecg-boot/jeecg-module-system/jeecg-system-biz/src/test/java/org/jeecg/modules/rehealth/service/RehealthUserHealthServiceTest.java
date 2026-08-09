@@ -60,12 +60,38 @@ class RehealthUserHealthServiceTest {
         assertNull(patient.getLatestRisk());
         assertEquals("synthetic", patient.getProvenanceStatus());
 
+        RehealthUserHealthVO markerPatient = new RehealthUserHealthVO();
+        markerPatient.setLatestRisk(new RehealthUserHealthVO.RiskSummary());
+        RehealthUserHealthService.attachTelemetry(
+                markerPatient, telemetry(false, List.of("ring_sim")));
+        assertEquals("synthetic", markerPatient.getProvenanceStatus());
+        assertNull(markerPatient.getLatestRisk());
+
         JSONObject realTelemetry = new JSONObject();
-        realTelemetry.put("provenance", List.of("hband"));
+        realTelemetry.put("provenance", List.of("hband_wearable"));
         realTelemetry.put("isSynthetic", false);
         RehealthUserHealthVO realPatient = new RehealthUserHealthVO();
         RehealthUserHealthService.attachTelemetry(realPatient, realTelemetry);
         assertEquals("verified_real", realPatient.getProvenanceStatus());
+
+        for (JSONObject unverified : List.of(
+                new JSONObject(),
+                telemetry(false, List.of()),
+                telemetry(false, List.of("unregistered_vendor")),
+                telemetry(false, List.of("hband_wearable", "unregistered_vendor")))) {
+            RehealthUserHealthVO unknownPatient = new RehealthUserHealthVO();
+            unknownPatient.setLatestRisk(new RehealthUserHealthVO.RiskSummary());
+            RehealthUserHealthService.attachTelemetry(unknownPatient, unverified);
+            assertEquals("unknown", unknownPatient.getProvenanceStatus());
+            assertNull(unknownPatient.getLatestRisk());
+        }
+    }
+
+    private static JSONObject telemetry(boolean synthetic, List<String> provenance) {
+        JSONObject telemetry = new JSONObject();
+        telemetry.put("isSynthetic", synthetic);
+        telemetry.put("provenance", provenance);
+        return telemetry;
     }
 
     @Test
