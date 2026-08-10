@@ -110,7 +110,6 @@ android {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
         // Provider credentials and request-signing secrets must never enter a release APK.
         buildConfigField("String", "JEECG_SIGN_SECRET", "\"\"")
-        buildConfigField("String", "SMS_TEST_CODE", "\"\"")
         // Main code may reference these fields, but only Debug is allowed to override them.
         buildConfigField("boolean", "USE_FAKE_RING", "false")
         buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", "false")
@@ -140,7 +139,6 @@ android {
             buildConfigField("String", "DEBUG_WEARABLE_PRODUCT_CODE", "\"${debugWearableProductCode()}\"")
             buildConfigField("String", "REHEALTH_API_BASE_URL", "\"${reHealthApiBaseUrl()}\"")
             buildConfigField("String", "JEECG_SIGN_SECRET", "\"${signSecret()}\"")
-            buildConfigField("String", "SMS_TEST_CODE", "\"123456\"")
             manifestPlaceholders["usesCleartextTraffic"] = "true"
         }
         release {

@@ -15,7 +15,7 @@
 - [ ] Release 使用真实 HTTPS API 地址，禁止 cleartext 和调试配置。
 - [ ] 生产 Gateway/API 不产生 HTTPS→HTTP 降级跳转，可信代理协议头与重定向地址已验收。
 - [ ] Release APK 不包含 Provider secret、内部 token、数据库凭据或本地配置文件。
-- [ ] Release APK 的 `JEECG_SIGN_SECRET` 与 `SMS_TEST_CODE` 为空；生产 `/sys/registerSms` 不依赖 APK 内共享密钥，使用服务端手机号/IP 频控和真实 Dypnsapi Provider，不接受固定测试码。
+- [ ] Release APK 的 `JEECG_SIGN_SECRET` 为空且所有构建均不包含客户端测试验证码；生产 `/sys/registerSms` 不依赖 APK 内共享密钥，使用服务端手机号/IP 频控和真实 Dypnsapi Provider，不接受固定测试码。
 - [ ] 生产 `JEECG_SMS_DEV_MODE=false` 且 `JEECG_SMS_DYPNS_ENABLED=true`；号码认证服务专用 RAM 用户、赠送签名、登录/注册模板 `100001`、`rehealth-register` 方案名已配置并完成真实收码/注册验收。
 - [ ] `SendSmsVerifyCode` 固定使用 `{"code":"##code##","min":"5"}`、6 位纯数字、5 分钟有效、60 秒间隔、覆盖旧码和 `ReturnVerifyCode=false`；注册仅在 `CheckSmsVerifyCode` 返回 `Code=OK`、`Success=true`、`VerifyResult=PASS` 时成功。
 - [ ] 阿里云号码认证 AccessKey 只存在于部署 secret 文件或密钥管理器，仅有 `dypns:SendSmsVerifyCode`/`dypns:CheckSmsVerifyCode` 权限，不复用 OSS 凭据，不进入 `.env`、APK、镜像层、日志或受版本控制文件；缺配置时接口失败关闭。
@@ -48,7 +48,7 @@
 - [ ] 数据页风险卡标为 RDI-16，复用既有 16 特征评估接口且仅显示有限、范围有效、`isMock=false` 的结果；健康指数圆环显示 RHI-100，已删除硬编码 `87`，今日/7/30/90 日周期语义与归因页一致。
 - [ ] 保留的 RDI Engine 单测确认缺数据不会改善分数，跨设备 HRV、无袖带血压和缺失/推算血检不进入正式贡献，普通日展示变化上限为 3 分。
 - [ ] 头像通过系统照片选择器写入按用户隔离的应用私有目录，重启后可恢复；图片重新编码去除元数据，不申请新增媒体权限且不上传服务器。
-- [ ] Debug 注册 `/sys/registerSms` 无需 Jeecg 共享签名即可进入服务端频控；仅在 `JEECG_SMS_DEV_MODE=true` 时请求成功后自动填入测试码 `123456`。
+- [ ] Debug 注册 `/sys/registerSms` 无需 Jeecg 共享签名即可进入服务端频控；客户端不自动填入验证码，仅在 `JEECG_SMS_DEV_MODE=true` 的本地联调中允许手动输入固定测试码 `123456`。
 - [ ] 注册页“注册并登录”在表单不完整或未同意协议时仍可点击并显示对应提示；仅在注册请求进行中禁用，避免重复提交。
 - [ ] 数据页固定展示心率、血氧、血压、血糖、ECG、血液/身体成分、睡眠、步数和活动；HBand 不展示体温。HRV、压力、MET 仅在真实 Provider 已有有效值时展示，历史值可展示但不冒充实时测量；无数据或无效/模拟值时隐藏。
 - [ ] “我的”每日步数优先使用 Room 当地自然日 `ring_activities` 的最大累计值，本地采集与云端回填不得重复相加；活动缺失时才兼容旧 `STEPS` 测量。

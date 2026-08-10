@@ -64,8 +64,9 @@ git diff --check
    - Launch app, request a registration SMS code, and confirm `/sys/registerSms` reaches
      the registration controller without Jeecg `X-Sign`/`X-Timestamp` headers or a
      “请求参数不完整” response. Confirm Redis phone/IP quotas still reject repeated abuse.
-   - With local `JEECG_SMS_DEV_MODE=true`, confirm the successful response auto-fills
-     `123456`; a failed request must not fill any code. Complete registration and auto-login.
+   - With local `JEECG_SMS_DEV_MODE=true`, confirm a successful response leaves the code
+     field empty; manually enter `123456` to complete registration and auto-login. A failed
+     request must also leave the code field unchanged.
    - Tap “注册并登录” with an incomplete/invalid form and with the agreement unchecked.
      Confirm the button remains tappable and shows the corresponding form/agreement hint;
      during an in-flight registration request it is disabled and cannot submit twice.

@@ -84,10 +84,6 @@ fun RegisterScreen(
     var showAgreementHint by remember { mutableStateOf(false) }
     var showHint by remember { mutableStateOf(false) }
 
-    LaunchedEffect(uiState.smsCodeSuggestion) {
-        uiState.smsCodeSuggestion?.let { smscode = it }
-    }
-
     val phoneValid = viewModel.isPhoneValid(phone)
     val canRegister = phoneValid && smscode.length == 6 && password.length >= 6 &&
         password == confirm && agreed && !uiState.isLoading

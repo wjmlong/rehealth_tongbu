@@ -160,8 +160,8 @@ secret 禁止进入 `local.properties`、BuildConfig 或 APK。
 Debug 注册请求只有在 `local.properties` 的 `JEECG_SIGNATURE_SECRET` 或同名环境变量
 明确提供时，才会为 `/sys/sms` 增加 `X-Sign` 和 `X-Timestamp`。仓库不再包含开发签名默认值。
 仅当后端使用 `JEECG_SMS_DEV_MODE=true` 时，验证码接口保存固定测试码 `123456`，
-Android 在请求成功后自动填入该值。Release 的签名字段和测试码均为空，生产环境继续
-由后端随机生成验证码并调用真实短信 Provider。
+Android 不会自动填入该值；本地联调时需手动输入。Release 的签名字段为空，生产环境
+继续由后端随机生成验证码并调用真实短信 Provider。
 
 进入主界面和打开“我的”页时，客户端会按当前登录用户重新读取
 `GET /rehealth/mobile/profile` 与 `GET /rehealth/mobile/interviews/latest`。个人资料、

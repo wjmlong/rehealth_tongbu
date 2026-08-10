@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.rehealth.genie.BuildConfig
 import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.network.ApiResult
 import com.rehealth.genie.work.MeasurementSyncWorker
@@ -19,7 +18,6 @@ data class RegisterUiState(
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val infoMessage: String? = null,
-    val smsCodeSuggestion: String? = null,
     val isRegistered: Boolean = false,
 )
 
@@ -53,19 +51,12 @@ class RegisterViewModel(private val context: Context) : ViewModel() {
                 isLoading = true,
                 errorMessage = null,
                 infoMessage = null,
-                smsCodeSuggestion = null,
             )
             when (val result = app.authenticatedApiClient.sendSms(phone)) {
                 is ApiResult.Success -> {
-                    val testCode = BuildConfig.SMS_TEST_CODE.takeIf { it.isNotBlank() }
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        infoMessage = if (testCode != null) {
-                            "验证码请求成功，测试验证码已自动填入"
-                        } else {
-                            "验证码已发送"
-                        },
-                        smsCodeSuggestion = testCode,
+                        infoMessage = "验证码已发送",
                     )
                     startCountdown()
                 }
