@@ -331,6 +331,12 @@
 			<artifactId>aliyun-java-sdk-dysmsapi</artifactId>
 			<version>${aliyun-java-sdk-dysmsapi.version}</version>
 		</dependency>
+		<!-- 阿里云号码认证服务：注册验证码发送与云端核验 -->
+		<dependency>
+			<groupId>com.aliyun</groupId>
+			<artifactId>dypnsapi20170525</artifactId>
+			<version>${aliyun-dypnsapi.version}</version>
+		</dependency>
 		<!-- aliyun oss -->
 		<dependency>
 			<groupId>com.aliyun.oss</groupId>

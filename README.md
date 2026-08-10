@@ -57,9 +57,13 @@ Room v8 本地库（v7 会话/消息表及可空的设备睡眠总时长），�
 有效记录，数据页与“我的”页共用相同的夜间选择规则，周期睡眠只平均每天最终值。步数按本地
 自然日保留手表累计值的最大值，避免把本地采集和登录云端回填的同一天记录重复相加。周期健康指数仅聚合已确认的
 每日真实风险结果。
-注册短信在本地可通过 `JEECG_SMS_DEV_MODE=true` 使用固定测试码；生产由 JeecgBoot 使用独立的
-阿里云短信 RAM AccessKey、审核通过的签名和 `${code}` 注册模板发送，配置缺失时失败关闭，且不再
-复用 OSS 凭据或旧 Jeecg 默认模板。具体部署入口见 `backend/deploy/rehealth/README.md`。
+注册短信在本地可通过 `JEECG_SMS_DEV_MODE=true` 使用固定测试码；生产由 JeecgBoot 独立调用阿里云
+号码认证服务 `Dypnsapi`：`SendSmsVerifyCode` 使用赠送登录/注册模板 `100001`、
+`{"code":"##code##","min":"5"}` 让云端生成 6 位验证码，注册时再以
+`CheckSmsVerifyCode` 的 `VerifyResult=PASS` 为唯一通过条件。RAM AccessKey 仅挂载在服务端，
+Redis 只保存 5 分钟发送会话、60 秒冷却、集群频控和注册锁，不保存生产验证码明文；配置缺失时
+失败关闭，也不复用 OSS 凭据或标准短信服务 `Dysmsapi` 的签名模板。具体部署入口见
+`backend/deploy/rehealth/README.md`。
 健康问答默认由 JeecgBoot Java LangChain4j 执行；身份类问题通过只绑定当前认证账号、且不接受
 `userId` 参数的服务端资料工具读取最新昵称与基本资料，`model-service` 对话接口仅保留为显式回滚。
 首页拍照记录使用系统相机的应用私有临时文件，经客户端方向校正、缩放和重编码后上传到 JeecgBoot；

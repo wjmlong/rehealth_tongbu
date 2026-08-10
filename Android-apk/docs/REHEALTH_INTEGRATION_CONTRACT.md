@@ -73,8 +73,8 @@ queue until the user logs in again; the app does not invent a refresh-token flow
 
 | Function | Method and path | Android behavior |
 | --- | --- | --- |
-| Registration SMS | `POST /sys/sms` | Pre-auth request with `X-Sign` and `X-Timestamp`. Local `JEECG_SMS_DEV_MODE=true` stores fixed code `123456` without calling the provider. Production uses dedicated server-side Aliyun SMS credentials, an approved sign, and a registration template whose variable is `${code}`; missing configuration fails closed. |
-| Account registration | `POST /sys/user/register` | Submit phone, six-digit SMS code and password, then perform mobile login on success. |
+| Registration SMS | `POST /sys/registerSms` | Public pre-auth route with server-side phone/IP quotas and cooldown; it does not use Jeecg's APK-incompatible shared request-signing secret. Local `JEECG_SMS_DEV_MODE=true` creates a five-minute development session and accepts only fixed code `123456` without calling a provider. Production uses server-only Aliyun Phone Number Verification Service (`Dypnsapi`) credentials and its gifted sign/template `100001`; `SendSmsVerifyCode` receives `{"code":"##code##","min":"5"}`, a six-digit numeric rule, five-minute validity, 60-second interval, overwrite semantics, and `ReturnVerifyCode=false`. Redis stores only the hashed-key session/cooldown/rate/lock state, never the production code. Missing configuration fails closed. |
+| Account registration | `POST /sys/user/register` | Submit phone, six-digit SMS code and password. Production calls `CheckSmsVerifyCode` with the same `SchemeName`/`OutId` and creates the user only when the provider call succeeds and `Model.VerifyResult=PASS`; the provider session is consumed after account creation, then Android performs mobile login. |
 | Mobile login | `POST /sys/mLogin` | Save the Jeecg token in encrypted session storage. Explicit logout or a paused unauthorized session clears the session at the app root and navigates directly to Login. |
 | Health/config | `GET /rehealth/mobile/health`, `GET /rehealth/mobile/config` | Environment and contract diagnostics. |
 | Profile | `GET/PUT /rehealth/mobile/profile` | Authenticated, user-scoped typed profile. Preserve returned `version` on PUT; stale edits return `409`; BMI is server-derived. |
@@ -257,11 +257,12 @@ required database is disabled or unavailable. Android must not interpret an
 HTTP/Jeecg success envelope without a durable acknowledgement as completed.
 
 The fixed registration code and Jeecg development signature default are Debug/local
-behavior only. Release does not contain either value. Production keeps random codes
-and the real Aliyun SMS provider with a dedicated RAM AccessKey, approved sign and
-`${code}` registration template. SMS credentials stay server-side and are not shared
-with OSS configuration. The request must use a reviewed mobile-safe signing/attestation
-strategy rather than embedding a production shared secret in the APK.
+behavior only. Release does not contain either value. Production delegates code generation
+and verification to Aliyun Dypnsapi with a dedicated least-privilege RAM AccessKey, gifted
+sign, and gifted login/register template `100001`; the plaintext code is not stored in Redis.
+SMS credentials stay server-side and are not shared with OSS configuration. The request must
+use a reviewed mobile-safe signing/attestation strategy rather than embedding a production
+shared secret in the APK.
 
 Telemetry completion requires all of:
 

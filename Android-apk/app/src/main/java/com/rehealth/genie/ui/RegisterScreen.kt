@@ -84,10 +84,6 @@ fun RegisterScreen(
     var showAgreementHint by remember { mutableStateOf(false) }
     var showHint by remember { mutableStateOf(false) }
 
-    LaunchedEffect(uiState.smsCodeSuggestion) {
-        uiState.smsCodeSuggestion?.let { smscode = it }
-    }
-
     val phoneValid = viewModel.isPhoneValid(phone)
     val canRegister = phoneValid && smscode.length == 6 && password.length >= 6 &&
         password == confirm && agreed && !uiState.isLoading
@@ -264,7 +260,10 @@ fun RegisterScreen(
                             if (!agreed) showAgreementHint = true
                         }
                     },
-                    enabled = canRegister,
+                    // Keep the action tappable while the form is incomplete so the
+                    // click handler can explain which requirement is still missing.
+                    // Only an in-flight network request should suppress another tap.
+                    enabled = !uiState.isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 14.dp)

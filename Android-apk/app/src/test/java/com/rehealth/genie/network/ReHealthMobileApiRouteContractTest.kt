@@ -29,6 +29,25 @@ class ReHealthMobileApiRouteContractTest {
     }
 
     @Test
+    fun `registration SMS uses public Dypnsapi route without shared signing headers`() = runTest {
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200).setBody(SUCCESS_ENVELOPE))
+        val api = ReHealthMobileApi(
+            baseUrl = server.url("/jeecg-boot/").toString(),
+            httpClient = OkHttpClient(),
+        )
+
+        assertIs<RemotePhmOutcome.Success<*>>(api.sendSms("13800138000"))
+
+        val request = server.takeRequest()
+        assertEquals("/jeecg-boot/sys/registerSms", request.path)
+        assertEquals("POST", request.method)
+        assertEquals(null, request.getHeader("X-Sign"))
+        assertEquals(null, request.getHeader("X-Timestamp"))
+        assertTrue(request.body.readUtf8().contains("\"smsmode\":\"1\""))
+    }
+
+    @Test
     fun `reads authenticated recent telemetry for login restore`() = runTest {
         server.start()
         server.enqueue(

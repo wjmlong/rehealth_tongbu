@@ -214,8 +214,8 @@ class AuthenticatedApiClient(
     }
 
     /**
-     * Step 1 of registration: request a registration SMS. The shared OkHttp client carries
-     * [SignInterceptor], which signs this `/sys/sms` call. Pre-auth, so no 401/403 handling.
+     * Step 1 of registration: request a registration SMS through the public, rate-limited
+     * `/sys/registerSms` route. Pre-auth, so no 401/403 handling.
      */
     suspend fun sendSms(mobile: String): ApiResult<Unit> {
         return when (val outcome = mobileApi.sendSms(mobile)) {

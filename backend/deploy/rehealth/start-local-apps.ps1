@@ -38,7 +38,7 @@ function Read-LocalSetting {
         return $DefaultValue
     }
     $prefix = "$Name="
-    $entry = Get-Content -LiteralPath $envFile |
+    $entry = Get-Content -LiteralPath $envFile -Encoding UTF8 |
         Where-Object { $_.TrimStart().StartsWith($prefix, [System.StringComparison]::Ordinal) } |
         Select-Object -Last 1
     if ($null -eq $entry) {
@@ -216,7 +216,19 @@ $env:REHEALTH_ATTRIBUTION_MODE = 'pias'
 $env:REHEALTH_ATTRIBUTION_PROVENANCE = 'pias'
 $env:REHEALTH_KAFKA_CONSUMER_ENABLED = 'true'
 $env:SPRING_KAFKA_BOOTSTRAP_SERVERS = '127.0.0.1:29092'
-$env:JEECG_SMS_DEV_MODE = 'true'
+$env:JEECG_SMS_DEV_MODE = Read-LocalSettingOrEnvironment 'JEECG_SMS_DEV_MODE' 'true'
+$env:JEECG_SMS_DYPNS_ENABLED = Read-LocalSettingOrEnvironment `
+    'JEECG_SMS_DYPNS_ENABLED' `
+    (Read-LocalSettingOrEnvironment 'JEECG_SMS_ALIYUN_ENABLED' 'false')
+$env:JEECG_SMS_DYPNS_SIGN_NAME = Read-LocalSettingOrEnvironment `
+    'JEECG_SMS_DYPNS_SIGN_NAME' `
+    (Read-LocalSettingOrEnvironment 'JEECG_SMS_ALIYUN_SIGN_NAME' '')
+$env:JEECG_SMS_DYPNS_ACCESS_KEY_ID_FILE = Join-Path $secretsDir 'aliyun_sms_access_key_id'
+$env:JEECG_SMS_DYPNS_ACCESS_KEY_SECRET_FILE = Join-Path $secretsDir 'aliyun_sms_access_key_secret'
+if ($env:JEECG_SMS_DEV_MODE.ToLowerInvariant() -eq 'false') {
+    Require-File $env:JEECG_SMS_DYPNS_ACCESS_KEY_ID_FILE
+    Require-File $env:JEECG_SMS_DYPNS_ACCESS_KEY_SECRET_FILE
+}
 $env:REHEALTH_VIOMI_ENABLED = Read-LocalSettingOrEnvironment 'REHEALTH_VIOMI_ENABLED' 'true'
 $env:REHEALTH_VIOMI_APP_ID = Read-LocalSettingOrEnvironment 'REHEALTH_VIOMI_APP_ID' ''
 $env:REHEALTH_VIOMI_APP_KEY = Read-LocalSettingOrEnvironment 'REHEALTH_VIOMI_APP_KEY' ''

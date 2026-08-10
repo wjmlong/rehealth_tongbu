@@ -10,3 +10,7 @@ QA 计划或发布检查表。
 2. `README.md` 文档索引中的正式契约
 3. `QA_TEST_PLAN.md`
 4. `RELEASE_CHECKLIST.md`
+
+## 阶段快照索引
+
+- `PROJECT_STAGE_SUMMARY_2026-08-10.md`：项目负责人视角的功能、架构、运行态、问题、测试、风险和下一阶段总结。
