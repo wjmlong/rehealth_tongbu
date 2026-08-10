@@ -7,6 +7,7 @@ import com.aliyun.dypnsapi20170525.models.CheckSmsVerifyCodeResponseBody;
 import com.aliyun.dypnsapi20170525.models.SendSmsVerifyCodeRequest;
 import com.aliyun.dypnsapi20170525.models.SendSmsVerifyCodeResponse;
 import com.aliyun.dypnsapi20170525.models.SendSmsVerifyCodeResponseBody;
+import com.aliyun.tea.TeaException;
 import com.aliyun.teaopenapi.models.Config;
 import lombok.extern.slf4j.Slf4j;
 import org.jeecg.config.AliyunSmsVerificationProperties;
@@ -66,6 +67,8 @@ public class AliyunSmsVerificationService implements SmsVerificationService {
             response = client(config).sendSmsVerifyCode(request);
         } catch (SmsVerificationException exception) {
             throw exception;
+        } catch (TeaException exception) {
+            throw providerFailure("Aliyun SMS verification send request failed", exception);
         } catch (Exception exception) {
             logClientFailure("send-call", exception);
             throw new SmsVerificationException("Aliyun SMS verification send request failed", exception);
@@ -134,6 +137,8 @@ public class AliyunSmsVerificationService implements SmsVerificationService {
             return passed;
         } catch (SmsVerificationException exception) {
             throw exception;
+        } catch (TeaException exception) {
+            throw providerFailure("Aliyun SMS verification check request failed", exception);
         } catch (Exception exception) {
             throw new SmsVerificationException("Aliyun SMS verification check request failed", exception);
         }
@@ -186,6 +191,19 @@ public class AliyunSmsVerificationService implements SmsVerificationService {
         return new SmsVerificationException(message, providerCode, requestId);
     }
 
+    private static SmsVerificationException providerFailure(String message, TeaException exception) {
+        String providerCode = normalized(exception.getCode());
+        String requestId = firstText(exception.getData(), "RequestId", "requestId");
+        log.warn(
+                "{}, providerCode={}, requestId={}, httpStatus={}",
+                message,
+                providerCode,
+                requestId,
+                exception.getStatusCode()
+        );
+        return new SmsVerificationException(message, providerCode, requestId, exception);
+    }
+
     private static void logClientFailure(String phase, Throwable exception) {
         Throwable root = exception;
         while (root.getCause() != null && root.getCause() != root) {
@@ -201,6 +219,26 @@ public class AliyunSmsVerificationService implements SmsVerificationService {
 
     private static String templateParam(int validMinutes) {
         return "{\"code\":\"##code##\",\"min\":\"" + validMinutes + "\"}";
+    }
+
+    private static String firstText(java.util.Map<String, Object> data, String... keys) {
+        if (data == null) {
+            return null;
+        }
+        for (String key : keys) {
+            Object value = data.get(key);
+            if (value != null) {
+                String text = normalized(String.valueOf(value));
+                if (text != null) {
+                    return text;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static String normalized(String value) {
+        return hasText(value) && !"null".equalsIgnoreCase(value) ? value : null;
     }
 
     private static boolean hasText(String value) {

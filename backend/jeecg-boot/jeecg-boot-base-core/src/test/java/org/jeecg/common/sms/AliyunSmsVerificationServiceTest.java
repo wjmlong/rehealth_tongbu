@@ -7,10 +7,14 @@ import com.aliyun.dypnsapi20170525.models.CheckSmsVerifyCodeResponseBody;
 import com.aliyun.dypnsapi20170525.models.SendSmsVerifyCodeRequest;
 import com.aliyun.dypnsapi20170525.models.SendSmsVerifyCodeResponse;
 import com.aliyun.dypnsapi20170525.models.SendSmsVerifyCodeResponseBody;
+import com.aliyun.tea.TeaException;
 import org.jeecg.config.AliyunSmsVerificationProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -101,6 +105,26 @@ class AliyunSmsVerificationServiceTest {
         );
 
         assertEquals("FREQUENCY_FAIL", exception.getProviderCode());
+    }
+
+    @Test
+    void preservesProviderDetailsFromTeaException() throws Exception {
+        Map<String, Object> data = new HashMap<>();
+        data.put("RequestId", "request-error-1");
+        TeaException providerException = new TeaException();
+        providerException.setCode("INVALID_PARAMETERS");
+        providerException.setStatusCode(400);
+        providerException.setData(data);
+        when(client.sendSmsVerifyCode(any())).thenThrow(providerException);
+
+        SmsVerificationException exception = assertThrows(
+                SmsVerificationException.class,
+                () -> service.sendRegistrationCode("13800138000", "out-1")
+        );
+
+        assertEquals("INVALID_PARAMETERS", exception.getProviderCode());
+        assertEquals("request-error-1", exception.getRequestId());
+        assertEquals(providerException, exception.getCause());
     }
 
     private static CheckSmsVerifyCodeResponse checkResponse(String verifyResult) {

@@ -12,6 +12,12 @@ public class SmsVerificationException extends RuntimeException {
         this.requestId = requestId;
     }
 
+    public SmsVerificationException(String message, String providerCode, String requestId, Throwable cause) {
+        super(message, cause);
+        this.providerCode = providerCode;
+        this.requestId = requestId;
+    }
+
     public SmsVerificationException(String message, Throwable cause) {
         super(message, cause);
         this.providerCode = null;
