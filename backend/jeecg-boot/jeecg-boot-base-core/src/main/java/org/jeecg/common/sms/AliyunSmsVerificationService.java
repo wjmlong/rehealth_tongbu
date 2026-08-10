@@ -10,6 +10,7 @@ import com.aliyun.dypnsapi20170525.models.SendSmsVerifyCodeResponseBody;
 import com.aliyun.teaopenapi.models.Config;
 import lombok.extern.slf4j.Slf4j;
 import org.jeecg.config.AliyunSmsVerificationProperties;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /** Alibaba Cloud Dypnsapi implementation for registration verification codes. */
@@ -28,6 +29,7 @@ public class AliyunSmsVerificationService implements SmsVerificationService {
     private final ClientFactory clientFactory;
     private volatile Client client;
 
+    @Autowired
     public AliyunSmsVerificationService(AliyunSmsVerificationProperties properties) {
         this(properties, AliyunSmsVerificationService::createClient);
     }

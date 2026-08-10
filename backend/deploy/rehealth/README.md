@@ -262,9 +262,13 @@ before startup when Docker MySQL runs with case-sensitive table names; changing
 only `tablePrefix` is insufficient because Quartz appends uppercase table-name
 suffixes internally.
 
-`start-local-apps.ps1` 为本地 JeecgBoot 设置 `JEECG_SMS_DEV_MODE=true`。此模式下
+`start-local-apps.ps1` 默认使用 `JEECG_SMS_DEV_MODE=true`。此模式下
 `POST /jeecg-boot/sys/sms` 仍要求正常请求签名，但不会调用短信网关；服务端创建 5 分钟开发
-会话，`POST /jeecg-boot/sys/user/register` 只接受固定测试验证码 `123456`。
+会话，`POST /jeecg-boot/sys/user/register` 只接受固定测试验证码 `123456`。本地 `.env` 可显式设置
+`JEECG_SMS_DEV_MODE=false` 与 `JEECG_SMS_DYPNS_ENABLED=true` 来测试真实号码认证短信；启动器会把忽略跟踪的
+`secrets/aliyun_sms_access_key_id` 和 `secrets/aliyun_sms_access_key_secret` 作为文件配置传给 JeecgBoot。
+为兼容既有本地 `.env`，新的 DYPNS 开关或签名未填写时，启动器可回退读取旧的
+`JEECG_SMS_ALIYUN_ENABLED` 和 `JEECG_SMS_ALIYUN_SIGN_NAME`；staging/production 不使用该本地兼容逻辑。
 
 staging/production 必须设置 `JEECG_SMS_DEV_MODE=false`、`JEECG_SMS_DYPNS_ENABLED=true`，
 填写号码认证服务控制台显示的赠送签名，并使用已确认的赠送登录/注册模板：
