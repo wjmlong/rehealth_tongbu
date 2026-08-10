@@ -61,8 +61,17 @@ public class AliyunSmsVerificationService implements SmsVerificationService {
                 .setReturnVerifyCode(false)
                 .setAutoRetry(AUTO_RETRY_ENABLED);
 
+        SendSmsVerifyCodeResponse response;
         try {
-            SendSmsVerifyCodeResponse response = client(config).sendSmsVerifyCode(request);
+            response = client(config).sendSmsVerifyCode(request);
+        } catch (SmsVerificationException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            logClientFailure("send-call", exception);
+            throw new SmsVerificationException("Aliyun SMS verification send request failed", exception);
+        }
+
+        try {
             SendSmsVerifyCodeResponseBody body = response == null ? null : response.getBody();
             if (!isProviderSuccess(body)) {
                 throw providerFailure(
@@ -90,6 +99,7 @@ public class AliyunSmsVerificationService implements SmsVerificationService {
         } catch (SmsVerificationException exception) {
             throw exception;
         } catch (Exception exception) {
+            logClientFailure("send-response", exception);
             throw new SmsVerificationException("Aliyun SMS verification send request failed", exception);
         }
     }
@@ -174,6 +184,19 @@ public class AliyunSmsVerificationService implements SmsVerificationService {
     ) {
         log.warn("{}，providerCode={}, requestId={}", message, providerCode, requestId);
         return new SmsVerificationException(message, providerCode, requestId);
+    }
+
+    private static void logClientFailure(String phase, Throwable exception) {
+        Throwable root = exception;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        log.warn(
+                "Aliyun SMS verification client failure, phase={}, exceptionType={}, rootType={}",
+                phase,
+                exception.getClass().getName(),
+                root.getClass().getName()
+        );
     }
 
     private static String templateParam(int validMinutes) {
