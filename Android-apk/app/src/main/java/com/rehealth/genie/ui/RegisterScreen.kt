@@ -264,7 +264,10 @@ fun RegisterScreen(
                             if (!agreed) showAgreementHint = true
                         }
                     },
-                    enabled = canRegister,
+                    // Keep the action tappable while the form is incomplete so the
+                    // click handler can explain which requirement is still missing.
+                    // Only an in-flight network request should suppress another tap.
+                    enabled = !uiState.isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 14.dp)

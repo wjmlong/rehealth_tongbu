@@ -66,6 +66,9 @@ git diff --check
      “请求参数不完整” response. Confirm Redis phone/IP quotas still reject repeated abuse.
    - With local `JEECG_SMS_DEV_MODE=true`, confirm the successful response auto-fills
      `123456`; a failed request must not fill any code. Complete registration and auto-login.
+   - Tap “注册并登录” with an incomplete/invalid form and with the agreement unchecked.
+     Confirm the button remains tappable and shows the corresponding form/agreement hint;
+     during an in-flight registration request it is disabled and cannot submit twice.
    - In staging, set `JEECG_SMS_DEV_MODE=false` and `JEECG_SMS_DYPNS_ENABLED=true`, mount
      the dedicated RAM secret files, and configure the exact gifted sign plus login/register
      template `100001`. Confirm the test phone receives a six-digit code whose message says it
