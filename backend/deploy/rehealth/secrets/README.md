@@ -9,11 +9,12 @@ Required filenames are the keys under the Compose top-level `secrets` section.
 `vision_provider_credential` is the server-only key used for photo food/OCR analysis;
 it must never be copied into Android configuration or logs.
 
-Alibaba Cloud SMS uses two dedicated server-only files:
+Alibaba Cloud Phone Number Verification Service uses two dedicated server-only files:
 
 - `aliyun_sms_access_key_id`
 - `aliyun_sms_access_key_secret`
 
 Each file contains exactly one credential value with no quotes. Use a dedicated RAM
-user allowed to send SMS; never reuse the OSS credential or copy either value into
+user allowed only to call `dypns:SendSmsVerifyCode` and `dypns:CheckSmsVerifyCode`;
+never reuse the OSS credential or copy either value into
 `.env`, Android configuration, logs, or tracked YAML.

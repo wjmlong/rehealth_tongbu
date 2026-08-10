@@ -135,15 +135,23 @@ services:
       SPRING_KAFKA_PROPERTIES_SSL_TRUSTSTORE_LOCATION: /run/secrets/kafka_truststore
       REHEALTH_KAFKA_SECURITY_SASL_JAAS_CONFIG_FILE: /run/secrets/kafka_sasl_jaas_config
       REHEALTH_KAFKA_SECURITY_SSL_TRUSTSTORE_PASSWORD_FILE: /run/secrets/kafka_truststore_password
-      # 本地默认使用固定测试码；staging/production 必须显式关闭并启用阿里云短信。
+      # 本地默认使用固定测试码；staging/production 必须显式关闭并启用号码认证服务。
       JEECG_SMS_DEV_MODE: ${JEECG_SMS_DEV_MODE:-true}
+      JEECG_SMS_DYPNS_ENABLED: ${JEECG_SMS_DYPNS_ENABLED:-false}
+      JEECG_SMS_DYPNS_ACCESS_KEY_ID_FILE: /run/secrets/aliyun_sms_access_key_id
+      JEECG_SMS_DYPNS_ACCESS_KEY_SECRET_FILE: /run/secrets/aliyun_sms_access_key_secret
+      JEECG_SMS_DYPNS_SIGN_NAME: ${JEECG_SMS_DYPNS_SIGN_NAME:-}
+      JEECG_SMS_DYPNS_REGISTER_TEMPLATE_CODE: ${JEECG_SMS_DYPNS_REGISTER_TEMPLATE_CODE:-100001}
+      JEECG_SMS_DYPNS_SCHEME_NAME: ${JEECG_SMS_DYPNS_SCHEME_NAME:-rehealth-register}
+      JEECG_SMS_DYPNS_CODE_LENGTH: ${JEECG_SMS_DYPNS_CODE_LENGTH:-6}
+      JEECG_SMS_DYPNS_VALID_MINUTES: ${JEECG_SMS_DYPNS_VALID_MINUTES:-5}
+      JEECG_SMS_DYPNS_INTERVAL_SECONDS: ${JEECG_SMS_DYPNS_INTERVAL_SECONDS:-60}
+      # 旧 Jeecg 登录/找回密码短信仍可单独启用标准短信服务；默认关闭。
       JEECG_SMS_ALIYUN_ENABLED: ${JEECG_SMS_ALIYUN_ENABLED:-false}
       JEECG_SMS_ALIYUN_ACCESS_KEY_ID_FILE: /run/secrets/aliyun_sms_access_key_id
       JEECG_SMS_ALIYUN_ACCESS_KEY_SECRET_FILE: /run/secrets/aliyun_sms_access_key_secret
       JEECG_SMS_ALIYUN_SIGN_NAME: ${JEECG_SMS_ALIYUN_SIGN_NAME:-}
-      JEECG_SMS_ALIYUN_REGISTER_TEMPLATE_CODE: ${JEECG_SMS_ALIYUN_REGISTER_TEMPLATE_CODE:-}
       JEECG_SMS_ALIYUN_LOGIN_TEMPLATE_CODE: ${JEECG_SMS_ALIYUN_LOGIN_TEMPLATE_CODE:-}
-      JEECG_SMS_ALIYUN_CHANGE_PASSWORD_TEMPLATE_CODE: ${JEECG_SMS_ALIYUN_CHANGE_PASSWORD_TEMPLATE_CODE:-}
     secrets:
       - software_db_password
       - redis_password

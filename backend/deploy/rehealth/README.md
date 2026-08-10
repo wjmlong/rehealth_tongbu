@@ -263,14 +263,36 @@ only `tablePrefix` is insufficient because Quartz appends uppercase table-name
 suffixes internally.
 
 `start-local-apps.ps1` 为本地 JeecgBoot 设置 `JEECG_SMS_DEV_MODE=true`。此模式下
-`POST /jeecg-boot/sys/sms` 仍要求正常请求签名，但不会调用短信网关，而是在 Redis 中
-保存固定测试验证码 `123456`。staging/production 必须在 `.env` 中设置
-`JEECG_SMS_DEV_MODE=false`、`JEECG_SMS_ALIYUN_ENABLED=true`，填写审核通过的短信签名和
-注册模板 Code，并把专用 RAM 用户的 AccessKey ID/Secret 分别写入忽略跟踪的
-`secrets/aliyun_sms_access_key_id` 与 `secrets/aliyun_sms_access_key_secret`。注册模板变量必须
-命名为 `${code}`。登录和修改密码模板只有启用对应短信入口时才需要填写。短信凭据不得复用
-OSS AccessKey，也不得进入 `.env`、Android APK、日志或受版本控制的 YAML；任一生产必填项
-缺失时发送会失败关闭，不会回退到旧默认签名或模板。
+`POST /jeecg-boot/sys/sms` 仍要求正常请求签名，但不会调用短信网关；服务端创建 5 分钟开发
+会话，`POST /jeecg-boot/sys/user/register` 只接受固定测试验证码 `123456`。
+
+staging/production 必须设置 `JEECG_SMS_DEV_MODE=false`、`JEECG_SMS_DYPNS_ENABLED=true`，
+填写号码认证服务控制台显示的赠送签名，并使用已确认的赠送登录/注册模板：
+
+```text
+TemplateCode: 100001
+Template: 您的验证码为${code}。尊敬的客户，以上验证码${min}分钟内有效，请注意保密，切勿告知他人。
+TemplateParam: {"code":"##code##","min":"5"}
+SchemeName: rehealth-register
+CodeLength: 6
+ValidTime: 300 seconds
+Interval: 60 seconds
+DuplicatePolicy: 1 (overwrite)
+ReturnVerifyCode: false
+```
+
+JeecgBoot 通过 `SendSmsVerifyCode` 让号码认证服务生成并发送验证码；注册时使用相同
+`SchemeName` 和发送阶段的 `OutId` 调用 `CheckSmsVerifyCode`，只有 `Code=OK`、`Success=true`
+且 `Model.VerifyResult=PASS` 才创建账号。生产验证码不写入 Redis；Redis 只保存哈希键的发送
+会话、冷却、手机号/IP 配额和注册锁。
+
+把专用 RAM 用户的 AccessKey ID/Secret 分别写入忽略跟踪的
+`secrets/aliyun_sms_access_key_id` 与 `secrets/aliyun_sms_access_key_secret`。RAM 最小权限为
+`dypns:SendSmsVerifyCode` 和 `dypns:CheckSmsVerifyCode`。凭据不得复用 OSS AccessKey，也不得
+进入 `.env`、Android APK、日志或受版本控制的 YAML；任一生产必填项缺失时发送/校验失败
+关闭，不会回退到测试码。号码认证服务的赠送签名/模板不能与标准短信服务 `Dysmsapi` 混用；
+旧 Jeecg 短信登录/找回密码配置仍由 `JEECG_SMS_ALIYUN_*` 独立控制，默认关闭。密钥文件轮换后
+需要重启 JeecgBoot 以重建 SDK 客户端。
 
 该本地启动脚本还会启用
 `REHEALTH_QA_SYNTHETIC_ATTRIBUTION_HISTORY_ENABLED=true`，仅供 Debug APK 的

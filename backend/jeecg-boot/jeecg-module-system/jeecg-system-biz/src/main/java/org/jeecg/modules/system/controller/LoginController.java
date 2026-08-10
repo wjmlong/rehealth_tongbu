@@ -20,6 +20,8 @@ import org.jeecg.common.constant.SymbolConstant;
 import org.jeecg.common.constant.enums.DySmsEnum;
 import org.jeecg.common.system.util.JwtUtil;
 import org.jeecg.common.system.vo.LoginUser;
+import org.jeecg.common.sms.SmsVerificationException;
+import org.jeecg.common.sms.SmsVerificationService;
 import org.jeecg.common.util.*;
 import org.jeecg.common.util.encryption.AesEncryptUtil;
 import org.jeecg.common.util.encryption.EncryptedString;
@@ -32,6 +34,7 @@ import org.jeecg.modules.system.entity.SysRoleIndex;
 import org.jeecg.modules.system.entity.SysUser;
 import org.jeecg.modules.system.model.SysLoginModel;
 import org.jeecg.modules.system.service.*;
+import org.jeecg.modules.system.service.RegistrationSmsState;
 import org.jeecg.modules.system.service.impl.SysBaseApiImpl;
 import org.jeecg.modules.system.util.RandImageUtil;
 import org.springframework.beans.BeanUtils;
@@ -72,6 +75,10 @@ public class LoginController {
 	private BaseCommonService baseCommonService;
 	@Autowired
 	private JeecgBaseConfig jeecgBaseConfig;
+	@Autowired
+	private SmsVerificationService smsVerificationService;
+	@Autowired
+	private RegistrationSmsState registrationSmsState;
 	
 	private final String BASE_CHECK_CODES = "qwertyuiplkjhgfdsazxcvbnmQWERTYUPLKJHGFDSAZXCVBNM1234567890";
 	/**
@@ -315,35 +322,35 @@ public class LoginController {
 	 */
 	private boolean smsDevMode = "true".equalsIgnoreCase(System.getenv("JEECG_SMS_DEV_MODE"));
 	private static final String SMS_DEV_CODE = "123456";
+	private static final int REGISTRATION_SMS_VALID_SECONDS = 300;
+	private static final int REGISTRATION_SMS_INTERVAL_SECONDS = 60;
 
 	@PostMapping(value = "/sms")
 	public Result<String> sms(@RequestBody JSONObject jsonObject,HttpServletRequest request) {
 		Result<String> result = new Result<String>();
 		String clientIp = IpUtils.getIpAddr(request);
-		String mobile = jsonObject.get("mobile").toString();
+		String mobile = jsonObject.getString("mobile");
 		//手机号模式 登录模式: "2"  注册模式: "1"
-		String smsmode=jsonObject.get("smsmode").toString();
+		String smsmode = jsonObject.getString("smsmode");
+		
+		if(oConvertUtils.isEmpty(mobile) || !mobile.matches("^1\\d{10}$")){
+			result.setMessage("请输入正确的手机号！");
+			result.setSuccess(false);
+			return result;
+		}
 		log.info("手机号 {} 请求短信验证码", maskMobile(mobile));
-		
-		if(oConvertUtils.isEmpty(mobile)){
-			result.setMessage("手机号不允许为空！");
-			result.setSuccess(false);
-			return result;
-		}
-		
-		// VUEN-2245【漏洞】发现新漏洞待处理20220906
-		String redisKey = CommonConstant.PHONE_REDIS_KEY_PRE+mobile;
-		Object object = redisUtil.get(redisKey);
-		
-		if (object != null) {
-			result.setMessage("验证码10分钟内，仍然有效！");
-			result.setSuccess(false);
-			return result;
-		}
+		boolean registrationMode = CommonConstant.SMS_TPL_TYPE_1.equals(smsmode);
 
 		//-------------------------------------------------------------------------------------
-		//增加 check防止恶意刷短信接口
-		if(!DySmsLimit.canSendSms(clientIp)){
+		// 注册短信使用 Redis 集群级频控；其他 Jeecg 短信入口暂保留原有限流。
+		if (registrationMode && !registrationSmsState.allowSend(mobile, clientIp)) {
+			log.warn("短信接口请求过多，已触发限流");
+			result.setMessage("短信接口请求太多，请稍后再试！");
+			result.setCode(CommonConstant.PHONE_SMS_FAIL_CODE);
+			result.setSuccess(false);
+			return result;
+		}
+		if (!registrationMode && !DySmsLimit.canSendSms(clientIp)) {
 			log.warn("短信接口请求过多，已触发限流");
 			result.setMessage("短信接口请求太多，请稍后再试！");
 			result.setCode(CommonConstant.PHONE_SMS_FAIL_CODE);
@@ -352,54 +359,96 @@ public class LoginController {
 		}
 		//-------------------------------------------------------------------------------------
 
-		// 测试环境使用固定验证码；生产环境继续生成随机验证码并调用真实短信接口。
-		String captcha = smsDevMode ? SMS_DEV_CODE : RandomUtil.randomNumbers(6);
-		JSONObject obj = new JSONObject();
-    	obj.put("code", captcha);
+		if (registrationMode) {
+			SysUser sysUser = sysUserService.getUserByPhone(mobile);
+			if (sysUser != null) {
+				result.error500("手机号已经注册，请直接登录！");
+				baseCommonService.addLog("手机号已经注册，请直接登录！", CommonConstant.LOG_TYPE_1, null);
+				return result;
+			}
+		}
 
 		// 开发模式（JEECG_SMS_DEV_MODE=true）：不真正下发短信，仅生成并存储验证码，
 		// 便于在无短信网关的本地/测试环境走通「获取验证码 → 注册 → 自动登录」完整链路。
 		if (smsDevMode) {
-			redisUtil.set(redisKey, captcha, 600);
+			if (registrationMode) {
+				registrationSmsState.markSent(
+						mobile,
+						"dev",
+						null,
+						REGISTRATION_SMS_VALID_SECONDS,
+						REGISTRATION_SMS_INTERVAL_SECONDS
+				);
+			} else {
+				redisUtil.set(CommonConstant.PHONE_REDIS_KEY_PRE + mobile, SMS_DEV_CODE, 600);
+			}
 			log.warn("【DEV短信】已为手机号 {} 生成固定测试验证码（未真实下发短信）", maskMobile(mobile));
 			result.setSuccess(true);
 			result.setMessage("测试验证码已生成");
 			return result;
 		}
 
+		if (registrationMode) {
+			String outId = IdWorker.getIdStr();
+			try {
+				SmsVerificationService.SendReceipt receipt =
+						smsVerificationService.sendRegistrationCode(mobile, outId);
+				registrationSmsState.markSent(
+						mobile,
+						"dypns",
+						receipt.outId(),
+						receipt.validSeconds(),
+						receipt.intervalSeconds()
+				);
+				result.setSuccess(true);
+				result.setMessage("验证码已发送");
+				return result;
+			} catch (SmsVerificationException exception) {
+				log.warn(
+						"注册短信发送失败，providerCode={}, requestId={}",
+						exception.getProviderCode(),
+						exception.getRequestId()
+				);
+				result.error500("短信验证码发送失败，请稍后重试");
+				return result;
+			}
+		}
+
+		// 旧 Jeecg 登录/找回密码短信继续使用标准短信服务，避免与 Dypnsapi 资源混用。
+		String redisKey = CommonConstant.PHONE_REDIS_KEY_PRE + mobile;
+		Object object = redisUtil.get(redisKey);
+		if (object != null) {
+			result.setMessage("验证码10分钟内，仍然有效！");
+			result.setSuccess(false);
+			return result;
+		}
+		String captcha = RandomUtil.randomNumbers(6);
+		JSONObject obj = new JSONObject();
+		obj.put("code", captcha);
+
 		try {
 			boolean b = false;
-			//注册模板
-			if (CommonConstant.SMS_TPL_TYPE_1.equals(smsmode)) {
-				SysUser sysUser = sysUserService.getUserByPhone(mobile);
-				if(sysUser!=null) {
-					result.error500(" 手机号已经注册，请直接登录！");
-					baseCommonService.addLog("手机号已经注册，请直接登录！", CommonConstant.LOG_TYPE_1, null);
-					return result;
+			//登录模式，校验用户有效性
+			SysUser sysUser = sysUserService.getUserByPhone(mobile);
+			result = sysUserService.checkUserIsEffective(sysUser);
+			if(!result.isSuccess()) {
+				String message = result.getMessage();
+				String userNotExist="该用户不存在，请注册";
+				if(userNotExist.equals(message)){
+					result.error500("该用户不存在或未绑定手机号");
 				}
-				b = DySmsHelper.sendSms(mobile, obj, DySmsEnum.REGISTER_TEMPLATE_CODE);
-			}else {
-				//登录模式，校验用户有效性
-				SysUser sysUser = sysUserService.getUserByPhone(mobile);
-				result = sysUserService.checkUserIsEffective(sysUser);
-				if(!result.isSuccess()) {
-					String message = result.getMessage();
-					String userNotExist="该用户不存在，请注册";
-					if(userNotExist.equals(message)){
-						result.error500("该用户不存在或未绑定手机号");
-					}
-					return result;
-				}
+				return result;
+			}
 				
-				/**
-				 * smsmode 短信模板方式  0 .登录模板、1.注册模板、2.忘记密码模板
-				 */
-				if (CommonConstant.SMS_TPL_TYPE_0.equals(smsmode)) {
-					//登录模板
-					b = DySmsHelper.sendSms(mobile, obj, DySmsEnum.LOGIN_TEMPLATE_CODE);
-				} else if(CommonConstant.SMS_TPL_TYPE_2.equals(smsmode)) {
-					//忘记密码模板
-					b = DySmsHelper.sendSms(mobile, obj, DySmsEnum.FORGET_PASSWORD_TEMPLATE_CODE);
+			/**
+			 * smsmode 短信模板方式  0 .登录模板、1.注册模板、2.忘记密码模板
+			 */
+			if (CommonConstant.SMS_TPL_TYPE_0.equals(smsmode)) {
+				//登录模板
+				b = DySmsHelper.sendSms(mobile, obj, DySmsEnum.LOGIN_TEMPLATE_CODE);
+			} else if(CommonConstant.SMS_TPL_TYPE_2.equals(smsmode)) {
+				//忘记密码模板
+				b = DySmsHelper.sendSms(mobile, obj, DySmsEnum.FORGET_PASSWORD_TEMPLATE_CODE);
                     // 代码逻辑说明: 【issues/8567】严重：修改密码存在水平越权问题。---
                     if(b){
                         String username = sysUser.getUsername();
@@ -408,7 +457,6 @@ public class LoginController {
                         result.setSuccess(true);
                         return result;
                     }
-                }
 			}
 
 			if (b == false) {

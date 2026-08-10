@@ -65,12 +65,16 @@ git diff --check
      `X-Sign` plus `X-Timestamp` without returning “请求参数不完整”.
    - With local `JEECG_SMS_DEV_MODE=true`, confirm the successful response auto-fills
      `123456`; a failed request must not fill any code. Complete registration and auto-login.
-   - In staging, set `JEECG_SMS_DEV_MODE=false` and enable Aliyun SMS with dedicated
-     secret files, an approved sign, and a `${code}` registration template. Confirm the
-     test phone receives the six-digit random code, Redis retains it for ten minutes,
-     registration succeeds once, and neither the phone, code, nor AccessKey appears in logs.
-     Repeat with one required value missing and confirm the endpoint fails without falling
-     back to the fixed code, OSS credentials, or Jeecg's legacy sign/template.
+   - In staging, set `JEECG_SMS_DEV_MODE=false` and `JEECG_SMS_DYPNS_ENABLED=true`, mount
+     the dedicated RAM secret files, and configure the exact gifted sign plus login/register
+     template `100001`. Confirm the test phone receives a six-digit code whose message says it
+     is valid for five minutes; a wrong code returns failure even when the provider API call itself
+     returns successfully, while the correct code produces `VerifyResult=PASS`, creates one account,
+     and auto-logs in. Confirm Redis contains only hashed registration session/cooldown/rate/lock
+     keys and no production code, and that neither the full phone, code, nor AccessKey appears in logs.
+     Request again after 60 seconds and confirm the new code overwrites the old code. Repeat with one
+     required value missing and confirm the endpoint fails without falling back to the fixed code,
+     OSS credentials, standard `Dysmsapi`, or Jeecg's legacy sign/template.
    - Save a personal profile and complete a health interview, log out, then log in again.
      Confirm the profile, typed health-history fields, latest interview baseline and focus areas
      are queried and displayed without requiring another edit. Make the risk/model endpoint

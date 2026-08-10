@@ -26,6 +26,8 @@ import org.jeecg.common.modules.redis.client.JeecgRedisClient;
 import org.jeecg.common.system.query.QueryGenerator;
 import org.jeecg.common.system.util.JwtUtil;
 import org.jeecg.common.system.vo.LoginUser;
+import org.jeecg.common.sms.SmsVerificationException;
+import org.jeecg.common.sms.SmsVerificationService;
 import org.jeecg.common.util.*;
 import org.jeecg.config.JeecgBaseConfig;
 import org.jeecg.config.mybatis.MybatisPlusSaasConfig;
@@ -36,6 +38,7 @@ import org.jeecg.modules.system.model.DepartIdModel;
 import org.jeecg.modules.system.model.SysUserSysDepPostModel;
 import org.jeecg.modules.system.model.SysUserSysDepartModel;
 import org.jeecg.modules.system.service.*;
+import org.jeecg.modules.system.service.RegistrationSmsState;
 import org.jeecg.modules.system.util.ImportSysUserCache;
 import org.jeecg.modules.system.vo.SysDepartUsersVO;
 import org.jeecg.modules.system.vo.SysUserExportVo;
@@ -74,6 +77,7 @@ import java.util.stream.Collectors;
 public class SysUserController {
 
     private boolean smsDevMode = "true".equalsIgnoreCase(System.getenv("JEECG_SMS_DEV_MODE"));
+    private static final String SMS_DEV_CODE = "123456";
 
 	@Autowired
 	private ISysUserService sysUserService;
@@ -98,6 +102,12 @@ public class SysUserController {
 
 	@Autowired
 	private RedisUtil redisUtil;
+
+	@Autowired
+	private SmsVerificationService smsVerificationService;
+
+	@Autowired
+	private RegistrationSmsState registrationSmsState;
 
     @Value("${jeecg.path.upload}")
     private String upLoadPath;
@@ -1172,68 +1182,116 @@ public class SysUserController {
 	 */
 	@PostMapping("/register")
 	public Result<JSONObject> userRegister(@RequestBody JSONObject jsonObject, SysUser user) {
-		Result<JSONObject> result = new Result<JSONObject>();
 		String phone = jsonObject.getString("phone");
 		String smscode = jsonObject.getString("smscode");
+		Result<JSONObject> invalid = new Result<>();
+		if (oConvertUtils.isEmpty(phone) || !phone.matches("^1\\d{10}$")) {
+			invalid.setMessage("请输入正确的手机号");
+			invalid.setSuccess(false);
+			return invalid;
+		}
+		if (oConvertUtils.isEmpty(smscode) || !smscode.matches("^\\d{6}$")) {
+			invalid.setMessage("请输入6位短信验证码");
+			invalid.setSuccess(false);
+			return invalid;
+		}
 
-        // 代码逻辑说明: VUEN-2245 【漏洞】发现新漏洞待处理20220906
-		String redisKey = CommonConstant.PHONE_REDIS_KEY_PRE+phone;
-		Object code = redisUtil.get(redisKey);
+		String lockToken = registrationSmsState.tryAcquireRegistrationLock(phone);
+		if (lockToken == null) {
+			invalid.setMessage("注册请求正在处理中，请勿重复提交");
+			invalid.setSuccess(false);
+			return invalid;
+		}
+		try {
+			return registerWithVerifiedPhone(jsonObject, user, phone, smscode);
+		} finally {
+			registrationSmsState.releaseRegistrationLock(phone, lockToken);
+		}
+	}
 
+	private Result<JSONObject> registerWithVerifiedPhone(
+			JSONObject jsonObject,
+			SysUser user,
+			String phone,
+			String smscode
+	) {
+		Result<JSONObject> result = new Result<>();
 		String username = jsonObject.getString("username");
-		//未设置用户名，则用手机号作为用户名
-		if(oConvertUtils.isEmpty(username)){
-            username = phone;
-        }
-        //未设置密码，则随机生成一个密码
+		if (oConvertUtils.isEmpty(username)) {
+			username = phone;
+		}
 		String password = jsonObject.getString("password");
-		if(oConvertUtils.isEmpty(password)){
-            password = RandomUtil.randomString(8);
-        }
+		if (oConvertUtils.isEmpty(password)) {
+			password = RandomUtil.randomString(8);
+		}
 		String email = jsonObject.getString("email");
-		SysUser sysUser1 = sysUserService.getUserByName(username);
-		if (sysUser1 != null) {
+
+		SysUser existingUsername = sysUserService.getUserByName(username);
+		if (existingUsername != null) {
 			result.setMessage("用户名已注册");
 			result.setSuccess(false);
 			return result;
 		}
-		SysUser sysUser2 = sysUserService.getUserByPhone(phone);
-		if (sysUser2 != null) {
+		SysUser existingPhone = sysUserService.getUserByPhone(phone);
+		if (existingPhone != null) {
 			result.setMessage("该手机号已注册");
 			result.setSuccess(false);
 			return result;
 		}
+		if (oConvertUtils.isNotEmpty(email)) {
+			SysUser existingEmail = sysUserService.getUserByEmail(email);
+			if (existingEmail != null) {
+				result.setMessage("邮箱已被注册");
+				result.setSuccess(false);
+				return result;
+			}
+		}
 
-		if(oConvertUtils.isNotEmpty(email)){
-            SysUser sysUser3 = sysUserService.getUserByEmail(email);
-            if (sysUser3 != null) {
-                result.setMessage("邮箱已被注册");
-                result.setSuccess(false);
-                return result;
-            }
-        }
-        // 开发模式（JEECG_SMS_DEV_MODE=true）：跳过短信验证码校验，允许「手机号+密码」直接注册，
-        // 便于无短信网关的本地/测试环境走通注册链路。
-        if (!smsDevMode) {
-            if (null == code) {
-                result.setMessage("手机验证码失效，请重新获取");
-                result.setSuccess(false);
-                return result;
-            }
-            if (!smscode.equals(code.toString())) {
-                result.setMessage("手机验证码错误");
-                result.setSuccess(false);
-                return result;
-            }
-        }
+		RegistrationSmsState.Session session = registrationSmsState.getSession(phone);
+		if (session == null) {
+			result.setMessage("手机验证码失效，请重新获取");
+			result.setSuccess(false);
+			return result;
+		}
 
-        String realname = jsonObject.getString("realname");
-        if(oConvertUtils.isEmpty(realname)){
-            realname = username;
-        }
-        
+		if (smsDevMode) {
+			if (!"dev".equals(session.provider()) || !SMS_DEV_CODE.equals(smscode)) {
+				result.setMessage("手机验证码错误");
+				result.setSuccess(false);
+				return result;
+			}
+		} else {
+			if (!"dypns".equals(session.provider()) || oConvertUtils.isEmpty(session.outId())) {
+				result.setMessage("手机验证码失效，请重新获取");
+				result.setSuccess(false);
+				return result;
+			}
+			try {
+				boolean passed = smsVerificationService.checkRegistrationCode(phone, smscode, session.outId());
+				if (!passed) {
+					result.setMessage("手机验证码错误或已失效");
+					result.setSuccess(false);
+					return result;
+				}
+			} catch (SmsVerificationException exception) {
+				log.warn(
+						"注册短信验证码核验失败，providerCode={}, requestId={}",
+						exception.getProviderCode(),
+						exception.getRequestId()
+				);
+				result.setMessage("短信验证码校验服务暂不可用，请稍后重试");
+				result.setSuccess(false);
+				return result;
+			}
+		}
+
+		String realname = jsonObject.getString("realname");
+		if (oConvertUtils.isEmpty(realname)) {
+			realname = username;
+		}
+
 		try {
-			user.setCreateTime(new Date());// 设置创建时间
+			user.setCreateTime(new Date());
 			String salt = oConvertUtils.randomGen(8);
 			String passwordEncode = PasswordUtil.encrypt(username, password, salt);
 			user.setSalt(salt);
@@ -1245,13 +1303,22 @@ public class SysUserController {
 			user.setStatus(CommonConstant.USER_UNFREEZE);
 			user.setDelFlag(CommonConstant.DEL_FLAG_0);
 			user.setActivitiSync(CommonConstant.ACT_SYNC_1);
-            user.setLastPwdUpdateTime(new Date());
-			sysUserService.addUserWithRole(user,"");//默认临时角色 test
+			user.setLastPwdUpdateTime(new Date());
+			sysUserService.addUserWithRole(user, "");
+			registrationSmsState.clearSession(phone);
 			result.success("注册成功");
-		} catch (Exception e) {
+		} catch (Exception exception) {
+			log.warn("手机号注册落库失败，手机号={}", maskPhone(phone));
 			result.error500("注册失败");
 		}
 		return result;
+	}
+
+	private static String maskPhone(String phone) {
+		if (phone == null || phone.length() < 7) {
+			return "***";
+		}
+		return phone.substring(0, 3) + "****" + phone.substring(phone.length() - 4);
 	}
 
 //	/**

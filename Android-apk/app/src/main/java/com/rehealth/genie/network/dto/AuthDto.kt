@@ -6,8 +6,8 @@ import com.squareup.moshi.JsonClass
  * Request body for `POST /jeecg-boot/sys/sms` (register mode).
  *
  * Matches `LoginController.sms(@RequestBody JSONObject)`: reads `mobile` + `smsmode`.
- * `smsmode = "1"` selects the register template; the backend sends an SMS containing a
- * 6-digit code that is stored in Redis and later verified by `/sys/user/register`.
+ * `smsmode = "1"` selects registration. Production delegates six-digit code generation,
+ * delivery, and verification to Aliyun Dypnsapi; Redis stores only opaque session/rate state.
  */
 @JsonClass(generateAdapter = true)
 data class SendSmsRequest(
@@ -20,7 +20,7 @@ data class SendSmsRequest(
  *
  * Matches `SysUserController.userRegister(@RequestBody JSONObject)`: reads `phone`,
  * `smscode`, `username` (defaults to phone when blank), `password`, `realname`, `email`.
- * The `smscode` must match the Redis-stored code from `/sys/sms`.
+ * Production accepts `smscode` only when Aliyun `CheckSmsVerifyCode` returns `VerifyResult=PASS`.
  */
 @JsonClass(generateAdapter = true)
 data class RegisterRequest(
