@@ -38,7 +38,7 @@ function Read-LocalSetting {
         return $DefaultValue
     }
     $prefix = "$Name="
-    $entry = Get-Content -LiteralPath $envFile |
+    $entry = Get-Content -LiteralPath $envFile -Encoding UTF8 |
         Where-Object { $_.TrimStart().StartsWith($prefix, [System.StringComparison]::Ordinal) } |
         Select-Object -Last 1
     if ($null -eq $entry) {
