@@ -3,7 +3,7 @@ package com.rehealth.genie.network.dto
 import com.squareup.moshi.JsonClass
 
 /**
- * Request body for `POST /jeecg-boot/sys/sms` (register mode).
+ * Request body for `POST /jeecg-boot/sys/registerSms`.
  *
  * Matches `LoginController.sms(@RequestBody JSONObject)`: reads `mobile` + `smsmode`.
  * `smsmode = "1"` selects registration. Production delegates six-digit code generation,

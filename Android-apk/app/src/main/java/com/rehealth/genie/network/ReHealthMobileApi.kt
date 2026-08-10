@@ -226,10 +226,7 @@ suspend fun uploadRhiSnapshot(
     suspend fun mobileLogin(request: MobileLoginRequest): RemotePhmOutcome<MobileLoginResponse> =
         unwrap { api.mobileLogin(request) }
 
-    /**
-     * Send a registration SMS. The shared client carries [SignInterceptor], which signs
-     * this `/sys/sms` request with `X-Sign`/`X-Timestamp`.
-     */
+    /** Send a registration SMS through the public, server-rate-limited Dypnsapi route. */
     suspend fun sendSms(mobile: String): RemotePhmOutcome<Unit> =
         unwrapUnit { api.sendSms(SendSmsRequest(mobile = mobile, smsmode = "1")) }
 

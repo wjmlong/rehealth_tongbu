@@ -27,7 +27,7 @@ data class RegisterUiState(
  * D3 registration ViewModel.
  *
  * Flow:
- *  1. [sendSmsCode] -> calls `/sys/sms` (register mode) to deliver a 6-digit code.
+ *  1. [sendSmsCode] -> calls `/sys/registerSms` to deliver a 6-digit code.
  *     Starts a 60s resend countdown on success.
  *  2. [register] -> calls `/sys/user/register` with phone + smscode + password, then
  *     auto-logs-in via `/sys/mLogin` (username = phone, password) so the new user

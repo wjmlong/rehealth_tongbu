@@ -325,6 +325,17 @@ public class LoginController {
 	private static final int REGISTRATION_SMS_VALID_SECONDS = 300;
 	private static final int REGISTRATION_SMS_INTERVAL_SECONDS = 60;
 
+	/**
+	 * Public mobile registration SMS endpoint. Registration does not rely on Jeecg's shared
+	 * request-signing secret because that secret must never be embedded in a release APK.
+	 * Provider verification, Redis cooldowns, phone/IP quotas, and the registration lock remain.
+	 */
+	@PostMapping(value = "/registerSms")
+	public Result<String> registerSms(@RequestBody JSONObject jsonObject, HttpServletRequest request) {
+		jsonObject.put("smsmode", CommonConstant.SMS_TPL_TYPE_1);
+		return sms(jsonObject, request);
+	}
+
 	@PostMapping(value = "/sms")
 	public Result<String> sms(@RequestBody JSONObject jsonObject,HttpServletRequest request) {
 		Result<String> result = new Result<String>();

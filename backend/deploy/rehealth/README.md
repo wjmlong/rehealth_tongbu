@@ -263,7 +263,7 @@ only `tablePrefix` is insufficient because Quartz appends uppercase table-name
 suffixes internally.
 
 `start-local-apps.ps1` 默认使用 `JEECG_SMS_DEV_MODE=true`。此模式下
-`POST /jeecg-boot/sys/sms` 仍要求正常请求签名，但不会调用短信网关；服务端创建 5 分钟开发
+`POST /jeecg-boot/sys/registerSms` 不要求在 APK 中保存 Jeecg 共享签名，但仍执行服务端手机号/IP 频控；开发模式不会调用短信网关，服务端创建 5 分钟开发
 会话，`POST /jeecg-boot/sys/user/register` 只接受固定测试验证码 `123456`。本地 `.env` 可显式设置
 `JEECG_SMS_DEV_MODE=false` 与 `JEECG_SMS_DYPNS_ENABLED=true` 来测试真实号码认证短信；启动器会把忽略跟踪的
 `secrets/aliyun_sms_access_key_id` 和 `secrets/aliyun_sms_access_key_secret` 作为文件配置传给 JeecgBoot。

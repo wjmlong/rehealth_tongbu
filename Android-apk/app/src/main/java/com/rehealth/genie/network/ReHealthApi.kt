@@ -179,12 +179,11 @@ interface ReHealthApi {
     ): Response<JeecgResult<MobileLoginResponse>>
 
     /**
-     * Send a registration SMS. Requires the `X-Sign`/`X-Timestamp` headers (added by
-     * [SignInterceptor], which is installed on the shared OkHttp client and only acts on
-     * paths ending in `/sys/sms`). Production code generation/verification stays in Aliyun
-     * Dypnsapi; Redis holds only opaque session, cooldown, quota, and lock state.
+     * Send a registration SMS through the public, rate-limited mobile route. Production code
+     * generation/verification stays in Aliyun Dypnsapi; Redis holds only opaque session,
+     * cooldown, quota, and lock state. No server-side shared secret is embedded in the APK.
      */
-    @POST("/jeecg-boot/sys/sms")
+    @POST("/jeecg-boot/sys/registerSms")
     suspend fun sendSms(
         @Body request: SendSmsRequest,
     ): Response<JeecgResult<*>>

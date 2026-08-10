@@ -61,8 +61,9 @@ git diff --check
 
 1. Android install/onboarding
    - Install `app/build/outputs/apk/debug/app-debug.apk`.
-   - Launch app, request a registration SMS code, and confirm `/sys/sms` receives
-     `X-Sign` plus `X-Timestamp` without returning “请求参数不完整”.
+   - Launch app, request a registration SMS code, and confirm `/sys/registerSms` reaches
+     the registration controller without Jeecg `X-Sign`/`X-Timestamp` headers or a
+     “请求参数不完整” response. Confirm Redis phone/IP quotas still reject repeated abuse.
    - With local `JEECG_SMS_DEV_MODE=true`, confirm the successful response auto-fills
      `123456`; a failed request must not fill any code. Complete registration and auto-login.
    - In staging, set `JEECG_SMS_DEV_MODE=false` and `JEECG_SMS_DYPNS_ENABLED=true`, mount
