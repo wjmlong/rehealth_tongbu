@@ -1,211 +1,161 @@
-# ReHealth Hardware Ingest Architecture
+# ReHealth 硬件遥测接入架构
 
-Date: 2026-07-31
-Current module: `device-service`
+日期：2026-07-31
+当前模块：`device-service`
 
-## Current Device Service Flow
+## 当前 Device Service 流程
 
 ```text
-authenticated Android batch (telemetry-v2)
-  -> Gateway telemetry authority route
-  -> Device Service identity/device authorization
-  -> shared TelemetryContractValidator
-  -> one TimescaleDB transaction
-       -> upload receipt + measurement + sleep + activity + diet
-       -> reconciliation + Transactional Outbox
-  -> durable ACCEPTED_PERSISTED / idempotent ACCEPTED_DUPLICATE
+已认证的 Android 批次（telemetry-v2）
+  -> Gateway 遥测权威路由
+  -> Device Service 身份/设备授权
+  -> 共享 TelemetryContractValidator
+  -> 一个 TimescaleDB 事务
+       -> 上传收据 + 测量 + 睡眠 + 活动 + 饮食
+       -> 对账 + Transactional Outbox
+  -> 持久化 ACCEPTED_PERSISTED / 幂等 ACCEPTED_DUPLICATE
 ```
 
-`dietRecords` is optional for backward compatibility. Each record requires a
-stable ID, `consumedAt`, one of `breakfast|lunch|dinner|snack`, and a bounded
-description; present nutrient values must be finite and non-negative. Raw meal
-images are outside this contract. Android must persist a captured meal locally
-before it enters the retryable telemetry batch.
+为向后兼容，`dietRecords` 是可选字段。每条记录都必须包含稳定 ID、`consumedAt`、`breakfast|lunch|dinner|snack` 之一以及有界描述；提供的营养值必须是有限且非负的数值。原始餐食图片不属于该契约。Android 必须先在本地持久化捕获的餐食，再将其加入可重试的遥测批次。
 
-Personalized intervention generation is a separate read path and never runs
-inside ingestion. Jeecg calls the credential-protected Device Service
-`/rehealth/internal/v1/operations/users/{userId}/intervention-context` endpoint,
-which reads only the authenticated tenant/user's current natural day and
-bounded recent trends. Upload success therefore does not depend on the LLM,
-software_db, or intervention availability.
+个性化干预生成是独立的读取路径，绝不在接入流程中运行。Jeecg 调用受凭据保护的 Device Service 端点 `/rehealth/internal/v1/operations/users/{userId}/intervention-context`；该端点只读取当前认证租户/用户的当前自然日及有界近期趋势。因此，上传成功不依赖 LLM、`software_db` 或干预服务是否可用。
 
-## Legacy Jeecg/MySQL E2.1 Reference
+## 旧版 Jeecg/MySQL E2.1 参考
 
-## Scope
+## 范围
 
-E2.1 replaces the dev-only in-memory acceptance path behind
-`POST /rehealth/mobile/measurements/batch` with a synchronous, transactional
-MVP write to the separate `hardware` datasource/schema.
+E2.1 用独立 `hardware` 数据源/Schema 中的同步事务型 MVP 写入，替换 `POST /rehealth/mobile/measurements/batch` 背后仅供开发使用的内存接受路径。
 
-This path does not write telemetry to `software_db`, call model-service, run
-CatBoost/SHAP, or perform intervention, attribution, or settlement work.
+该路径不向 `software_db` 写入遥测，不调用 model-service，不运行 CatBoost/SHAP，也不执行干预、归因或结算工作。
 
-## Runtime Flow
+## 运行时流程
 
 ```text
-authenticated Android request
-  -> ReHealthMobileController replaces body userId with LoginUser.id
+已认证的 Android 请求
+  -> ReHealthMobileController 用 LoginUser.id 覆盖请求体 userId
   -> HardwareTelemetryIngestionService
   -> TelemetryBatchValidator
-       -> reject empty/oversized/raw-signal input
+       -> 拒绝空请求、超限请求和原始信号输入
   -> JdbcHardwareTelemetryWriter
-       -> resolve physical dynamic datasource named hardware
-       -> one hardware-local transaction
-       -> idempotency lookup/unique constraint
-       -> batch + measurements + sleep + activity
-       -> commit
-  -> ACCEPTED_PERSISTED or ACCEPTED_DUPLICATE
+       -> 解析名为 hardware 的物理动态数据源
+       -> 一个硬件库本地事务
+       -> 幂等查询/唯一约束
+       -> 批次 + 测量 + 睡眠 + 活动
+       -> 提交
+  -> ACCEPTED_PERSISTED 或 ACCEPTED_DUPLICATE
 ```
 
-`accepted=true` and `persisted=true` are returned only after the hardware-local
-transaction commits, or when a previously committed batch is found.
+只有硬件库本地事务提交完成，或查到此前已提交的批次后，才返回 `accepted=true` 和 `persisted=true`。
 
-## Ownership And Isolation
+## 所有权与隔离
 
-- The JSON `userId` field remains for Android D2 DTO compatibility.
-- The controller overwrites it with the current Jeecg `LoginUser.id`.
-- Idempotency is scoped by `(authenticated user_id, device_id, batch_id)`.
-- A client cannot select another user's hardware rows by changing `userId`.
-- The writer obtains the physical datasource from
-  `DynamicRoutingDataSource.getDataSources().get("hardware")`; it does not use
-  the default `master` route.
-- The transaction manager is created for that physical datasource only. There
-  is no software/hardware distributed transaction.
+- JSON `userId` 字段为兼容 Android D2 DTO 而保留。
+- 控制器使用当前 Jeecg `LoginUser.id` 覆盖该字段。
+- 幂等范围为 `(authenticated user_id, device_id, batch_id)`。
+- 客户端无法通过修改 `userId` 选中其他用户的硬件记录。
+- 写入器通过 `DynamicRoutingDataSource.getDataSources().get("hardware")` 获取物理数据源，不使用默认 `master` 路由。
+- 事务管理器仅针对该物理数据源创建，不存在软件库/硬件库分布式事务。
 
-Device ownership validation against a durable `software_db` binding remains an
-E1.1 dependency. Until that exists, authentication protects user ownership but
-does not prove that the submitted `deviceId` is bound to that user.
+使用持久化 `software_db` 绑定校验设备归属仍是 E1.1 依赖。在该能力完成前，认证可以保护用户归属，但无法证明提交的 `deviceId` 已绑定到该用户。
 
-## Idempotency
+## 幂等性
 
-`hardware_upload_batch` has a unique key on
-`(user_id, device_id, batch_id)`. A normal retry returns the original receipt.
-Concurrent insert races are resolved by the same database constraint and a
-post-rollback lookup. Child rows are not inserted again.
+`hardware_upload_batch` 对 `(user_id, device_id, batch_id)` 建立唯一键。普通重试返回原始收据。并发插入竞争通过同一数据库约束和回滚后的查询解决，不会再次插入子记录。
 
-Statuses:
+状态：
 
-| Status | Meaning |
+| 状态 | 含义 |
 | --- | --- |
-| `ACCEPTED_PERSISTED` | New batch and normalized rows committed. |
-| `ACCEPTED_DUPLICATE` | The same owner/device/batch was already committed. |
-| `REJECTED_INVALID` | Validation rejected the request before persistence. |
+| `ACCEPTED_PERSISTED` | 新批次和规范化记录已提交。 |
+| `ACCEPTED_DUPLICATE` | 同一所有者、设备和批次此前已提交。 |
+| `REJECTED_INVALID` | 请求在持久化前被校验拒绝。 |
 
-When the datasource is disabled, missing, or a transaction fails, the endpoint
-returns a failed Jeecg envelope with `code=503`. Android must retain the local
-batch and retry with the same `batchId`.
+数据源被禁用、缺失或事务失败时，端点返回 `code=503` 的失败 Jeecg 信封。Android 必须保留本地批次，并使用同一 `batchId` 重试。
 
-## Raw Signal Policy
+## 原始信号策略
 
-Raw signal chunks, `payload_base64`, raw payload fields, PPG/RRI/waveform keys,
-and nested equivalents are rejected by default. The V1 schema contains only a
-future metadata table and no raw payload column. Enabling raw signal upload
-still requires separate consent, retention, encryption, and object-storage
-approval; E2.1 does not implement that path.
+默认拒绝原始信号分块、`payload_base64`、原始载荷字段、PPG/RRI/波形键及其嵌套等价字段。V1 Schema 仅包含一张未来使用的元数据表，不包含原始载荷列。即使启用原始信号上传，仍必须另行批准用户同意、保留期限、加密和对象存储方案；E2.1 不实现该路径。
 
-## PIAS Boundary
+## PIAS 边界
 
-Hardware telemetry is an authenticated fact source for later backend
-orchestration. Patient clients do not submit risk history for attribution and
-do not call group attribution or settlement. A later E1.1/E1.2 backend flow
-must build individual attribution inputs from persisted risk, intervention,
-feedback, and telemetry-derived summaries. Settlement remains an admin-only
-evidence workflow and never runs in telemetry ingestion.
+硬件遥测是后续后端编排使用的认证事实来源。患者客户端不提交用于归因的风险历史，也不调用群体归因或结算。后续 E1.1/E1.2 后端流程必须从已持久化的风险、干预、反馈和遥测派生摘要组装个体归因输入。结算仍是仅管理员可用的证据流程，绝不在遥测接入中运行。
 
-## Viomi Adapter (云米主动上报回调)
+## 云米适配器（主动上报回调）
 
-The authenticated mobile API also supports the required on-demand pull flow:
+认证移动 API 也支持所需的按需拉取流程：
 
 ```text
-Android -> POST /rehealth/mobile/viomi/bind (IMEI + productCode)
-Android -> POST /rehealth/mobile/viomi/sync (IMEI + epoch-ms window + metrics)
-Backend -> Viomi token/device/history OpenAPI -> HardwareIngestionPort -> hardware_db
-Backend -> normalized persisted measurements -> Android Room
+Android -> POST /rehealth/mobile/viomi/bind（IMEI + productCode）
+Android -> POST /rehealth/mobile/viomi/sync（IMEI + Epoch 毫秒时间窗 + 指标）
+后端 -> 云米令牌/设备/历史 OpenAPI -> HardwareIngestionPort -> hardware_db
+后端 -> 已规范化并持久化的测量 -> Android Room
 ```
 
-`AppId`, `AppKey`, and the cached `AccessToken` remain server-side. Bind verifies
-that the IMEI is visible to the configured Viomi account, stores only a hashed
-device identity in software_db, and scopes the binding to the authenticated user.
-Device-list requests use the `UserId` returned by Viomi's token response; the
-configured `REHEALTH_VIOMI_USER_ID` is only a compatibility fallback when that
-field is absent.
-Sync supports `HEART_RATE`, `BLOOD_PRESSURE`, and `BLOOD_OXYGEN`, interprets vendor
-timestamps without an explicit offset in `Asia/Shanghai`, and caps a request at 31 days.
-It rejects non-finite or physiologically invalid samples (heart rate 20–250 bpm,
-SpO₂ 50–100%, systolic 50–260 mmHg, diastolic 30–180 mmHg, and systolic greater than
-diastolic). Records are returned to Android only after durable hardware ingest succeeds.
-`NO_NEW_DATA` is a successful no-op.
+`AppId`、`AppKey` 和缓存的 `AccessToken` 仅保留在服务端。绑定流程验证 IMEI 对已配置云米账号可见，只在 `software_db` 保存哈希设备身份，并将绑定限定到当前认证用户。设备列表请求使用云米令牌响应返回的 `UserId`；只有该字段缺失时，才使用配置项 `REHEALTH_VIOMI_USER_ID` 作为兼容回退。
 
-`POST /rehealth/viomi/report` lets the Viomi (miwitracker) platform push wearable
-telemetry to this backend. The watch does **not** call `measurements/batch`
-directly; Viomi's cloud calls our callback after receiving the watch data.
+同步支持 `HEART_RATE`、`BLOOD_PRESSURE` 和 `BLOOD_OXYGEN`，将没有显式偏移量的厂商时间戳按 `Asia/Shanghai` 解释，并将单次请求限制为最多 31 天。同步会拒绝非有限值或生理范围无效的样本：心率 20–250 bpm、SpO₂ 50–100%、收缩压 50–260 mmHg、舒张压 30–180 mmHg，且收缩压必须高于舒张压。只有硬件接入持久化成功后，记录才会返回 Android。`NO_NEW_DATA` 是成功的空操作。
 
-### Flow
+`POST /rehealth/viomi/report` 允许云米（miwitracker）平台向本后端推送可穿戴遥测。手表不会直接调用 `measurements/batch`；云米云端收到手表数据后调用我们的回调。
+
+### 流程
 
 ```text
-Viomi cloud (signed JWT HS256 with shared AppKey)
-  -> POST /rehealth/viomi/report   (@IgnoreAuth; no Jeecg session)
-  -> ViomiReportController writes the exact {"code":1,"msg":"操作成功"} ack
-  -> ViomiReportService verifies JWT, maps payload, calls HardwareIngestionPort
+云米云端（使用共享 AppKey 的 JWT HS256 签名）
+  -> POST /rehealth/viomi/report（@IgnoreAuth；无 Jeecg 会话）
+  -> ViomiReportController 写入精确的 {"code":1,"msg":"操作成功"} 确认响应
+  -> ViomiReportService 校验 JWT、映射载荷并调用 HardwareIngestionPort
   -> HardwareTelemetryIngestionService
   -> TelemetryBatchValidator
-  -> JdbcHardwareTelemetryWriter (same hardware datasource + idempotency)
+  -> JdbcHardwareTelemetryWriter（复用同一 hardware 数据源和幂等机制）
 ```
 
-### Authentication
+### 认证
 
-- The token is delivered in `Authorization: Bearer <jwt>` or in the body field
-  `AccessToken`.
-- Verified with HMAC-SHA256 (JWT HS256) using `rehealth.viomi.app-key`.
-- Claims `appId` / `imei` are read from the JWT payload (fallback to the body
-  `Imei` field and configured `rehealth.viomi.app-id`).
-- When `rehealth.viomi.require-auth=true` (default) and verification fails, the
-  endpoint returns `{"code":0,"msg":"操作失败"}` so Viomi retries.
+- 令牌通过 `Authorization: Bearer <jwt>` 请求头或请求体字段 `AccessToken` 传递。
+- 使用 `rehealth.viomi.app-key` 通过 HMAC-SHA256（JWT HS256）验证。
+- 从 JWT 载荷读取 `appId`/`imei` 声明；缺失时回退到请求体 `Imei` 字段和已配置的 `rehealth.viomi.app-id`。
+- 当 `rehealth.viomi.require-auth=true`（默认）且验证失败时，端点返回 `{"code":0,"msg":"操作失败"}`，使云米执行重试。
 
-### Field mapping (Viomi -> ReHealth metricType)
+### 字段映射（云米 -> ReHealth `metricType`）
 
-| Viomi DataType | Viomi field | ReHealth metricType | unit |
+| 云米 `DataType` | 云米字段 | ReHealth `metricType` | 单位 |
 | --- | --- | --- | --- |
 | `Health` | `heartRate` | `HEART_RATE` | bpm |
 | `Health` | `bloodOxygen` | `SPO2` | % |
-| `Health` | `bloodPressureMax`/`bloodPressureMin` | `BLOOD_PRESSURE` (primary=systolic, secondary=diastolic) | mmHg |
-| `Health` | `steps` | `STEPS` | steps |
+| `Health` | `bloodPressureMax`/`bloodPressureMin` | `BLOOD_PRESSURE`（主值=收缩压，次值=舒张压） | mmHg |
+| `Health` | `steps` | `STEPS` | 步 |
 | `Health` | `distance` | `DISTANCE` | m |
 | `Health` | `calorie` | `CALORIE` | kcal |
-| `Health` | `deepSleep`/`lighSleep`/`totalSleep`/`sleepTime` | `hardware_sleep_session` (deep/light minutes) | - |
-| `StepRoll`/`StepRolls` | `step`/`roll`/`distance`/`calorie` | `STEPS` / `ROLL` / `DISTANCE` / `CALORIE` | steps / count / m / kcal |
+| `Health` | `deepSleep`/`lighSleep`/`totalSleep`/`sleepTime` | `hardware_sleep_session`（深睡/浅睡分钟） | - |
+| `StepRoll`/`StepRolls` | `step`/`roll`/`distance`/`calorie` | `STEPS` / `ROLL` / `DISTANCE` / `CALORIE` | 步 / 次 / m / kcal |
 | `Temperature` | `temperature` | `BODY_TEMPERATURE` | °C |
 | `Location` | `battery` | `DEVICE_BATTERY` | % |
 
-Empty/blank Viomi values are skipped so a partial payload persists the available
-metrics. `ResultData` is a JSON string and is parsed per `DataType`.
+空白云米值会被跳过，因此部分载荷仍可持久化其中有效的指标。`ResultData` 是 JSON 字符串，按 `DataType` 解析。
 
-### Ownership and idempotency
+### 所有权与幂等性
 
-- `deviceId` = Viomi `imei`.
-- `userId` = configured `rehealth.viomi.user-id` (default `viomi-gateway`),
-  i.e. a platform gateway account, because the callback has no Jeecg user
-  session. Per-IMEI → real-user binding through `software_db` device binding is a
-  follow-up (depends on E1.1).
-- `batchId` = `viomi-{imei}-{dataType}-{reqId|hash}`, giving idempotency under
-  the same `(user_id, device_id, batch_id)` unique key.
+- `deviceId` = 云米 `imei`。
+- `userId` = 已配置的 `rehealth.viomi.user-id`（默认 `viomi-gateway`），即平台网关账号，因为回调没有 Jeecg 用户会话。通过 `software_db` 设备绑定将每个 IMEI 映射到真实用户是后续工作，依赖 E1.1。
+- `batchId` = `viomi-{imei}-{dataType}-{reqId|hash}`，以同一 `(user_id, device_id, batch_id)` 唯一键保证幂等。
 
-### Response contract
+### 响应契约
+
+成功时：
 
 ```json
 { "code": 1, "msg": "操作成功" }
 ```
 
-on success, and:
+认证失败、校验拒绝或持久化错误时：
 
 ```json
 { "code": 0, "msg": "操作失败" }
 ```
 
-on auth failure, validation rejection, or persistence error. The transport is
-always HTTP 200 so Viomi marks the report delivered based on `code`.
+传输层始终返回 HTTP 200，云米根据 `code` 判断上报是否送达。
 
-### Configuration
+### 配置
 
 ```yaml
 rehealth:
@@ -218,15 +168,8 @@ rehealth:
     source: ${REHEALTH_VIOMI_SOURCE:viomi}
 ```
 
-`app-id`/`app-key` are issued by Viomi during onboarding and injected via the
-`REHEALTH_VIOMI_APP_ID` / `REHEALTH_VIOMI_APP_KEY` environment variables (no
-secrets in source). `require-auth` defaults to `true`; for local integration
-before Viomi issues real credentials, set `REHEALTH_VIOMI_REQUIRE_AUTH=false`
-so reports pass through (still persisted under the configured `user-id`).
+`app-id`/`app-key` 由云米在接入期间签发，并通过 `REHEALTH_VIOMI_APP_ID`/`REHEALTH_VIOMI_APP_KEY` 环境变量注入，源码中不保存密钥。`require-auth` 默认为 `true`；在云米签发真实凭据前进行本地集成时，可设置 `REHEALTH_VIOMI_REQUIRE_AUTH=false` 让上报通过，但数据仍会持久化到配置的 `user-id` 下。
 
-## Production Follow-up
+## 生产后续工作
 
-The direct JDBC transaction is appropriate for an MVP pilot, not the final
-high-concurrency topology. A later task should add one durable queue/stream,
-consumer batch writers, pressure tests, observability, partitioning/retention,
-and dead-letter handling without changing the Android batch contract.
+直接 JDBC 事务适合 MVP 试点，并非最终高并发拓扑。后续任务应在不改变 Android 批次契约的前提下，增加一套持久化队列/流、消费者批量写入器、压力测试、可观测性、分区/保留策略和死信处理。
