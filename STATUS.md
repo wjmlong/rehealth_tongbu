@@ -1,6 +1,6 @@
 # ReHealth 当前状态
 
-> 最后核对：2026-08-07。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
+> 最后核对：2026-08-11。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
 > `docs/archive/acceptance/`，不得作为当前实现或发布状态的依据。
 
 当前待发布 Android 版本为 `1.0.0 (versionCode 1)`；该版本包含 HBand/云米连接方式选择，
@@ -28,6 +28,13 @@ Release Lint 保留全部既有门禁，但临时禁用会因 AGP 8.10.1/Compose
 1. 物理 MRD/RWFit 戒指及 HBand 手表/手环与 Android 13+ 真机的扫描、重连、锁屏长时间采集、功耗和准确性 QA 尚未完成；HBand 已开始首次真机联调，完整重装后的连接验证仍待完成。
 2. Android 运行时端到端证据仍需覆盖登录、采集、离线队列、遥测上传、风险评估和反馈回传。
 3. 签名 Release APK 的真实设备运行时 logcat、权限、隐私和真实 HTTPS 全链路仍需验收。
+
+2026-08-11 已将当前 `1.0.0 (versionCode 1)` 签名 Release APK 发布到睿禾健康官网，
+首页行动按钮已由“了解小禾灵”改为“下载小禾灵”，公开下载地址为
+`https://ruihehealth.cn/downloads/xiaoheling-1.0.0.apk`。公网响应已验证为 HTTP 200，文件大小为
+`20661106` 字节，SHA-256 为
+`DD3883823310575720C6AC9E468C04FDBE4E638E99B4323F248C4949A83A7138`。
+该记录仅表示分发入口可用，不解除上述物理设备、运行时和隐私验收阻塞。
 
 2026-08-04 发布整理已完成 Release 源集门禁：`testDebugUnitTest`、R8、Lint Vital 和
 `assembleRelease` 在显式 HTTPS 联调地址下通过；Mock 商品资源、设备演练 UI、
