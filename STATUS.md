@@ -34,6 +34,8 @@ Release Lint 保留全部既有门禁，但临时禁用会因 AGP 8.10.1/Compose
 `https://ruihehealth.cn/downloads/xiaoheling-1.0.0.apk`。公网响应已验证为 HTTP 200，文件大小为
 `20661106` 字节，SHA-256 为
 `DD3883823310575720C6AC9E468C04FDBE4E638E99B4323F248C4949A83A7138`。
+官网桌面端下载卡片同时展示“手机扫码下载”二维码，二维码内容为上述 HTTPS APK 直链；
+移动端保留直接下载按钮。公网二维码 PNG 已完成反向解码校验。
 该记录仅表示分发入口可用，不解除上述物理设备、运行时和隐私验收阻塞。
 
 2026-08-04 发布整理已完成 Release 源集门禁：`testDebugUnitTest`、R8、Lint Vital 和
