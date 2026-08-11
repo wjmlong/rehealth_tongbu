@@ -49,6 +49,19 @@ class ReHealthRuntimeSafetyValidatorTest {
     }
 
     @Test
+    void tenantMembershipInsuranceScopeIsDevelopmentOnly() {
+        Map<String, Object> staging = safeConfiguration("staging");
+        staging.put("rehealth.insurance.tenant-membership-dev-scope-enabled", "true");
+        assertRejected(staging, "INSURANCE_DEV_SCOPE_FORBIDDEN");
+
+        assertDoesNotThrow(() -> validate(Map.of(
+                "rehealth.runtime.mode", "development",
+                "rehealth.attribution.mode", "pias",
+                "rehealth.insurance.tenant-membership-dev-scope-enabled", "true"
+        )));
+    }
+
+    @Test
     void rejectsExternalHttpServiceUrlInProduction() {
         Map<String, Object> properties = safeConfiguration("production");
         properties.put("rehealth.model-service.base-url", "http://models.example.com");

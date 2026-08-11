@@ -36,6 +36,13 @@ public final class ReHealthRuntimeSafetyValidator implements InitializingBean {
         if (!List.of("model-service", "legacy", "langchain4j").contains(healthAgentEngine)) {
             reject("INVALID_HEALTH_AGENT_ENGINE", "expected model-service or langchain4j");
         }
+        if (runtimeMode != RuntimeMode.DEVELOPMENT
+                && enabled(environment, "rehealth.insurance.tenant-membership-dev-scope-enabled")) {
+            reject(
+                    "INSURANCE_DEV_SCOPE_FORBIDDEN",
+                    "tenant-membership insurer scope is allowed only in development"
+            );
+        }
 
         if (runtimeMode.isProtected()) {
             requireEnabled(environment, "rehealth.software-db.enabled", "SOFTWARE_DB_REQUIRED");
