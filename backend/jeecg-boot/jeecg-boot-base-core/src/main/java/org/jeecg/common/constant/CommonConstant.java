@@ -99,11 +99,15 @@ public interface CommonConstant {
     String CLIENT_TYPE_PC = "PC";
     /** 客户端类型：APP端 */
     String CLIENT_TYPE_APP = "APP";
+    /** 客户端类型：ReHealth 官网 */
+    String CLIENT_TYPE_WEB = "WEB";
     /** 客户端类型：手机号登录 */
     String CLIENT_TYPE_PHONE = "PHONE";
     String PREFIX_USER_TOKEN_PC = "prefix_user_token:single_login:pc:";
     /** 单点登录：用户在APP端的Token缓存KEY前缀 (username -> token) */
     String PREFIX_USER_TOKEN_APP = "prefix_user_token:single_login:app:";
+    /** 单点登录：用户在 ReHealth 官网的Token缓存KEY前缀 (username -> token) */
+    String PREFIX_USER_TOKEN_WEB = "prefix_user_token:single_login:web:";
     /** 单点登录：用户在手机号登录的Token缓存KEY前缀 (username -> token) */
     String PREFIX_USER_TOKEN_PHONE = "prefix_user_token:single_login:phone:";
     /**============================== 【是否允许同一账号多地同时登录】登录客户端类型常量 ==============================*/

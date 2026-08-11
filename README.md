@@ -64,6 +64,11 @@ Room v8 本地库（v7 会话/消息表及可空的设备睡眠总时长），�
 Redis 只保存 5 分钟发送会话、60 秒冷却、集群频控和注册锁，不保存生产验证码明文；配置缺失时
 失败关闭，也不复用 OSS 凭据或标准短信服务 `Dysmsapi` 的签名模板。具体部署入口见
 `backend/deploy/rehealth/README.md`。
+公司官网本地联调使用独立 `POST /sys/webLogin`：复用现有 Jeecg 用户、租户、角色、失败锁定和
+JWT 校验，但以 `WEB` 客户端类型签发令牌，单点登录缓存与管理 PC 端、Android APP 分离。
+官网 FastAPI BFF 在服务端 Redis 保存 Jeecg Token，并只向浏览器设置 HttpOnly 会话 Cookie；
+浏览器中的兼容 Token 仅用于 CSRF 校验。该本地阶段保留官网滑块交互，邮箱验证码和机构自主注册
+尚未接入统一认证，不能作为生产人机校验或生产开户注册方案。
 健康问答默认由 JeecgBoot Java LangChain4j 执行；身份类问题通过只绑定当前认证账号、且不接受
 `userId` 参数的服务端资料工具读取最新昵称与基本资料，`model-service` 对话接口仅保留为显式回滚。
 首页拍照记录使用系统相机的应用私有临时文件，经客户端方向校正、缩放和重编码后上传到 JeecgBoot；

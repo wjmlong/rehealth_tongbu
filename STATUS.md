@@ -75,7 +75,7 @@ Play Console 内测、物理设备与完整线上闭环验收仍保持发布阻�
 | --- | --- |
 | Android | 单一有效设备 Provider 路由；Release 只注册 HBand/Viomi Cloud，正式选择只展示 HBand MT116 蓝牙和云米 IMEI 云端，默认 HBand 并迁移旧 MRD/RWFit 选择；Debug 保留 MRD/RWFit/Mock 工程入口。已接入真实 SDK/BLE、云米 IMEI 绑定、Room、本地优先、Foreground Service、WorkManager、CVD 16 特征、认证感知上传队列及风险/干预/反馈 UI。HBand 已按能力接入心率、步数/活动、睡眠、血氧、HRV、血压、血糖、压力、MET、ECG、血液/身体成分与设备设置；MT116 的 HRV/压力优先走一键体检或真实历史，MET 只读真实历史，体温已移除，完整真机准确性仍待验收。 |
 | Device Service | 遥测校验、TimescaleDB 持久化、幂等批次、Transactional Outbox、Kafka 发布；`telemetry-v2` 新增饮食行为记录，并向受信 Jeecg 调用提供租户/用户/自然日隔离的今日行为与近 7 日描述性变化 |
-| JeecgBoot | 登录与权限、用户/设备绑定、结构化档案/访谈/干预/行为业务数据、风险/干预/反馈编排、LangChain4j 健康问答、视觉食物/OCR 和结构化生活方式干预、安全策略、用户/租户隔离会话历史和 software_db；注册短信已切换到独立阿里云号码认证服务 `Dypnsapi`，使用赠送登录/注册模板 `100001`，由 `SendSmsVerifyCode` 生成 6 位/5 分钟验证码并由 `CheckSmsVerifyCode` 云端核验，Redis 只保存发送会话、60 秒冷却、集群频控和注册锁，缺配置失败关闭；真实发送仍待 RAM 凭据和赠送签名到位后验收；每次生成干预都重新读取权威画像、最新访谈/风险和 Device Service 行为上下文，不采信客户端画像/风险；拍照分析只持久化验证后的结构化结果，不保存原图；模型证据继续保留版本化 JSON 快照 |
+| JeecgBoot | 登录与权限、用户/设备绑定、结构化档案/访谈/干预/行为业务数据、风险/干预/反馈编排、LangChain4j 健康问答、视觉食物/OCR 和结构化生活方式干预、安全策略、用户/租户隔离会话历史和 software_db；公司官网本地联调已增加独立 `WEB` 登录客户端，复用现有用户/租户/角色并与 PC/APP 单点会话隔离，官网 BFF 只在服务端持有 Jeecg Token；注册短信已切换到独立阿里云号码认证服务 `Dypnsapi`，使用赠送登录/注册模板 `100001`，由 `SendSmsVerifyCode` 生成 6 位/5 分钟验证码并由 `CheckSmsVerifyCode` 云端核验，Redis 只保存发送会话、60 秒冷却、集群频控和注册锁，缺配置失败关闭；真实发送仍待 RAM 凭据和赠送签名到位后验收；每次生成干预都重新读取权威画像、最新访谈/风险和 Device Service 行为上下文，不采信客户端画像/风险；拍照分析只持久化验证后的结构化结果，不保存原图；模型证据继续保留版本化 JSON 快照 |
 | model-service | CVD 风险评分、模型制品校验；旧干预生成仍保留作兼容路径；新增隔离的 `/v2/rhi/evaluate` research preview，提供 32 维确定性 RHI、五域、动量和可信度，明确不生成临床概率；旧健康助手接口保留为可配置回退 |
 | PIAS | 独立服务提供个体归因；Android 不执行生产归因 |
 | 部署 | Gateway、MySQL、TimescaleDB、Kafka、Redis、Nacos、Prometheus、Grafana 的 Compose 拓扑 |

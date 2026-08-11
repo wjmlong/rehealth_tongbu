@@ -34,6 +34,24 @@ POST /rehealth/mobile/attribution/events
 
 只有 `/health` 标记了 `@IgnoreAuth`。其他移动端点应使用 JeecgBoot 的常规认证与授权机制。
 
+## 公司官网本地登录
+
+公司官网不使用 Android 的 `/sys/mLogin`，也不复用管理后台 PC 登录的单点会话槽位：
+
+```text
+POST /sys/webLogin
+```
+
+请求体沿用 `SysLoginModel` 的 `username`/`password`；`username` 可为唯一登录账号或唯一邮箱。
+端点复用 Jeecg 用户有效性检查、失败次数锁定、租户选择和密码校验，以固定 `WEB` 客户端类型
+签发 JWT，并额外返回当前租户范围内的 `roles` 与 `permissions`。`WEB` 使用独立的 Redis
+单点登录键，不会踢出同一用户的 PC 或 APP 会话。响应中的 Jeecg Token 只允许由官网 FastAPI
+BFF 在服务端持有；不得保存到浏览器、日志或官网 PostgreSQL。
+
+本地联调阶段保留官网现有滑块交互，但它不是服务端可验证的人机证明。正式发布前必须补充
+服务端验证码/风控、HTTPS Secure Cookie、生产密钥管理和完整安全验收。邮箱验证码登录和机构
+自主注册当前明确不支持。
+
 ## Model Service 契约
 
 `ModelServiceClient` 是 Java 调用模型服务的唯一边界。
