@@ -278,6 +278,10 @@ Room `ring_activities` 按设备当地自然日聚合的真实活动记录，活
 模拟戒指只存在于 `app/src/debug`，由 Debug 专用工厂和
 `USE_FAKE_RING`/`SEED_FAKE_HEALTH_DATA` 控制。`app/src/release` 的工厂只构造
 真实 HBand/Viomi Cloud Provider；远程风险评估失败时显示不可用，不生成本地模拟风险。
+启用两个 Debug 开关时，模拟历史会按当前登录账号幂等写入，不再只落到启动阶段的
+`local-device` 作用域；当前日同时补齐血糖、MET、ECG、血液成分和身体成分指标。
+数据页仅在该显式 Mock 构建中展示 `ring_sim` 高级指标，归因页提供带“Debug 模拟”标识的
+PIAS 图表预览。普通 Debug 和 Release 仍拒绝把模拟来源当作真实健康数据。
 Mock 与旧 MRD/RWFit 商品目录、设备绑定演练 UI 只存在于 Debug source set；Release 合并资源中只包含
 HBand 与 Viomi Cloud 真实商品。Release 如果遇到覆盖安装遗留的非生产遥测会拒绝上传，
 不会把其改写为真实 Provider 数据。

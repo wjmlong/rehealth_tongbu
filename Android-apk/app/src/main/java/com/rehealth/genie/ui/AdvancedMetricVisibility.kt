@@ -12,15 +12,16 @@ private val VALUE_GATED_ADVANCED_METRICS = setOf(
 internal fun isDisplayableAdvancedMeasurement(
     type: RingMetricType,
     measurement: RingMeasurementEntity?,
+    allowSynthetic: Boolean = false,
 ): Boolean {
     if (type !in VALUE_GATED_ADVANCED_METRICS || measurement == null) return false
     val source = measurement.source.trim()
-    if (
+    if (!allowSynthetic && (
         source.isEmpty() ||
         source.equals("ring_sim", ignoreCase = true) ||
         source.contains("mock", ignoreCase = true) ||
         source.contains("synthetic", ignoreCase = true)
-    ) {
+    )) {
         return false
     }
     val value = measurement.primaryValue

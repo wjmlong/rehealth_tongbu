@@ -183,7 +183,10 @@ fun AttributionScreen(
             refreshState = refreshState.reduce(
                 AttributionRefreshEvent.Succeeded(
                     requestId = requestId,
-                    data = AttributionRemoteData(history = history, pias = null),
+                    data = AttributionRemoteData(
+                        history = history,
+                        pias = runtimeAttributionPiasPreview(history.size),
+                    ),
                 ),
             )
         } catch (cancelled: CancellationException) {
@@ -192,7 +195,7 @@ fun AttributionScreen(
             val availableData = previousData ?: runCatching {
                 AttributionRemoteData(
                     history = application.riskHistoryRepository.attributionHistory(limit = 90),
-                    pias = null,
+                    pias = runtimeAttributionPiasPreview(0),
                 )
             }.getOrNull()
             refreshState = refreshState.reduce(

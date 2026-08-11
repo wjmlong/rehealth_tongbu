@@ -24,6 +24,24 @@ class AdvancedMetricVisibilityTest {
         assertFalse(isDisplayableAdvancedMeasurement(RingMetricType.HRV, null))
     }
 
+    @Test
+    fun `synthetic advanced measurements are visible only when explicitly allowed`() {
+        assertTrue(
+            isDisplayableAdvancedMeasurement(
+                RingMetricType.HRV,
+                measurement(48.0, "ring_sim"),
+                allowSynthetic = true,
+            ),
+        )
+        assertTrue(
+            isDisplayableAdvancedMeasurement(
+                RingMetricType.STRESS,
+                measurement(50.0, "synthetic_qa"),
+                allowSynthetic = true,
+            ),
+        )
+    }
+
     private fun measurement(value: Double, source: String = "hband_wearable") = RingMeasurementEntity(
         id = "id-$value-$source",
         metricType = RingMetricType.HRV.name,

@@ -163,6 +163,10 @@ HBand 的 HRV、压力、MET 页面策略已经按 MT116 实测收紧：HRV/压�
   `RhiSnapshotPersistenceTest.refreshPeriod_enqueuesRhiSnapshotForUpload` 在 MuMu
   上以真实 `RhiRepository` + 真实 `SyncRepository` + 真实 Room 验证入队行为，5 项
   仪器化用例全过；`:app:testDebugUnitTest` 与 `assembleDebug` 均通过。
+- 全量 Mock Debug 构建显式启用 `USE_FAKE_RING` 与 `SEED_FAKE_HEALTH_DATA` 时，
+  118 天模拟戒指历史按当前登录账号幂等写入，当前日补齐血糖、MET、ECG、血液成分和
+  身体成分；数据页仅在该构建中允许展示带模拟来源的高级指标，归因页提供明确标识为
+  “Debug 模拟”的 PIAS 图表预览。普通 Debug 与 Release 仍不把模拟数据冒充真实结果。
 - Android 已保留独立本地 `RDI rdi-rule-1.0.0` 算法骨架：Room v8 通过显式
   7→8 迁移保存每日快照与贡献证据，但它不再驱动归因页。“健康改善得分”现由
   Android RHI Lite 透明引擎按所选 1/7/30/90 日窗口计算最后与第一个有效 RHI 的差值，

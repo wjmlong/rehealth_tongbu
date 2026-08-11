@@ -13,6 +13,8 @@ import kotlin.math.sin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Offline stand-in for a real ring device. Implements [RingRepository] so the UI/VM keep
@@ -32,7 +34,8 @@ class MockRingRepository(
 ) : RingRepository, SimulatedRingProfileSink {
     private val mutableConnectionState = MutableStateFlow(RingConnectionState.DISCONNECTED)
     private val mutableConnectedDevice = MutableStateFlow<RingDevice?>(null)
-    private var baselineSeeded = false
+    private val baselineSeededOwners = mutableSetOf<String>()
+    private val baselineSeedMutex = Mutex()
 
     /** Patient profile used to parameterize the simulated vitals. Set by the VM when a real profile is available. */
     override var profile: BaselineHealthProfile? = null
@@ -40,7 +43,13 @@ class MockRingRepository(
 
     override val connectionState: StateFlow<RingConnectionState> = mutableConnectionState
     override val connectedDevice: StateFlow<RingDevice?> = mutableConnectedDevice
-    override val supportedMetrics: Set<RingMetricType> = RequiredRingMetrics
+    override val supportedMetrics: Set<RingMetricType> = SupportedHardwareHealthMetrics + setOf(
+        RingMetricType.ACTIVITY,
+        RingMetricType.RRI,
+        RingMetricType.PPG,
+        RingMetricType.BLOOD_COMPONENT,
+        RingMetricType.BODY_COMPOSITION,
+    )
 
     override suspend fun scan(): List<RingDevice> {
         mutableConnectionState.value = RingConnectionState.SCANNING
@@ -85,18 +94,7 @@ class MockRingRepository(
         dao.insertBatch(batch.forCurrentUser())
         mutableConnectionState.value = RingConnectionState.CONNECTED
         return RingSyncResult(
-            collectedTypes = setOf(
-                RingMetricType.SLEEP,
-                RingMetricType.BLOOD_PRESSURE,
-                RingMetricType.TEMPERATURE,
-                RingMetricType.HEART_RATE,
-                RingMetricType.STEPS,
-                RingMetricType.BLOOD_OXYGEN,
-                RingMetricType.HRV,
-                RingMetricType.STRESS,
-                RingMetricType.RRI,
-                RingMetricType.PPG,
-            ),
+            collectedTypes = supportedMetrics,
             recordsWritten = batch.size,
             completedAt = now,
         )
@@ -164,14 +162,16 @@ class MockRingRepository(
     private fun wobble(base: Double, seed: Long, spread: Double): Double =
         base + sin(seed / 60000.0 + base) * spread
 
-    private suspend fun seedBaselineIfNeeded() {
-        if (baselineSeeded) return
-        baselineSeeded = true
+    private suspend fun seedBaselineIfNeeded() = baselineSeedMutex.withLock {
+        val ownerUserId = currentOwnerUserId()
+        if (ownerUserId in baselineSeededOwners) return@withLock
+        val deviceId = currentDeviceId()
         val now = System.currentTimeMillis()
         (MOCK_HISTORY_DAYS - 1 downTo 1).forEach { daysAgo ->
             val dayStart = startOfDay(now - daysAgo * DAY_MS)
-            dao.insertBatch(generateDailyBatch(dayStart, daysAgo).forCurrentUser())
+            dao.insertBatch(generateDailyBatch(dayStart, daysAgo).ownedBy(ownerUserId, deviceId))
         }
+        baselineSeededOwners += ownerUserId
     }
 
     private fun generateCurrentBatch(now: Long): RingDataBatch {
@@ -189,6 +189,28 @@ class MockRingRepository(
                 measurement(RingMetricType.TEMPERATURE, now, wobble(36.5, now, 0.15), "°C"),
                 measurement(RingMetricType.STEPS, now, steps.toDouble(), "steps"),
                 measurement(RingMetricType.STRESS, now, wobble(34.0, now, 8.0).coerceIn(12.0, 75.0), "score"),
+                measurement(RingMetricType.MET, now, wobble(2.4, now, 0.25).coerceAtLeast(1.0), "MET"),
+                measurement(RingMetricType.BLOOD_GLUCOSE, now, wobble(5.1, now, 0.18).coerceIn(4.2, 6.5), "mmol/L"),
+                measurement(RingMetricType.ECG, now, wobble(hr - 3.0, now, 1.2), "bpm"),
+                measurement(RingMetricType.URIC_ACID, now, wobble(318.0, now, 8.0), "umol/L"),
+                measurement(RingMetricType.TOTAL_CHOLESTEROL, now, wobble(4.5, now, 0.12), "mmol/L"),
+                measurement(RingMetricType.TRIGLYCERIDES, now, wobble(1.1, now, 0.08), "mmol/L"),
+                measurement(RingMetricType.HDL_CHOLESTEROL, now, wobble(1.35, now, 0.05), "mmol/L"),
+                measurement(RingMetricType.LDL_CHOLESTEROL, now, wobble(2.5, now, 0.09), "mmol/L"),
+                measurement(RingMetricType.BMI, now, 22.4, "kg/m2"),
+                measurement(RingMetricType.BODY_FAT_PERCENT, now, 19.0, "%"),
+                measurement(RingMetricType.FAT_MASS, now, 13.5, "kg"),
+                measurement(RingMetricType.FAT_FREE_MASS, now, 57.5, "kg"),
+                measurement(RingMetricType.MUSCLE_PERCENT, now, 76.0, "%"),
+                measurement(RingMetricType.MUSCLE_MASS, now, 54.0, "kg"),
+                measurement(RingMetricType.SUBCUTANEOUS_FAT_PERCENT, now, 16.2, "%"),
+                measurement(RingMetricType.BODY_WATER_PERCENT, now, 58.5, "%"),
+                measurement(RingMetricType.WATER_MASS, now, 41.5, "kg"),
+                measurement(RingMetricType.SKELETAL_MUSCLE_PERCENT, now, 42.0, "%"),
+                measurement(RingMetricType.BONE_MASS, now, 3.0, "kg"),
+                measurement(RingMetricType.PROTEIN_PERCENT, now, 18.0, "%"),
+                measurement(RingMetricType.PROTEIN_MASS, now, 12.8, "kg"),
+                measurement(RingMetricType.BASAL_METABOLIC_RATE, now, 1_620.0, "kcal/day"),
             ),
             sleepSessions = listOf(sleepSession(dayStart, progress = 1.0)),
             activities = listOf(activity(dayStart, steps, progress = 1.0)),
@@ -338,9 +360,14 @@ class MockRingRepository(
     private fun round(value: Double): Double = (value * 10.0).roundToInt() / 10.0
 
     private fun RingDataBatch.forCurrentUser(): RingDataBatch {
-        val ownerUserId = userIdProvider()?.takeIf(String::isNotBlank) ?: "local-device"
-        return ownedBy(ownerUserId, mutableConnectedDevice.value?.address ?: "MOCK:RING:01")
+        return ownedBy(currentOwnerUserId(), currentDeviceId())
     }
+
+    private fun currentOwnerUserId(): String =
+        userIdProvider()?.takeIf(String::isNotBlank) ?: "local-device"
+
+    private fun currentDeviceId(): String =
+        mutableConnectedDevice.value?.address ?: "MOCK:RING:01"
 
     private fun startOfDay(timestamp: Long): Long = timestamp - timestamp % DAY_MS
 

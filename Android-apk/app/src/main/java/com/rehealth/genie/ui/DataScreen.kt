@@ -67,6 +67,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.rehealth.genie.BuildConfig
 import com.rehealth.genie.R
 import com.rehealth.genie.rhi.RhiPeriodAggregation
 import com.rehealth.genie.rhi.RhiPeriodSummary
@@ -212,12 +213,13 @@ internal fun DataScreen(
         cloudMode -> "云米云端 · $fallback"
         else -> fallback
     }
+    val allowSyntheticMetrics = BuildConfig.DEBUG && BuildConfig.SEED_FAKE_HEALTH_DATA
     val hrvRecord = state.measurements[RingMetricType.HRV]
-        ?.takeIf { isDisplayableAdvancedMeasurement(RingMetricType.HRV, it) }
+        ?.takeIf { isDisplayableAdvancedMeasurement(RingMetricType.HRV, it, allowSyntheticMetrics) }
     val stressRecord = state.measurements[RingMetricType.STRESS]
-        ?.takeIf { isDisplayableAdvancedMeasurement(RingMetricType.STRESS, it) }
+        ?.takeIf { isDisplayableAdvancedMeasurement(RingMetricType.STRESS, it, allowSyntheticMetrics) }
     val metRecord = state.measurements[RingMetricType.MET]
-        ?.takeIf { isDisplayableAdvancedMeasurement(RingMetricType.MET, it) }
+        ?.takeIf { isDisplayableAdvancedMeasurement(RingMetricType.MET, it, allowSyntheticMetrics) }
     val vitalMetrics = buildList {
         add(RingMetricUi(RingMetricType.HEART_RATE, "心率", hrText, "bpm", capabilityStatus(RingMetricType.HEART_RATE, periodLabel), Icons.Outlined.FavoriteBorder, Color(0xFFFF6078), manualMeasure = RingMetricType.HEART_RATE in state.manuallyMeasurableMetrics, showAction = !cloudMode, showChart = !cloudMode))
         add(RingMetricUi(RingMetricType.BLOOD_OXYGEN, "血氧", spo2Text, "%", capabilityStatus(RingMetricType.BLOOD_OXYGEN, spo2PeriodStatus), Icons.Outlined.DataUsage, Color(0xFF148BFF), manualMeasure = RingMetricType.BLOOD_OXYGEN in state.manuallyMeasurableMetrics, showAction = !cloudMode, showChart = !cloudMode))
