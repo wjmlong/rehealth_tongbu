@@ -16,7 +16,7 @@ Release Lint 保留全部既有门禁，但临时禁用会因 AGP 8.10.1/Compose
 - Debug 与 Release 的正式连接选择统一收敛为“HBand”和“云米（IMEI 云端）”；
   两种构建默认 HBand，旧 MRD/RWFit 保存选择升级后迁移到 HBand，已有云米绑定保持不变。
 - 绑定成功自动执行首次 31 天回填，后续按设备最新记录以 2 天重叠窗口增量同步；数据页仅展示已支持的心率、血氧、血压。
-- Room v15 为测量增加用户与设备作用域；Room v16 将相同作用域扩展到睡眠、活动和信号/ECG，HBand/MRD/RWFit 新采集及认证云端回填均写当前用户，UI、RHI/RDI、历史和上传按用户读取；14→15 与 15→16 迁移保留旧的无归属记录但不向其他账号展示。
+- Room v15 为测量增加用户与设备作用域；Room v16 将相同作用域扩展到睡眠、活动和信号/ECG；Room v17 增加按登录用户隔离、带 `is_mock` 与模型版本的 PIAS 展示缓存。HBand/MRD/RWFit 新采集及认证云端回填均写当前用户，UI、RHI/RDI、历史和上传按用户读取；14→15、15→16 与 16→17 迁移均保留既有数据。
 - 真实联调仍需注入 `REHEALTH_VIOMI_APP_ID`、`REHEALTH_VIOMI_APP_KEY` 和 `REHEALTH_VIOMI_USER_ID`。
 
 ## 发布结论
@@ -165,8 +165,9 @@ HBand 的 HRV、压力、MET 页面策略已经按 MT116 实测收紧：HRV/压�
   仪器化用例全过；`:app:testDebugUnitTest` 与 `assembleDebug` 均通过。
 - 全量 Mock Debug 构建显式启用 `USE_FAKE_RING` 与 `SEED_FAKE_HEALTH_DATA` 时，
   118 天模拟戒指历史按当前登录账号幂等写入，当前日补齐血糖、MET、ECG、血液成分和
-  身体成分；数据页仅在该构建中允许展示带模拟来源的高级指标，归因页提供明确标识为
-  “Debug 模拟”的 PIAS 图表预览。普通 Debug 与 Release 仍不把模拟数据冒充真实结果。
+  身体成分；数据页仅在该构建中允许展示带模拟来源的高级指标。归因页明确标识为
+  “Debug 模拟”的 PIAS 图表预览先写入 Room v17 `pias_attribution_cache` 再读取展示；
+  普通 Debug 与 Release 不读取 `is_mock=1` 缓存，仍不把模拟数据冒充真实结果。
 - Android 已保留独立本地 `RDI rdi-rule-1.0.0` 算法骨架：Room v8 通过显式
   7→8 迁移保存每日快照与贡献证据，但它不再驱动归因页。“健康改善得分”现由
   Android RHI Lite 透明引擎按所选 1/7/30/90 日窗口计算最后与第一个有效 RHI 的差值，

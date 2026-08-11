@@ -240,6 +240,10 @@ Profile -> Device binding. The Debug mock provider seeds 118 days (90 visible
 days plus 28 warm-up days) of clearly marked synthetic records to Room
 before invoking real device binding, durable telemetry upload, local/remote RHI,
 90 daily local RDI-16 evaluations, and PIAS. The Release source-set factory is a no-op.
+Room v17 adds `pias_attribution_cache`, keyed by authenticated user, for the latest
+PIAS display payload, model version, update time, and explicit `is_mock` provenance.
+The seeded Debug preview is persisted before display. Ordinary Debug and Release
+must ignore cached mock rows; this cache never replaces the server-side attribution authority.
 No other screen may generate this fixture. `quality.rawSignalExcluded=true`
 declares that raw PPG/RRI samples are absent and is valid control metadata; actual
 raw payload keys and signal chunks remain rejected while raw upload is disabled.

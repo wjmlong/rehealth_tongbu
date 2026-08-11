@@ -19,6 +19,8 @@ import com.rehealth.genie.ring.data.RingDataDao
 import com.rehealth.genie.ring.data.RingMeasurementEntity
 import com.rehealth.genie.ring.data.RingSignalChunkEntity
 import com.rehealth.genie.ring.data.RingSleepSessionEntity
+import com.rehealth.genie.phm.PiasAttributionCacheDao
+import com.rehealth.genie.phm.PiasAttributionCacheEntity
 import com.rehealth.genie.rdi.RdiBaselineDao
 import com.rehealth.genie.rdi.RdiBaselineEntity
 import com.rehealth.genie.rdi.RdiConfirmedLabEntity
@@ -78,8 +80,9 @@ data class AttributionLogEntity(
         RhiDailyFeatureSnapshotEntity::class,
         RhiDataQualitySnapshotEntity::class,
         DietRecordEntity::class,
+        PiasAttributionCacheEntity::class,
     ],
-    version = 16,
+    version = 17,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -94,8 +97,32 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun rhiManualHealthInputDao(): RhiManualHealthInputDao
     abstract fun rhiSnapshotDao(): RhiSnapshotDao
     abstract fun dietRecordDao(): DietRecordDao
+    abstract fun piasAttributionCacheDao(): PiasAttributionCacheDao
 
     companion object {
+        /** Adds a user-scoped cache for PIAS responses without altering existing health data. */
+        val Migration16To17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS pias_attribution_cache (
+                        user_id TEXT NOT NULL PRIMARY KEY,
+                        status TEXT,
+                        history_days INTEGER,
+                        payload_json TEXT NOT NULL,
+                        is_mock INTEGER NOT NULL,
+                        model_version TEXT NOT NULL,
+                        updated_at INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_pias_attribution_cache_updated_at " +
+                        "ON pias_attribution_cache(updated_at)",
+                )
+            }
+        }
+
         /** Adds authenticated-owner scope to sleep, activity, and signal rows. */
         val Migration15To16 = object : Migration(15, 16) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -713,6 +740,7 @@ abstract class AppDatabase : RoomDatabase() {
                     Migration13To14,
                     Migration14To15,
                     Migration15To16,
+                    Migration16To17,
                 )
                 .build()
     }

@@ -26,7 +26,7 @@ ReHealth 是面向可穿戴设备和健康干预场景的软硬件一体化系�
 
 云米 S8/S9/GS20/GS17/A67/K9L 使用独立云端拉取链路：App 以 IMEI 绑定，JeecgBoot
 持有厂商凭据并先将心率、血氧、血压持久化到硬件库，再返回 App 写入 Room。首次绑定
-回填最多 31 天，后续增量同步；Room v15 隔离测量，Room v16 将相同的登录用户/设备归属扩展到睡眠、活动和信号/ECG，旧的无归属行保留但不向其他账号展示。
+回填最多 31 天，后续增量同步；Room v15 隔离测量，Room v16 将相同的登录用户/设备归属扩展到睡眠、活动和信号/ECG，Room v17 增加按登录用户隔离的 PIAS 展示缓存；旧的无归属行保留但不向其他账号展示。
 
 Android 按 `productCode` 选择单一有效 Provider，Release 只注册 HBand 和 Viomi Cloud；
 MRD/RWFit 仅保留在 Debug 工程测试目录。HBand 已完成
@@ -324,6 +324,7 @@ unknown 记录计入临床风险。
 | Android 每日 RDI 与贡献证据 | Room v8 | 本地产品趋势；不作为临床概率或云端权威风险 |
 | Android RHI 手填指标与已确认临床输入 | Room v9/v10 + MySQL `rehealth_rhi_manual_health_input` | 本地先写、按用户隔离、稳定队列重试；空白保存为 `NULL`，按客户端 `updatedAt` 防止旧副本覆盖新值 |
 | Android 手工饮食记录 | Room v11 | 先本地持久化，再通过 durable queue 以 `telemetry-v2 dietRecords` 上传；显式 10→11 迁移保留既有健康数据 |
+| Android PIAS 展示缓存 | Room v17 | 按登录用户保存最新响应 JSON、模型版本与 `is_mock`；Mock 行只允许显式全量 Mock Debug 读取，不是云端权威归因结果 |
 | 规范化硬件时序数据 | TimescaleDB | Device Service 独占写入和读取 |
 | 用户、档案、绑定、风险、干预、反馈、健康问答历史 | MySQL `software_db` | JeecgBoot 业务权威；聊天按用户+租户隔离 |
 | 遥测持久化/质量事件 | Kafka | 事件通知，不存原始健康值 |

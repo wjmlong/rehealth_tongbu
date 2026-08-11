@@ -2,13 +2,17 @@ package com.rehealth.genie.ui
 
 import com.rehealth.genie.BuildConfig
 import com.rehealth.genie.phm.IndividualAttributionResult
+import com.rehealth.genie.phm.PiasAttributionCacheRepository
 
-internal fun runtimeAttributionPiasPreview(historyDays: Int): IndividualAttributionResult? {
-    if (!BuildConfig.SEED_FAKE_HEALTH_DATA) return null
+internal suspend fun runtimeAttributionPiasResult(
+    repository: PiasAttributionCacheRepository,
+    historyDays: Int,
+): IndividualAttributionResult? {
+    if (!BuildConfig.SEED_FAKE_HEALTH_DATA) return repository.load(allowMock = false)
 
     val noAction = List(31) { day -> 0.24 + day * 0.0015 }
     val withPlan = List(31) { day -> 0.24 - day * 0.0013 }
-    return IndividualAttributionResult(
+    val preview = IndividualAttributionResult(
         status = "ready",
         historyDays = historyDays.coerceAtLeast(90),
         minHistoryDays = 30,
@@ -34,4 +38,12 @@ internal fun runtimeAttributionPiasPreview(historyDays: Int): IndividualAttribut
         forecastCiUpper = noAction.map { (it + 0.025).coerceAtMost(1.0) },
         forecastCiLower = withPlan.map { (it - 0.025).coerceAtLeast(0.0) },
     )
+    repository.save(
+        result = preview,
+        isMock = true,
+        modelVersion = DEBUG_PIAS_PREVIEW_VERSION,
+    )
+    return repository.load(allowMock = true) ?: preview
 }
+
+private const val DEBUG_PIAS_PREVIEW_VERSION = "debug-pias-preview-1.0.0"

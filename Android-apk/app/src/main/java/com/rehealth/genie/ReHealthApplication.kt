@@ -19,6 +19,7 @@ import com.rehealth.genie.phm.RemotePhmService
 import com.rehealth.genie.qa.createRuntimeFullChainSimulationRunner
 import com.rehealth.genie.rdi.RdiRepository
 import com.rehealth.genie.rhi.RhiRepository
+import com.rehealth.genie.phm.PiasAttributionCacheRepository
 import com.rehealth.genie.rhi.RhiManualHealthInputRepository
 import com.rehealth.genie.ring.RingBackgroundCollectionSettings
 import com.rehealth.genie.ring.RingRepository
@@ -160,6 +161,13 @@ class ReHealthApplication : Application() {
 
     val fullChainSimulationRunner by lazy {
         createRuntimeFullChainSimulationRunner(this)
+    }
+
+    val piasAttributionCacheRepository by lazy {
+        PiasAttributionCacheRepository(
+            dao = database.piasAttributionCacheDao(),
+            userIdProvider = { sessionStore.userId },
+        )
     }
 
     val healthChatRepository by lazy {

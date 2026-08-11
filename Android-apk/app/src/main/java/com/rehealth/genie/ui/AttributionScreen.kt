@@ -185,7 +185,10 @@ fun AttributionScreen(
                     requestId = requestId,
                     data = AttributionRemoteData(
                         history = history,
-                        pias = runtimeAttributionPiasPreview(history.size),
+                        pias = runtimeAttributionPiasResult(
+                            application.piasAttributionCacheRepository,
+                            history.size,
+                        ),
                     ),
                 ),
             )
@@ -195,7 +198,10 @@ fun AttributionScreen(
             val availableData = previousData ?: runCatching {
                 AttributionRemoteData(
                     history = application.riskHistoryRepository.attributionHistory(limit = 90),
-                    pias = runtimeAttributionPiasPreview(0),
+                    pias = runtimeAttributionPiasResult(
+                        application.piasAttributionCacheRepository,
+                        0,
+                    ),
                 )
             }.getOrNull()
             refreshState = refreshState.reduce(
