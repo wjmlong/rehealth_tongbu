@@ -73,6 +73,8 @@ $arguments = @(
     $jar,
     "--server.address=127.0.0.1",
     "--server.port=$Port",
+    '--rehealth.runtime.mode=development',
+    '--rehealth.insurance.tenant-membership-dev-scope-enabled=true',
     "--spring.config.additional-location=file:///$config"
 )
 $process = Start-Process `
