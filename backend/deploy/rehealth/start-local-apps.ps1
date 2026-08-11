@@ -206,8 +206,14 @@ $env:REHEALTH_SOFTWARE_DB_ENABLED = 'true'
 # full-chain rehearsal to forward its synthetic 30-day risk history to PIAS;
 # staging and production keep the backend default (false).
 $env:REHEALTH_QA_SYNTHETIC_ATTRIBUTION_HISTORY_ENABLED = 'true'
+$deviceServicePort = Read-LocalSettingOrEnvironment 'REHEALTH_DEVICE_SERVICE_PORT' '8091'
+if ($deviceServicePort -notmatch '^\d{1,5}$' -or
+    [int]$deviceServicePort -lt 1 -or
+    [int]$deviceServicePort -gt 65535) {
+    throw 'REHEALTH_DEVICE_SERVICE_PORT must be a valid TCP port'
+}
 $env:REHEALTH_DEVICE_SERVICE_ENABLED = 'true'
-$env:REHEALTH_DEVICE_SERVICE_BASE_URL = 'http://127.0.0.1:8091'
+$env:REHEALTH_DEVICE_SERVICE_BASE_URL = "http://127.0.0.1:$deviceServicePort"
 $env:REHEALTH_TIMESCALE_ENABLED = 'true'
 $env:REHEALTH_MODEL_SERVICE_BASE_URL = 'http://127.0.0.1:8000'
 $env:REHEALTH_REQUIRE_REAL_MODEL = 'true'
@@ -273,6 +279,7 @@ $env:REHEALTH_KAFKA_BOOTSTRAP_SERVERS = '127.0.0.1:29092'
 $env:REHEALTH_KAFKA_PUBLISHER_ENABLED = 'true'
 $env:REHEALTH_KAFKA_SECURITY_PROTOCOL = 'PLAINTEXT'
 $env:MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS = 'always'
+$env:SERVER_PORT = $deviceServicePort
 $deviceJar = Join-Path $repoRoot 'backend\device-service\target\device-service.jar'
 Require-File $deviceJar
 Start-ManagedProcess `

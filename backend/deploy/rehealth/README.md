@@ -112,7 +112,7 @@ Application services then use these local endpoints:
 | Service | Local endpoint |
 |---|---|
 | JeecgBoot | `http://127.0.0.1:8080/jeecg-boot` |
-| Device Service | `http://127.0.0.1:8091` |
+| Device Service | `http://127.0.0.1:8091` by default; override with `REHEALTH_DEVICE_SERVICE_PORT` |
 | model-service | `http://127.0.0.1:8000` |
 | PIAS | `http://127.0.0.1:8010` |
 | Kafka | `127.0.0.1:29092` |
@@ -287,6 +287,17 @@ or stop all application processes with:
 powershell -ExecutionPolicy Bypass -File backend/deploy/rehealth/start-local-apps.ps1
 powershell -ExecutionPolicy Bypass -File backend/deploy/rehealth/stop-local-apps.ps1
 ```
+
+If Docker/WSL reserves the default `8091` host port on Windows, choose an
+available loopback port without changing tracked files:
+
+```powershell
+$env:REHEALTH_DEVICE_SERVICE_PORT = '8381'
+powershell -ExecutionPolicy Bypass -File backend/deploy/rehealth/start-local-apps.ps1
+```
+
+The launcher applies the same port to the Device Service listener and the
+JeecgBoot internal client base URL.
 
 The local launcher runs JeecgBoot with the `development` profile, so it does not
 load Viomi defaults from `application-prod.yml`. For local Viomi binding, place
