@@ -223,6 +223,9 @@ public class MybatisPlusInsuranceBusinessRepository implements InsuranceBusiness
     }
 
     private static Object value(Map<String, Object> row, String key) {
+        if (row == null || row.isEmpty()) {
+            return null;
+        }
         Object value = row.get(key);
         if (value != null || row.containsKey(key)) {
             return value;
