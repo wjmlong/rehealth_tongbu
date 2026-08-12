@@ -117,6 +117,11 @@ Application services then use these local endpoints:
 | PIAS | `http://127.0.0.1:8010` |
 | Kafka | `127.0.0.1:29092` |
 
+The Windows local launchers pass the development-only insurance tenant-membership
+scope as explicit Jeecg command-line properties. This allows local insurer dashboard
+QA without weakening staging or production defaults; the insurer read permission must
+still be granted manually to the selected local role.
+
 Keep passwords and internal service credentials in the ignored
 `backend/deploy/rehealth/secrets/` files. Load them into the local process
 environment at startup; never copy them into tracked YAML or source files.

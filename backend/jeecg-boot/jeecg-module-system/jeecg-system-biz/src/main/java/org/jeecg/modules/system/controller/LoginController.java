@@ -95,7 +95,6 @@ public class LoginController {
 		String username = sysLoginModel.getUsername();
 		// 密码加密传输(尝试 AES解密，失败视为明文)
 		String password  = AesEncryptUtil.resolvePassword(sysLoginModel.getPassword());
-		log.debug("登录密码，原始密码:{}，解密密码:{}" , sysLoginModel.getPassword(), password);
 
 		//step.1 登录失败超出次数5次锁定用户10分钟
 		if(isLoginFailOvertimes(username)){
@@ -224,9 +223,10 @@ public class LoginController {
 			redisUtil.del(CommonConstant.PREFIX_USER_SHIRO_CACHE + sysUser.getId());
 			//清空用户的缓存信息（包括部门信息），例如sys:cache:user::<username>
 			redisUtil.del(String.format("%s::%s", CacheConstant.SYS_USERS_CACHE, sysUser.getUsername()));
-			//清空是否允许同一账号多地同时登录缓存（PC端和APP端）
+			//清空是否允许同一账号多地同时登录缓存（各客户端独立）
 			redisUtil.del(CommonConstant.PREFIX_USER_TOKEN_PC + sysUser.getUsername());
 			redisUtil.del(CommonConstant.PREFIX_USER_TOKEN_APP + sysUser.getUsername());
+			redisUtil.del(CommonConstant.PREFIX_USER_TOKEN_WEB + sysUser.getUsername());
 			redisUtil.del(CommonConstant.PREFIX_USER_TOKEN_PHONE + sysUser.getUsername());
 
 			// 清空用户的默认首页缓存
@@ -625,7 +625,7 @@ public class LoginController {
 	 * 
 	 * @author scott
 	 * @date 2025-10-31
-	 * PC端、APP端、手机号登录分别独立，互不影响
+	 * PC端、APP端、官网、手机号登录分别独立，互不影响
 	 * 
 	 * @param username 用户名
 	 * @param newToken 新生成的token
@@ -644,6 +644,8 @@ public class LoginController {
 		String redisKeyPrefix;
 		if (CommonConstant.CLIENT_TYPE_APP.equalsIgnoreCase(clientType)) {
 			redisKeyPrefix = CommonConstant.PREFIX_USER_TOKEN_APP;
+		} else if (CommonConstant.CLIENT_TYPE_WEB.equalsIgnoreCase(clientType)) {
+			redisKeyPrefix = CommonConstant.PREFIX_USER_TOKEN_WEB;
 		} else if (CommonConstant.CLIENT_TYPE_PHONE.equalsIgnoreCase(clientType)) {
 			redisKeyPrefix = CommonConstant.PREFIX_USER_TOKEN_PHONE;
 		} else {
@@ -660,7 +662,6 @@ public class LoginController {
 			redisUtil.del(CommonConstant.PREFIX_USER_TOKEN + oldToken);
 			redisUtil.set(CommonConstant.PREFIX_USER_TOKEN_ERROR_MSG + oldToken, "不允许同一账号多地同时登录，当前登录被踢掉！", 60 * 1 * 60);
 			log.info("【并发登录限制已开启】用户[{}]在{}端的旧登录已被踢下线！", username, clientType);
-			log.info("【并发登录限制已开启】用户被踢下线，新token: {}，旧token：{}", newToken, oldToken);
 		}
 		
 		// 保存新的token到单点登录缓存
@@ -730,23 +731,50 @@ public class LoginController {
 	 */
 	@RequestMapping(value = "/mLogin", method = RequestMethod.POST)
 	public Result<JSONObject> mLogin(@RequestBody SysLoginModel sysLoginModel, HttpServletRequest request) throws Exception {
+		return clientLogin(sysLoginModel, CommonConstant.CLIENT_TYPE_APP, "移动端");
+	}
+
+	/**
+	 * ReHealth 官网登录。使用独立 WEB 客户端类型，避免与管理 PC 端或 Android APP
+	 * 的单点登录会话相互踢出。官网 BFF 必须在服务端持有返回的 Jeecg token。
+	 */
+	@PostMapping(value = "/webLogin")
+	public Result<JSONObject> webLogin(@RequestBody SysLoginModel sysLoginModel) {
+		return clientLogin(sysLoginModel, CommonConstant.CLIENT_TYPE_WEB, "官网");
+	}
+
+	private Result<JSONObject> clientLogin(SysLoginModel sysLoginModel, String clientType, String clientLabel) {
 		Result<JSONObject> result = new Result<JSONObject>();
-		String username = sysLoginModel.getUsername();
+		String loginIdentifier = oConvertUtils.getString(sysLoginModel.getUsername()).trim();
+		if (oConvertUtils.isEmpty(loginIdentifier)) {
+			return result.error500("用户名或密码错误");
+		}
 		// 密码加密传输(尝试 AES解密，失败视为明文)
 		String password  = AesEncryptUtil.resolvePassword(sysLoginModel.getPassword());
-		log.debug("登录密码，原始密码:{}，解密密码:{}" , sysLoginModel.getPassword(), password);
 
 		JSONObject obj = new JSONObject();
 		
 		// 1.平台用户登录失败锁定用户
-		if(isLoginFailOvertimes(username)){
+		if(isLoginFailOvertimes(loginIdentifier)){
 			return result.error500("该用户登录失败次数过多，请于10分钟后再次登录！");
 		}
 		// 2.校验用户是否有效
-		SysUser sysUser = sysUserService.getUserByName(username);
+		SysUser sysUser = sysUserService.getUserByName(loginIdentifier);
+		if (sysUser == null) {
+			LambdaQueryWrapper<SysUser> emailQuery = new LambdaQueryWrapper<>();
+			emailQuery.eq(SysUser::getEmail, loginIdentifier).last("LIMIT 2");
+			List<SysUser> emailUsers = sysUserService.list(emailQuery);
+			if (emailUsers.size() == 1) {
+				sysUser = emailUsers.get(0);
+			}
+		}
 		result = sysUserService.checkUserIsEffective(sysUser);
 		if(!result.isSuccess()) {
 			return result;
+		}
+		String username = sysUser.getUsername();
+		if (!username.equals(loginIdentifier) && isLoginFailOvertimes(username)) {
+			return result.error500("该用户登录失败次数过多，请于10分钟后再次登录！");
 		}
 		
 		// 3.校验用户名或密码是否正确
@@ -791,19 +819,27 @@ public class LoginController {
 		obj.put("userInfo", sysUser);
 
 		//6. 生成token，并设置超时时间
-		String token = JwtUtil.sign(username, syspassword, CommonConstant.CLIENT_TYPE_APP);
+		String token = JwtUtil.sign(username, syspassword, clientType);
 		redisUtil.set(CommonConstant.PREFIX_USER_TOKEN + token, token);
-		redisUtil.expire(CommonConstant.PREFIX_USER_TOKEN + token, JwtUtil.APP_EXPIRE_TIME*2 / 1000);
+		long tokenExpireTime = CommonConstant.CLIENT_TYPE_APP.equalsIgnoreCase(clientType)
+				? JwtUtil.APP_EXPIRE_TIME : JwtUtil.EXPIRE_TIME;
+		redisUtil.expire(CommonConstant.PREFIX_USER_TOKEN + token, tokenExpireTime * 2 / 1000);
 		obj.put("token", token);
+		if (CommonConstant.CLIENT_TYPE_WEB.equalsIgnoreCase(clientType)) {
+			obj.put("roles", sysBaseApi.getUserRoleSetById(sysUser.getId()));
+			obj.put("permissions", sysBaseApi.getUserPermissionSet(sysUser.getId()));
+		}
 		result.setResult(obj);
 		result.setSuccess(true);
 		result.setCode(200);
 
-		// 7.是否允许同一账号多地同时登录(APP端登录，踢掉之前的APP端登录)
-		handleSingleSignOn(username, token, CommonConstant.CLIENT_TYPE_APP);
+		// 7.同一客户端类型下执行单点登录；WEB、PC、APP 互不影响
+		handleSingleSignOn(username, token, clientType);
 		
 		// 8.登录成功记录日志
-		baseCommonService.addLog("用户名: " + username + ",登录成功[移动端]！", CommonConstant.LOG_TYPE_1, null);
+		redisUtil.del(CommonConstant.LOGIN_FAIL + loginIdentifier);
+		redisUtil.del(CommonConstant.LOGIN_FAIL + username);
+		baseCommonService.addLog("用户名: " + username + ",登录成功[" + clientLabel + "]！", CommonConstant.LOG_TYPE_1, null);
 		return result;
 	}
 

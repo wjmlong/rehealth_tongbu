@@ -260,6 +260,8 @@ $jeecgArguments = $jeecgHttpsProxyArguments + @(
     '-jar',
     $jeecgJar,
     '--server.address=127.0.0.1',
+    '--rehealth.runtime.mode=development',
+    '--rehealth.insurance.tenant-membership-dev-scope-enabled=true',
     "--spring.config.additional-location=file:///$jeecgConfig"
 )
 Start-ManagedProcess `
