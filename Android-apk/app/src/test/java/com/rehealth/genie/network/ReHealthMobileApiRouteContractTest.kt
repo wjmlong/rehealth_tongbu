@@ -6,6 +6,8 @@ import com.rehealth.genie.network.dto.FeatureEvaluateRequest
 import com.rehealth.genie.network.dto.HealthAgentMessageRequest
 import com.rehealth.genie.network.dto.InterventionFeedbackRequest
 import com.rehealth.genie.network.dto.InterventionGenerateRequestDto
+import com.rehealth.genie.network.dto.InsurancePlanBindRequestDto
+import com.rehealth.genie.network.dto.InsurancePlanFeedbackRequestDto
 import com.rehealth.genie.network.dto.HealthInterviewAnswerDto
 import com.rehealth.genie.network.dto.HealthInterviewSubmitRequestDto
 import com.rehealth.genie.network.dto.RhiManualHealthInputDto
@@ -103,6 +105,55 @@ class ReHealthMobileApiRouteContractTest {
             ),
         )
         assertRequest("/jeecg-boot/rehealth/mobile/interventions/plan-7/feedback", "POST")
+    }
+
+    @Test
+    fun `binds insurance plan and reports privacy safe plan feedback`() = runTest {
+        server.start()
+        val bindingEnvelope = """{"success":true,"code":200,"result":{"bindingId":"binding-1","subjectRef":"subject-1","policyId":"policy-1","policyNo":"POL-001","planId":"plan-1","consentId":"consent-1","consentVersion":"v1","status":"ACTIVE","boundAt":"2026-08-12 10:00:00"}}"""
+        server.enqueue(MockResponse().setResponseCode(200).setBody(bindingEnvelope))
+        server.enqueue(MockResponse().setResponseCode(200).setBody(bindingEnvelope))
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"success":true,"code":200,"result":{"feedbackId":"feedback-1","duplicate":false}}""",
+            ),
+        )
+        val api = ReHealthMobileApi(
+            baseUrl = server.url("/jeecg-boot/").toString(),
+            httpClient = OkHttpClient(),
+            apiToken = "synthetic-test-token",
+        )
+
+        assertIs<RemotePhmOutcome.Success<*>>(
+            api.bindInsurancePlan(
+                InsurancePlanBindRequestDto(
+                    tenantId = "1000",
+                    policyNo = "POL-001",
+                    planId = "plan-1",
+                    consentVersion = "v1",
+                    sourceRecordId = "bind-1",
+                ),
+            ),
+        )
+        assertRequest("/jeecg-boot/rehealth/mobile/insurance/plans/bind", "POST")
+
+        assertIs<RemotePhmOutcome.Success<*>>(api.getCurrentInsurancePlan())
+        assertRequest("/jeecg-boot/rehealth/mobile/insurance/plans/current", "GET")
+
+        assertIs<RemotePhmOutcome.Success<*>>(
+            api.submitInsurancePlanFeedback(
+                bindingId = "binding-1",
+                request = InsurancePlanFeedbackRequestDto(
+                    feedbackType = "INTERVENTION_COMPLETED",
+                    occurredAt = "2026-08-12 10:30:00",
+                    completionRate = 1.0,
+                    adherenceScore = 0.9,
+                    sourceRecordId = "feedback-1",
+                    outcomeSummary = mapOf("riskTrend" to "improving"),
+                ),
+            ),
+        )
+        assertRequest("/jeecg-boot/rehealth/mobile/insurance/plans/binding-1/feedback", "POST")
     }
 
     @Test

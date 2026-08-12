@@ -21,16 +21,16 @@ ReHealth 不是单库系统，而是三个相互隔离的关系型存储域：
 | 数据域 | 实际名称 | 类型与版本 | 基础表 | 视图 | 权威职责 |
 | --- | --- | --- | ---: | ---: | --- |
 | Android 本地库 | `rehealth-local.db` | SQLite / Room schema v16 | 22 | 0 | 本地遥测、离线队列、聊天、RHI/RDI、饮食 |
-| 软件业务库 | `rehealth_software`（逻辑名 `software_db`） | MySQL 8.4.6 | 178 | 0 | Jeecg 用户权限及 ReHealth 业务权威数据 |
+| 软件业务库 | `rehealth_software`（逻辑名 `software_db`） | MySQL 8.4.6 | 182 | 0 | Jeecg 用户权限及 ReHealth 业务权威数据 |
 | 硬件时序库 | `rehealth_hardware`（逻辑名 `hardware_db`） | PostgreSQL 17.5 + TimescaleDB 2.21.1 | 11 | 0 个业务普通视图 | 规范化硬件时序数据、Outbox 和对账 |
 
-总计 **211 张基础表**。其中 ReHealth 专属业务域表 **70 张**：Room 22 张、MySQL ReHealth 业务表 38 张、TimescaleDB 业务表 10 张。Kafka 是事件传递系统、Redis 是短期状态存储，均不计入关系表总数。
+总计 **215 张基础表**。其中 ReHealth 专属业务域表 **74 张**：Room 22 张、MySQL ReHealth 业务表 42 张、TimescaleDB 业务表 10 张。Kafka 是事件传递系统、Redis 是短期状态存储，均不计入关系表总数。
 
 明确可识别的特殊表类别：
 
 | 类别 | 数量 | 口径 |
 | --- | ---: | --- |
-| 核心/ReHealth 专属业务域表 | 70 | 含本地队列、质量、审计和保险域；排除迁移元数据 |
+| 核心/ReHealth 专属业务域表 | 74 | 含本地队列、质量、审计和保险域；排除迁移元数据 |
 | 字典表 | 4 | `sys_dict`、`sys_dict_item`、`jimu_dict`、`jimu_dict_item` |
 | 明确日志/审计表 | 8 | 本地归因、模型请求、保险审计、系统/数据/OpenAPI/报表导出日志、硬件质量事件 |
 | 明确中间/关系表 | 17 | 用户角色权限、租户/部门关系、访谈明细、RHI/RDI 明细、研究成员等 |
@@ -59,7 +59,7 @@ MySQL `flyway_schema_history` 当前存在 `3.9.2.0 all upgrade` 失败记录；
 | Jeecg 系统 | 17 | 公告、配置、消息、文件和系统能力 |
 | Jimu 报表 | 16 | 积木报表配置、分享和导出 |
 | OpenAPI | 4 | 开放接口、授权、权限和调用日志 |
-| ReHealth 保险业务 | 14 | 保险主体、保单、理赔、RWE、结算与审计 |
+| ReHealth 保险业务 | 18 | 保险主体、保单、理赔、RWE、结算与审计 |
 | ReHealth 审计日志 | 1 | 模型请求最小审计元数据 |
 | ReHealth 核心业务 | 21 | 档案、访谈、绑定、风险、干预、问答和行为 |
 | ReHealth 运营投影 | 2 | Kafka 生命周期和质量运营投影 |

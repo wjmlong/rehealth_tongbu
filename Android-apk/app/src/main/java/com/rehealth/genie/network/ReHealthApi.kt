@@ -34,6 +34,9 @@ import com.rehealth.genie.network.dto.ViomiBindResponseDto
 import com.rehealth.genie.network.dto.ViomiSyncRequestDto
 import com.rehealth.genie.network.dto.ViomiSyncResponseDto
 import com.rehealth.genie.network.dto.BehaviorRecordDto
+import com.rehealth.genie.network.dto.InsurancePlanBindRequestDto
+import com.rehealth.genie.network.dto.InsurancePlanBindingDto
+import com.rehealth.genie.network.dto.InsurancePlanFeedbackRequestDto
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Response
@@ -120,6 +123,20 @@ interface ReHealthApi {
         @Path("id") interventionId: String,
         @Body request: InterventionFeedbackRequest,
     ): Response<JeecgResult<InterventionFeedbackResponse>>
+
+    @POST("rehealth/mobile/insurance/plans/bind")
+    suspend fun bindInsurancePlan(
+        @Body request: InsurancePlanBindRequestDto,
+    ): Response<JeecgResult<InsurancePlanBindingDto>>
+
+    @GET("rehealth/mobile/insurance/plans/current")
+    suspend fun getCurrentInsurancePlan(): Response<JeecgResult<InsurancePlanBindingDto?>>
+
+    @POST("rehealth/mobile/insurance/plans/{bindingId}/feedback")
+    suspend fun submitInsurancePlanFeedback(
+        @Path("bindingId") bindingId: String,
+        @Body request: InsurancePlanFeedbackRequestDto,
+    ): Response<JeecgResult<Map<String, Any>>>
 
     @POST("rehealth/mobile/measurements/batch")
     suspend fun uploadMeasurements(

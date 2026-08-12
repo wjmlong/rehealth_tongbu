@@ -27,6 +27,26 @@ The topology gate is static. Runtime readiness requires the application JARs,
 the hardened PIAS entrypoint, Device Service and real secret/artifact bundles.
 Do not interpret a static pass as a deployed-service health result.
 
+## Local insurer workflow
+
+Apply the non-destructive MySQL migrations through `V20260813_3` before testing
+the insurer website. They add import/job/plan-feedback tables, workflow
+permissions and local-admin acceptance grants. Production must assign
+`insurer_viewer`, `insurer_analyst`, `insurance_operator` or `insurer_auditor`
+explicitly and must not rely on the local admin grant.
+
+The website FastAPI BFF must receive its Jeecg base URL and tenant mapping from
+server-side configuration. It must not receive a MySQL DSN. To export the RWE
+Word report, set the optional variable below to an approved read-only template;
+when absent, local development resolves the repository source template.
+
+```text
+REHEALTH_RWE_TEMPLATE_PATH=E:\code\rehealth_tonbu\docs\ReHealth_PSM_RWE_Report_Draft_V0.1.docx
+```
+
+The FastAPI runtime requires `python-docx==1.2.0` and `openpyxl==3.1.5` for Word
+export and XLSX import. These dependencies do not access the database.
+
 The `topology-failures` gate is an executable bounded dependency-transition
 test: it starts temporary TCP dependencies, proves each is reachable, stops the
 selected dependency, and probes the resulting ingest/publisher/model state.

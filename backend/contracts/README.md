@@ -11,3 +11,5 @@ python backend/contracts/scripts/validate_contracts.py --fixtures backend/contra
 ```
 
 Public mobile routes are compatibility contracts. A service cutover may change the internal Gateway target only after migration reconciliation; it must not change the Android path or response fields.
+
+Insurance website, import, PSM, RWE, settlement and App plan-binding boundaries are specified in [INSURANCE_BUSINESS_API.md](INSURANCE_BUSINESS_API.md). This contract keeps JeecgBoot/MySQL authoritative and limits the insurer website to privacy-safe aggregates.

@@ -41,6 +41,8 @@ http://localhost:8080/jeecg-boot/rehealth/mobile
 
 只有 `GET /rehealth/mobile/health` 标记了 `@IgnoreAuth`。所有生产型移动端点都使用 JeecgBoot 常规认证流程。
 
+保险计划接口同样只接受当前 Jeecg 登录身份。`tenantId` 仅用于声明要加入的保险计划，服务端会重新校验当前用户是该租户成员、投保人映射存在、保单有效且授权版本有效。App 只回传计划标识、授权证据引用、完成率、依从性和有界结果摘要；原始心率、血压、睡眠、ECG、手机号和身份证号不得进入保险接口。Android 当前已接入类型化网络客户端，Compose 授权/撤回页面与离线反馈队列尚未完成。
+
 ## 端点
 
 | 方法 | 路径 | E1 行为 |
@@ -53,6 +55,9 @@ http://localhost:8080/jeecg-boot/rehealth/mobile
 | `POST` | `/rehealth/mobile/interviews` | 在当前认证用户下持久化类型化回答和基线摘要。 |
 | `GET` | `/rehealth/mobile/interviews/latest` | 读取当前认证用户最新的已持久化访谈。 |
 | `POST` | `/rehealth/mobile/devices/bind` | 当 `software_db` 启用时持久化当前认证用户的绑定。 |
+| `POST` | `/rehealth/mobile/insurance/plans/bind` | 在当前用户、租户、有效保单和授权记录全部匹配时绑定保险健康计划。 |
+| `GET` | `/rehealth/mobile/insurance/plans/current` | 返回当前认证用户的有效保险计划绑定；没有绑定时返回 `null`。 |
+| `POST` | `/rehealth/mobile/insurance/plans/{bindingId}/feedback` | 按 `sourceRecordId` 幂等回传干预完成率、依从性和有界结果摘要。 |
 | `POST` | `/rehealth/mobile/viomi/bind` | 使用服务端云米账号验证 IMEI，并持久化哈希后的 ReHealth 绑定。 |
 | `POST` | `/rehealth/mobile/viomi/sync` | 在最长 31 天的 Epoch 毫秒时间窗内拉取心率、血压和血氧历史；将无偏移量的厂商时间戳按 Asia/Shanghai 解释，拒绝无效生理值，通过硬件接入完成持久化后返回规范化记录。 |
 | `POST` | `/rehealth/mobile/measurements/batch` | 经 Gateway 路由的 Device Service 权威端校验 `telemetry-v2`，并在事务中将测量、睡眠、活动和饮食记录写入 TimescaleDB；重复重试返回现有收据。 |

@@ -12,12 +12,15 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice(assignableTypes = {
         InsuranceRiskController.class,
+        InsuranceImportController.class,
+        InsuranceStudyController.class,
+        InsuranceMobilePlanController.class,
         DisabledInsuranceRiskController.class
 })
 public class InsuranceAuthorizationExceptionHandler {
     @ExceptionHandler(AuthorizationException.class)
     public ResponseEntity<Result<Void>> forbidden(AuthorizationException ignored) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(Result.error(HttpStatus.FORBIDDEN.value(), "insurance risk permission is required"));
+                .body(Result.error(HttpStatus.FORBIDDEN.value(), "insurance permission is required"));
     }
 }

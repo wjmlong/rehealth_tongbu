@@ -414,7 +414,8 @@ python backend/qa/rehealth_stack_gate.py topology `
 | `Android-apk/docs/wearable/HBAND_DEVICE_QA.md` | HBand 真机安装、认证、采集与证据清单 | HBand 构建开关、指标映射或真机结果变化时 |
 | `backend/contracts/openapi/rehealth-mobile-v1.openapi.json` | 公共移动 API 机器可读契约 | 公共 API 字段或路径变化时 |
 | `backend/contracts/adrs/` | 跨服务架构决策 | 权威边界、消息系统、数据库或信任模型变化时 |
-| `backend/docs/REHEALTH_DB_SCHEMA.md` | Room、MySQL 与 TimescaleDB 数据库结构总览及 211 张表逐表附录入口 | Room/MySQL/TimescaleDB Schema、索引、关系或字段语义变化时 |
+| `backend/contracts/INSURANCE_BUSINESS_API.md` | 保险数据导入、PSM、RWE、结算和 App 授权契约 | 保险 API、状态机、角色权限、隐私或幂等语义变化时 |
+| `backend/docs/REHEALTH_DB_SCHEMA.md` | Room、MySQL 与 TimescaleDB 数据库结构总览及 215 张表逐表附录入口 | Room/MySQL/TimescaleDB Schema、索引、关系或字段语义变化时 |
 | `backend/deploy/rehealth/README.md` | 部署拓扑和运行方式 | 服务、端口、环境变量、secret、容器变化时 |
 | `model-service/docs/API_CONTRACT.md` | 模型服务接口 | 模型请求/响应、版本或就绪语义变化时 |
 | `rehealth-algorithms/docs/RHI_V2_ALGORITHM_PLAN.md` | RHI v2 双轨模型、32 维协议、迁移与验证门禁 | RHI 字段、评分、证据或上线阶段变化时 |

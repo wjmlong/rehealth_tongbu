@@ -68,6 +68,38 @@ summary plus `consent_status` and `intervention_status`. The first-phase
 business summary is read through MyBatis-Plus mappers in the Java service; the
 FastAPI BFF only normalizes and forwards the response.
 
+## Insurer workflow API
+
+The insurer business lifecycle is implemented under
+`/rehealth/insurance/v1`. JeecgBoot/MySQL remains authoritative; the website
+FastAPI BFF parses CSV/XLSX files, runs PSM against an immutable snapshot and
+writes every state transition back through authenticated Java APIs.
+
+```text
+POST /imports/{subjects|policies|claims}
+GET/POST /studies
+POST /studies/{studyId}/snapshots
+GET /study-snapshots/{snapshotId}
+POST /studies/{studyId}/jobs
+GET /study-jobs/{jobId}
+PUT /study-jobs/{jobId}/result
+POST /study-results/{resultId}/review
+GET /reports
+POST /studies/{studyId}/reports
+POST /reports/{reportId}/review
+GET /settlements
+POST /studies/{studyId}/settlements
+POST /settlements/{packageId}/actions
+```
+
+Every route uses the authenticated user, active tenant membership and a
+least-privilege `rehealth:insurance:*` permission. IDs are always looked up
+with `tenant_id`; a path ID from another tenant returns `403` or an absent
+resource. Import batches are idempotent by tenant, import type and
+`idempotencyKey`, while external claim numbers are tenant-unique. Detailed
+request fields, role mappings and workflow states are maintained in
+`backend/contracts/INSURANCE_BUSINESS_API.md`.
+
 只有 `/health` 标记了 `@IgnoreAuth`。其他移动端点应使用 JeecgBoot 的常规认证与授权机制。
 
 ## 公司官网本地登录

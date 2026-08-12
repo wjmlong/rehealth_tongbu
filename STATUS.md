@@ -1,12 +1,22 @@
 # ReHealth 当前状态
 
-> 最后核对：2026-08-07。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
+> 最后核对：2026-08-12。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
 > `docs/archive/acceptance/`，不得作为当前实现或发布状态的依据。
 
 当前待发布 Android 版本为 `1.0.0 (versionCode 1)`；该版本包含 HBand/云米连接方式选择，
 显示版本和内部版本号均按产品要求固定为 `1.0.0 (1)`。
 Release Lint 保留全部既有门禁，但临时禁用会因 AGP 8.10.1/Compose lint 类加载缺失而直接崩溃的
 `MutableCollectionMutableState` 单项检测；升级整套 Android 工具链后必须恢复该检测。
+
+## 2026-08-12 保险业务闭环（本地 MVP）
+
+- 官网保险页面统一使用保险角色守卫；FastAPI 会话把 Jeecg Token 和当前租户保存在服务端，不接受浏览器伪造租户作为访问范围。
+- JeecgBoot/MySQL 已完成投保人、保单、理赔的幂等导入，风险工作台与风险池读取真实业务汇总；没有非 Mock 风险结果时评分和评估时间保持空值。
+- 已建立细分角色模板：查看员、分析员、运营员和审计员；本地 `admin` 仅用于验收授权，不替代正式账号配置。
+- 已实现研究项目、不可变快照、持久化异步任务、PSM 结果审核、RWE 报告审核/Word 导出，以及不可变结算包的提交、审批、退回和重算状态机。
+- RWE 默认读取 `docs/ReHealth_PSM_RWE_Report_Draft_V0.1.docx`；FastAPI 不直连数据库，PSM 输入和结果均通过 JeecgBoot API 持久化。
+- App 已有保险计划绑定、当前计划查询、干预反馈的类型化 API 客户端；尚未完成绑定/撤回授权 UI 和离线反馈队列。
+- 本地真实 MySQL 已验证幂等重放、错误密码、伪造租户头和跨租户 `403`。正式发布前仍需确定真实理赔来源，并以两个正式租户、最小权限业务账号和生产级 PSM 数据量复验。
 
 ## 2026-08-05 云米云端手表接入
 
@@ -183,10 +193,11 @@ HBand 的 HRV、压力、MET 页面策略已经按 MT116 实测收紧：HRV/压�
 
 ## 下一验收顺序
 
-1. Docker 引擎恢复后补跑 Device Service 的 TimescaleDB/Testcontainers 集成测试，重点验证 V4 饮食 hypertable、压缩/保留策略和混合批次事务回滚。
-2. 在发布环境挂载已审核模型制品并复核真实模型门禁。
-3. 使用包含完整 JieLi/Nordic/JNI 依赖的 APK 完成 HBand 连接与 ECG 实时/历史波形复测，再完成 MRD/RWFit/HBand 与 Android 运行时端到端 QA。
-4. 完成签名 Release APK 和真实部署环境验收。
+1. 确定真实保单/理赔数据来源与字段字典，用两个独立保险租户和四类最小权限账号复跑导入、PSM、RWE、结算及越权验收。
+2. Docker 引擎恢复后补跑 Device Service 的 TimescaleDB/Testcontainers 集成测试，重点验证 V4 饮食 hypertable、压缩/保留策略和混合批次事务回滚。
+3. 在发布环境挂载已审核模型制品并复核真实模型门禁。
+4. 使用包含完整 JieLi/Nordic/JNI 依赖的 APK 完成 HBand 连接与 ECG 实时/历史波形复测，再完成 MRD/RWFit/HBand 与 Android 运行时端到端 QA。
+5. 完成签名 Release APK 和真实部署环境验收。
 
 ## 历史证据
 

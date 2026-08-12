@@ -26,6 +26,10 @@ public final class InsuranceApiException extends RuntimeException {
         return new InsuranceApiException(HttpStatus.NOT_FOUND, message);
     }
 
+    public static InsuranceApiException conflict(String message) {
+        return new InsuranceApiException(HttpStatus.CONFLICT, message);
+    }
+
     public static InsuranceApiException serviceUnavailable(String message) {
         return new InsuranceApiException(HttpStatus.SERVICE_UNAVAILABLE, message);
     }
