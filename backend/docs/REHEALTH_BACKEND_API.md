@@ -32,6 +32,23 @@ POST /rehealth/mobile/interventions/{id}/feedback
 POST /rehealth/mobile/attribution/events
 ```
 
+## Website BFF business records
+
+The corporate website FastAPI BFF does not connect to PostgreSQL or MySQL. It
+forwards the authenticated Jeecg token and tenant header to these JeecgBoot
+endpoints; the records are stored in the MySQL `software_db` table
+`rehealth_website_record` by the `jeecg-module-rehealth` module.
+
+```text
+POST   /rehealth/website/v1/{patients|attributions|settlements|screening}
+GET    /rehealth/website/v1/{resource}
+GET    /rehealth/website/v1/{resource}/{id}
+DELETE /rehealth/website/v1/{resource}/{id}
+```
+
+All calls require normal Jeecg authentication and tenant scope (`X-Tenant-Id`);
+the resource allow-list is enforced server-side.
+
 只有 `/health` 标记了 `@IgnoreAuth`。其他移动端点应使用 JeecgBoot 的常规认证与授权机制。
 
 ## 公司官网本地登录
