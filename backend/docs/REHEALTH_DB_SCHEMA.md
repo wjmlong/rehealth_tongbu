@@ -82,6 +82,13 @@ PostgreSQL 17 / TimescaleDB Schema 由 `backend/device-service/src/main/resource
 
 新建数据库时，将 `db/software/mysql/V1__create_rehealth_software_tables.sql` 应用于 Jeecg 主软件数据源。对于使用仅 JSON 档案/访谈 Schema 创建的现有数据库，应先备份数据库，再于部署匹配的应用前应用 `V20260729_1__normalize_business_records.sql`。
 
+保险机构第一阶段使用以下追加迁移：
+
+- `V20260812_2__create_insurance_business_schema.sql`：创建租户隔离的投保人、保单、保障、授权、干预、理赔、研究快照、PSM 结果、RWE 报告、结算包和审计表；主体使用 `subject_ref`，不存储原始 PPG/RRI 或设备原始遥测。
+- `V20260812_3__seed_insurer_roles.sql`：创建 `insurer_analyst` 和 `insurance_operator` 角色模板，并仅授予 `rehealth:insurance:risk:view`；不会自动给用户分配角色，必须由 Jeecg 管理员在正确租户内显式分配。
+
+本地应用使用 Jeecg 自定义 Flyway 配置时，应确认 `spring.flyway.enabled=true` 且迁移位置包含 `db/software/mysql`；如果当前启动脚本仍禁用 Flyway，则在数据库备份后按文件顺序手工执行这两个脚本，并核对 `rehealth_schema_migration` 中的版本记录。
+
 该升级会新增类型化列和子表、回填有效旧 JSON、保留可空的旧 JSON 列以便回滚，并在 `rehealth_schema_migration` 中记录 `software-V20260729.1`。应用以下迁移：
 
 - `V20260730_1__add_health_agent_conversations.sql`：认证的 AI 历史；
