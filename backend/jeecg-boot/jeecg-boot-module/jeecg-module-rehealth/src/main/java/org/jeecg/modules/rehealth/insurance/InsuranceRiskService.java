@@ -3,6 +3,7 @@ package org.jeecg.modules.rehealth.insurance;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ import java.util.Locale;
 import java.util.function.Supplier;
 
 import static org.jeecg.modules.rehealth.insurance.InsuranceRiskResponse.Dashboard;
+import static org.jeecg.modules.rehealth.insurance.InsuranceRiskResponse.BusinessSummary;
 import static org.jeecg.modules.rehealth.insurance.InsuranceRiskResponse.InsuredDetail;
 import static org.jeecg.modules.rehealth.insurance.InsuranceRiskResponse.InsuredPage;
 import static org.jeecg.modules.rehealth.insurance.InsuranceRiskResponse.Intervention;
@@ -27,6 +29,7 @@ import static org.jeecg.modules.rehealth.insurance.InsuranceRiskResponse.Risk;
 import static org.jeecg.modules.rehealth.insurance.InsuranceRiskResponse.RiskDistribution;
 import static org.jeecg.modules.rehealth.insurance.InsuranceRiskResponse.Subject;
 import static org.jeecg.modules.rehealth.insurance.InsuranceRiskResponse.UnavailableMetric;
+import static org.jeecg.modules.rehealth.insurance.InsuranceRiskResponse.SubjectBusiness;
 
 @Service
 @ConditionalOnProperty(name = "rehealth.software-db.enabled", havingValue = "true")
@@ -36,6 +39,7 @@ public class InsuranceRiskService {
     private static final int MAX_KEYWORD_LENGTH = 100;
 
     private final InsuranceRiskRepository repository;
+    private final InsuranceBusinessRepository businessRepository;
     private final ObjectMapper objectMapper;
     private final boolean devTenantMembershipScopeEnabled;
     private final boolean developmentRuntime;
@@ -47,7 +51,20 @@ public class InsuranceRiskService {
             boolean devTenantMembershipScopeEnabled,
             @Value("${rehealth.runtime.mode:development}") String runtimeMode
     ) {
+        this(repository, null, objectMapper, devTenantMembershipScopeEnabled, runtimeMode);
+    }
+
+    @Autowired
+    public InsuranceRiskService(
+            InsuranceRiskRepository repository,
+            InsuranceBusinessRepository businessRepository,
+            ObjectMapper objectMapper,
+            @Value("${rehealth.insurance.tenant-membership-dev-scope-enabled:false}")
+            boolean devTenantMembershipScopeEnabled,
+            @Value("${rehealth.runtime.mode:development}") String runtimeMode
+    ) {
         this.repository = repository;
+        this.businessRepository = businessRepository;
         this.objectMapper = objectMapper;
         this.devTenantMembershipScopeEnabled = devTenantMembershipScopeEnabled;
         this.developmentRuntime = runtimeMode != null
@@ -57,6 +74,9 @@ public class InsuranceRiskService {
     public Dashboard dashboard(int tenantId) {
         requireScopeEnabled();
         InsuranceRiskRepository.DashboardSnapshot snapshot = query(() -> repository.dashboard(tenantId));
+        InsuranceRiskRepository.BusinessSnapshot business = query(() -> businessRepository == null
+                ? new InsuranceRiskRepository.BusinessSnapshot(0, 0, 0, null, null, 0, "unknown", null)
+                : businessRepository.tenant(tenantId));
         return new Dashboard(
                 DEV_SCOPE_MODE,
                 snapshot.totalInsured(),
@@ -68,7 +88,8 @@ public class InsuranceRiskService {
                 UnavailableMetric.notConnected(),
                 UnavailableMetric.notConnected(),
                 UnavailableMetric.notConnected(),
-                UnavailableMetric.notConnected()
+                UnavailableMetric.notConnected(),
+                businessSummary(business)
         );
     }
 
@@ -104,7 +125,7 @@ public class InsuranceRiskService {
         requireScopeEnabled();
         InsuranceRiskRepository.SubjectSnapshot snapshot = query(() -> repository.subject(tenantId, normalizedSubjectId))
                 .orElseThrow(() -> InsuranceApiException.notFound("insured subject was not found in the requested tenant"));
-        return new InsuredDetail(DEV_SCOPE_MODE, subject(snapshot));
+        return new InsuredDetail(DEV_SCOPE_MODE, subject(tenantId, snapshot));
     }
 
     private Subject subject(InsuranceRiskRepository.SubjectSnapshot snapshot) {
@@ -115,7 +136,56 @@ public class InsuranceRiskService {
                 normalizeGender(snapshot.gender()),
                 snapshot.bmi(),
                 risk(snapshot),
-                intervention(snapshot)
+                intervention(snapshot),
+                SubjectBusiness.unavailable()
+        );
+    }
+
+    private Subject subject(int tenantId, InsuranceRiskRepository.SubjectSnapshot snapshot) {
+        InsuranceRiskRepository.BusinessSnapshot business = query(() -> businessRepository == null
+                ? null
+                : businessRepository.subject(tenantId, snapshot.subjectId()));
+        return new Subject(
+                snapshot.subjectId(),
+                maskedName(snapshot.name(), snapshot.subjectId()),
+                snapshot.age(),
+                normalizeGender(snapshot.gender()),
+                snapshot.bmi(),
+                risk(snapshot),
+                intervention(snapshot),
+                subjectBusiness(business)
+        );
+    }
+
+    private BusinessSummary businessSummary(InsuranceRiskRepository.BusinessSnapshot snapshot) {
+        if (snapshot == null) {
+            return BusinessSummary.unavailable();
+        }
+        return new BusinessSummary(
+                snapshot.activePolicies(),
+                snapshot.activeCoverages(),
+                snapshot.claimCount(),
+                snapshot.billedAmount(),
+                snapshot.paidAmount(),
+                snapshot.activeInterventions(),
+                instant(snapshot.latestUpdatedAt())
+        );
+    }
+
+    private SubjectBusiness subjectBusiness(InsuranceRiskRepository.BusinessSnapshot snapshot) {
+        if (snapshot == null) {
+            return SubjectBusiness.unavailable();
+        }
+        String interventionStatus = snapshot.activeInterventions() > 0 ? "active" : "none";
+        return new SubjectBusiness(
+                snapshot.activePolicies(),
+                snapshot.activeCoverages(),
+                snapshot.claimCount(),
+                snapshot.billedAmount(),
+                snapshot.paidAmount(),
+                snapshot.consentStatus(),
+                interventionStatus,
+                instant(snapshot.latestUpdatedAt())
         );
     }
 

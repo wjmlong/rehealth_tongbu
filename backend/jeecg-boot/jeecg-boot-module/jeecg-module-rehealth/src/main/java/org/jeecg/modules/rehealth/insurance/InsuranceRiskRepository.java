@@ -24,6 +24,30 @@ public interface InsuranceRiskRepository {
     ) {
     }
 
+    record BusinessSnapshot(
+            long activePolicies,
+            long activeCoverages,
+            long claimCount,
+            BigDecimal billedAmount,
+            BigDecimal paidAmount,
+            long activeInterventions,
+            String consentStatus,
+            Timestamp latestUpdatedAt
+    ) {
+        public BusinessSnapshot(
+                long activePolicies,
+                long activeCoverages,
+                long claimCount,
+                BigDecimal billedAmount,
+                BigDecimal paidAmount,
+                long activeInterventions,
+                Timestamp latestUpdatedAt
+        ) {
+            this(activePolicies, activeCoverages, claimCount, billedAmount, paidAmount,
+                    activeInterventions, "unknown", latestUpdatedAt);
+        }
+    }
+
     record SubjectPage(long total, List<SubjectSnapshot> records) {
     }
 

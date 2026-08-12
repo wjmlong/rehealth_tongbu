@@ -22,6 +22,21 @@ public final class InsuranceRiskResponse {
     }
 
     @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record BusinessSummary(
+            @JsonProperty("active_policies") long activePolicies,
+            @JsonProperty("active_coverages") long activeCoverages,
+            @JsonProperty("claim_count") long claimCount,
+            @JsonProperty("billed_amount") BigDecimal billedAmount,
+            @JsonProperty("paid_amount") BigDecimal paidAmount,
+            @JsonProperty("active_interventions") long activeInterventions,
+            @JsonProperty("latest_updated_at") String latestUpdatedAt
+    ) {
+        public static BusinessSummary unavailable() {
+            return new BusinessSummary(0, 0, 0, null, null, 0, null);
+        }
+    }
+
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     public record Dashboard(
             @JsonProperty("scope_mode") String scopeMode,
             @JsonProperty("total_insured") long totalInsured,
@@ -33,7 +48,8 @@ public final class InsuranceRiskResponse {
             UnavailableMetric claims,
             UnavailableMetric savings,
             UnavailableMetric psm,
-            UnavailableMetric rwe
+            UnavailableMetric rwe,
+            @JsonProperty("business_summary") BusinessSummary businessSummary
     ) {
     }
 
@@ -61,6 +77,22 @@ public final class InsuranceRiskResponse {
     }
 
     @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record SubjectBusiness(
+            @JsonProperty("active_policies") long activePolicies,
+            @JsonProperty("active_coverages") long activeCoverages,
+            @JsonProperty("claim_count") long claimCount,
+            @JsonProperty("billed_amount") BigDecimal billedAmount,
+            @JsonProperty("paid_amount") BigDecimal paidAmount,
+            @JsonProperty("consent_status") String consentStatus,
+            @JsonProperty("intervention_status") String interventionStatus,
+            @JsonProperty("latest_updated_at") String latestUpdatedAt
+    ) {
+        public static SubjectBusiness unavailable() {
+            return new SubjectBusiness(0, 0, 0, null, null, "unknown", "unknown", null);
+        }
+    }
+
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     public record Subject(
             @JsonProperty("subject_id") String subjectId,
             @JsonProperty("display_name") String displayName,
@@ -68,7 +100,8 @@ public final class InsuranceRiskResponse {
             String gender,
             BigDecimal bmi,
             Risk risk,
-            Intervention intervention
+            Intervention intervention,
+            SubjectBusiness business
     ) {
     }
 

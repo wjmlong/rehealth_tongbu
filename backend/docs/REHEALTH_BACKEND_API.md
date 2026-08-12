@@ -49,6 +49,25 @@ DELETE /rehealth/website/v1/{resource}/{id}
 All calls require normal Jeecg authentication and tenant scope (`X-Tenant-Id`);
 the resource allow-list is enforced server-side.
 
+## Insurer read API
+
+The insurer website BFF forwards the authenticated token and tenant header to
+the Jeecg insurance risk bridge:
+
+```text
+GET /rehealth/insurance/v1/dashboard/risk
+GET /rehealth/insurance/v1/insureds
+GET /rehealth/insurance/v1/insureds/{subjectId}
+```
+
+The dashboard response keeps the existing risk metrics and adds
+`business_summary` (`active_policies`, `active_coverages`, `claim_count`,
+`billed_amount`, `paid_amount`, `active_interventions` and
+`latest_updated_at`). Subject detail adds the same tenant-scoped business
+summary plus `consent_status` and `intervention_status`. The first-phase
+business summary is read through MyBatis-Plus mappers in the Java service; the
+FastAPI BFF only normalizes and forwards the response.
+
 只有 `/health` 标记了 `@IgnoreAuth`。其他移动端点应使用 JeecgBoot 的常规认证与授权机制。
 
 ## 公司官网本地登录

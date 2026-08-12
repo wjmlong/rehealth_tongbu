@@ -43,11 +43,15 @@ class InsuranceRiskServiceTest {
     @Test
     void dashboardExposesOnlyVerifiedRiskAndMarksUnsupportedMetricsNotConnected() {
         InsuranceRiskRepository repository = mock(InsuranceRiskRepository.class);
+        InsuranceBusinessRepository businessRepository = mock(InsuranceBusinessRepository.class);
         Timestamp evaluatedAt = Timestamp.from(Instant.parse("2026-08-11T06:00:00Z"));
         when(repository.dashboard(1000)).thenReturn(new InsuranceRiskRepository.DashboardSnapshot(
                 9, 5, 2, 2, 1, 3, 1, evaluatedAt
         ));
-        InsuranceRiskService service = new InsuranceRiskService(repository, objectMapper, true, "development");
+        when(businessRepository.tenant(1000)).thenReturn(new InsuranceRiskRepository.BusinessSnapshot(
+                3, 4, 2, new BigDecimal("100.00"), new BigDecimal("25.00"), 1, evaluatedAt
+        ));
+        InsuranceRiskService service = new InsuranceRiskService(repository, businessRepository, objectMapper, true, "development");
 
         InsuranceRiskResponse.Dashboard dashboard = service.dashboard(1000);
 
@@ -63,6 +67,8 @@ class InsuranceRiskServiceTest {
         assertEquals("not_connected", dashboard.savings().status());
         assertEquals("not_connected", dashboard.psm().status());
         assertEquals("not_connected", dashboard.rwe().status());
+        assertEquals(3, dashboard.businessSummary().activePolicies());
+        assertEquals(new BigDecimal("25.00"), dashboard.businessSummary().paidAmount());
     }
 
     @Test
@@ -136,6 +142,7 @@ class InsuranceRiskServiceTest {
                 .toList());
         assertEquals("available", subject.intervention().status());
         assertNull(subject.intervention().summary());
+        assertEquals(0, subject.business().activePolicies());
     }
 
     @Test
