@@ -130,8 +130,8 @@ public class InsuranceSettingsService {
         if (!"active".equals(status) && !"disabled".equals(status)) {
             throw InsuranceApiException.badRequest("status must be active or disabled");
         }
-        int userStatus = "active".equals(status) ? 1 : 0;
-        jdbc.update("UPDATE sys_user SET status = ?, update_time = ?, update_by = ? WHERE id = ?", userStatus, LocalDateTime.now(), userId, userId);
+        // Membership status is tenant-scoped; do not disable the global user
+        // account because the same Jeecg user may belong to another tenant.
         jdbc.update("UPDATE sys_user_tenant SET status = ?, update_time = ?, update_by = ? WHERE user_id = ? AND tenant_id = ?", "active".equals(status) ? "1" : "0", LocalDateTime.now(), userId, userId, tenantId);
         return members(tenantId).stream().filter(member -> member.id().equals(userId)).findFirst()
                 .orElseThrow(() -> InsuranceApiException.notFound("member was not found"));
