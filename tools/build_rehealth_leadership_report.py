@@ -14,8 +14,8 @@ from docx.shared import Cm, Inches, Pt, RGBColor
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "docs" / "ReHealth_APP_全景说明与技术架构_2026-08-12.md"
-OUTPUT = ROOT / "docs" / "ReHealth_APP_全景说明与技术架构_2026-08-12.docx"
+SOURCE = ROOT / "docs" / "ReHealth_APP_管理层全景报告_终稿_2026-08-13.md"
+OUTPUT = ROOT / "docs" / "ReHealth_APP_管理层全景报告_终稿_2026-08-13.docx"
 
 NAVY = "19324A"
 BLUE = "2E74B5"
@@ -287,10 +287,10 @@ def add_running_furniture(doc: Document) -> None:
         p = header.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.LEFT
         p.paragraph_format.space_after = Pt(0)
-        left = p.add_run("REHEALTH AI  |  睿禾精灵 APP 全景报告")
+        left = p.add_run("REHEALTH AI  |  睿禾精灵 APP")
         set_run_font(left, size=8.5, color=MUTED, bold=True)
         p.add_run("\t")
-        right = p.add_run("管理层阅览版 · 2026-08-12")
+        right = p.add_run("管理层全景报告（终稿） · 2026-08-13")
         set_run_font(right, size=8.5, color=MUTED)
         p.paragraph_format.tab_stops.add_tab_stop(Inches(6.75), 2)
         set_paragraph_border(p, color=LINE, size=5, space=3)
@@ -328,13 +328,13 @@ def add_cover(doc: Document) -> None:
     r = title.add_run("睿禾精灵 APP")
     set_run_font(r, size=30, color=NAVY, bold=True)
     r.add_break()
-    r2 = title.add_run("全景说明与技术架构")
+    r2 = title.add_run("管理层全景报告")
     set_run_font(r2, size=25, color=BLUE, bold=True)
 
     sub = doc.add_paragraph()
     sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
     sub.paragraph_format.space_after = Pt(20)
-    rs = sub.add_run("产品、功能、技术栈、前后端、数据、AI、部署与发布状态")
+    rs = sub.add_run("产品、功能、技术栈、前后端、数据、AI、部署与发布状态 · 终稿")
     set_run_font(rs, size=13, color=MUTED)
 
     status = doc.add_paragraph()
@@ -344,20 +344,21 @@ def add_cover(doc: Document) -> None:
     status.paragraph_format.space_before = Pt(8)
     status.paragraph_format.space_after = Pt(26)
     shade_paragraph(status, PALE_RED)
-    sr = status.add_run("当前结论：MVP 主体已形成 · 正式发布仍处于 BLOCKED 状态")
+    sr = status.add_run("管理结论：MVP 主体已形成 · 正式发布仍处于 BLOCKED 状态")
     set_run_font(sr, size=11, color=RED, bold=True)
 
-    meta = doc.add_table(rows=5, cols=2)
+    data = [
+        ("文档属性", "管理层审阅终稿"),
+        ("审阅对象", "公司管理层、产品负责人、技术负责人"),
+        ("客户端", "睿禾精灵 Android APP（com.rehealth.genie）"),
+        ("待发布版本", "1.0.0（versionCode 1）"),
+        ("数据基准", "2026-08-12 代码仓与权威状态文档"),
+        ("文档版本", "V1.1 · 终稿 · 编制日期 2026-08-13"),
+    ]
+    meta = doc.add_table(rows=len(data), cols=2)
     meta.style = "Table Grid"
     set_table_width(meta, [2100, 7260], indent=120)
     meta.alignment = WD_TABLE_ALIGNMENT.CENTER
-    data = [
-        ("汇报对象", "公司管理层、产品负责人、技术负责人"),
-        ("客户端", "睿禾精灵 Android APP（com.rehealth.genie）"),
-        ("待发布版本", "1.0.0（versionCode 1）"),
-        ("现状基准", "2026-08-12 代码仓与权威状态文档"),
-        ("文档版本", "V1.0 · 管理层阅览版"),
-    ]
     for row, (label, value) in zip(meta.rows, data):
         set_table_row_cant_split(row)
         row.height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
@@ -377,7 +378,7 @@ def add_cover(doc: Document) -> None:
     note = doc.add_paragraph()
     note.alignment = WD_ALIGN_PARAGRAPH.CENTER
     note.paragraph_format.space_before = Pt(24)
-    nr = note.add_run("内部汇报材料 · 健康管理参考系统 · 不替代医疗诊断")
+    nr = note.add_run("内部审阅终稿 · 健康管理参考系统 · 不替代医疗诊断")
     set_run_font(nr, size=9, color=MUTED, italic=True)
     doc.add_page_break()
 
@@ -393,11 +394,6 @@ def add_toc(doc: Document) -> None:
     toc = doc.add_paragraph()
     toc.paragraph_format.space_before = Pt(8)
     add_field(toc, 'TOC \\o "1-2" \\h \\z \\u')
-    hint = doc.add_paragraph("提示：在 Word 中按 Ctrl+A 后按 F9，可更新目录和总页数。")
-    hint.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    hint.paragraph_format.space_before = Pt(8)
-    for run in hint.runs:
-        set_run_font(run, size=8.5, color=MUTED, italic=True)
     doc.add_page_break()
 
 
@@ -431,7 +427,7 @@ def add_rich_text(paragraph, text: str) -> None:
 
 
 def add_business_summary(doc: Document) -> None:
-    h = doc.add_paragraph("一页式管理摘要", style="Heading 1")
+    h = doc.add_paragraph("管理摘要", style="Heading 1")
     h.paragraph_format.space_before = Pt(0)
     set_paragraph_border(h, color=BLUE, size=10, space=5)
     lead = doc.add_paragraph(style="Lead Callout")
@@ -478,7 +474,7 @@ def add_business_summary(doc: Document) -> None:
         r3 = p3.add_run(detail)
         set_run_font(r3, size=8, color=MUTED)
 
-    doc.add_paragraph("领导应重点关注", style="Heading 2")
+    doc.add_paragraph("核心管理判断", style="Heading 2")
     points = [
         "产品不是单一手环看板，而是设备采集、风险评估、干预和反馈闭环。",
         "正式能力与 Debug 工程能力已分离，Release 不包含 Mock、MRD/RWFit 工程入口。",
@@ -489,12 +485,12 @@ def add_business_summary(doc: Document) -> None:
         p = doc.add_paragraph(style="List Bullet")
         add_rich_text(p, item)
 
-    doc.add_paragraph("管理决策建议", style="Heading 2")
+    doc.add_paragraph("管理决策事项", style="Heading 2")
     decision = doc.add_table(rows=4, cols=3)
     decision.style = "Table Grid"
     set_table_width(decision, [1500, 3060, 4800], indent=120)
     data = [
-        ("优先级", "本阶段目标", "建议决策"),
+        ("优先级", "本阶段目标", "决策事项"),
         ("P0", "关闭发布阻塞", "集中完成 MT116 真机长稳、正式模型和签名包全链路验收"),
         ("P1", "补齐产品闭环", "完成 RHI 云端落库、隐私/导出/删除以及保险授权页面"),
         ("P2", "试点规模化", "再投入容量、容灾、模型漂移监测和多设备/IoT 扩展"),
@@ -694,8 +690,8 @@ def finalize_doc(doc: Document) -> None:
             set_table_row_cant_split(row)
     add_running_furniture(doc)
     props = doc.core_properties
-    props.title = "睿禾精灵 APP 全景说明与技术架构"
-    props.subject = "ReHealth AI 管理层产品与技术全景报告"
+    props.title = "睿禾精灵 APP 管理层全景报告（终稿）"
+    props.subject = "ReHealth AI 管理层产品、功能与技术全景报告终稿"
     props.author = "ReHealth AI / 睿禾健康"
     props.keywords = "ReHealth, 睿禾精灵, Android, 可穿戴, CVD, RHI, 技术架构"
     settings = doc.settings._element
