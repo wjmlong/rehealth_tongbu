@@ -41,7 +41,7 @@ rehealth:insurance:settlement:operate
 rehealth:insurance:audit:view
 ```
 
-迁移仅创建角色模板和权限关系，不自动给业务用户授权。`V20260813_3` 只为本地既有 `admin` 角色补齐保险工作流权限，仍不创建用户或租户成员。
+迁移仅创建角色模板和权限关系，不自动给业务用户授权。`V20260813_3` 为本地既有 `admin` 角色补齐保险工作流权限，`V20260813_7` 补齐机构设置验收所需权限，仍不创建用户或租户成员；正式环境应通过 `insurance_org_admin` 等最小权限角色授权。
 
 ## 3. 业务数据导入
 
@@ -123,6 +123,8 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 - `V20260813_2__seed_insurer_workflow_permissions.sql`：细分角色与最小权限。
 - `V20260813_3__grant_insurance_workflow_to_admin.sql`：本地管理员验收授权。
 - `V20260813_4__add_insurance_subject_manager_scope.sql`：经理与投保人负责关系表，为后续经理级数据权限提供租户隔离基础。
+- `V20260813_6__create_insurance_settings.sql`：机构设置、成员管理权限和保险机构管理角色模板。
+- `V20260813_7__grant_insurance_settings_to_admin.sql`：本地 `admin` 验收账号的机构设置读取/维护权限，不用于正式账号授权。
 
 迁移均为向前兼容的非破坏性变更，不删除既有保险数据。完整逐表结构见 `backend/docs/REHEALTH_DB_SCHEMA.md`。
 

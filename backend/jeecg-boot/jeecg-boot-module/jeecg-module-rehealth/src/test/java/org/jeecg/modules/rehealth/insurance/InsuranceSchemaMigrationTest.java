@@ -118,4 +118,21 @@ class InsuranceSchemaMigrationTest {
         assertTrue(sql.contains("insurance_department_manager"));
         assertTrue(sql.contains("software-V20260813.6"));
     }
+
+    @Test
+    void settingsAdminGrantKeepsLocalAcceptanceAccountUsable() throws Exception {
+        String sql = read("db/software/mysql/V20260813_7__grant_insurance_settings_to_admin.sql");
+        assertTrue(sql.contains("role.role_code = 'admin'"));
+        for (String permission : List.of(
+                "rehealth:insurance:organization:view",
+                "rehealth:insurance:organization:edit",
+                "rehealth:insurance:department:manage",
+                "rehealth:insurance:member:view",
+                "rehealth:insurance:member:manage",
+                "rehealth:insurance:role:assign",
+                "rehealth:insurance:assignment:manage")) {
+            assertTrue(sql.contains(permission), permission);
+        }
+        assertTrue(sql.contains("software-V20260813.7"));
+    }
 }

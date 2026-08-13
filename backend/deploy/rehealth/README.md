@@ -29,9 +29,9 @@ Do not interpret a static pass as a deployed-service health result.
 
 ## Local insurer workflow
 
-Apply the non-destructive MySQL migrations through `V20260813_3` before testing
+Apply the non-destructive MySQL migrations through `V20260813_7` before testing
 the insurer website. They add import/job/plan-feedback tables, workflow
-permissions and local-admin acceptance grants. Production must assign
+permissions, insurance organization settings and local-admin acceptance grants. Production must assign
 `insurer_viewer`, `insurer_analyst`, `insurance_operator` or `insurer_auditor`
 explicitly and must not rely on the local admin grant.
 
