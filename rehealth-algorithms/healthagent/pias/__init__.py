@@ -13,7 +13,13 @@ from .china_calibration import ChinesePopulationCalibrator, ChineseFeatureThresh
 from .actuarial_validation import ActuarialValidator, FraminghamRiskScore, ChinaPARRiskScore
 
 # Attribution module (new structure)
-from .attribution import IndividualAttributor, GroupAttributor, AttributionReport
+from .attribution import (
+    IndividualAttributor,
+    GroupAttributor,
+    AttributionReport,
+    PSMConfig,
+    PSMEngine,
+)
 
 # Legacy modules (keep for backward compatibility)
 from .individual_prediction import IndividualPredictor
@@ -53,6 +59,8 @@ __all__ = [
     "IndividualAttributor",
     "GroupAttributor",
     "AttributionReport",
+    "PSMConfig",
+    "PSMEngine",
     # Attribution (legacy)
     "IndividualPredictor",
     "LegacyGroupAttributor",

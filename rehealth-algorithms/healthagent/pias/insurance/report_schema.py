@@ -73,6 +73,17 @@ class FinancialImpact(BaseModel):
     roi: Optional[float] = Field(None, description="投资回报率")
 
 
+    outcome_unit: str = Field(default="unspecified", description="Outcome unit")
+    effective_treated_units: int = Field(default=0, description="Effective treated units")
+    att_per_unit: Optional[float] = Field(None, description="ATT per unit")
+    gross_savings: float = Field(default=0, description="Gross savings")
+    service_cost: float = Field(default=0, description="Service cost")
+    net_savings: float = Field(default=0, description="Net savings")
+    sharing_ratio: float = Field(default=0, description="Contract sharing ratio")
+    settlement_amount: float = Field(default=0, description="Settlement amount")
+    formula: str = Field(default="", description="Reproducible financial formula")
+
+
 class ComplianceSection(BaseModel):
     """Compliance section."""
     regulatory_references: List[str] = Field(
@@ -116,6 +127,80 @@ class SettlementReport(BaseModel):
     recommendation: str = Field(..., description="建议")
     detail: str = Field(..., description="详细说明")
     method_summary: str = Field(..., description="方法摘要")
+
+
+    data_provenance: Dict[str, Any] = Field(default_factory=dict, description="Data provenance")
+    quality_gates: Dict[str, Any] = Field(default_factory=dict, description="Quality gates")
+    report_status: str = Field(default="draft", description="Report status")
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Return a JSON-compatible report payload across Pydantic versions."""
+        if hasattr(self, "model_dump"):
+            return self.model_dump(mode="json")
+        return self.dict()
+
+    def to_markdown(self) -> str:
+        """Render the standardized Draft report for internal review."""
+        data = self.to_dict()
+        header = data["header"]
+        cohort = data["cohort"]
+        att = data["att_result"]
+        financial = data["financial_impact"]
+        gates = data.get("quality_gates", {})
+        lines = [
+            "# ReHealth PSM + RWE 结算报告（Draft）",
+            "",
+            f"- 报告 ID：{header['report_id']}",
+            f"- 报告状态：{data.get('report_status', 'draft')}",
+            f"- 生成时间：{header['generation_date']}",
+            "",
+            "## 结论",
+            "",
+            data["conclusion"],
+            "",
+            data["detail"],
+            "",
+            "## 队列与 PSM",
+            "",
+            f"- 总人数：{cohort['n_total']}",
+            f"- 干预组：{cohort['n_treated']}",
+            f"- 对照组：{cohort['n_control']}",
+            f"- 匹配对数：{cohort['n_matched_pairs']}",
+            f"- 干预组匹配率：{cohort['matching_rate']:.1%}",
+            f"- ATT：{att['att_estimate']:+.6g}",
+            f"- 置信区间：[{att['ci_lower']:+.6g}, {att['ci_upper']:+.6g}]",
+            f"- p 值：{att.get('p_value', 'N/A')}",
+            "",
+            "## 财务影响",
+            "",
+            f"- 结局单位：{financial['outcome_unit']}",
+            f"- 有效干预单位：{financial['effective_treated_units']}",
+            f"- 毛节省：¥{financial['gross_savings']:,.2f}",
+            f"- 服务成本：¥{financial['service_cost']:,.2f}",
+            f"- 净节省：¥{financial['net_savings']:,.2f}",
+            f"- 共享比例：{financial['sharing_ratio']:.1%}",
+            f"- 结算金额：¥{financial['settlement_amount']:,.2f}",
+            f"- 公式：`{financial['formula']}`",
+            "",
+            "## 质量门槛",
+            "",
+        ]
+        lines.extend(f"- {key}: {value}" for key, value in gates.items())
+        lines.extend([
+            "",
+            "## 数据血缘",
+            "",
+            f"- 快照哈希：`{data.get('data_provenance', {}).get('snapshot_hash')}`",
+            f"- 引擎版本：`{data.get('data_provenance', {}).get('engine_version')}`",
+            f"- 模型版本：`{data.get('data_provenance', {}).get('model_version')}`",
+            "",
+            "## 方法与限制",
+            "",
+            data["method_summary"],
+            "",
+            "本报告为内部 Draft。观察性研究不能排除未测量混杂；未通过质量门槛或缺少合同财务口径时，不得直接用于正式结算、定价或监管提交。",
+        ])
+        return "\n".join(lines) + "\n"
 
 
 class QuarterlyReport(BaseModel):
