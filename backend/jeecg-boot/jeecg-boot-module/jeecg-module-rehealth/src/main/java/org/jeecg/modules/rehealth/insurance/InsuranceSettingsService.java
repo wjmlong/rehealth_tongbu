@@ -125,6 +125,55 @@ public class InsuranceSettingsService {
     }
 
     @Transactional
+    public Member updateMemberStatus(int tenantId, String userId, String status) {
+        requireMember(tenantId, userId);
+        if (!"active".equals(status) && !"disabled".equals(status)) {
+            throw InsuranceApiException.badRequest("status must be active or disabled");
+        }
+        int userStatus = "active".equals(status) ? 1 : 0;
+        jdbc.update("UPDATE sys_user SET status = ?, update_time = ?, update_by = ? WHERE id = ?", userStatus, LocalDateTime.now(), userId, userId);
+        jdbc.update("UPDATE sys_user_tenant SET status = ?, update_time = ?, update_by = ? WHERE user_id = ? AND tenant_id = ?", "active".equals(status) ? "1" : "0", LocalDateTime.now(), userId, userId, tenantId);
+        return members(tenantId).stream().filter(member -> member.id().equals(userId)).findFirst()
+                .orElseThrow(() -> InsuranceApiException.notFound("member was not found"));
+    }
+
+    @Transactional
+    public Member updateMemberDepartment(int tenantId, String userId, String departmentId) {
+        requireMember(tenantId, userId);
+        Integer valid = jdbc.queryForObject("SELECT COUNT(*) FROM sys_depart WHERE id = ? AND tenant_id = ? AND COALESCE(del_flag, '0') = '0'", Integer.class, departmentId, tenantId);
+        if (valid == null || valid < 1) {
+            throw InsuranceApiException.badRequest("departmentId is not in the requested tenant");
+        }
+        jdbc.update("DELETE FROM sys_user_depart WHERE user_id = ?", userId);
+        jdbc.update("INSERT INTO sys_user_depart (ID, user_id, dep_id) VALUES (?, ?, ?)", UUID.randomUUID().toString().replace("-", ""), userId, departmentId);
+        return members(tenantId).stream().filter(member -> member.id().equals(userId)).findFirst()
+                .orElseThrow(() -> InsuranceApiException.notFound("member was not found"));
+    }
+
+    @Transactional
+    public Member updateMemberRole(int tenantId, String userId, String roleCode) {
+        requireMember(tenantId, userId);
+        if (!List.of("insurer_viewer", "insurer_analyst", "insurance_operator", "insurer_auditor", "insurance_department_manager").contains(roleCode)) {
+            throw InsuranceApiException.badRequest("roleCode is not an insurer role");
+        }
+        String roleId = jdbc.queryForObject("SELECT id FROM sys_role WHERE role_code = ? AND (tenant_id = 0 OR tenant_id = ?)", String.class, roleCode, tenantId);
+        if (roleId == null) {
+            throw InsuranceApiException.badRequest("roleCode is not configured");
+        }
+        jdbc.update("DELETE ur FROM sys_user_role ur JOIN sys_role r ON r.id = ur.role_id WHERE ur.user_id = ? AND ur.tenant_id = ? AND r.role_code IN ('insurer_viewer','insurer_analyst','insurance_operator','insurer_auditor','insurance_department_manager')", userId, tenantId);
+        jdbc.update("INSERT INTO sys_user_role (id, user_id, role_id, tenant_id) VALUES (?, ?, ?, ?)", UUID.randomUUID().toString().replace("-", ""), userId, roleId, tenantId);
+        return members(tenantId).stream().filter(member -> member.id().equals(userId)).findFirst()
+                .orElseThrow(() -> InsuranceApiException.notFound("member was not found"));
+    }
+
+    private void requireMember(int tenantId, String userId) {
+        Integer valid = jdbc.queryForObject("SELECT COUNT(*) FROM sys_user_tenant WHERE user_id = ? AND tenant_id = ?", Integer.class, userId, tenantId);
+        if (valid == null || valid < 1) {
+            throw InsuranceApiException.notFound("member was not found in the requested tenant");
+        }
+    }
+
+    @Transactional
     public Assignment upsertAssignment(int tenantId, String operatorId, String subjectRef, AssignmentRequest request) {
         if (subjectRef == null || !SUBJECT_REF.matcher(subjectRef.trim()).matches()) {
             throw InsuranceApiException.badRequest("subjectRef must be a 64-character pseudonymous reference");

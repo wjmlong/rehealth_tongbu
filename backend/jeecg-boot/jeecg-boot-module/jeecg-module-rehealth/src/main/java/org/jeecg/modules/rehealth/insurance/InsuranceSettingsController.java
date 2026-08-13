@@ -73,6 +73,33 @@ public class InsuranceSettingsController {
         return respond(() -> service.assignments(tenantAccessGuard.requireTenant(currentUser(), tenantId)));
     }
 
+    @PutMapping("/members/{userId}/status")
+    @RequiresPermissions("rehealth:insurance:member:manage")
+    public ResponseEntity<Result<InsuranceSettingsResponse.Member>> memberStatus(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
+            @PathVariable String userId,
+            @RequestBody InsuranceSettingsRequest.MemberStatus request) {
+        return respond(() -> service.updateMemberStatus(tenantAccessGuard.requireTenant(currentUser(), tenantId), userId, request.status()));
+    }
+
+    @PutMapping("/members/{userId}/department")
+    @RequiresPermissions("rehealth:insurance:member:manage")
+    public ResponseEntity<Result<InsuranceSettingsResponse.Member>> memberDepartment(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
+            @PathVariable String userId,
+            @RequestBody InsuranceSettingsRequest.MemberDepartment request) {
+        return respond(() -> service.updateMemberDepartment(tenantAccessGuard.requireTenant(currentUser(), tenantId), userId, request.departmentId()));
+    }
+
+    @PutMapping("/members/{userId}/role")
+    @RequiresPermissions("rehealth:insurance:role:assign")
+    public ResponseEntity<Result<InsuranceSettingsResponse.Member>> memberRole(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
+            @PathVariable String userId,
+            @RequestBody InsuranceSettingsRequest.MemberRole request) {
+        return respond(() -> service.updateMemberRole(tenantAccessGuard.requireTenant(currentUser(), tenantId), userId, request.roleCode()));
+    }
+
     @PutMapping("/assignments/{subjectRef}")
     @RequiresPermissions("rehealth:insurance:assignment:manage")
     public ResponseEntity<Result<InsuranceSettingsResponse.Assignment>> assignment(

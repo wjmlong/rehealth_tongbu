@@ -15,4 +15,13 @@ public final class InsuranceSettingsRequest {
             Boolean accessLogEnabled
     ) {
     }
+
+    public record MemberStatus(String status) {
+    }
+
+    public record MemberDepartment(String departmentId) {
+    }
+
+    public record MemberRole(String roleCode) {
+    }
 }
