@@ -142,6 +142,8 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 
 完整工作流可执行 `backend/deploy/rehealth/scripts/seed-insurance-workflow-test-data.ps1` 写入 `LOCAL_INSURANCE_QA` 验收基线：12 名合成租户成员、12 张有效保单、12 条已支付理赔，以及处理组/对照组各 6 人的 PSM 候选和 1 个草稿研究。脚本使用固定业务键重复更新，不重复插入；合成用户没有密码、手机号或邮箱，不能登录。
 
+多租户成员与权限验收可执行 `backend/deploy/rehealth/scripts/seed-multi-insurer-tenant-test-data.ps1` 写入 `LOCAL_MULTI_INSURER_QA` 基线：租户 `9101`–`9103` 各包含机构节点、健康险运营部、精算与风控部，以及机构管理员、部门经理、分析员、运营员、查看员和待接受邀请账号；共享审计员使用同一个全局 Jeecg 账号加入三个租户。默认执行账号 `admin` 也会加入三个 QA 租户，以便在 Jeecg 租户选择器中切换后检查按当前租户过滤的部门树，但其默认登录租户保持不变。该基线只验证租户成员、部门与角色隔离，不生成投保人、保单、理赔或风险数据，并拒绝覆盖同编号的非 QA 租户。
+
 该基线同时创建 2 个保险部门和 2 个经理账号（`local_insurance_manager_01`、`local_insurance_manager_02`，密码均为 `123456`），并在 `rehealth_insurance_subject_manager` 中按部门分别分配 6 名投保人。风险查询和机构设置的部门、成员、负责人只读接口均在 JeecgBoot 查询层按该映射表过滤，不能仅依赖前端隐藏菜单实现越权防护。
 
 为覆盖“已评估风险”和 PSM 候选筛选，合成风险记录的 `is_mock=0`，但 `model_version=local-qa-seeded-nonclinical-v1`、`scorer_mode=local_qa_fixture`、`artifact_name=LOCAL_INSURANCE_QA_NOT_A_MODEL`，质量警告及响应体也明确禁止临床和业务决策。该脚本只允许在本地开发环境使用。

@@ -178,6 +178,29 @@ for the next risk-list API change. The current risk API is still tenant-scoped,
 so manager login data is ready for permission testing but does not by itself
 change the existing list query until the manager-scope guard is implemented.
 
+To validate Jeecg multi-tenant insurance administration with several organizations,
+seed three isolated synthetic insurers and their staff:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File `
+  backend/deploy/rehealth/scripts/seed-multi-insurer-tenant-test-data.ps1
+```
+
+The repeatable local-only seed owns tenant IDs `9101`–`9103`, creates two business
+departments per insurer, and adds an organization administrator, two department
+managers, an analyst, operator, viewer, pending invitee, and one shared auditor
+account. The shared auditor deliberately belongs to all three tenants so tenant-
+scoped department and role joins can be tested with the same global Jeecg user.
+Every organization, person, phone number, email address, and license number is
+explicitly marked as synthetic `LOCAL_MULTI_INSURER_QA` data. The script refuses
+to overwrite `9101`–`9103` when any ID is already owned by non-QA data. Active
+test accounts use the local-only password `123456`; never run this seed outside
+the local development database. The selected seed actor (`admin` by default) is
+also added as an active member of all three QA tenants without changing its
+default login tenant. In the Jeecg console, use the tenant selector to switch to
+`9101`, `9102`, or `9103` before opening department management; system department
+queries intentionally show only the currently selected tenant.
+
 Health chat now supports two server-side engines behind the unchanged mobile API:
 
 - `REHEALTH_HEALTH_AGENT_ENGINE=langchain4j` is the default and runs prompt assembly, bounded
