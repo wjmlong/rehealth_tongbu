@@ -1,6 +1,7 @@
 # OS files
 *.DS_Store
 Thumbs.db
+~$*.docx
 
 # Build outputs, caches, downloaded toolchains
 *.zip

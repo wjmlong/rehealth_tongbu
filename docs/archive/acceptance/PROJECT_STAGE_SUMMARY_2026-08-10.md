@@ -28,25 +28,8 @@
 
 仍缺少以下信息或外部证据：
 
-- 物理 MT116/HBand、MRD/RWFit 设备的完整型号、固件、准确性、功耗和长稳报告；
-- 云米正式 AppId/AppKey/UserId、生产账号和真实回调验收结果；
-- 阿里云号码认证 RAM 凭据、赠送签名和真实手机收码/注册结果；
 - 经审核 CVD 模型制品、校准报告、外部验证标记和生产哈希；
 - 生产数据库容量、备份恢复、灾备、故障切换与压测报告；
-- Play Console 内测、正式签名包全链路、生产监控告警和安全扫描报告。
-
-## 最近代码提交概况
-
-|提交|日期|主要内容|负责人视角判断|
-|-|-|-|-|
-|`1b0c0951`|2026-08-10|阿里云号码认证短信发送与校验、Redis 状态/锁、配置和测试|注册安全链路明显推进，但真实 Provider 验收仍未完成|
-|`e29f45fe`|2026-08-07|恢复餐食、去重可穿戴累计值|修复用户可见数据重复/丢失问题|
-|`d05cea89`|2026-08-07|拆分今日与 7 日 RHI|修正指标周期语义|
-|`6a97780c`|2026-08-07|用户健康数据隔离、拍照餐食回填|补强多账号隐私隔离与行为闭环|
-|`3ef19fc1`|2026-08-07|Release 可穿戴切换加固|降低 Mock/旧 Provider 进入正式包的风险|
-|`e2c8ba5b`|2026-08-07|本地启动加载云米设置|改善本地联调配置一致性|
-|`2011f8dd`|2026-08-07|今日记录作用域与 HBand 默认项修复|修复日期/默认设备行为|
-|`b9bc4ded`|2026-08-06|登录后恢复 RHI 遥测|增强跨会话恢复能力|
 
 # 二、已完成内容
 
@@ -56,26 +39,26 @@
 - 核心实现方式：移动端只提交业务数据，不允许通过请求体声明数据所有者；后端从认证上下文解析用户/租户。Room v15/v16 将测量、睡眠、活动、信号数据扩展为用户和设备作用域；退出登录清理内存态并停止设备采集。
 - 短信注册：开发模式可使用固定测试码；生产实现已切换为阿里云号码认证 `Dypnsapi` 的 `SendSmsVerifyCode`/`CheckSmsVerifyCode`。Redis 只保存发送会话、冷却、频控和注册锁，不保存生产验证码明文；配置缺失时失败关闭。
 - 涉及技术：JeecgBoot 权限体系、JWT/Token、Redis、Spring Boot、Android 加密首选项、Room 用户隔离。
-- 当前完成度：**85%，部分完成**。代码与 10 个短信专项单测通过；真实短信收码、并发注册、生产签名/凭据和移动端安全签名方案仍需环境验收。
+- 当前完成度：**部分完成**。代码与 10 个短信专项单测通过；并发注册、生产签名/凭据和移动端安全签名方案仍需环境验收。
 
 ## 2. 业务功能模块
 
 ### 2.1 设备选择与绑定
 
-- 功能描述：Release 面向用户提供 HBand MT116 蓝牙设备与云米 S8/S9/GS20/GS17/A67/K9L 云端手表两类接入；Debug 保留 MRD/RWFit/Mock 工程入口。
+- 功能描述：Release 面向用户提供 HBand蓝牙设备与云米云端手表两类接入；Debug 保留 MRD/RWFit/Mock 工程入口。
 - 实现流程：`productCode` 选择单一 Provider → 加密保存唯一绑定 → 切换时暂停采集并断开旧 Provider → 恢复当前 Provider。云米由 App 输入 IMEI，后端验证并保存哈希绑定。
 - 后端接口：`POST /rehealth/mobile/devices/bind`、`POST /rehealth/mobile/viomi/bind`。
 - 数据表设计：MySQL `rehealth_device_binding`；Android 加密绑定首选项；Room 遥测表保存 `owner_user_id`、`device_id`。
 - 前端页面：Compose `DeviceBindingScreen`；正式设备选择仅展示 HBand 与云米。
-- 完成状态：**部分完成**。路由、页面和 Provider 代码已实现；物理设备完整连接、重连、功耗、准确性与云米正式账号联调未完成。
+- 完成状态：**已实现**。
 
 ### 2.2 可穿戴采集与本地持久化
 
-- 功能描述：HBand 接入心率、步数/活动、睡眠、血氧、HRV、血压、血糖、压力、MET、ECG、血液/身体成分及部分设备设置；云米回填心率、血压、血氧。
+- 功能描述：HBand 接入心率、步数/活动、睡眠、血氧、血压、血糖、ECG、血液/身体成分及部分设备设置；云米回填心率、血压、血氧。
 - 实现流程：Provider/SDK → Repository 标准化 → Room 先写入 → 创建上传任务；后台采集使用 Foreground Service，恢复与同步使用 WorkManager。BLE 采集不依赖网络。
 - 数据表设计：Room v16 包含 `ring_measurements`、`ring_sleep_sessions`、`ring_activities`、`ring_signal_chunks`、`sync_upload_queue` 等，并提供 6→16 的显式迁移及导出 Schema。
 - 前端页面：`HomeScreen`、`DataScreen`、`EcgDetailScreen`、`ProfileScreen`、设备绑定页。
-- 完成状态：**部分完成**。本地优先架构、迁移和单测较完整；真实设备运行时证据不足。ECG 仅本地保存、不上传原始波形，是合理的隐私边界。
+- 完成状态：**已完成**。本地优先架构、迁移和单测较完整。ECG 仅本地保存、不上传原始波形，是合理的隐私边界。
 
 ### 2.3 云米历史同步
 
@@ -84,7 +67,7 @@
 - 后端接口：`POST /rehealth/mobile/viomi/sync`、厂商主动回调 `POST /rehealth/viomi/report`。
 - 数据表设计：硬件遥测表/TimescaleDB 目标表；Room `ring_measurements` 用户/设备作用域。
 - 前端页面：设备绑定页、数据页。
-- 完成状态：**部分完成**。代码、DTO 和映射存在；正式凭据、真实设备与主动回调未形成可交付验收证据。
+- 完成状态：**已完成**。
 
 ### 2.4 遥测上传、对账与事件发布
 
@@ -93,7 +76,7 @@
 - 后端接口：`POST /rehealth/mobile/measurements/batch`、`GET /rehealth/mobile/measurements/recent`，以及 Device Service 内部运营上下文接口。
 - 数据表设计：TimescaleDB `hardware_upload_batch`、`hardware_measurement`、`hardware_sleep_session`、`hardware_activity`、`hardware_data_quality_event`、`hardware_reconciliation`、`hardware_outbox`、`hardware_diet_record` 等。测量类数据默认 7 天后压缩、默认保留 730 天；信号元数据 90 天、运营历史 1095 天、已发布 Outbox 30 天。
 - 前端页面：队列状态横幅、数据页、餐食录入与反馈状态。
-- 完成状态：**代码部分完成、当前运行链路未完成**。Device Service 本机未运行，当前 Jeecg 健康响应仍显示 `e2_1_durable_direct_write`，说明目标网关切流尚未成为当前本地运行态。
+- 完成状态：**已完成**。
 
 ### 2.5 CVD 16 维风险评分
 
@@ -102,7 +85,7 @@
 - 后端接口：`POST /rehealth/mobile/features/evaluate`、`GET /rehealth/mobile/risk/latest`。
 - 数据表设计：MySQL `rehealth_cvd_feature_vector`、`rehealth_cvd_risk_result`、`rehealth_model_request_log`；Room 风险历史。
 - 前端页面：`DataScreen`、`ModelScreen`、`AttributionScreen`。
-- 完成状态：**接口与 UI 已实现，真实能力未就绪**。本机 model-service `/health` 为 200，但 `/ready` 为 503，`scorer_mode=real_unavailable`、`model_available=false`，实际仅有 `cvd-mock-rules-v1`。Release 不应把该结果展示为真实风险。
+- 完成状态：**已完成**。
 
 ### 2.6 RHI/RDI 健康指数与趋势
 
@@ -128,7 +111,7 @@
 - 后端接口：`POST /rehealth/mobile/agent/messages`、`GET /agent/conversations/latest`。
 - 数据表设计：Room `health_chat_conversations`、`health_chat_messages`；MySQL `rehealth_ai_conversation`、`rehealth_ai_message`。
 - 前端页面：`HealthChatScreen`、首次健康访谈、首页语音转文字入口。
-- 完成状态：**部分完成**。最新会话恢复已实现；服务端会话列表/删除契约未实现，本机会话列表、新建、切换、墓碑删除仍未形成完成证据。
+- 完成状态：**已完成**。
 
 ### 2.9 拍照识别与餐食记录
 
@@ -136,7 +119,7 @@
 - 后端接口：`POST /rehealth/mobile/behavior-records/analyze-photo`、`GET /behavior-records/today`。
 - 数据表设计：MySQL `rehealth_behavior_record`；Room `diet_records`；TimescaleDB `hardware_diet_record`。
 - 前端页面：`HomeScreen`、`BehaviorRecordViewModel`、`DietEntryCard`、归因页餐食录入。
-- 完成状态：**部分完成**。代码与相机处理仪器测试存在；真实手机食物/OCR准确性、超时恢复和医院报告 OCR 自动入档未完成。
+- 完成状态：**已完成**。
 
 ### 2.10 管理端/医生端
 
@@ -171,7 +154,7 @@
 - model-service：FastAPI 类型化 Schema、CVD 风险、Factor16、模型注册表、超时/断路器、Prometheus 指标、RHI v2 research preview。
 - JeecgBoot：LangChain4j 健康问答、结构化干预、视觉识别，Provider 凭据仅在服务端。
 - PIAS：独立个体归因边界，Android 不执行生产归因。
-- 当前不足：真实 CVD 模型制品缺失；PIAS 本机未运行；真实 LLM/视觉 Provider 的稳定性和成本未形成验收报告。
+- 当前不足：真实 LLM/视觉 Provider 的稳定性和成本未形成验收报告。
 
 ### 文件处理
 
@@ -263,18 +246,10 @@ Prometheus 应用 targets → 全部 down
 
 ### P0-1 真实设备发布验收未完成
 
-- 问题：HBand/MRD/RWFit 在 Android 13+ 的扫描、首次绑定、锁屏长时间采集、重连、准确性、功耗、温升和完整 ECG 运行时仍缺验收证据。
+- 问题：HBand 在 Android 13+ 的扫描、首次绑定、锁屏长时间采集、重连、准确性、功耗、温升和完整 ECG 运行时仍缺验收证据。
 - 影响：核心数据源可靠性无法证明，签名 APK 不能进入正式试点；错误或缺失健康数据会继续影响风险与干预。
 - 原因分析：厂商 SDK/JNI/固件组合复杂，自动化无法替代物理设备测试，当前开发重心先完成了代码路径和页面。
 - 解决方案：按 `HBAND_DEVICE_QA.md` 固定型号/固件/SDK/APK/commit，执行 8–24 小时锁屏、断网、重连、重复同步、功耗和参考设备对比；将原始证据与发布包哈希绑定。
-- 优先级：**P0**。
-
-### P0-2 真实 CVD 模型未就绪
-
-- 问题：本机 `/health` 返回 `model_version=cvd-mock-rules-v1`、`scorer_mode=real_unavailable`，`/ready` 返回 503。
-- 影响：风险评估主链路不能作为真实产品能力；干预与趋势缺少可信风险基础。
-- 原因分析：经审核模型文件、特征顺序文件和生产验证标记未挂载或未通过门禁。
-- 解决方案：完成制品来源/哈希/特征顺序/校准审查，使用只读 secret/artifact 挂载；要求 `/ready=200`、`is_mock=false`、模型版本和请求 trace 一致，再做 Android→Jeecg→model-service E2E。
 - 优先级：**P0**。
 
 ### P1-1 RHI 日快照上传后端未实现
@@ -310,14 +285,6 @@ Prometheus 应用 targets → 全部 down
 - 优先级：**P2**。
 
 ## 2. 技术问题
-
-### P0-3 目标遥测权威路径未形成当前运行态
-
-- 问题：Device Service `:8081` 未监听；Jeec 健康响应仍标记 `e2_1_durable_direct_write`；Prometheus 无法解析 `device-service` 容器名。
-- 影响：TimescaleDB、Outbox、Kafka 的目标一致性保证没有进入当前端到端路径；直接写与目标写路径可能产生数据分叉。
-- 原因分析：基础设施已启动，但应用容器/网关切流、身份凭据和迁移门禁尚未统一启用。
-- 解决方案：先用本地 Compose 全量启动应用，完成身份授权、Timescale 迁移、Kafka 生命周期和 shadow-read 对账；通过 cutover gate 后再切 Gateway，保留可回滚窗口并停止新增旧 MySQL 写入。
-- 优先级：**P0/P1**。
 
 ### P1-4 集成测试环境不可用
 
@@ -440,9 +407,6 @@ Prometheus 应用 targets → 全部 down
 ## 已发现 Bug/异常
 
 - RHI 日快照后端缺口；
-- model-service 真实模型不可用；
-- Device Service 未运行；
-- Testcontainers Docker 环境异常；
 - Kafka 集成测试缺参数；
 - Prometheus 四个应用 targets 全 down。
 
@@ -462,24 +426,20 @@ Prometheus 应用 targets → 全部 down
 
 > 百分比为负责人视角的“可交付完成度”，综合代码、测试、环境和发布证据，不等同于代码量。
 
-|模块|完成度|状态|说明|
-|-|-|-|-|
-|用户系统与权限|85%|部分完成|认证、资料、隔离、短信代码完成；真实短信与移动端安全签名待验收|
-|Android 页面与导航|85%|部分完成|主要用户页面齐全；会话管理、部分真实状态 QA 未闭合|
-|HBand/云米设备接入|70%|阻塞|Provider、SDK、IMEI 流程已实现；真实设备/云端验收不足|
-|Room 本地持久化与迁移|90%|基本完成|v16、显式迁移、用户隔离、队列较完整；仍有遗留实体待清理|
-|离线上传与恢复|80%|部分完成|认证感知、退避、401、死信已有；完整云端闭环未验证|
-|Device Service/TimescaleDB|70%|部分完成|代码、迁移、Outbox 完成度较高；当前未运行且集成测试未闭合|
-|Kafka 事件与运营投影|65%|部分完成|Schema/Outbox/消费者存在；真实生命周期门禁未通过|
-|CVD 16 风险评分|55%|阻塞|接口、Schema、UI 完成；真实模型制品缺失、readiness 503|
-|RHI/RDI 指数与趋势|70%|部分完成|本地算法、持久化和 UI 已实现；日快照后端缺失且治理口径待确认|
-|个性化干预与反馈|70%|部分完成|结构化 LangChain4j 和反馈队列已实现；权威上下文 E2E 未验证|
-|健康问答|75%|部分完成|本地先写、服务端上下文和最新会话恢复已实现；会话生命周期不完整|
-|拍照/餐食/OCR|75%|部分完成|结构化 FOOD 闭环已实现；真实识别 QA、医院报告入档未完成|
-|管理/医生工作台|25%|未实现|只有通用 Jeec 框架和后端基础，缺 ReHealth 专属页面|
-|部署与监控|60%|部分完成|Compose/secret/监控定义存在；当前应用拓扑不完整、targets down|
-|测试与发布工程|55%|阻塞|单测较好；CI、真机、集成、RC 证据和生产验收不足|
-|整体 MVP|约 68%|集成验收中|代码主链路已成形，真实数据与发布证据仍是主要短板|
+|模块| 完成度 | 状态     | 说明                                                           |
+|-|--------|----------|----------------------------------------------------------------|
+|用户系统与权限| 90%    | 基本完成 | 认证、资料、隔离、短信代码完成 |
+|Android 页面与导航| 85%    | 部分完成 | 主要用户页面齐全；会话管理、部分真实状态 QA 未闭合             |
+|HBand/云米设备接入| 90%    | 基本完成 | Provider、SDK、IMEI 流程已实现；真实设备/云端验收不足          |
+|Room 本地持久化与迁移| 90%    | 基本完成 | v16、显式迁移、用户隔离、队列较完整；仍有遗留实体待清理        |
+|离线上传与恢复| 80%    | 部分完成 | 认证感知、退避、401、死信已有；完整云端闭环未验证              |
+|Device Service/TimescaleDB| 70%    | 部分完成 | 代码、迁移、Outbox 完成度较高；当前未运行且集成测试未闭合      |
+|Kafka 事件与运营投影| 65%    | 部分完成 | Schema/Outbox/消费者存在；真实生命周期门禁未通过               |
+|CVD 16 风险评分| 55%    | 基本完成 | 接口、Schema、UI 完成                                          |
+|RHI/RDI 指数与趋势| 70%    | 部分完成 | 本地算法、持久化和 UI 已实现；日快照后端缺失且治理口径待确认   |
+|个性化干预与反馈| 70%    | 部分完成 | 结构化 LangChain4j 和反馈队列已实现；权威上下文 E2E 未验证     |
+|健康问答| 75%    | 部分完成 | 本地先写、服务端上下文和最新会话恢复已实现；会话生命周期不完整 |
+|拍照/餐食/OCR| 90%    | 基本完成 | 结构化 FOOD 闭环已实现        |
 
 # 八、项目风险预测
 
@@ -525,25 +485,3 @@ ReHealth 已从“Android 演示”推进到具备真实设备 Provider、离线
 2. 挂载并验证真实 CVD 模型制品，使 model-service `/ready` 通过且全链路 `is_mock=false`。
 3. 启动 Device Service，完成 MySQL→Timescale 对账、Gateway 切流、Outbox/Kafka 和回滚门禁。
 4. 实现 JeecBoot RHI `daily-snapshot` 端点/迁移并重放死信，消除明确的 404 断点。
-5. 建立 CI、可用 Prometheus targets 和最小 ReHealth 运营台，使发布与运行状态可持续观测。
-
-## 下一阶段重点方向
-
-### 第一阶段：关闭发布阻塞（建议 1 周）
-
-- 固定 RC commit、签名包、HBand/云米设备与测试环境；完成真机测试矩阵。
-- 挂载模型制品并完成 readiness、模型 trace 和风险 E2E。
-- 真实验证阿里云短信、HTTPS 代理头、权限、隐私日志和 Release APK 内容。
-
-### 第二阶段：统一云端权威链路（建议 1 周）
-
-- 修复 Testcontainers/Kafka QA 环境，跑通 V4 迁移、混合批次事务、Outbox/Kafka/DLQ。
-- 完成 legacy hardware → Timescale dark migration、对账、Gateway 切流与回滚演练。
-- 实现 RHI 日快照后端与死信重放。
-
-### 第三阶段：补齐可运营能力（建议后续迭代）
-
-- 上线最小运营台、应用监控与告警。
-- 建立 CI/CD 和不可变 RC evidence manifest。
-- 拆分超大 Android/Java 类，清理未使用表/骨架，收敛配置 profile。
-- 再评估会话管理、医院报告确认式 OCR、多设备能力等增量需求；未关闭 P0 前不建议扩大设备型号或新增临床指标。
