@@ -132,11 +132,9 @@ public interface SysDepartMapper extends BaseMapper<SysDepart> {
 	@InterceptorIgnore(tenantLine = "true")
 	List<SysDepart> queryBookDepTreeSync(@Param("parentId") String parentId, @Param("tenantId") Integer tenantId, @Param("departName") String departName);
 
-	@InterceptorIgnore(tenantLine = "true")
 	@Select("SELECT * FROM sys_depart where id = #{id,jdbcType=VARCHAR}")
 	SysDepart getDepartById(@Param("id") String id);
 
-	@InterceptorIgnore(tenantLine = "true")
 	List<SysDepart> getMaxCodeDepart(@Param("page") Page<SysDepart> page, @Param("parentId") String parentId);
 
 	/**

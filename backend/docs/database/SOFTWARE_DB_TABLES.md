@@ -7769,7 +7769,7 @@ Oss File
 | 7 | `description` | 描述 | `varchar(500)` | 500 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 描述 |
 | 8 | `org_category` | 机构类别 1公司，2部门，3岗位，4子公司 | `varchar(10)` | 10 | 否 | `1` | 否 | 否 | 否 | 否 | 否 | 否 | 机构类别 1公司，2部门，3岗位，4子公司 | 机构类别 1公司，2部门，3岗位，4子公司 |
 | 9 | `org_type` | 树深度层级level | `varchar(10)` | 10 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 树深度层级level |
-| 10 | `org_code` | 机构编码 | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | uniq_depart_org_code | uniq_depart_org_code | 否 | 否 | — | 机构编码 |
+| 10 | `org_code` | 机构编码 | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uniq_depart_tenant_org_code | uniq_depart_tenant_org_code | 否 | 否 | — | 机构编码在同一租户内唯一 |
 | 11 | `mobile` | 手机号 | `varchar(32)` | 32 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 手机号 |
 | 12 | `fax` | 传真 | `varchar(32)` | 32 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 传真 |
 | 13 | `address` | 地址 | `varchar(100)` | 100 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 地址 |
@@ -7796,7 +7796,7 @@ Oss File
 | `idx_sd_parent_id` | `parent_id` | 普通索引 | 支持按索引字段组合查询；具体调用路径需结合 Mapper/Repository。 |
 | `idx_sd_position_id` | `position_id` | 普通索引 | 支持按索引字段组合查询；具体调用路径需结合 Mapper/Repository。 |
 | `PRIMARY` | `id` | 主键 | 保证记录唯一并支持主键定位。 |
-| `uniq_depart_org_code` | `org_code` | 唯一索引 | 保证字段组合唯一，并支持按该组合进行幂等或业务键查询。 |
+| `uniq_depart_tenant_org_code` | `tenant_id`, `org_code` | 唯一索引 | 允许不同租户复用标准部门编码，并保证同一租户内编码唯一。 |
 
 ### 关联关系
 

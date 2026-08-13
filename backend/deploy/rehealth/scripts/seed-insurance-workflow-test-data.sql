@@ -57,13 +57,13 @@ INSERT INTO sys_depart (
 )
 VALUES
     ('iqdep000000000000000000000001', NULL, '本地保险测试公司', 1, '1', '1',
-     'LOCALQA', '1', '0', @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'),
+     'A01', '1', '0', @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'),
      @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'), @seed_tenant_id, 0),
     ('iqdep000000000000000000000002', 'iqdep000000000000000000000001', '健康险一部', 1, '2', '2',
-     'LOCALQA01', '1', '0', @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'),
+     'A01A01', '1', '0', @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'),
      @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'), @seed_tenant_id, 1),
     ('iqdep000000000000000000000003', 'iqdep000000000000000000000001', '健康险二部', 2, '2', '2',
-     'LOCALQA02', '1', '0', @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'),
+     'A01A02', '1', '0', @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'),
      @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'), @seed_tenant_id, 1)
 ON DUPLICATE KEY UPDATE
     parent_id = VALUES(parent_id),

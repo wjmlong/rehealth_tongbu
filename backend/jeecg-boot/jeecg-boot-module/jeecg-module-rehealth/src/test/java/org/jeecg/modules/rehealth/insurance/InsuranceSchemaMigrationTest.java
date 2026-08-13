@@ -1,5 +1,6 @@
 package org.jeecg.modules.rehealth.insurance;
 
+import org.jeecg.config.mybatis.MybatisPlusSaasConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
 
@@ -134,5 +135,18 @@ class InsuranceSchemaMigrationTest {
             assertTrue(sql.contains(permission), permission);
         }
         assertTrue(sql.contains("software-V20260813.7"));
+    }
+
+    @Test
+    void departmentMigrationUsesTenantScopedCodesAndNormalizesTheLocalTree() throws Exception {
+        String sql = read("db/software/mysql/V20260813_8__isolate_department_codes_by_tenant.sql");
+
+        assertTrue(sql.contains("uniq_depart_tenant_org_code (tenant_id, org_code)"));
+        assertTrue(sql.contains("DROP INDEX uniq_depart_org_code"));
+        assertTrue(sql.contains("'iqdep000000000000000000000001' THEN 'A01'"));
+        assertTrue(sql.contains("'iqdep000000000000000000000002' THEN 'A01A01'"));
+        assertTrue(sql.contains("software-V20260813.8"));
+        assertTrue(MybatisPlusSaasConfig.TENANT_TABLE.contains("sys_depart"));
+        assertFalse(MybatisPlusSaasConfig.OPEN_SYSTEM_TENANT_CONTROL);
     }
 }

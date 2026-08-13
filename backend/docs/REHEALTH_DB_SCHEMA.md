@@ -1,6 +1,6 @@
 # 数据库表结构说明文档
 
-> 最后生成：2026-08-12。
+> 最后生成：2026-08-13。
 > 结构基线来自当前运行中的本地开发数据库 catalog、Room v16 导出 schema、SQL 迁移和业务代码。
 > 本文档不包含账号、密码、业务数据明细、原始健康值或直接身份信息。
 
@@ -37,7 +37,7 @@ ReHealth 不是单库系统，而是三个相互隔离的关系型存储域：
 | 迁移元数据表 | 3 | Room 使用 schema JSON；MySQL 2 张、TimescaleDB 1 张迁移表 |
 | 历史/备份/年/月分表 | 0 | 未发现 `*_history` 之外的物理历史/备份或按年月命名分表；`cvd_risk_history` 是业务历史表，不是备份表 |
 
-MySQL `flyway_schema_history` 当前存在 `3.9.2.0 all upgrade` 失败记录；ReHealth 自定义迁移已到 `software-V20260812.3`。
+MySQL `flyway_schema_history` 当前存在 `3.9.2.0 all upgrade` 失败记录；ReHealth 自定义迁移已到 `software-V20260813.8`。`sys_depart` 以 `tenant_id + org_code` 保证租户内部门编码唯一，部门查询和写入始终按当前租户隔离。
 
 ## 3. 数据库表清单与模块划分
 

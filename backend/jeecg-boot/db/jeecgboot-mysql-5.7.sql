@@ -6425,7 +6425,7 @@ CREATE TABLE `sys_depart`  (
   `position_id` varchar(32) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL COMMENT '职级id',
   `dep_post_parent_id` varchar(32) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL COMMENT '上级岗位id',
   PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `uniq_depart_org_code`(`org_code`) USING BTREE,
+  UNIQUE INDEX `uniq_depart_tenant_org_code`(`tenant_id`, `org_code`) USING BTREE,
   INDEX `idx_sd_parent_id`(`parent_id`) USING BTREE,
   INDEX `idx_sd_depart_order`(`depart_order`) USING BTREE,
   INDEX `idx_sd_position_id`(`position_id`) USING BTREE,

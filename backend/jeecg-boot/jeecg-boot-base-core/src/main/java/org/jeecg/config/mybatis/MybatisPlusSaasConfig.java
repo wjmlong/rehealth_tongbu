@@ -59,12 +59,15 @@ public class MybatisPlusSaasConfig {
     public static final List<String> TENANT_TABLE = new ArrayList<String>();
 
     static {
+        // ReHealth insurance organizations always own an isolated department tree.
+        // Keep the remaining Jeecg system tables on the legacy switch so enabling
+        // department isolation does not change global role/permission behaviour.
+        TENANT_TABLE.add("sys_depart");
         //1.需要租户隔离的表请在此配置
         if (MybatisPlusSaasConfig.OPEN_SYSTEM_TENANT_CONTROL) {
             //a.系统管理表
             //TENANT_TABLE.add("sys_role");
             //TENANT_TABLE.add("sys_user_role");
-            TENANT_TABLE.add("sys_depart");
             TENANT_TABLE.add("sys_category");
             TENANT_TABLE.add("sys_data_source");
             TENANT_TABLE.add("sys_position");
