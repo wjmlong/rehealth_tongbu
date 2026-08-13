@@ -34,12 +34,12 @@ WHERE NOT EXISTS (
 );
 
 INSERT INTO sys_role (id, role_name, role_code, description, create_by, create_time, tenant_id)
-SELECT '8f0c4e2a1d3b47f6a9c5e712b084d647', 'Insurance Viewer', 'insurer_viewer',
+SELECT '8f0c4e2a1d3b47f6a9c5e712b084d647', '保险查看员', 'insurer_viewer',
        'Read-only insurer risk, study and report viewer', 'migration', CURRENT_TIMESTAMP, 0
 WHERE NOT EXISTS (SELECT 1 FROM sys_role WHERE role_code = 'insurer_viewer');
 
 INSERT INTO sys_role (id, role_name, role_code, description, create_by, create_time, tenant_id)
-SELECT '8f0c4e2a1d3b47f6a9c5e712b084d648', 'Insurance Auditor', 'insurer_auditor',
+SELECT '8f0c4e2a1d3b47f6a9c5e712b084d648', '保险审计员', 'insurer_auditor',
        'Read-only insurer evidence and audit reviewer', 'migration', CURRENT_TIMESTAMP, 0
 WHERE NOT EXISTS (SELECT 1 FROM sys_role WHERE role_code = 'insurer_auditor');
 

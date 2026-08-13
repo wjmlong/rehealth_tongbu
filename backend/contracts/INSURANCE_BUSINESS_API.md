@@ -23,10 +23,10 @@
 
 | 角色 | 权限范围 |
 | --- | --- |
-| `insurer_viewer` | 风险、研究和报告只读 |
-| `insurer_analyst` | 风险只读；创建研究、冻结快照、运行和审核 PSM；报告只读 |
-| `insurance_operator` | 风险只读；业务数据导入；研究只读；报告与结算操作 |
-| `insurer_auditor` | 风险、研究、报告和审计证据只读 |
+| 保险查看员（`insurer_viewer`） | 风险、研究和报告只读 |
+| 保险分析员（`insurer_analyst`） | 风险只读；创建研究、冻结快照、运行和审核 PSM；报告只读 |
+| 保险运营员（`insurance_operator`） | 风险只读；业务数据导入；研究只读；报告与结算操作 |
+| 保险审计员（`insurer_auditor`） | 风险、研究、报告和审计证据只读 |
 
 对应权限码为：
 
