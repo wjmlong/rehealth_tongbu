@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -91,7 +92,22 @@ public class InsuranceSettingsController {
             @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
             @PathVariable String userId,
             @RequestBody InsuranceSettingsRequest.MemberStatus request) {
-        return respond(() -> service.updateMemberStatus(tenantAccessGuard.requireTenant(currentUser(), tenantId), userId, request.status()));
+        return respond(() -> {
+            LoginUser user = currentUser();
+            return service.updateMemberStatus(tenantAccessGuard.requireTenant(user, tenantId), user.getId(), userId, request.status());
+        });
+    }
+
+    @PostMapping("/members/invitations")
+    @RequiresPermissions("rehealth:insurance:member:manage")
+    @Operation(summary = "Invite an existing Jeecg account into the current insurance tenant")
+    public ResponseEntity<Result<InsuranceSettingsResponse.MemberInvitation>> inviteMember(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
+            @RequestBody InsuranceSettingsRequest.MemberInvitation request) {
+        return respond(() -> {
+            LoginUser user = currentUser();
+            return service.inviteMember(tenantAccessGuard.requireTenant(user, tenantId), user.getId(), request.phone(), request.departmentId());
+        });
     }
 
     @PutMapping("/members/{userId}/department")

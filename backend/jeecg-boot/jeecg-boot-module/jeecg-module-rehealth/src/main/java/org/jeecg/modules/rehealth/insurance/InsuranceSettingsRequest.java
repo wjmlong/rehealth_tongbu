@@ -24,4 +24,7 @@ public final class InsuranceSettingsRequest {
 
     public record MemberRole(String roleCode) {
     }
+
+    public record MemberInvitation(String phone, String departmentId) {
+    }
 }

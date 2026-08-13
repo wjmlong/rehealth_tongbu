@@ -17,6 +17,7 @@ import static org.jeecg.modules.rehealth.insurance.InsuranceSettingsResponse.Ass
 import static org.jeecg.modules.rehealth.insurance.InsuranceSettingsResponse.AssignmentRequest;
 import static org.jeecg.modules.rehealth.insurance.InsuranceSettingsResponse.Department;
 import static org.jeecg.modules.rehealth.insurance.InsuranceSettingsResponse.Member;
+import static org.jeecg.modules.rehealth.insurance.InsuranceSettingsResponse.MemberInvitation;
 
 @Service
 @ConditionalOnProperty(name = "rehealth.software-db.enabled", havingValue = "true")
@@ -112,8 +113,15 @@ public class InsuranceSettingsService {
     public List<Member> members(int tenantId, String managerUserId) {
         return jdbc.query("""
                 SELECT u.id, u.username, u.realname, u.email, u.phone,
-                       CASE WHEN u.status = 1 AND u.del_flag = 0 AND ut.status = '1' THEN 'active' ELSE 'disabled' END AS member_status,
+                       CASE
+                           WHEN ut.status = '5' THEN 'invited'
+                           WHEN ut.status = '3' THEN 'pending'
+                           WHEN u.status = 1 AND u.del_flag = 0 AND ut.status = '1' THEN 'active'
+                           ELSE 'disabled'
+                       END AS member_status,
+                       GROUP_CONCAT(DISTINCT d.id ORDER BY d.depart_name SEPARATOR ',') AS department_ids,
                        GROUP_CONCAT(DISTINCT d.depart_name ORDER BY d.depart_name SEPARATOR ', ') AS departments,
+                       GROUP_CONCAT(DISTINCT r.role_code ORDER BY r.role_name SEPARATOR ',') AS role_codes,
                        GROUP_CONCAT(DISTINCT r.role_name ORDER BY r.role_name SEPARATOR ', ') AS roles,
                        (SELECT COUNT(*) FROM rehealth_insurance_subject_manager sm
                         WHERE sm.tenant_id = ut.tenant_id AND sm.manager_user_id = u.id AND sm.status = 'active') AS assignment_count
@@ -136,7 +144,8 @@ public class InsuranceSettingsService {
                  ORDER BY u.realname, u.username
                  """, (rs, row) -> new Member(rs.getString("id"), rs.getString("username"),
                  rs.getString("realname"), rs.getString("email"), rs.getString("phone"),
-                 rs.getString("member_status"), rs.getString("departments"), rs.getString("roles"),
+                 rs.getString("member_status"), rs.getString("department_ids"), rs.getString("departments"),
+                 rs.getString("role_codes"), rs.getString("roles"),
                  rs.getInt("assignment_count")), tenantId, managerUserId, managerUserId);
     }
 
@@ -161,16 +170,59 @@ public class InsuranceSettingsService {
     }
 
     @Transactional
-    public Member updateMemberStatus(int tenantId, String userId, String status) {
+    public Member updateMemberStatus(int tenantId, String operatorId, String userId, String status) {
         requireMember(tenantId, userId);
         if (!"active".equals(status) && !"disabled".equals(status)) {
             throw InsuranceApiException.badRequest("status must be active or disabled");
         }
+        if (userId.equals(operatorId) && "disabled".equals(status)) {
+            throw InsuranceApiException.badRequest("the current operator cannot disable their own tenant membership");
+        }
+        String currentStatus = jdbc.queryForObject(
+                "SELECT status FROM sys_user_tenant WHERE user_id = ? AND tenant_id = ?",
+                String.class, userId, tenantId);
+        if (("5".equals(currentStatus) || "3".equals(currentStatus)) && "active".equals(status)) {
+            throw InsuranceApiException.badRequest("a pending invitation must be accepted by the invited member");
+        }
         // Membership status is tenant-scoped; do not disable the global user
         // account because the same Jeecg user may belong to another tenant.
-        jdbc.update("UPDATE sys_user_tenant SET status = ?, update_time = ?, update_by = ? WHERE user_id = ? AND tenant_id = ?", "active".equals(status) ? "1" : "0", LocalDateTime.now(), userId, userId, tenantId);
+        jdbc.update("UPDATE sys_user_tenant SET status = ?, update_time = ?, update_by = ? WHERE user_id = ? AND tenant_id = ?", "active".equals(status) ? "1" : "0", LocalDateTime.now(), operatorId, userId, tenantId);
         return members(tenantId).stream().filter(member -> member.id().equals(userId)).findFirst()
                 .orElseThrow(() -> InsuranceApiException.notFound("member was not found"));
+    }
+
+    @Transactional
+    public MemberInvitation inviteMember(int tenantId, String operatorId, String phone, String departmentId) {
+        String normalizedPhone = required(phone, "phone");
+        if (normalizedPhone.length() > 32) {
+            throw InsuranceApiException.badRequest("phone must be at most 32 characters");
+        }
+        String userId;
+        try {
+            userId = jdbc.queryForObject("SELECT id FROM sys_user WHERE phone = ? AND del_flag = 0", String.class, normalizedPhone);
+        } catch (EmptyResultDataAccessException ignored) {
+            throw InsuranceApiException.notFound("no registered Jeecg account matches the phone number");
+        }
+        Integer existing = jdbc.queryForObject("SELECT COUNT(*) FROM sys_user_tenant WHERE user_id = ? AND tenant_id = ?", Integer.class, userId, tenantId);
+        if (existing != null && existing > 0) {
+            throw InsuranceApiException.conflict("the account already belongs to or has a pending invitation for this tenant");
+        }
+        String normalizedDepartmentId = departmentId == null ? "" : departmentId.trim();
+        if (!normalizedDepartmentId.isEmpty()) {
+            Integer validDepartment = jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM sys_depart WHERE id = ? AND tenant_id = ? AND COALESCE(del_flag, '0') = '0'",
+                    Integer.class, normalizedDepartmentId, tenantId);
+            if (validDepartment == null || validDepartment < 1) {
+                throw InsuranceApiException.badRequest("departmentId is not in the requested tenant");
+            }
+        }
+        jdbc.update("INSERT INTO sys_user_tenant (id, user_id, tenant_id, status, create_by, create_time) VALUES (?, ?, ?, '5', ?, ?)",
+                UUID.randomUUID().toString().replace("-", ""), userId, tenantId, operatorId, LocalDateTime.now());
+        if (!normalizedDepartmentId.isEmpty()) {
+            jdbc.update("INSERT INTO sys_user_depart (id, user_id, dep_id) VALUES (?, ?, ?)",
+                    UUID.randomUUID().toString().replace("-", ""), userId, normalizedDepartmentId);
+        }
+        return new MemberInvitation(userId, "invited", "邀请已发送，成员同意后方可进入保险机构工作台");
     }
 
     @Transactional

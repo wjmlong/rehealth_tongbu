@@ -36,9 +36,18 @@ public final class InsuranceSettingsResponse {
             String email,
             String phone,
             String status,
+            String departmentId,
             String departments,
+            String roleCode,
             String roles,
             int assignmentCount
+    ) {
+    }
+
+    public record MemberInvitation(
+            String userId,
+            String status,
+            String message
     ) {
     }
 

@@ -57,11 +57,16 @@ JeecgBoot `rehealth:insurance:organization:*`、`member:*`、`role:assign` 和
 | `GET/PUT` | `/rehealth/insurance/v1/settings/organization` | 查询/保存当前租户机构信息 |
 | `GET` | `/rehealth/insurance/v1/settings/departments` | 查询当前租户部门及成员数 |
 | `GET` | `/rehealth/insurance/v1/settings/members` | 查询成员、角色、部门和负责人数量 |
+| `POST` | `/rehealth/insurance/v1/settings/members/invitations` | 按已注册手机号邀请账号加入当前租户，可预选当前租户部门 |
+| `PUT` | `/rehealth/insurance/v1/settings/members/{userId}/status` | 启用或停用当前租户成员关系，不停用全局账号 |
+| `PUT` | `/rehealth/insurance/v1/settings/members/{userId}/department` | 调整成员在当前租户内的部门，不影响其他租户 |
+| `PUT` | `/rehealth/insurance/v1/settings/members/{userId}/role` | 分配白名单内的保险业务角色，不允许通过接口授予机构管理员 |
 | `GET` | `/rehealth/insurance/v1/settings/assignments` | 查询投保人与部门经理负责人关系 |
 | `PUT` | `/rehealth/insurance/v1/settings/assignments/{subjectRef}` | 由机构管理员维护负责人关系 |
 
 `insurance_org_admin`（保险机构管理员）可维护机构、成员、角色和负责人；
 `insurance_department_manager`（保险部门经理）只能读取自己负责的投保人、所属部门及对应负责人关系，不能读取同租户其他经理或未分配投保人的信息。
+邀请接口只匹配已经注册的 Jeecg 手机号，写入状态为 `5` 的待接受租户关系；被邀请人同意后才能登录该保险机构工作台，管理员不能通过状态接口跳过成员确认直接启用。当前操作人不能停用自己的租户成员关系，避免机构管理会话自锁。
 风险列表、详情和看板在识别到部门经理角色时自动关联
 `rehealth_insurance_subject_manager`，未分配的投保人不会返回。
 
