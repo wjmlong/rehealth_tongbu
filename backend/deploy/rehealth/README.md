@@ -146,6 +146,29 @@ Keep passwords and internal service credentials in the ignored
 `backend/deploy/rehealth/secrets/` files. Load them into the local process
 environment at startup; never copy them into tracked YAML or source files.
 
+### Local insurer acceptance data
+
+After the insurance migrations through `V20260813_3` have been applied, seed a
+repeatable tenant-1000 acceptance cohort with the local MySQL container running:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File `
+  backend/deploy/rehealth/scripts/seed-insurance-workflow-test-data.ps1
+```
+
+The script creates 12 synthetic tenant members, profiles, non-clinical risk
+fixtures, active policies, consents and paid claims. Six members have an active
+intervention and six are controls, so the checked-in draft PSM study has enough
+candidates to freeze a snapshot and exercise the workflow. Re-running the
+script updates the same deterministic records instead of duplicating them.
+
+Every business row is marked `LOCAL_INSURANCE_QA`; seeded users have no password,
+phone number or email and cannot log in. Although the risk rows use `is_mock=0`
+to exercise the verified-risk and PSM code paths, their model/scorer/artifact
+fields explicitly identify them as local non-clinical fixtures. Never run this
+script outside local development or use its values for medical, underwriting,
+claim or settlement decisions.
+
 Health chat now supports two server-side engines behind the unchanged mobile API:
 
 - `REHEALTH_HEALTH_AGENT_ENGINE=langchain4j` is the default and runs prompt assembly, bounded
