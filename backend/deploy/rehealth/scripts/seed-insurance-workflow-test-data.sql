@@ -15,6 +15,9 @@ SET @seed_actor_id = (
     LIMIT 1
 );
 
+SET @manager_password_01 = '5b7e5dd2a7afdf0696c03f9b9ffed4d2c9ed320884af19e8f9474bd3a789f2e8';
+SET @manager_password_02 = '5b7e5dd2a7afdf0696c03f9b9ffed4d2c9ed320884af19e8d97e8d651f5670e1';
+
 DROP TEMPORARY TABLE IF EXISTS tmp_local_insurance_qa_cohort;
 CREATE TEMPORARY TABLE tmp_local_insurance_qa_cohort (
     member_no INT NOT NULL PRIMARY KEY,
@@ -46,6 +49,79 @@ VALUES
     (12, 'control', 65, 'male',   170.00, 88.45, 30.61, 0.840000, 'high',  19200.00);
 
 START TRANSACTION;
+
+INSERT INTO sys_depart (
+    id, parent_id, depart_name, depart_order, org_category, org_type,
+    org_code, status, del_flag, create_by, create_time, update_by,
+    update_time, tenant_id, iz_leaf
+)
+VALUES
+    ('iqdep000000000000000000000001', NULL, '本地保险测试公司', 1, '1', '1',
+     'LOCALQA', '1', '0', @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'),
+     @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'), @seed_tenant_id, 0),
+    ('iqdep000000000000000000000002', 'iqdep000000000000000000000001', '健康险一部', 1, '2', '2',
+     'LOCALQA01', '1', '0', @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'),
+     @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'), @seed_tenant_id, 1),
+    ('iqdep000000000000000000000003', 'iqdep000000000000000000000001', '健康险二部', 2, '2', '2',
+     'LOCALQA02', '1', '0', @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'),
+     @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'), @seed_tenant_id, 1)
+ON DUPLICATE KEY UPDATE
+    parent_id = VALUES(parent_id),
+    depart_name = VALUES(depart_name),
+    org_code = VALUES(org_code),
+    status = VALUES(status),
+    del_flag = VALUES(del_flag),
+    update_by = VALUES(update_by),
+    update_time = VALUES(update_time),
+    tenant_id = VALUES(tenant_id),
+    iz_leaf = VALUES(iz_leaf);
+
+INSERT INTO sys_user (
+    id, username, realname, password, salt, sex, status, del_flag,
+    create_by, create_time, update_by, update_time, user_identity,
+    login_tenant_id, sort
+)
+VALUES
+    ('iqmgr000000000000000000000001', 'local_insurance_manager_01', '保险测试经理一', @manager_password_01, 'QA260813', 1, 1, 0,
+     @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'), @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'), 1, @seed_tenant_id, 8001),
+    ('iqmgr000000000000000000000002', 'local_insurance_manager_02', '保险测试经理二', @manager_password_02, 'QA260813', 2, 1, 0,
+     @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'), @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'), 1, @seed_tenant_id, 8002)
+ON DUPLICATE KEY UPDATE
+    realname = VALUES(realname),
+    password = VALUES(password),
+    salt = VALUES(salt),
+    status = VALUES(status),
+    del_flag = VALUES(del_flag),
+    login_tenant_id = VALUES(login_tenant_id),
+    update_by = VALUES(update_by),
+    update_time = VALUES(update_time),
+    login_tenant_id = VALUES(login_tenant_id),
+    sort = VALUES(sort);
+
+INSERT INTO sys_user_tenant (
+    id, user_id, tenant_id, status, create_by, create_time, update_by, update_time
+)
+VALUES
+    ('iqmt000000000000000000000001', 'iqmgr000000000000000000000001', @seed_tenant_id, '1', @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'), @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00')),
+    ('iqmt000000000000000000000002', 'iqmgr000000000000000000000002', @seed_tenant_id, '1', @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'), @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'))
+ON DUPLICATE KEY UPDATE
+    tenant_id = VALUES(tenant_id), status = VALUES(status), update_by = VALUES(update_by), update_time = VALUES(update_time);
+
+INSERT INTO sys_user_depart (ID, user_id, dep_id)
+VALUES
+    ('iqmd000000000000000000000001', 'iqmgr000000000000000000000001', 'iqdep000000000000000000000002'),
+    ('iqmd000000000000000000000002', 'iqmgr000000000000000000000002', 'iqdep000000000000000000000003')
+ON DUPLICATE KEY UPDATE dep_id = VALUES(dep_id);
+
+INSERT INTO sys_user_role (id, user_id, role_id, tenant_id)
+SELECT 'iqmr000000000000000000000001', 'iqmgr000000000000000000000001', id, @seed_tenant_id
+FROM sys_role WHERE role_code = 'insurer_analyst'
+ON DUPLICATE KEY UPDATE role_id = VALUES(role_id), tenant_id = VALUES(tenant_id);
+
+INSERT INTO sys_user_role (id, user_id, role_id, tenant_id)
+SELECT 'iqmr000000000000000000000002', 'iqmgr000000000000000000000002', id, @seed_tenant_id
+FROM sys_role WHERE role_code = 'insurer_analyst'
+ON DUPLICATE KEY UPDATE role_id = VALUES(role_id), tenant_id = VALUES(tenant_id);
 
 INSERT INTO sys_user (
     id, username, realname, password, salt, sex, status, del_flag,
@@ -258,6 +334,26 @@ ON DUPLICATE KEY UPDATE
     consent_version = VALUES(consent_version),
     consented_at = VALUES(consented_at),
     metadata_json = VALUES(metadata_json),
+    updated_at = VALUES(updated_at);
+
+INSERT INTO rehealth_insurance_subject_manager (
+    id, tenant_id, manager_user_id, department_id, subject_ref,
+    status, source_system, created_at, updated_at
+)
+SELECT
+    CONCAT('iqassign', LPAD(member_no, 24, '0')),
+    @seed_tenant_id,
+    CASE WHEN member_no <= 6 THEN 'iqmgr000000000000000000000001' ELSE 'iqmgr000000000000000000000002' END,
+    CASE WHEN member_no <= 6 THEN 'iqdep000000000000000000000002' ELSE 'iqdep000000000000000000000003' END,
+    SHA2(CONCAT(@seed_tenant_id, ':', CONCAT('iq', LPAD(member_no, 30, '0'))), 256),
+    'active',
+    'LOCAL_INSURANCE_QA',
+    TIMESTAMP('2026-08-13 09:00:00'),
+    TIMESTAMP('2026-08-13 09:00:00')
+FROM tmp_local_insurance_qa_cohort
+ON DUPLICATE KEY UPDATE
+    department_id = VALUES(department_id),
+    status = VALUES(status),
     updated_at = VALUES(updated_at);
 
 INSERT INTO rehealth_insurance_policy (

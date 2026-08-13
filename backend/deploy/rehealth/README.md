@@ -148,7 +148,7 @@ environment at startup; never copy them into tracked YAML or source files.
 
 ### Local insurer acceptance data
 
-After the insurance migrations through `V20260813_3` have been applied, seed a
+After the insurance migrations through `V20260813_4` have been applied, seed a
 repeatable tenant-1000 acceptance cohort with the local MySQL container running:
 
 ```powershell
@@ -168,6 +168,14 @@ to exercise the verified-risk and PSM code paths, their model/scorer/artifact
 fields explicitly identify them as local non-clinical fixtures. Never run this
 script outside local development or use its values for medical, underwriting,
 claim or settlement decisions.
+
+The same seed adds two active insurer managers (`local_insurance_manager_01` /
+`local_insurance_manager_02`, password `123456`) under `健康险一部` and `健康险二部`.
+Each manager is assigned six synthetic insured subjects through
+`rehealth_insurance_subject_manager`; this mapping is the data-permission fixture
+for the next risk-list API change. The current risk API is still tenant-scoped,
+so manager login data is ready for permission testing but does not by itself
+change the existing list query until the manager-scope guard is implemented.
 
 Health chat now supports two server-side engines behind the unchanged mobile API:
 

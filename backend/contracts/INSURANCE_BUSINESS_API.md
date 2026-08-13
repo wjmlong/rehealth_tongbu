@@ -103,6 +103,7 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 - `V20260813_1__extend_insurance_workflow.sql`：导入批次、研究任务、计划绑定、干预反馈，以及研究成员协变量与行哈希。
 - `V20260813_2__seed_insurer_workflow_permissions.sql`：细分角色与最小权限。
 - `V20260813_3__grant_insurance_workflow_to_admin.sql`：本地管理员验收授权。
+- `V20260813_4__add_insurance_subject_manager_scope.sql`：经理与投保人负责关系表，为后续经理级数据权限提供租户隔离基础。
 
 迁移均为向前兼容的非破坏性变更，不删除既有保险数据。完整逐表结构见 `backend/docs/REHEALTH_DB_SCHEMA.md`。
 
@@ -111,6 +112,8 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 本地 `software_db` 已使用显式测试来源 `local_acceptance` 验证 1 个投保人、1 张有效保单和 1 条已支付理赔：重复批次幂等命中，工作台返回真实保单和理赔汇总，风险池返回真实 BMI。历史风险记录为 `is_mock=1` 时风险评分和评估时间保持空值，不伪装为真实结果。
 
 完整工作流可执行 `backend/deploy/rehealth/scripts/seed-insurance-workflow-test-data.ps1` 写入 `LOCAL_INSURANCE_QA` 验收基线：12 名合成租户成员、12 张有效保单、12 条已支付理赔，以及处理组/对照组各 6 人的 PSM 候选和 1 个草稿研究。脚本使用固定业务键重复更新，不重复插入；合成用户没有密码、手机号或邮箱，不能登录。
+
+该基线同时创建 2 个保险部门和 2 个经理账号（`local_insurance_manager_01`、`local_insurance_manager_02`，密码均为 `123456`），并在 `rehealth_insurance_subject_manager` 中按部门分别分配 6 名投保人。当前风险列表仍是租户级查询；经理“只能查看自己负责用户”的过滤将在风险查询接入该映射表后生效，不能仅依赖这批数据实现越权防护。
 
 为覆盖“已评估风险”和 PSM 候选筛选，合成风险记录的 `is_mock=0`，但 `model_version=local-qa-seeded-nonclinical-v1`、`scorer_mode=local_qa_fixture`、`artifact_name=LOCAL_INSURANCE_QA_NOT_A_MODEL`，质量警告及响应体也明确禁止临床和业务决策。该脚本只允许在本地开发环境使用。
 

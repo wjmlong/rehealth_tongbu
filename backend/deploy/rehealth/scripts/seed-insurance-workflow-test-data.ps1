@@ -145,8 +145,33 @@ SELECT 'draft_study', COUNT(*)
 FROM rehealth_insurance_study
 WHERE tenant_id = $TenantId
   AND study_no = 'LOCAL-QA-PSM-2026';
+
+SELECT 'departments', COUNT(*)
+FROM sys_depart
+WHERE tenant_id = $TenantId
+  AND org_code IN ('LOCALQA01', 'LOCALQA02');
+
+SELECT 'managers', COUNT(*)
+FROM sys_user
+WHERE login_tenant_id = $TenantId
+  AND username LIKE 'local_insurance_manager_%';
+
+SELECT 'manager_assignments', COUNT(*)
+FROM rehealth_insurance_subject_manager
+WHERE tenant_id = $TenantId
+  AND source_system = 'LOCAL_INSURANCE_QA'
+  AND status = 'active';
+
+SELECT manager_user_id, department_id, COUNT(*) AS assigned_subjects
+FROM rehealth_insurance_subject_manager
+WHERE tenant_id = $TenantId
+  AND source_system = 'LOCAL_INSURANCE_QA'
+  AND status = 'active'
+GROUP BY manager_user_id, department_id
+ORDER BY manager_user_id;
 "@
 
 Write-Host "Verification counts:"
 Invoke-SoftwareDbSql -Sql $verificationSql
+Write-Host "Manager logins: local_insurance_manager_01 / 123456; local_insurance_manager_02 / 123456"
 Write-Host "LOCAL_INSURANCE_QA seed completed. Re-running this script is safe."
