@@ -6,7 +6,7 @@ settlement reports, and premium calculation.
 """
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import date, datetime
 
@@ -69,6 +69,8 @@ class SettlementReportRequest(BaseModel):
     reporting_period_start: date
     reporting_period_end: date
     user_records: List[Dict[str, Any]]
+    psm_config: Dict[str, Any] = Field(default_factory=dict)
+    financial_terms: Dict[str, Any] = Field(default_factory=dict)
 
 
 # ─────────────────────────────────────────────
@@ -298,11 +300,10 @@ def generate_premium_schedule(
 @router.post("/settlement/report", tags=["Settlement Reports"])
 def generate_settlement_report(req: SettlementReportRequest):
     """Generate settlement report for insurance company."""
-    from healthagent.pias import GroupAttributor, SettlementEngine
+    from healthagent.pias import PSMEngine, SettlementEngine
 
     # Run attribution
-    attributor = GroupAttributor()
-    attribution_result = attributor.estimate(req.user_records)
+    attribution_result = PSMEngine(req.psm_config).run(req.user_records)
 
     if attribution_result.get("status") != "success":
         return attribution_result
@@ -319,9 +320,10 @@ def generate_settlement_report(req: SettlementReportRequest):
             "start": req.reporting_period_start,
             "end": req.reporting_period_end,
         },
+        financial_terms=req.financial_terms,
     )
 
-    return report.dict()
+    return report.to_dict()
 
 
 @router.post("/settlement/quarterly", tags=["Settlement Reports"])

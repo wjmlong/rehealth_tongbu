@@ -50,6 +50,7 @@ class SettlementEngine:
         attribution_result: Dict,
         insurer_info: Dict,
         reporting_period: Optional[Dict] = None,
+        financial_terms: Optional[Dict[str, Any]] = None,
     ) -> SettlementReport:
         """
         Generate settlement report from attribution result.
@@ -67,6 +68,14 @@ class SettlementEngine:
         -------
         SettlementReport
         """
+        if attribution_result.get("engine_version", "").startswith("psm-rwe-"):
+            return self.generate_standardized_settlement_report(
+                psm_result=attribution_result,
+                insurer_info=insurer_info,
+                reporting_period=reporting_period,
+                financial_terms=financial_terms,
+            )
+
         # Generate report ID
         report_id = f"RPT-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8]}"
 
@@ -178,6 +187,173 @@ class SettlementEngine:
             recommendation=recommendation,
             detail=detail,
             method_summary=method_summary,
+        )
+
+    def generate_standardized_settlement_report(
+        self,
+        psm_result: Dict[str, Any],
+        insurer_info: Dict[str, Any],
+        reporting_period: Optional[Dict] = None,
+        financial_terms: Optional[Dict[str, Any]] = None,
+    ) -> SettlementReport:
+        """Build the standardized PSM/RWE settlement Draft.
+
+        ``financial_terms`` must be supplied for a calculable settlement.  A
+        report without them is still useful as a statistical Draft, but all
+        monetary fields remain zero and the quality gate marks settlement as
+        not calculable.  This prevents a model risk score or a unitless ATT
+        from being silently converted into currency.
+        """
+        terms = dict(financial_terms or {})
+        report_id = f"RWE-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8]}"
+        reporting_period = reporting_period or {}
+        cfg_features = psm_result.get("matching_features", [])
+        balance_rows = [
+            BalanceDiagnostics(
+                feature=feature,
+                smd_before=float(values.get("smd_before", 0)),
+                smd_after=float(values.get("smd_after", values.get("smd", 0))),
+                balanced=bool(values.get("balanced", False)),
+            )
+            for feature, values in psm_result.get("balance", {}).items()
+        ]
+
+        confidence_level = float(terms.get("confidence_level", self.default_confidence_level))
+        p_value = psm_result.get("p_value")
+        is_significant = bool(psm_result.get("is_significant", False))
+        att = float(psm_result.get("att", 0))
+        ci_lower = float(psm_result.get("ci_lower", 0))
+        ci_upper = float(psm_result.get("ci_upper", 0))
+        direction = psm_result.get("outcome_direction", "lower_is_better")
+        beneficial_effect = -att if direction == "lower_is_better" else att
+
+        n_units = int(
+            terms.get("effective_treated_units", psm_result.get("n_matched_pairs", 0))
+        )
+        unit_value = terms.get("unit_value")
+        service_cost = float(terms.get("service_cost", 0))
+        sharing_ratio = float(terms.get("sharing_ratio", 0))
+        unit_value_numeric = None if unit_value is None else float(unit_value)
+        financial_terms_valid = (
+            unit_value_numeric is not None
+            and np.isfinite(unit_value_numeric)
+            and unit_value_numeric >= 0
+            and np.isfinite(service_cost)
+            and service_cost >= 0
+            and 0 <= sharing_ratio <= 1
+            and n_units > 0
+            and bool(terms.get("outcome_unit"))
+        )
+        financial_calculable = financial_terms_valid
+        gross_savings = float(beneficial_effect * n_units * unit_value_numeric) if financial_calculable else 0.0
+        gross_savings = max(gross_savings, 0.0)
+        net_savings = gross_savings - service_cost if financial_calculable else 0.0
+        settlement_amount = max(net_savings, 0.0) * sharing_ratio if financial_calculable else 0.0
+        roi = net_savings / service_cost if financial_calculable and service_cost > 0 else None
+        outcome_unit = str(terms.get("outcome_unit", psm_result.get("outcome_field", "unspecified")))
+        formula = (
+            f"gross_savings = beneficial_effect({beneficial_effect:.10g}) * "
+            f"effective_treated_units({n_units}) * unit_value({unit_value}); "
+            f"net_savings = gross_savings - service_cost({service_cost}); "
+            f"settlement_amount = max(net_savings, 0) * sharing_ratio({sharing_ratio})"
+        )
+
+        quality_gates = dict(psm_result.get("quality_gates", {}))
+        quality_gates.update({
+            "financial_terms_complete": unit_value is not None and n_units > 0,
+            "financial_terms_valid": financial_terms_valid,
+            "settlement_ready": bool(quality_gates.get("analysis_pass", False) and financial_calculable),
+        })
+        if quality_gates["settlement_ready"]:
+            recommendation = "统计质量门槛与财务口径均已满足，进入合同约定的人工审批。"
+        elif not quality_gates.get("analysis_pass", False):
+            recommendation = "统计质量门槛未全部满足，仅作为研究 Draft，不得直接结算。"
+        elif not financial_terms_valid:
+            recommendation = "请补充合法的合同财务口径：结局单位、有效单位数、非负单位价值、服务成本和 0–100% 共享比例。"
+        else:
+            recommendation = "请补充合同财务口径、有效单位数和单位价值后再进入结算审批。"
+
+        if is_significant:
+            conclusion = "达到预设统计显著性门槛"
+        else:
+            conclusion = "未达到预设统计显著性门槛"
+        detail = (
+            f"主要结局 {psm_result.get('outcome_field', 'outcome')} 的 ATT={att:+.6g}，"
+            f"{confidence_level:.0%} CI=[{ci_lower:+.6g}, {ci_upper:+.6g}]，"
+            f"p={p_value if p_value is not None else 'N/A'}。"
+            f"匹配后 {psm_result.get('n_matched_pairs', 0)} 对，"
+            f"{psm_result.get('balance_rate', 0):.1%} 协变量达到 SMD<0.1。"
+        )
+        method_summary = (
+            "标准化 PSM Draft：标准化 Logistic 倾向评分 + logit-PS 0.2 SD Caliper "
+            "+ 1:1 无放回最近邻匹配 + 匹配对差值 Bootstrap CI；"
+            "AIPW/DRE 仅作为辅助估计。"
+        )
+
+        return SettlementReport(
+            header=ReportHeader(
+                report_id=report_id,
+                report_type="rwe_settlement_draft",
+                report_version=self.report_version,
+                reporting_period_start=reporting_period.get("start"),
+                reporting_period_end=reporting_period.get("end"),
+            ),
+            insurer_info=InsurerInfo(**insurer_info),
+            methodology=StatisticalMethodology(
+                method="standardized PSM + matched-pair ATT",
+                psm_caliper=f"{psm_result.get('caliper', 'N/A')} ({psm_result.get('caliper_scale', 'N/A')})",
+                psm_matching="1:1 nearest neighbor without replacement",
+                dre_estimator="AIPW/DR secondary diagnostic",
+                bootstrap_iterations=int(psm_result.get("n_bootstrap", terms.get("bootstrap_iterations", self.default_bootstrap_iterations))),
+                confidence_level=float(psm_result.get("confidence_level", confidence_level)),
+                rosenbaum_gamma=1.0,
+                sensitivity_interpretation="Rosenbaum bounds not calculated in this Draft; Γ=1 is a placeholder, not a robustness claim.",
+            ),
+            cohort=CohortComposition(
+                n_total=int(psm_result.get("n_total", 0)),
+                n_treated=int(psm_result.get("n_treated", 0)),
+                n_control=int(psm_result.get("n_control", 0)),
+                n_matched_pairs=int(psm_result.get("n_matched_pairs", 0)),
+                matching_rate=float(psm_result.get("matching_rate_treated", 0)),
+            ),
+            balance_diagnostics=balance_rows,
+            att_result=ATTResult(
+                att_estimate=att,
+                ci_lower=ci_lower,
+                ci_upper=ci_upper,
+                p_value=float(p_value) if p_value is not None else None,
+                is_significant=is_significant,
+                interpretation=self._interpret_att(att, ci_lower, ci_upper, is_significant),
+            ),
+            financial_impact=FinancialImpact(
+                estimated_claims_avoided=gross_savings,
+                premium_savings=settlement_amount,
+                per_user_value=(gross_savings / n_units if n_units else 0),
+                roi=roi,
+                outcome_unit=outcome_unit,
+                effective_treated_units=n_units,
+                att_per_unit=att,
+                gross_savings=gross_savings,
+                service_cost=service_cost,
+                net_savings=net_savings,
+                sharing_ratio=sharing_ratio,
+                settlement_amount=settlement_amount,
+                formula=formula,
+            ),
+            conclusion=conclusion,
+            recommendation=recommendation,
+            detail=detail,
+            method_summary=method_summary,
+            data_provenance={
+                "snapshot_hash": psm_result.get("snapshot_hash"),
+                "engine_version": psm_result.get("engine_version"),
+                "model_version": terms.get("model_version", "unspecified"),
+                "source_batch_id": terms.get("source_batch_id"),
+                "generated_at_utc": datetime.now().astimezone().isoformat(),
+                "matching_features": cfg_features,
+            },
+            quality_gates=quality_gates,
+            report_status="draft",
         )
 
     def generate_quarterly_report(
