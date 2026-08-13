@@ -108,4 +108,14 @@ class InsuranceSchemaMigrationTest {
         assertFalse(sql.contains("sys_user_role"));
         assertTrue(sql.contains("software-V20260813.3"));
     }
+
+    @Test
+    void settingsMigrationCreatesOrganizationProfileAndSeparatedRoles() throws Exception {
+        String sql = read("db/software/mysql/V20260813_6__create_insurance_settings.sql");
+        assertTrue(sql.contains("rehealth_insurance_tenant_profile"));
+        assertTrue(sql.contains("rehealth:insurance:organization:view"));
+        assertTrue(sql.contains("insurance_org_admin"));
+        assertTrue(sql.contains("insurance_department_manager"));
+        assertTrue(sql.contains("software-V20260813.6"));
+    }
 }

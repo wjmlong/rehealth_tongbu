@@ -123,6 +123,18 @@ SELECT 'iqmr000000000000000000000002', 'iqmgr000000000000000000000002', id, @see
 FROM sys_role WHERE role_code = 'insurer_analyst'
 ON DUPLICATE KEY UPDATE role_id = VALUES(role_id), tenant_id = VALUES(tenant_id);
 
+-- Activates department/subject scope enforcement while retaining analyst
+-- permissions for the local workflow demo accounts.
+INSERT INTO sys_user_role (id, user_id, role_id, tenant_id)
+SELECT 'iqms000000000000000000000001', 'iqmgr000000000000000000000001', id, @seed_tenant_id
+FROM sys_role WHERE role_code = 'insurance_department_manager'
+ON DUPLICATE KEY UPDATE role_id = VALUES(role_id), tenant_id = VALUES(tenant_id);
+
+INSERT INTO sys_user_role (id, user_id, role_id, tenant_id)
+SELECT 'iqms000000000000000000000002', 'iqmgr000000000000000000000002', id, @seed_tenant_id
+FROM sys_role WHERE role_code = 'insurance_department_manager'
+ON DUPLICATE KEY UPDATE role_id = VALUES(role_id), tenant_id = VALUES(tenant_id);
+
 INSERT INTO sys_user (
     id, username, realname, password, salt, sex, status, del_flag,
     create_by, create_time, update_by, update_time, user_identity,

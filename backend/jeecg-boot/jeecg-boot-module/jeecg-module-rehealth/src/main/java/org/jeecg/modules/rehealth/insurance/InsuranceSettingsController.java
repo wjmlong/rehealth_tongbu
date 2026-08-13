@@ -1,0 +1,103 @@
+package org.jeecg.modules.rehealth.insurance;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.apache.shiro.SecurityUtils;
+import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.jeecg.common.api.vo.Result;
+import org.jeecg.common.constant.CommonConstant;
+import org.jeecg.common.system.vo.LoginUser;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.function.Supplier;
+
+@Tag(name = "ReHealth Insurance Organization Settings API")
+@RestController
+@RequestMapping("/rehealth/insurance/v1/settings")
+@ConditionalOnProperty(name = "rehealth.software-db.enabled", havingValue = "true")
+public class InsuranceSettingsController {
+    private final InsuranceSettingsService service;
+    private final InsuranceTenantAccessGuard tenantAccessGuard;
+
+    public InsuranceSettingsController(InsuranceSettingsService service, InsuranceTenantAccessGuard tenantAccessGuard) {
+        this.service = service;
+        this.tenantAccessGuard = tenantAccessGuard;
+    }
+
+    @GetMapping("/organization")
+    @RequiresPermissions("rehealth:insurance:organization:view")
+    @Operation(summary = "Get current insurance organization settings")
+    public ResponseEntity<Result<InsuranceSettingsResponse.Organization>> organization(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId) {
+        return respond(() -> service.organization(tenantAccessGuard.requireTenant(currentUser(), tenantId)));
+    }
+
+    @PutMapping("/organization")
+    @RequiresPermissions("rehealth:insurance:organization:edit")
+    @Operation(summary = "Update current insurance organization settings")
+    public ResponseEntity<Result<InsuranceSettingsResponse.Organization>> updateOrganization(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
+            @RequestBody InsuranceSettingsRequest.Organization request) {
+        return respond(() -> {
+            LoginUser user = currentUser();
+            return service.updateOrganization(tenantAccessGuard.requireTenant(user, tenantId), user.getId(), request);
+        });
+    }
+
+    @GetMapping("/departments")
+    @RequiresPermissions("rehealth:insurance:member:view")
+    public ResponseEntity<Result<java.util.List<InsuranceSettingsResponse.Department>>> departments(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId) {
+        return respond(() -> service.departments(tenantAccessGuard.requireTenant(currentUser(), tenantId)));
+    }
+
+    @GetMapping("/members")
+    @RequiresPermissions("rehealth:insurance:member:view")
+    public ResponseEntity<Result<java.util.List<InsuranceSettingsResponse.Member>>> members(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId) {
+        return respond(() -> service.members(tenantAccessGuard.requireTenant(currentUser(), tenantId)));
+    }
+
+    @GetMapping("/assignments")
+    @RequiresPermissions("rehealth:insurance:member:view")
+    public ResponseEntity<Result<java.util.List<InsuranceSettingsResponse.Assignment>>> assignments(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId) {
+        return respond(() -> service.assignments(tenantAccessGuard.requireTenant(currentUser(), tenantId)));
+    }
+
+    @PutMapping("/assignments/{subjectRef}")
+    @RequiresPermissions("rehealth:insurance:assignment:manage")
+    public ResponseEntity<Result<InsuranceSettingsResponse.Assignment>> assignment(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
+            @PathVariable String subjectRef,
+            @RequestBody InsuranceSettingsResponse.AssignmentRequest request) {
+        return respond(() -> {
+            LoginUser user = currentUser();
+            return service.upsertAssignment(tenantAccessGuard.requireTenant(user, tenantId), user.getId(), subjectRef, request);
+        });
+    }
+
+    private LoginUser currentUser() {
+        Object principal = SecurityUtils.getSubject().getPrincipal();
+        if (principal instanceof LoginUser loginUser) {
+            return loginUser;
+        }
+        throw InsuranceApiException.forbidden("authenticated service account is required");
+    }
+
+    private <T> ResponseEntity<Result<T>> respond(Supplier<T> action) {
+        try {
+            return ResponseEntity.ok(Result.OK(action.get()));
+        } catch (InsuranceApiException e) {
+            return ResponseEntity.status(e.status()).body(Result.error(e.status().value(), e.getMessage()));
+        }
+    }
+}

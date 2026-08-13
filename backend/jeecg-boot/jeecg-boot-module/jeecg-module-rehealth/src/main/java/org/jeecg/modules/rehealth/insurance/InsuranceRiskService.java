@@ -71,9 +71,10 @@ public class InsuranceRiskService {
                 && "development".equals(runtimeMode.trim().toLowerCase(Locale.ROOT));
     }
 
-    public Dashboard dashboard(int tenantId) {
+    public Dashboard dashboard(int tenantId, String managerUserId) {
         requireScopeEnabled();
-        InsuranceRiskRepository.DashboardSnapshot snapshot = query(() -> repository.dashboard(tenantId));
+        InsuranceRiskRepository.DashboardSnapshot snapshot = query(() -> managerUserId == null
+                ? repository.dashboard(tenantId) : repository.dashboard(tenantId, managerUserId));
         InsuranceRiskRepository.BusinessSnapshot business = query(() -> businessRepository == null
                 ? new InsuranceRiskRepository.BusinessSnapshot(0, 0, 0, null, null, 0, "unknown", null)
                 : businessRepository.tenant(tenantId));
@@ -93,8 +94,13 @@ public class InsuranceRiskService {
         );
     }
 
+    public Dashboard dashboard(int tenantId) {
+        return dashboard(tenantId, null);
+    }
+
     public InsuredPage insureds(
             int tenantId,
+            String managerUserId,
             int pageNo,
             int pageSize,
             String keyword,
@@ -104,13 +110,9 @@ public class InsuranceRiskService {
         String normalizedKeyword = normalizeKeyword(keyword);
         String normalizedRiskLevel = normalizeFilterRiskLevel(riskLevel);
         requireScopeEnabled();
-        InsuranceRiskRepository.SubjectPage page = query(() -> repository.subjects(
-                tenantId,
-                pageNo,
-                pageSize,
-                normalizedKeyword,
-                normalizedRiskLevel
-        ));
+        InsuranceRiskRepository.SubjectPage page = query(() -> managerUserId == null
+                ? repository.subjects(tenantId, pageNo, pageSize, normalizedKeyword, normalizedRiskLevel)
+                : repository.subjects(tenantId, managerUserId, pageNo, pageSize, normalizedKeyword, normalizedRiskLevel));
         return new InsuredPage(
                 DEV_SCOPE_MODE,
                 pageNo,
@@ -120,12 +122,22 @@ public class InsuranceRiskService {
         );
     }
 
-    public InsuredDetail insured(int tenantId, String subjectId) {
+    public InsuredPage insureds(int tenantId, int pageNo, int pageSize, String keyword, String riskLevel) {
+        return insureds(tenantId, null, pageNo, pageSize, keyword, riskLevel);
+    }
+
+    public InsuredDetail insured(int tenantId, String managerUserId, String subjectId) {
         String normalizedSubjectId = normalizeSubjectId(subjectId);
         requireScopeEnabled();
-        InsuranceRiskRepository.SubjectSnapshot snapshot = query(() -> repository.subject(tenantId, normalizedSubjectId))
+        InsuranceRiskRepository.SubjectSnapshot snapshot = query(() -> managerUserId == null
+                ? repository.subject(tenantId, normalizedSubjectId)
+                : repository.subject(tenantId, managerUserId, normalizedSubjectId))
                 .orElseThrow(() -> InsuranceApiException.notFound("insured subject was not found in the requested tenant"));
         return new InsuredDetail(DEV_SCOPE_MODE, subject(tenantId, snapshot));
+    }
+
+    public InsuredDetail insured(int tenantId, String subjectId) {
+        return insured(tenantId, null, subjectId);
     }
 
     private Subject subject(InsuranceRiskRepository.SubjectSnapshot snapshot) {

@@ -59,6 +59,21 @@ public class InsuranceTenantAccessGuard {
         return tenantId;
     }
 
+    /** Returns the logged-in user id when the user is a department manager. */
+    public String managerScope(LoginUser user, int tenantId) {
+        if (user == null || user.getId() == null || user.getId().isBlank()) {
+            return null;
+        }
+        Integer manager = jdbc.queryForObject("""
+                SELECT COUNT(*)
+                FROM sys_user_role ur
+                JOIN sys_role r ON r.id = ur.role_id
+                WHERE ur.user_id = ? AND ur.tenant_id = ?
+                  AND r.role_code = 'insurance_department_manager'
+                """, Integer.class, user.getId(), tenantId);
+        return manager != null && manager > 0 ? user.getId() : null;
+    }
+
     private int parseTenant(String requestedTenant) {
         if (requestedTenant == null || requestedTenant.isBlank()) {
             throw InsuranceApiException.badRequest("X-Tenant-Id is required");

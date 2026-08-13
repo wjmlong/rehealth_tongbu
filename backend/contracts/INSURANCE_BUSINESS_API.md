@@ -45,6 +45,25 @@ rehealth:insurance:audit:view
 
 ## 3. 业务数据导入
 
+### 2.1 机构设置与负责人范围
+
+JeecgBoot `rehealth:insurance:organization:*`、`member:*`、`role:assign` 和
+`assignment:manage` 权限控制机构设置。官网 FastAPI 仅转发当前登录会话，MySQL
+只由 JeecgBoot 访问。
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `GET/PUT` | `/rehealth/insurance/v1/settings/organization` | 查询/保存当前租户机构信息 |
+| `GET` | `/rehealth/insurance/v1/settings/departments` | 查询当前租户部门及成员数 |
+| `GET` | `/rehealth/insurance/v1/settings/members` | 查询成员、角色、部门和负责人数量 |
+| `GET` | `/rehealth/insurance/v1/settings/assignments` | 查询投保人与部门经理负责人关系 |
+| `PUT` | `/rehealth/insurance/v1/settings/assignments/{subjectRef}` | 由机构管理员维护负责人关系 |
+
+`insurance_org_admin`（保险机构管理员）可维护机构、成员、角色和负责人；
+`insurance_department_manager`（保险部门经理）只能读取机构成员信息和自己负责的风险数据。
+风险列表、详情和看板在识别到部门经理角色时自动关联
+`rehealth_insurance_subject_manager`，未分配的投保人不会返回。
+
 JeecgBoot 基础路径：`/jeecg-boot/rehealth/insurance/v1`。
 
 | 方法 | 路径 | 说明 |
