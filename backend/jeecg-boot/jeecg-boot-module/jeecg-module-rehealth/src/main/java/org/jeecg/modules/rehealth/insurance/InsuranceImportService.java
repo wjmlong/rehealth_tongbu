@@ -11,6 +11,7 @@ import org.jeecg.modules.rehealth.insurance.mapper.InsuranceClaimMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceImportBatchMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsurancePolicyMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceSubjectMapper;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +28,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @Service
+@ConditionalOnProperty(name = "rehealth.software-db.enabled", havingValue = "true")
 public class InsuranceImportService {
     private static final int MAX_BATCH_SIZE = 2_000;
 

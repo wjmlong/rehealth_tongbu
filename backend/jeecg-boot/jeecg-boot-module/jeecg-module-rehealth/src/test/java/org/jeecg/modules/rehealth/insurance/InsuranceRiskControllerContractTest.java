@@ -45,7 +45,7 @@ class InsuranceRiskControllerContractTest {
         InsuranceRiskController controller = new InsuranceRiskController(service, guard);
         bindPrincipal();
         when(guard.requireTenant(any(LoginUser.class), eq("1000"))).thenReturn(1000);
-        when(service.dashboard(1000)).thenThrow(InsuranceApiException.serviceUnavailable("not connected"));
+        when(service.dashboard(1000, null)).thenThrow(InsuranceApiException.serviceUnavailable("not connected"));
 
         ResponseEntity<Result<InsuranceRiskResponse.Dashboard>> response = controller.dashboard("1000");
 
@@ -93,7 +93,7 @@ class InsuranceRiskControllerContractTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value(403))
-                .andExpect(jsonPath("$.message").value("insurance risk permission is required"));
+                .andExpect(jsonPath("$.message").value("insurance permission is required"));
     }
 
     @Test

@@ -13,6 +13,7 @@ import org.jeecg.modules.rehealth.insurance.mapper.InsuranceInterventionFeedback
 import org.jeecg.modules.rehealth.insurance.mapper.InsurancePlanBindingMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsurancePolicyMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceSubjectMapper;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +23,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @Service
+@ConditionalOnProperty(name = "rehealth.software-db.enabled", havingValue = "true")
 public class InsuranceMobilePlanService {
     private final InsuranceSubjectMapper subjectMapper;
     private final InsurancePolicyMapper policyMapper;
@@ -49,6 +51,7 @@ public class InsuranceMobilePlanService {
     @Transactional
     public InsuranceMobilePlanResponse bind(String userId, InsuranceMobilePlanRequest.Bind request) {
         int tenantId = positiveTenant(request.tenantId());
+        requireActiveTenantMember(tenantId, userId);
         InsuranceSubjectEntity subject = subjectMapper.selectOne(new LambdaQueryWrapper<InsuranceSubjectEntity>()
                 .eq(InsuranceSubjectEntity::getTenantId, tenantId)
                 .eq(InsuranceSubjectEntity::getRehealthUserId, userId)
@@ -130,6 +133,7 @@ public class InsuranceMobilePlanService {
 
     public InsuranceMobilePlanResponse current(String userId, String tenantValue) {
         int tenantId = positiveTenant(tenantValue);
+        requireActiveTenantMember(tenantId, userId);
         InsuranceSubjectEntity subject = subjectMapper.selectOne(new LambdaQueryWrapper<InsuranceSubjectEntity>()
                 .eq(InsuranceSubjectEntity::getTenantId, tenantId)
                 .eq(InsuranceSubjectEntity::getRehealthUserId, userId)
@@ -146,8 +150,18 @@ public class InsuranceMobilePlanService {
         if (binding == null) {
             throw InsuranceApiException.notFound("active insurance plan binding was not found");
         }
-        InsurancePolicyEntity policy = policyMapper.selectById(binding.getPolicyId());
-        InsuranceConsentRecordEntity consent = consentMapper.selectById(binding.getConsentId());
+        InsurancePolicyEntity policy = policyMapper.selectOne(new LambdaQueryWrapper<InsurancePolicyEntity>()
+                .eq(InsurancePolicyEntity::getTenantId, tenantId)
+                .eq(InsurancePolicyEntity::getId, binding.getPolicyId())
+                .last("LIMIT 1"));
+        InsuranceConsentRecordEntity consent = consentMapper.selectOne(
+                new LambdaQueryWrapper<InsuranceConsentRecordEntity>()
+                        .eq(InsuranceConsentRecordEntity::getTenantId, tenantId)
+                        .eq(InsuranceConsentRecordEntity::getId, binding.getConsentId())
+                        .last("LIMIT 1"));
+        if (policy == null || consent == null) {
+            throw InsuranceApiException.notFound("tenant-scoped policy or consent was not found");
+        }
         return response(binding, policy, consent);
     }
 
@@ -159,6 +173,7 @@ public class InsuranceMobilePlanService {
         if (binding == null || !"active".equals(binding.getStatus())) {
             throw InsuranceApiException.notFound("active insurance plan binding was not found");
         }
+        requireActiveTenantMember(binding.getTenantId(), userId);
         InsuranceSubjectEntity subject = subjectMapper.selectOne(new LambdaQueryWrapper<InsuranceSubjectEntity>()
                 .eq(InsuranceSubjectEntity::getTenantId, binding.getTenantId())
                 .eq(InsuranceSubjectEntity::getSubjectRef, binding.getSubjectRef())
@@ -203,6 +218,12 @@ public class InsuranceMobilePlanService {
         return new InsuranceMobilePlanResponse(binding.getId(), binding.getSubjectRef(), binding.getPolicyId(),
                 policy == null ? null : policy.getPolicyNo(), binding.getPlanId(), binding.getConsentId(),
                 consent == null ? null : consent.getConsentVersion(), binding.getStatus(), binding.getBoundAt());
+    }
+
+    private void requireActiveTenantMember(int tenantId, String userId) {
+        if (userId == null || userId.isBlank() || subjectMapper.countActiveMember(tenantId, userId) < 1) {
+            throw InsuranceApiException.forbidden("current user is not an active member of the requested insurance tenant");
+        }
     }
 
     private static int positiveTenant(String value) {

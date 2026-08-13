@@ -23,6 +23,7 @@ import org.jeecg.modules.rehealth.insurance.mapper.InsuranceStudyMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceStudyMemberMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceStudyResultMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceStudySnapshotMapper;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +42,7 @@ import java.util.Set;
 import java.util.UUID;
 
 @Service
+@ConditionalOnProperty(name = "rehealth.software-db.enabled", havingValue = "true")
 public class InsuranceStudyService {
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() { };
 

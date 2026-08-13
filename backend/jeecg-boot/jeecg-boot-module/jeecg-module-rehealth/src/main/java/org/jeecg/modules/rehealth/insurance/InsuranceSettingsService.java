@@ -180,7 +180,14 @@ public class InsuranceSettingsService {
         if (valid == null || valid < 1) {
             throw InsuranceApiException.badRequest("departmentId is not in the requested tenant");
         }
-        jdbc.update("DELETE FROM sys_user_depart WHERE user_id = ?", userId);
+        // A Jeecg account may belong to more than one insurer. Remove only
+        // department memberships owned by the insurer being administered.
+        jdbc.update("""
+                DELETE membership
+                FROM sys_user_depart membership
+                JOIN sys_depart department ON department.id = membership.dep_id
+                WHERE membership.user_id = ? AND department.tenant_id = ?
+                """, userId, tenantId);
         jdbc.update("INSERT INTO sys_user_depart (ID, user_id, dep_id) VALUES (?, ?, ?)", UUID.randomUUID().toString().replace("-", ""), userId, departmentId);
         return members(tenantId).stream().filter(member -> member.id().equals(userId)).findFirst()
                 .orElseThrow(() -> InsuranceApiException.notFound("member was not found"));
@@ -192,7 +199,13 @@ public class InsuranceSettingsService {
         if (!List.of("insurer_viewer", "insurer_analyst", "insurance_operator", "insurer_auditor", "insurance_department_manager").contains(roleCode)) {
             throw InsuranceApiException.badRequest("roleCode is not an insurer role");
         }
-        String roleId = jdbc.queryForObject("SELECT id FROM sys_role WHERE role_code = ? AND (tenant_id = 0 OR tenant_id = ?)", String.class, roleCode, tenantId);
+        String roleId = jdbc.queryForObject("""
+                SELECT id
+                FROM sys_role
+                WHERE role_code = ? AND (tenant_id = 0 OR tenant_id = ?)
+                ORDER BY CASE WHEN tenant_id = ? THEN 0 ELSE 1 END
+                LIMIT 1
+                """, String.class, roleCode, tenantId, tenantId);
         if (roleId == null) {
             throw InsuranceApiException.badRequest("roleCode is not configured");
         }
@@ -219,6 +232,7 @@ public class InsuranceSettingsService {
         Integer valid = jdbc.queryForObject("""
                 SELECT COUNT(*) FROM sys_user_tenant ut
                 JOIN sys_user_depart ud ON ud.user_id = ut.user_id AND ud.dep_id = ?
+                JOIN sys_depart d ON d.id = ud.dep_id AND d.tenant_id = ut.tenant_id
                 JOIN sys_user u ON u.id = ut.user_id
                 WHERE ut.tenant_id = ? AND ut.user_id = ? AND ut.status = '1' AND u.status = 1 AND u.del_flag = 0
                 """, Integer.class, departmentId, tenantId, managerId);

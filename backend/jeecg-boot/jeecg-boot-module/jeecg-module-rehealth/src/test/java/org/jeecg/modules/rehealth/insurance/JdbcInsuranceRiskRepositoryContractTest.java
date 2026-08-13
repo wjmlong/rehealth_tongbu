@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -23,7 +24,7 @@ class JdbcInsuranceRiskRepositoryContractTest {
         String subjectRef = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
         when(jdbc.query(any(String.class),
                 ArgumentMatchers.<RowMapper<InsuranceRiskRepository.SubjectSnapshot>>any(),
-                eq(1000), eq(subjectRef))).thenReturn(List.of());
+                eq(1000), isNull(), isNull(), eq(subjectRef))).thenReturn(List.of());
         JdbcInsuranceRiskRepository repository = new JdbcInsuranceRiskRepository(jdbc);
 
         repository.subject(1000, subjectRef);
@@ -31,7 +32,7 @@ class JdbcInsuranceRiskRepositoryContractTest {
         ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
         verify(jdbc).query(sql.capture(),
                 ArgumentMatchers.<RowMapper<InsuranceRiskRepository.SubjectSnapshot>>any(),
-                eq(1000), eq(subjectRef));
+                eq(1000), isNull(), isNull(), eq(subjectRef));
         String query = sql.getValue();
         assertTrue(query.contains("SHA2(CONCAT(ut.tenant_id, ':', ut.user_id), 256)"));
         assertTrue(query.contains("ut.user_id AS internal_user_id"));

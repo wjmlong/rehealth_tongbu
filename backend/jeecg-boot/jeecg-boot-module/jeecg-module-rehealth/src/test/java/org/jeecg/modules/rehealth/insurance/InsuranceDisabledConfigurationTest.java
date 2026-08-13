@@ -30,6 +30,9 @@ class InsuranceDisabledConfigurationTest {
             assertTrue(context.getBeansOfType(InsuranceRiskService.class).isEmpty());
             assertTrue(context.getBeansOfType(InsuranceTenantAccessGuard.class).isEmpty());
             assertTrue(context.getBeansOfType(InsuranceRiskController.class).isEmpty());
+            assertTrue(context.getBeansOfType(InsuranceImportService.class).isEmpty());
+            assertTrue(context.getBeansOfType(InsuranceStudyService.class).isEmpty());
+            assertTrue(context.getBeansOfType(InsuranceMobilePlanService.class).isEmpty());
 
             DisabledInsuranceRiskController controller = context.getBean(DisabledInsuranceRiskController.class);
             ResponseEntity<Result<InsuranceRiskResponse.Dashboard>> response = controller.dashboard("1000");
