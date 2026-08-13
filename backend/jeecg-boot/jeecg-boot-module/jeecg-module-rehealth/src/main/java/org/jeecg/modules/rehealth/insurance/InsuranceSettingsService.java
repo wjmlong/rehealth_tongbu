@@ -77,17 +77,39 @@ public class InsuranceSettingsService {
     }
 
     public List<Department> departments(int tenantId) {
+        return departments(tenantId, null);
+    }
+
+    /** Lists all departments for administrators, or assigned departments for a manager. */
+    public List<Department> departments(int tenantId, String managerUserId) {
         return jdbc.query("""
                 SELECT d.id, d.depart_name, d.parent_id,
                        (SELECT COUNT(*) FROM sys_user_depart ud WHERE ud.dep_id = d.id) AS member_count
                 FROM sys_depart d
                 WHERE d.tenant_id = ? AND COALESCE(d.del_flag, '0') = '0' AND COALESCE(d.status, '1') = '1'
+                  AND (? IS NULL OR EXISTS (
+                      SELECT 1
+                      FROM rehealth_insurance_subject_manager scope
+                      WHERE scope.tenant_id = d.tenant_id
+                        AND scope.department_id = d.id
+                        AND scope.manager_user_id = ?
+                        AND scope.status = 'active'
+                  ))
                 ORDER BY d.depart_order, d.depart_name
                 """, (rs, row) -> new Department(rs.getString("id"), rs.getString("depart_name"),
-                rs.getString("parent_id"), rs.getInt("member_count")), tenantId);
+                rs.getString("parent_id"), rs.getInt("member_count")), tenantId, managerUserId, managerUserId);
     }
 
     public List<Member> members(int tenantId) {
+        return members(tenantId, null);
+    }
+
+    /**
+     * Lists all tenant members for administrators, or only the insured
+     * subjects assigned to a department manager. The scope is enforced in
+     * SQL so direct Java API calls cannot bypass the website permissions.
+     */
+    public List<Member> members(int tenantId, String managerUserId) {
         return jdbc.query("""
                 SELECT u.id, u.username, u.realname, u.email, u.phone,
                        CASE WHEN u.status = 1 AND u.del_flag = 0 AND ut.status = '1' THEN 'active' ELSE 'disabled' END AS member_status,
@@ -101,27 +123,41 @@ public class InsuranceSettingsService {
                 LEFT JOIN sys_depart d ON d.id = ud.dep_id AND d.tenant_id = ut.tenant_id
                 LEFT JOIN sys_user_role ur ON ur.user_id = u.id AND ur.tenant_id = ut.tenant_id
                 LEFT JOIN sys_role r ON r.id = ur.role_id
-                WHERE ut.tenant_id = ?
-                GROUP BY u.id, u.username, u.realname, u.email, u.phone, u.status, u.del_flag, ut.status, ut.tenant_id
-                ORDER BY u.realname, u.username
-                """, (rs, row) -> new Member(rs.getString("id"), rs.getString("username"),
-                rs.getString("realname"), rs.getString("email"), rs.getString("phone"),
-                rs.getString("member_status"), rs.getString("departments"), rs.getString("roles"),
-                rs.getInt("assignment_count")), tenantId);
+                 WHERE ut.tenant_id = ?
+                   AND (? IS NULL OR EXISTS (
+                       SELECT 1
+                       FROM rehealth_insurance_subject_manager scope
+                       WHERE scope.tenant_id = ut.tenant_id
+                         AND scope.manager_user_id = ?
+                         AND scope.subject_ref = LOWER(SHA2(CONCAT(ut.tenant_id, ':', ut.user_id), 256))
+                         AND scope.status = 'active'
+                   ))
+                 GROUP BY u.id, u.username, u.realname, u.email, u.phone, u.status, u.del_flag, ut.status, ut.tenant_id
+                 ORDER BY u.realname, u.username
+                 """, (rs, row) -> new Member(rs.getString("id"), rs.getString("username"),
+                 rs.getString("realname"), rs.getString("email"), rs.getString("phone"),
+                 rs.getString("member_status"), rs.getString("departments"), rs.getString("roles"),
+                 rs.getInt("assignment_count")), tenantId, managerUserId, managerUserId);
     }
 
     public List<Assignment> assignments(int tenantId) {
+        return assignments(tenantId, null);
+    }
+
+    /** Lists all assignments for administrators, or only the manager's own. */
+    public List<Assignment> assignments(int tenantId, String managerUserId) {
         return jdbc.query("""
                 SELECT sm.subject_ref, sm.manager_user_id, u.realname AS manager_name,
                        sm.department_id, d.depart_name, sm.status
                 FROM rehealth_insurance_subject_manager sm
                 JOIN sys_user u ON u.id = sm.manager_user_id
                 LEFT JOIN sys_depart d ON d.id = sm.department_id
-                WHERE sm.tenant_id = ?
-                ORDER BY d.depart_name, u.realname, sm.subject_ref
-                """, (rs, row) -> new Assignment(rs.getString("subject_ref"), rs.getString("manager_user_id"),
-                rs.getString("manager_name"), rs.getString("department_id"), rs.getString("depart_name"),
-                rs.getString("status")), tenantId);
+                 WHERE sm.tenant_id = ?
+                   AND (? IS NULL OR sm.manager_user_id = ?)
+                 ORDER BY d.depart_name, u.realname, sm.subject_ref
+                 """, (rs, row) -> new Assignment(rs.getString("subject_ref"), rs.getString("manager_user_id"),
+                 rs.getString("manager_name"), rs.getString("department_id"), rs.getString("depart_name"),
+                 rs.getString("status")), tenantId, managerUserId, managerUserId);
     }
 
     @Transactional

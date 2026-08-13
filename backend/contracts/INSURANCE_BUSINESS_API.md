@@ -60,7 +60,7 @@ JeecgBoot `rehealth:insurance:organization:*`、`member:*`、`role:assign` 和
 | `PUT` | `/rehealth/insurance/v1/settings/assignments/{subjectRef}` | 由机构管理员维护负责人关系 |
 
 `insurance_org_admin`（保险机构管理员）可维护机构、成员、角色和负责人；
-`insurance_department_manager`（保险部门经理）只能读取机构成员信息和自己负责的风险数据。
+`insurance_department_manager`（保险部门经理）只能读取自己负责的投保人、所属部门及对应负责人关系，不能读取同租户其他经理或未分配投保人的信息。
 风险列表、详情和看板在识别到部门经理角色时自动关联
 `rehealth_insurance_subject_manager`，未分配的投保人不会返回。
 
@@ -134,7 +134,7 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 
 完整工作流可执行 `backend/deploy/rehealth/scripts/seed-insurance-workflow-test-data.ps1` 写入 `LOCAL_INSURANCE_QA` 验收基线：12 名合成租户成员、12 张有效保单、12 条已支付理赔，以及处理组/对照组各 6 人的 PSM 候选和 1 个草稿研究。脚本使用固定业务键重复更新，不重复插入；合成用户没有密码、手机号或邮箱，不能登录。
 
-该基线同时创建 2 个保险部门和 2 个经理账号（`local_insurance_manager_01`、`local_insurance_manager_02`，密码均为 `123456`），并在 `rehealth_insurance_subject_manager` 中按部门分别分配 6 名投保人。当前风险列表仍是租户级查询；经理“只能查看自己负责用户”的过滤将在风险查询接入该映射表后生效，不能仅依赖这批数据实现越权防护。
+该基线同时创建 2 个保险部门和 2 个经理账号（`local_insurance_manager_01`、`local_insurance_manager_02`，密码均为 `123456`），并在 `rehealth_insurance_subject_manager` 中按部门分别分配 6 名投保人。风险查询和机构设置的部门、成员、负责人只读接口均在 JeecgBoot 查询层按该映射表过滤，不能仅依赖前端隐藏菜单实现越权防护。
 
 为覆盖“已评估风险”和 PSM 候选筛选，合成风险记录的 `is_mock=0`，但 `model_version=local-qa-seeded-nonclinical-v1`、`scorer_mode=local_qa_fixture`、`artifact_name=LOCAL_INSURANCE_QA_NOT_A_MODEL`，质量警告及响应体也明确禁止临床和业务决策。该脚本只允许在本地开发环境使用。
 

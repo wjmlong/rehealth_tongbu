@@ -56,21 +56,33 @@ public class InsuranceSettingsController {
     @RequiresPermissions("rehealth:insurance:member:view")
     public ResponseEntity<Result<java.util.List<InsuranceSettingsResponse.Department>>> departments(
             @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId) {
-        return respond(() -> service.departments(tenantAccessGuard.requireTenant(currentUser(), tenantId)));
+        return respond(() -> {
+            LoginUser user = currentUser();
+            int requestedTenant = tenantAccessGuard.requireTenant(user, tenantId);
+            return service.departments(requestedTenant, tenantAccessGuard.managerScope(user, requestedTenant));
+        });
     }
 
     @GetMapping("/members")
     @RequiresPermissions("rehealth:insurance:member:view")
     public ResponseEntity<Result<java.util.List<InsuranceSettingsResponse.Member>>> members(
             @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId) {
-        return respond(() -> service.members(tenantAccessGuard.requireTenant(currentUser(), tenantId)));
+        return respond(() -> {
+            LoginUser user = currentUser();
+            int requestedTenant = tenantAccessGuard.requireTenant(user, tenantId);
+            return service.members(requestedTenant, tenantAccessGuard.managerScope(user, requestedTenant));
+        });
     }
 
     @GetMapping("/assignments")
     @RequiresPermissions("rehealth:insurance:member:view")
     public ResponseEntity<Result<java.util.List<InsuranceSettingsResponse.Assignment>>> assignments(
             @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId) {
-        return respond(() -> service.assignments(tenantAccessGuard.requireTenant(currentUser(), tenantId)));
+        return respond(() -> {
+            LoginUser user = currentUser();
+            int requestedTenant = tenantAccessGuard.requireTenant(user, tenantId);
+            return service.assignments(requestedTenant, tenantAccessGuard.managerScope(user, requestedTenant));
+        });
     }
 
     @PutMapping("/members/{userId}/status")
