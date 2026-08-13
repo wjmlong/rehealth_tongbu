@@ -35,6 +35,12 @@ Thumbs.db
 **/.ref/
 **/outputs/
 /topology.json
+
+# JeecgBoot local-only runtime configuration and generated template cache
+/.local-runtime/
+/config/
+backend/jeecg-boot/jeecg-module-system/jeecg-system-start/config/
+backend/jeecg-boot/jeecg-module-system/jeecg-system-start/src/main/resources/application-local.yml
 *.backup
 *.disabled
 *.done
