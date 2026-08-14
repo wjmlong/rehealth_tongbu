@@ -159,6 +159,18 @@ WHERE actor.username = '$escapedActor'
   AND membership.tenant_id IN (9101, 9102, 9103)
   AND membership.status = '1';
 
+SELECT 'current_tenant_department_links', COUNT(*)
+FROM sys_user_tenant membership
+JOIN sys_user user ON user.id = membership.user_id
+JOIN sys_user_depart user_department ON user_department.user_id = user.id
+JOIN sys_depart department
+  ON department.id = user_department.dep_id
+ AND department.tenant_id = membership.tenant_id
+WHERE membership.tenant_id IN (9101, 9102, 9103)
+  AND (user.username LIKE 'local_ins_91%'
+       OR user.username = 'local_ins_shared_auditor'
+       OR user.username = '$escapedActor');
+
 SELECT tenant.id, tenant.name,
        COUNT(DISTINCT CASE WHEN membership.status = '1' THEN membership.id END) AS active_members,
        COUNT(DISTINCT CASE WHEN membership.status = '5' THEN membership.id END) AS invited_members,
@@ -181,6 +193,34 @@ GROUP BY user.username;
 
 Write-Host "Verification counts:"
 Invoke-SoftwareDbSql -Sql $verificationSql
+
+$missingDepartmentSql = @"
+SELECT COUNT(*)
+FROM sys_user_tenant membership
+JOIN sys_user user ON user.id = membership.user_id
+WHERE membership.tenant_id IN (9101, 9102, 9103)
+  AND (user.username LIKE 'local_ins_91%'
+       OR user.username = 'local_ins_shared_auditor'
+       OR user.username = '$escapedActor')
+  AND NOT EXISTS (
+      SELECT 1
+      FROM sys_user_depart user_department
+      JOIN sys_depart department ON department.id = user_department.dep_id
+      WHERE user_department.user_id = user.id
+        AND department.tenant_id = membership.tenant_id
+        AND COALESCE(department.del_flag, '0') = '0'
+        AND COALESCE(department.status, '1') = '1'
+  );
+"@
+$missingDepartmentOutput = @($missingDepartmentSql | docker exec -i -e MYSQL_PWD=$databasePassword $ContainerName `
+    mysql --default-character-set=utf8mb4 -N -urehealth_software -D rehealth_software)
+if ($LASTEXITCODE -ne 0 -or $missingDepartmentOutput.Count -ne 1) {
+    throw "Unable to verify insurer staff department relationships."
+}
+$missingDepartmentCount = [int]$missingDepartmentOutput[0].Trim()
+if ($missingDepartmentCount -ne 0) {
+    throw "Insurer staff department verification failed: $missingDepartmentCount seeded tenant membership(s) have no current-tenant department."
+}
 Write-Host "All active synthetic accounts use the local-only password: 123456"
 Write-Host "QA actor '$ActorUsername' can switch to tenants 9101, 9102, and 9103 in Jeecg."
 Write-Host "LOCAL_MULTI_INSURER_QA seed completed. Re-running this script is safe."

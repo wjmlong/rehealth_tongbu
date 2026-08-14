@@ -199,7 +199,10 @@ the local development database. The selected seed actor (`admin` by default) is
 also added as an active member of all three QA tenants without changing its
 default login tenant. In the Jeecg console, use the tenant selector to switch to
 `9101`, `9102`, or `9103` before opening department management; system department
-queries intentionally show only the currently selected tenant.
+queries intentionally show only the currently selected tenant. The selected QA
+actor is also linked to each insurer's root organization so its department is not
+blank in tenant-scoped user management. The seed verifies that every seed-owned
+tenant membership resolves to an active department in the same tenant.
 
 To extend those three organizations with complete APP-user service fixtures, run:
 

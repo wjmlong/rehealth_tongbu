@@ -179,6 +179,22 @@ ON DUPLICATE KEY UPDATE
     del_flag = '0', update_by = VALUES(update_by), update_time = VALUES(update_time),
     tenant_id = VALUES(tenant_id), iz_leaf = VALUES(iz_leaf);
 
+-- The QA actor is a real tenant member while inspecting the seeded organizations,
+-- so keep its user-management department projection complete as well. Do not
+-- replace any existing relationship; only add the current tenant's root node.
+INSERT INTO sys_user_depart (ID, user_id, dep_id)
+SELECT LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_QA:actor-department:', tenant.tenant_id, ':', @seed_actor))),
+       actor.id,
+       LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_QA:department:', tenant.tenant_id, ':ROOT')))
+FROM tmp_local_insurer_tenants tenant
+JOIN sys_user actor ON actor.username = @seed_actor AND actor.del_flag = 0
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM sys_user_depart existing
+    WHERE existing.user_id = actor.id
+      AND existing.dep_id = LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_QA:department:', tenant.tenant_id, ':ROOT')))
+);
+
 INSERT INTO sys_user (
     id, username, realname, password, salt, sex, email, phone, org_code,
     status, del_flag, activiti_sync, work_no, create_by, create_time,
