@@ -415,7 +415,7 @@ python backend/qa/rehealth_stack_gate.py topology `
 | `backend/contracts/openapi/rehealth-mobile-v1.openapi.json` | 公共移动 API 机器可读契约 | 公共 API 字段或路径变化时 |
 | `backend/contracts/adrs/` | 跨服务架构决策 | 权威边界、消息系统、数据库或信任模型变化时 |
 | `backend/contracts/INSURANCE_BUSINESS_API.md` | 保险数据导入、PSM、RWE、结算和 App 授权契约 | 保险 API、状态机、角色权限、隐私或幂等语义变化时 |
-| `backend/contracts/INSURANCE_STAFF_APP_USER_MATCHING_ANALYSIS.md` | 保险员工、平台 APP 用户、跨类型机构服务、后台角色和负责人匹配的持续分析 | 机构员工权限、APP 服务登记、后台角色、负责人范围、多机构服务或相关产品决策变化时 |
+| `backend/contracts/INSURANCE_STAFF_APP_USER_MATCHING_ANALYSIS.md` | 保险员工、平台 APP 用户、多机构服务、后台角色、现有表复用和负责人匹配的持续分析 | 机构员工权限、APP 领域服务关系、后台角色、负责人范围、多机构服务或相关产品决策变化时 |
 | `backend/docs/REHEALTH_DB_SCHEMA.md` | Room、MySQL 与 TimescaleDB 数据库结构总览及 215 张表逐表附录入口 | Room/MySQL/TimescaleDB Schema、索引、关系或字段语义变化时 |
 | `backend/deploy/rehealth/README.md` | 部署拓扑和运行方式 | 服务、端口、环境变量、secret、容器变化时 |
 | `model-service/docs/API_CONTRACT.md` | 模型服务接口 | 模型请求/响应、版本或就绪语义变化时 |
