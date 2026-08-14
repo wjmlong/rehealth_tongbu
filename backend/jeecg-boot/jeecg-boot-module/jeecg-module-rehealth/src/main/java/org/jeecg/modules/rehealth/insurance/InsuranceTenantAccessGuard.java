@@ -59,6 +59,46 @@ public class InsuranceTenantAccessGuard {
         return tenantId;
     }
 
+    /** Returns the logged-in user id when the user is a department manager. */
+    public String managerScope(LoginUser user, int tenantId) {
+        if (user == null || user.getId() == null || user.getId().isBlank()) {
+            return null;
+        }
+        Integer manager = jdbc.queryForObject("""
+                SELECT COUNT(*)
+                FROM sys_user_role ur
+                JOIN sys_role r ON r.id = ur.role_id
+                WHERE ur.user_id = ? AND ur.tenant_id = ?
+                  AND r.role_code = 'insurance_department_manager'
+                """, Integer.class, user.getId(), tenantId);
+        return manager != null && manager > 0 ? user.getId() : null;
+    }
+
+    /** Returns the current staff id for assigned-user risk reads across all insurer WEB roles. */
+    public String responsibilityScope(LoginUser user, int tenantId) {
+        if (user == null || user.getId() == null || user.getId().isBlank()) {
+            throw InsuranceApiException.forbidden("authenticated insurance staff account is required");
+        }
+        Integer responsibleRole = jdbc.queryForObject("""
+                SELECT COUNT(*)
+                FROM sys_user_role ur
+                JOIN sys_role r ON r.id = ur.role_id
+                WHERE ur.user_id = ? AND ur.tenant_id = ?
+                  AND r.role_code IN (
+                      'insurance_org_admin',
+                      'insurance_department_manager',
+                      'insurer_analyst',
+                      'insurance_operator',
+                      'insurer_viewer',
+                      'insurer_auditor'
+                  )
+                """, Integer.class, user.getId(), tenantId);
+        if (responsibleRole == null || responsibleRole <= 0) {
+            throw InsuranceApiException.forbidden("current account has no insurance responsibility role in the requested tenant");
+        }
+        return user.getId();
+    }
+
     private int parseTenant(String requestedTenant) {
         if (requestedTenant == null || requestedTenant.isBlank()) {
             throw InsuranceApiException.badRequest("X-Tenant-Id is required");

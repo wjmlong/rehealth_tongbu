@@ -4,29 +4,52 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.Data;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+@Data
 @TableName("rehealth_insurance_policy")
 public class InsurancePolicyEntity {
     @TableId(value = "id", type = IdType.INPUT)
     private String id;
     @TableField("tenant_id")
     private Integer tenantId;
+    @TableField("policy_no")
+    private String policyNo;
+    @TableField("product_code")
+    private String productCode;
+    @TableField("product_name")
+    private String productName;
+    @TableField("policy_type")
+    private String policyType;
+    @TableField("policyholder_subject_ref")
+    private String policyholderSubjectRef;
     @TableField("insured_subject_ref")
     private String insuredSubjectRef;
+    @TableField("coverage_amount")
+    private BigDecimal coverageAmount;
+    @TableField("premium_amount")
+    private BigDecimal premiumAmount;
+    @TableField("deductible_amount")
+    private BigDecimal deductibleAmount;
+    @TableField("waiting_period_days")
+    private Integer waitingPeriodDays;
+    @TableField("effective_on")
+    private LocalDate effectiveOn;
+    @TableField("expires_on")
+    private LocalDate expiresOn;
     private String status;
+    @TableField("source_system")
+    private String sourceSystem;
+    @TableField("source_record_id")
+    private String sourceRecordId;
+    @TableField("metadata_json")
+    private String metadataJson;
+    @TableField("created_at")
+    private LocalDateTime createdAt;
     @TableField("updated_at")
     private LocalDateTime updatedAt;
-
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
-    public Integer getTenantId() { return tenantId; }
-    public void setTenantId(Integer tenantId) { this.tenantId = tenantId; }
-    public String getInsuredSubjectRef() { return insuredSubjectRef; }
-    public void setInsuredSubjectRef(String insuredSubjectRef) { this.insuredSubjectRef = insuredSubjectRef; }
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

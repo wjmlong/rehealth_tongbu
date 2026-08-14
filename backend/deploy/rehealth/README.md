@@ -27,6 +27,28 @@ The topology gate is static. Runtime readiness requires the application JARs,
 the hardened PIAS entrypoint, Device Service and real secret/artifact bundles.
 Do not interpret a static pass as a deployed-service health result.
 
+## Local insurer workflow
+
+Apply the non-destructive MySQL migrations through `V20260814_1` before testing
+the insurer website. They add import/job/plan-feedback tables, workflow
+permissions, insurance organization settings, tenant-scoped department codes and
+local-admin acceptance grants and read-only organization/member settings for
+all insurer back-office roles. Production must assign
+`insurer_viewer`, `insurer_analyst`, `insurance_operator` or `insurer_auditor`
+explicitly and must not rely on the local admin grant.
+
+The website FastAPI BFF must receive its Jeecg base URL and tenant mapping from
+server-side configuration. It must not receive a MySQL DSN. To export the RWE
+Word report, set the optional variable below to an approved read-only template;
+when absent, local development resolves the repository source template.
+
+```text
+REHEALTH_RWE_TEMPLATE_PATH=E:\code\rehealth_tonbu\docs\ReHealth_PSM_RWE_Report_Draft_V0.1.docx
+```
+
+The FastAPI runtime requires `python-docx==1.2.0` and `openpyxl==3.1.5` for Word
+export and XLSX import. These dependencies do not access the database.
+
 The `topology-failures` gate is an executable bounded dependency-transition
 test: it starts temporary TCP dependencies, proves each is reachable, stops the
 selected dependency, and probes the resulting ingest/publisher/model state.
@@ -179,6 +201,91 @@ unscoped automatic `repair`. Flyway 7 also probes
 principal `SELECT` on that table only (plus its required target-schema DDL), or
 use a dedicated migration principal; do not grant global `PROCESS`, global
 `SELECT`, or administrative privileges.
+### Local insurer acceptance data
+
+After the insurance migrations through `V20260813_4` have been applied, seed a
+repeatable tenant-1000 acceptance cohort with the local MySQL container running:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File `
+  backend/deploy/rehealth/scripts/seed-insurance-workflow-test-data.ps1
+```
+
+The script creates 12 synthetic tenant members, profiles, non-clinical risk
+fixtures, active policies, consents and paid claims. Six members have an active
+intervention and six are controls, so the checked-in draft PSM study has enough
+candidates to freeze a snapshot and exercise the workflow. Re-running the
+script updates the same deterministic records instead of duplicating them.
+
+Every business row is marked `LOCAL_INSURANCE_QA`; seeded users have no password,
+phone number or email and cannot log in. Although the risk rows use `is_mock=0`
+to exercise the verified-risk and PSM code paths, their model/scorer/artifact
+fields explicitly identify them as local non-clinical fixtures. Never run this
+script outside local development or use its values for medical, underwriting,
+claim or settlement decisions.
+
+The same seed adds two active insurer managers (`local_insurance_manager_01` /
+`local_insurance_manager_02`, password `123456`) under `健康险一部` and `健康险二部`.
+Each manager is assigned six synthetic insured subjects through
+`rehealth_insurance_subject_manager`; this mapping is the data-permission fixture
+for the next risk-list API change. The current risk API is still tenant-scoped,
+so manager login data is ready for permission testing but does not by itself
+change the existing list query until the manager-scope guard is implemented.
+
+To validate Jeecg multi-tenant insurance administration with several organizations,
+seed three isolated synthetic insurers and their staff:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File `
+  backend/deploy/rehealth/scripts/seed-multi-insurer-tenant-test-data.ps1
+```
+
+The repeatable local-only seed owns tenant IDs `9101`–`9103`, creates two business
+departments per insurer, and adds an organization administrator, two department
+managers, an analyst, operator, viewer, pending invitee, and one shared auditor
+account. The shared auditor deliberately belongs to all three tenants so tenant-
+scoped department and role joins can be tested with the same global Jeecg user.
+Every organization, person, phone number, email address, and license number is
+explicitly marked as synthetic `LOCAL_MULTI_INSURER_QA` data. The script refuses
+to overwrite `9101`–`9103` when any ID is already owned by non-QA data. Active
+test accounts use the local-only password `123456`; never run this seed outside
+the local development database. The selected seed actor (`admin` by default) is
+also added as an active member of all three QA tenants without changing its
+default login tenant. In the Jeecg console, use the tenant selector to switch to
+`9101`, `9102`, or `9103` before opening department management; system department
+queries intentionally show only the currently selected tenant. The selected QA
+actor is also linked to each insurer's root organization so its department is not
+blank in tenant-scoped user management. The seed verifies that every seed-owned
+tenant membership resolves to an active department in the same tenant.
+
+To extend those three organizations with complete APP-user service fixtures, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File `
+  backend/deploy/rehealth/scripts/seed-multi-insurer-app-user-test-data.ps1 `
+  -AnchorDate 2026-08-14
+```
+
+By default this command first refreshes the `LOCAL_MULTI_INSURER_QA` organization
+and staff baseline, then writes `LOCAL_MULTI_INSURER_APP_QA` data to MySQL and
+TimescaleDB. It creates 14 global APP accounts: four exclusive accounts for each
+of tenants `9101`–`9103`, plus `local_app_shared_01` and
+`local_app_shared_02`, which receive services from all three insurers. This yields
+18 independent insurer-subject relationships and 48 staff responsibility
+assignments. APP accounts are deliberately absent from `sys_user_tenant`; insurer
+service membership comes from `rehealth_insurance_subject`, while WEB staff
+membership continues to use Jeecg tenant membership and tenant-scoped roles.
+
+Each APP account has a profile, complete RHI manual input, interview, device
+binding, behavior records, 30 CVD-16 risk-history fixtures, PIAS attribution and
+an intervention plan. Every insurer relationship has its own policy, coverage,
+consent, plan binding, intervention, feedback and claim. TimescaleDB receives 118
+days matching the Android Debug full-chain rehearsal shape: ten measurements,
+one sleep record, one activity record and one diet record per relationship per
+day. All active synthetic staff and APP accounts use password `123456`. Re-running
+the script is idempotent and verifies exact counts. The data is synthetic,
+non-clinical and local-only; do not use it for medical, underwriting, claim or
+settlement decisions.
 
 Health chat now supports two server-side engines behind the unchanged mobile API:
 

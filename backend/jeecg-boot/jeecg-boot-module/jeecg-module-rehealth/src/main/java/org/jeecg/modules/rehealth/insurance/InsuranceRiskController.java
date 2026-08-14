@@ -42,7 +42,11 @@ public class InsuranceRiskController {
     public ResponseEntity<Result<InsuranceRiskResponse.Dashboard>> dashboard(
             @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId
     ) {
-        return respond(() -> service.dashboard(tenantAccessGuard.requireTenant(currentUser(), tenantId)));
+        return respond(() -> {
+            LoginUser user = currentUser();
+            int tenant = tenantAccessGuard.requireTenant(user, tenantId);
+            return service.dashboard(tenant, tenantAccessGuard.responsibilityScope(user, tenant));
+        });
     }
 
     @GetMapping("/insureds")
@@ -55,13 +59,11 @@ public class InsuranceRiskController {
             @RequestParam(value = "keyword", required = false) String keyword,
             @RequestParam(value = "riskLevel", required = false) String riskLevel
     ) {
-        return respond(() -> service.insureds(
-                tenantAccessGuard.requireTenant(currentUser(), tenantId),
-                pageNo,
-                pageSize,
-                keyword,
-                riskLevel
-        ));
+        return respond(() -> {
+            LoginUser user = currentUser();
+            int tenant = tenantAccessGuard.requireTenant(user, tenantId);
+            return service.insureds(tenant, tenantAccessGuard.responsibilityScope(user, tenant), pageNo, pageSize, keyword, riskLevel);
+        });
     }
 
     @GetMapping("/insureds/{subjectId}")
@@ -71,10 +73,11 @@ public class InsuranceRiskController {
             @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
             @PathVariable("subjectId") String subjectId
     ) {
-        return respond(() -> service.insured(
-                tenantAccessGuard.requireTenant(currentUser(), tenantId),
-                subjectId
-        ));
+        return respond(() -> {
+            LoginUser user = currentUser();
+            int tenant = tenantAccessGuard.requireTenant(user, tenantId);
+            return service.insured(tenant, tenantAccessGuard.responsibilityScope(user, tenant), subjectId);
+        });
     }
 
     private LoginUser currentUser() {

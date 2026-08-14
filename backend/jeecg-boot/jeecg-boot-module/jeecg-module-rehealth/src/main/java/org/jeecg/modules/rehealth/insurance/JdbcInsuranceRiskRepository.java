@@ -16,14 +16,14 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
     private static final String TENANT_AND_RISK_CTE = """
             WITH tenant_subject AS (
                 SELECT DISTINCT
-                       ut.user_id AS internal_user_id,
-                       LOWER(SHA2(CONCAT(ut.tenant_id, ':', ut.user_id), 256)) AS subject_id
-                FROM sys_user_tenant ut
+                       insurance_subject.rehealth_user_id AS internal_user_id,
+                       insurance_subject.subject_ref AS subject_id
+                FROM rehealth_insurance_subject insurance_subject
                 INNER JOIN sys_user account
-                    ON account.id = CONVERT(ut.user_id USING utf8mb3) COLLATE utf8mb3_general_ci
-                INNER JOIN sys_tenant tenant ON tenant.id = ut.tenant_id
-                WHERE ut.tenant_id = ?
-                  AND ut.status = '1'
+                    ON account.id = CONVERT(insurance_subject.rehealth_user_id USING utf8mb3) COLLATE utf8mb3_general_ci
+                INNER JOIN sys_tenant tenant ON tenant.id = insurance_subject.tenant_id
+                WHERE insurance_subject.tenant_id = ?
+                  AND insurance_subject.enrollment_status = 'active'
                   AND account.status = 1
                   AND account.del_flag = 0
                   AND tenant.status = 1
@@ -33,15 +33,22 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
                           SELECT 1
                           FROM rehealth_patient_profile candidate_profile
                           WHERE candidate_profile.user_id
-                              = ut.user_id COLLATE utf8mb4_0900_ai_ci
+                              = insurance_subject.rehealth_user_id COLLATE utf8mb4_0900_ai_ci
                       )
                       OR EXISTS (
                           SELECT 1
                           FROM rehealth_cvd_risk_result candidate_risk
                           WHERE candidate_risk.user_id
-                              = ut.user_id COLLATE utf8mb4_0900_ai_ci
+                              = insurance_subject.rehealth_user_id COLLATE utf8mb4_0900_ai_ci
                       )
                   )
+                  AND (? IS NULL OR EXISTS (
+                      SELECT 1 FROM rehealth_insurance_subject_manager scope
+                      WHERE scope.tenant_id = insurance_subject.tenant_id
+                        AND scope.manager_user_id = ?
+                        AND scope.subject_ref = insurance_subject.subject_ref
+                        AND scope.status = 'active'
+                  ))
             ), latest_risk AS (
                 SELECT r.user_id, r.is_mock, r.risk_score, r.risk_level, r.model_version,
                        r.evaluated_at, r.contribution_json
@@ -101,6 +108,15 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
 
     @Override
     public DashboardSnapshot dashboard(int tenantId) {
+        return dashboardScoped(tenantId, null);
+    }
+
+    @Override
+    public DashboardSnapshot dashboard(int tenantId, String managerUserId) {
+        return dashboardScoped(tenantId, managerUserId);
+    }
+
+    private DashboardSnapshot dashboardScoped(int tenantId, String managerUserId) {
         String sql = TENANT_AND_RISK_CTE + """
                 SELECT COUNT(*) AS total_insured,
                        COALESCE(SUM(CASE
@@ -135,7 +151,7 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
                 longValue(resultSet, "medium_risk"),
                 longValue(resultSet, "low_risk"),
                 resultSet.getTimestamp("latest_evaluated_at")
-        ), tenantId);
+                ), tenantId, managerUserId, managerUserId);
         return snapshot == null
                 ? new DashboardSnapshot(0, 0, 0, 0, 0, 0, 0, null)
                 : snapshot;
@@ -143,6 +159,15 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
 
     @Override
     public SubjectPage subjects(int tenantId, int pageNo, int pageSize, String keyword, String riskLevel) {
+        return subjectsScoped(tenantId, null, pageNo, pageSize, keyword, riskLevel);
+    }
+
+    @Override
+    public SubjectPage subjects(int tenantId, String managerUserId, int pageNo, int pageSize, String keyword, String riskLevel) {
+        return subjectsScoped(tenantId, managerUserId, pageNo, pageSize, keyword, riskLevel);
+    }
+
+    private SubjectPage subjectsScoped(int tenantId, String managerUserId, int pageNo, int pageSize, String keyword, String riskLevel) {
         String keywordLike = keyword == null ? null : "%" + escapeLike(keyword) + "%";
         String filters = """
                 WHERE (? IS NULL OR profile.name LIKE ? ESCAPE '!' OR ts.subject_id = ?)
@@ -155,6 +180,8 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
                 countSql,
                 Long.class,
                 tenantId,
+                managerUserId,
+                managerUserId,
                 keyword,
                 keywordLike,
                 keyword,
@@ -191,6 +218,8 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
                 pageSql,
                 (resultSet, rowNum) -> mapSubject(resultSet),
                 tenantId,
+                managerUserId,
+                managerUserId,
                 keyword,
                 keywordLike,
                 keyword,
@@ -204,6 +233,15 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
 
     @Override
     public Optional<SubjectSnapshot> subject(int tenantId, String subjectId) {
+        return subjectScoped(tenantId, null, subjectId);
+    }
+
+    @Override
+    public Optional<SubjectSnapshot> subject(int tenantId, String managerUserId, String subjectId) {
+        return subjectScoped(tenantId, managerUserId, subjectId);
+    }
+
+    private Optional<SubjectSnapshot> subjectScoped(int tenantId, String managerUserId, String subjectId) {
         String sql = SUBJECT_CTE + """
                 SELECT ts.subject_id, profile.name, profile.age, profile.gender, profile.bmi,
                        r.is_mock AS risk_is_mock, r.risk_score, r.risk_level, r.model_version,
@@ -215,7 +253,7 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
                 WHERE ts.subject_id = ?
                 LIMIT 1
                 """;
-        return jdbc.query(sql, (resultSet, rowNum) -> mapSubject(resultSet), tenantId, subjectId)
+        return jdbc.query(sql, (resultSet, rowNum) -> mapSubject(resultSet), tenantId, managerUserId, managerUserId, subjectId)
                 .stream()
                 .findFirst();
     }

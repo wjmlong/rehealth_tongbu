@@ -7,7 +7,7 @@ INSERT INTO sys_role (
 )
 SELECT
     '8f0c4e2a1d3b47f6a9c5e712b084d632',
-    'Insurance Analyst',
+    '保险分析员',
     'insurer_analyst',
     'Read-only ReHealth insurance risk workspace role',
     'migration',
@@ -22,7 +22,7 @@ INSERT INTO sys_role (
 )
 SELECT
     '8f0c4e2a1d3b47f6a9c5e712b084d633',
-    'Insurance Operator',
+    '保险运营员',
     'insurance_operator',
     'Read-only ReHealth insurance operations workspace role',
     'migration',

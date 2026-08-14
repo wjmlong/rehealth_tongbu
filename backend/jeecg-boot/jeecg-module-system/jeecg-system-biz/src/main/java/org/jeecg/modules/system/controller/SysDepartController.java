@@ -17,16 +17,19 @@ import org.jeecg.common.system.util.JwtUtil;
 import org.jeecg.common.system.vo.LoginUser;
 import org.jeecg.common.util.ImportExcelUtil;
 import org.jeecg.common.util.RedisUtil;
+import org.jeecg.common.util.TokenUtils;
 import org.jeecg.common.util.oConvertUtils;
 import org.jeecg.config.mybatis.MybatisPlusSaasConfig;
 import org.jeecg.modules.system.entity.SysDepart;
 import org.jeecg.modules.system.entity.SysUser;
+import org.jeecg.modules.system.entity.SysUserTenant;
 import org.jeecg.modules.system.excelstyle.ExcelExportSysUserStyle;
 import org.jeecg.modules.system.model.DepartIdModel;
 import org.jeecg.modules.system.model.SysDepartTreeModel;
 import org.jeecg.modules.system.service.ISysDepartService;
 import org.jeecg.modules.system.service.ISysUserDepartService;
 import org.jeecg.modules.system.service.ISysUserService;
+import org.jeecg.modules.system.service.ISysUserTenantService;
 import org.jeecg.modules.system.vo.SysChangeDepartVo;
 import org.jeecg.modules.system.vo.SysDepartExportVo;
 import org.jeecg.modules.system.vo.SysPositionSelectTreeVo;
@@ -70,6 +73,8 @@ public class SysDepartController {
 	private ISysUserService sysUserService;
 	@Autowired
 	private ISysUserDepartService sysUserDepartService;
+	@Autowired
+	private ISysUserTenantService sysUserTenantService;
 	@Autowired
 	private RedisUtil redisUtil;
 	/**
@@ -216,17 +221,47 @@ public class SysDepartController {
 		Result<SysDepart> result = new Result<SysDepart>();
 		String username = JwtUtil.getUserNameByToken(request);
 		try {
+			bindAndValidateDepartmentTenant(sysDepart, username, request);
 			sysDepart.setCreateBy(username);
 			sysDepartService.saveDepartData(sysDepart, username);
 			//清除部门树内存
 			// FindsDepartsChildrenUtil.clearSysDepartTreeList();
 			// FindsDepartsChildrenUtil.clearDepartIdModel();
 			result.success("添加成功！");
+		} catch (IllegalArgumentException e) {
+			log.warn("Rejected department creation for user {}: {}", username, e.getMessage());
+			result.error500(e.getMessage());
 		} catch (Exception e) {
 			log.error(e.getMessage(),e);
-			result.error500("操作失败");
+			result.error500("操作失败，请确认当前租户的部门编码迁移已执行");
 		}
 		return result;
+	}
+
+	/**
+	 * Department writes use the selected tenant from the authenticated request.
+	 * A positive tenant must be an active tenant membership for the current user;
+	 * tenant 0 keeps the existing platform-administration behaviour.
+	 */
+	private void bindAndValidateDepartmentTenant(SysDepart sysDepart, String username, HttpServletRequest request) {
+		Integer tenantId = oConvertUtils.getInteger(TokenUtils.getTenantIdByRequest(request), 0);
+		if (tenantId < 0) {
+			throw new IllegalArgumentException("当前租户无效，请重新选择租户");
+		}
+		if (tenantId > 0) {
+			SysUser user = sysUserService.getUserByName(username);
+			if (user == null) {
+				throw new IllegalArgumentException("当前登录账号不存在");
+			}
+			long membershipCount = sysUserTenantService.count(new LambdaQueryWrapper<SysUserTenant>()
+					.eq(SysUserTenant::getUserId, user.getId())
+					.eq(SysUserTenant::getTenantId, tenantId)
+					.eq(SysUserTenant::getStatus, CommonConstant.STATUS_1));
+			if (membershipCount == 0) {
+				throw new IllegalArgumentException("当前账号不属于所选租户或租户成员状态不可用");
+			}
+		}
+		sysDepart.setTenantId(tenantId);
 	}
 
 	/**
@@ -240,6 +275,12 @@ public class SysDepartController {
 	@CacheEvict(value= {CacheConstant.SYS_DEPARTS_CACHE,CacheConstant.SYS_DEPART_IDS_CACHE}, allEntries=true)
 	public Result<SysDepart> edit(@RequestBody SysDepart sysDepart, HttpServletRequest request) {
 		String username = JwtUtil.getUserNameByToken(request);
+		try {
+			bindAndValidateDepartmentTenant(sysDepart, username, request);
+		} catch (IllegalArgumentException e) {
+			log.warn("Rejected department update for user {}: {}", username, e.getMessage());
+			return Result.error(e.getMessage());
+		}
 		sysDepart.setUpdateBy(username);
 		Result<SysDepart> result = new Result<SysDepart>();
 		SysDepart sysDepartEntity = sysDepartService.getById(sysDepart.getId());

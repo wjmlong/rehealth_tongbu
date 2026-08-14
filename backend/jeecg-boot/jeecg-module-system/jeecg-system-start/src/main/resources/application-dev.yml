@@ -151,16 +151,16 @@ spring:
           slow-sql-millis: 5000
       datasource:
         master:
-          url: jdbc:mysql://127.0.0.1:3306/jeecg-boot?characterEncoding=UTF-8&useUnicode=true&useSSL=false&tinyInt1isBit=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
-          username: root
-          password: root
+          url: ${REHEALTH_LOCAL_DB_URL:jdbc:mysql://127.0.0.1:3306/jeecg-boot?characterEncoding=UTF-8&useUnicode=true&useSSL=false&tinyInt1isBit=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai}
+          username: ${REHEALTH_LOCAL_DB_USERNAME:root}
+          password: ${REHEALTH_LOCAL_DB_PASSWORD:root}
           driver-class-name: com.mysql.cj.jdbc.Driver
         # Separate ReHealth telemetry store. Apply the module's hardware V1 SQL
         # before setting REHEALTH_HARDWARE_DB_ENABLED=true.
         hardware:
-          url: ${REHEALTH_HARDWARE_DB_URL:jdbc:mysql://127.0.0.1:3306/rehealth_hardware?characterEncoding=UTF-8&useUnicode=true&useSSL=false&tinyInt1isBit=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai}
-          username: ${REHEALTH_HARDWARE_DB_USERNAME:root}
-          password: ${REHEALTH_HARDWARE_DB_PASSWORD:root}
+          url: ${REHEALTH_HARDWARE_DB_URL:${REHEALTH_LOCAL_DB_URL:jdbc:mysql://127.0.0.1:3306/rehealth_hardware?characterEncoding=UTF-8&useUnicode=true&useSSL=false&tinyInt1isBit=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai}}
+          username: ${REHEALTH_HARDWARE_DB_USERNAME:${REHEALTH_LOCAL_DB_USERNAME:root}}
+          password: ${REHEALTH_HARDWARE_DB_PASSWORD:${REHEALTH_LOCAL_DB_PASSWORD:root}}
           driver-class-name: com.mysql.cj.jdbc.Driver
 #        # shardingjdbc数据源
 #        sharding-db:
@@ -172,7 +172,7 @@ spring:
       database: 0
       host: 127.0.0.1
       port: 6379
-      password:
+      password: ${REHEALTH_LOCAL_REDIS_PASSWORD:}
 #mybatis plus 设置
 mybatis-plus:
   mapper-locations: classpath*:org/jeecg/**/xml/*Mapper.xml
@@ -360,8 +360,8 @@ jeecg:
     logRetentionDays: 30
   #分布式锁配置
   redisson:
-    address: 127.0.0.1:6379
-    password:
+    address: ${REHEALTH_LOCAL_REDIS_ADDRESS:127.0.0.1:6379}
+    password: ${REHEALTH_LOCAL_REDIS_PASSWORD:}
     type: STANDALONE
     enabled: true
   # 百度开放API配置

@@ -24,6 +24,8 @@ CONTROLLER_ROOT: Final = ROOT / "backend" / "jeecg-boot" / "jeecg-boot-module" /
 CONTROLLERS: Final = (
     CONTROLLER_ROOT / "ReHealthMobileController.java",
     CONTROLLER_ROOT / "HealthAgentController.java",
+    CONTROLLER_ROOT / "BehaviorRecordController.java",
+    ROOT / "backend" / "jeecg-boot" / "jeecg-boot-module" / "jeecg-module-rehealth" / "src" / "main" / "java" / "org" / "jeecg" / "modules" / "rehealth" / "insurance" / "InsuranceMobilePlanController.java",
 )
 DTO_ROOT: Final = CONTROLLER_ROOT.parent / "dto"
 FORBIDDEN_KEYS: Final = {
@@ -135,7 +137,10 @@ def controller_routes() -> set[tuple[str, str]]:
         prefix = prefix_match.group(1)
         routes.update(
             (method.upper(), prefix + path)
-            for method, path in re.findall(r'@(Get|Post|Put|Delete)Mapping\("([^"]+)"\)', source)
+            for method, path in re.findall(
+                r'@(Get|Post|Put|Delete)Mapping\((?:value\s*=\s*)?"([^"]+)"',
+                source,
+            )
         )
     return routes
 

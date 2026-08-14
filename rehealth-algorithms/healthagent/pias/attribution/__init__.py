@@ -12,9 +12,14 @@ statistical rigor and Chinese regulatory compliance.
 from .individual import IndividualAttributor
 from .group import GroupAttributor
 from .report import AttributionReport
+from .psm import CVD_BASELINE_FEATURES, LEGACY_MATCHING_FEATURES, PSMConfig, PSMEngine
 
 __all__ = [
     "IndividualAttributor",
     "GroupAttributor",
     "AttributionReport",
+    "PSMConfig",
+    "PSMEngine",
+    "CVD_BASELINE_FEATURES",
+    "LEGACY_MATCHING_FEATURES",
 ]

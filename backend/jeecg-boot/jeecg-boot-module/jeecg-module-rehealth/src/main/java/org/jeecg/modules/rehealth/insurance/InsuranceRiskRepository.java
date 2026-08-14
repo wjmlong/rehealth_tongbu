@@ -8,9 +8,21 @@ import java.util.Optional;
 public interface InsuranceRiskRepository {
     DashboardSnapshot dashboard(int tenantId);
 
+    default DashboardSnapshot dashboard(int tenantId, String managerUserId) {
+        return dashboard(tenantId);
+    }
+
     SubjectPage subjects(int tenantId, int pageNo, int pageSize, String keyword, String riskLevel);
 
+    default SubjectPage subjects(int tenantId, String managerUserId, int pageNo, int pageSize, String keyword, String riskLevel) {
+        return subjects(tenantId, pageNo, pageSize, keyword, riskLevel);
+    }
+
     Optional<SubjectSnapshot> subject(int tenantId, String subjectId);
+
+    default Optional<SubjectSnapshot> subject(int tenantId, String managerUserId, String subjectId) {
+        return subject(tenantId, subjectId);
+    }
 
     record DashboardSnapshot(
             long totalInsured,
