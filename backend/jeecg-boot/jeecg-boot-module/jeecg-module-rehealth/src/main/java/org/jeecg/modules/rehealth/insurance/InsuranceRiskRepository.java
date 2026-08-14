@@ -69,6 +69,8 @@ public interface InsuranceRiskRepository {
             Integer age,
             String gender,
             BigDecimal bmi,
+            String productName,
+            String channelName,
             Boolean riskMock,
             Double riskScore,
             String riskLevel,
@@ -79,6 +81,27 @@ public interface InsuranceRiskRepository {
             String interventionSummary,
             Timestamp interventionGeneratedAt
     ) {
+        public SubjectSnapshot(
+                String subjectId,
+                String name,
+                Integer age,
+                String gender,
+                BigDecimal bmi,
+                Boolean riskMock,
+                Double riskScore,
+                String riskLevel,
+                String modelVersion,
+                Timestamp evaluatedAt,
+                String contributionJson,
+                Boolean interventionMock,
+                String interventionSummary,
+                Timestamp interventionGeneratedAt
+        ) {
+            this(subjectId, name, age, gender, bmi, null, null, riskMock, riskScore,
+                    riskLevel, modelVersion, evaluatedAt, contributionJson,
+                    interventionMock, interventionSummary, interventionGeneratedAt);
+        }
+
         public boolean hasRisk() {
             return evaluatedAt != null;
         }

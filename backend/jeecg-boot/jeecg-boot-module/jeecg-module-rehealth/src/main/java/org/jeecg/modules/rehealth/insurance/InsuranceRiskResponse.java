@@ -99,6 +99,8 @@ public final class InsuranceRiskResponse {
             Integer age,
             String gender,
             BigDecimal bmi,
+            @JsonProperty("product_name") String productName,
+            @JsonProperty("channel_name") String channelName,
             Risk risk,
             Intervention intervention,
             SubjectBusiness business

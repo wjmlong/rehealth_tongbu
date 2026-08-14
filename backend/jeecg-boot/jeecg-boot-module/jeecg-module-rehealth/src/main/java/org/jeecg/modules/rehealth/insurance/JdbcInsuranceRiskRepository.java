@@ -16,6 +16,7 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
     private static final String TENANT_AND_RISK_CTE = """
             WITH tenant_subject AS (
                 SELECT DISTINCT
+                       insurance_subject.tenant_id AS tenant_id,
                        insurance_subject.rehealth_user_id AS internal_user_id,
                        insurance_subject.subject_ref AS subject_id
                 FROM rehealth_insurance_subject insurance_subject
@@ -76,6 +77,19 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
                     ORDER BY candidate.generated_at DESC, candidate.id DESC
                     LIMIT 1
                 )
+            ), latest_policy AS (
+                SELECT p.product_name, ts.internal_user_id AS policy_user_id,
+                       JSON_UNQUOTE(JSON_EXTRACT(p.metadata_json, '$.channel')) AS channel_name
+                FROM tenant_subject ts
+                INNER JOIN rehealth_insurance_policy p ON p.id = (
+                    SELECT candidate.id
+                    FROM rehealth_insurance_policy candidate
+                    WHERE candidate.tenant_id = ts.tenant_id
+                      AND candidate.insured_subject_ref = ts.subject_id
+                      AND candidate.status = 'active'
+                    ORDER BY candidate.effective_on DESC, candidate.created_at DESC, candidate.id DESC
+                    LIMIT 1
+                )
             )
             """;
 
@@ -96,6 +110,8 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
                 ON r.user_id = ts.internal_user_id COLLATE utf8mb4_0900_ai_ci
             LEFT JOIN latest_intervention intervention
                 ON intervention.user_id = ts.internal_user_id COLLATE utf8mb4_0900_ai_ci
+            LEFT JOIN latest_policy policy
+                ON policy.policy_user_id = ts.internal_user_id COLLATE utf8mb4_0900_ai_ci
             """;
 
     private final JdbcTemplate jdbc;
@@ -191,6 +207,7 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
 
         String pageSql = SUBJECT_CTE + """
                 SELECT ts.subject_id, profile.name, profile.age, profile.gender, profile.bmi,
+                       policy.product_name, policy.channel_name,
                        r.is_mock AS risk_is_mock, r.risk_score, r.risk_level, r.model_version,
                        r.evaluated_at, r.contribution_json,
                        intervention.is_mock AS intervention_is_mock,
@@ -244,6 +261,7 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
     private Optional<SubjectSnapshot> subjectScoped(int tenantId, String managerUserId, String subjectId) {
         String sql = SUBJECT_CTE + """
                 SELECT ts.subject_id, profile.name, profile.age, profile.gender, profile.bmi,
+                       policy.product_name, policy.channel_name,
                        r.is_mock AS risk_is_mock, r.risk_score, r.risk_level, r.model_version,
                        r.evaluated_at, r.contribution_json,
                        intervention.is_mock AS intervention_is_mock,
@@ -265,6 +283,8 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
                 nullableInteger(resultSet, "age"),
                 resultSet.getString("gender"),
                 resultSet.getBigDecimal("bmi"),
+                resultSet.getString("product_name"),
+                resultSet.getString("channel_name"),
                 nullableBoolean(resultSet, "risk_is_mock"),
                 nullableDouble(resultSet, "risk_score"),
                 resultSet.getString("risk_level"),

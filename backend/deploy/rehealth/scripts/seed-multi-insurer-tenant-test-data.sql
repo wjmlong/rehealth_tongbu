@@ -97,6 +97,36 @@ VALUES
     (9102, 'local_ins_shared_auditor', '三机构共享合规审计员', 'b98538e991481b7eb7a1c587ac766f293752cd4e0e24dd29ee5570bd41de73c8', '00091990001', 'auditor.shared@local.rehealth.invalid', 2, 'ROOT', 'insurer_auditor', '1', 919901),
     (9103, 'local_ins_shared_auditor', '三机构共享合规审计员', 'b98538e991481b7eb7a1c587ac766f293752cd4e0e24dd29ee5570bd41de73c8', '00091990001', 'auditor.shared@local.rehealth.invalid', 2, 'ROOT', 'insurer_auditor', '1', 919901);
 
+-- Use natural-looking names in the UI while stable LOCAL QA usernames,
+-- reserved .invalid email addresses, and non-routable phones keep the
+-- fixtures unmistakably non-production.
+UPDATE tmp_local_insurer_people
+SET realname = CASE username
+    WHEN 'local_ins_9101_admin' THEN '林书瑶'
+    WHEN 'local_ins_9101_mgr_health' THEN '周启明'
+    WHEN 'local_ins_9101_mgr_risk' THEN '宋雨桐'
+    WHEN 'local_ins_9101_analyst' THEN '陈一帆'
+    WHEN 'local_ins_9101_operator' THEN '何静'
+    WHEN 'local_ins_9101_viewer' THEN '罗文博'
+    WHEN 'local_ins_9101_invitee' THEN '郑欣怡'
+    WHEN 'local_ins_9102_admin' THEN '王景川'
+    WHEN 'local_ins_9102_mgr_health' THEN '赵文静'
+    WHEN 'local_ins_9102_mgr_risk' THEN '孙浩然'
+    WHEN 'local_ins_9102_analyst' THEN '刘思齐'
+    WHEN 'local_ins_9102_operator' THEN '蒋婉清'
+    WHEN 'local_ins_9102_viewer' THEN '杜嘉诚'
+    WHEN 'local_ins_9102_invitee' THEN '方雅雯'
+    WHEN 'local_ins_9103_admin' THEN '许安然'
+    WHEN 'local_ins_9103_mgr_health' THEN '顾承泽'
+    WHEN 'local_ins_9103_mgr_risk' THEN '唐敏'
+    WHEN 'local_ins_9103_analyst' THEN '梁知行'
+    WHEN 'local_ins_9103_operator' THEN '邱若琳'
+    WHEN 'local_ins_9103_viewer' THEN '韩泽宇'
+    WHEN 'local_ins_9103_invitee' THEN '姚清宁'
+    WHEN 'local_ins_shared_auditor' THEN '秦悦'
+    ELSE realname
+END;
+
 START TRANSACTION;
 
 INSERT INTO sys_tenant (

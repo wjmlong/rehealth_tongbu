@@ -143,6 +143,8 @@ public class InsuranceRiskService {
                 snapshot.age(),
                 normalizeGender(snapshot.gender()),
                 snapshot.bmi(),
+                snapshot.productName(),
+                snapshot.channelName(),
                 risk(snapshot),
                 intervention(snapshot),
                 SubjectBusiness.unavailable()
@@ -159,6 +161,8 @@ public class InsuranceRiskService {
                 snapshot.age(),
                 normalizeGender(snapshot.gender()),
                 snapshot.bmi(),
+                snapshot.productName(),
+                snapshot.channelName(),
                 risk(snapshot),
                 intervention(snapshot),
                 subjectBusiness(business)
