@@ -1,7 +1,7 @@
 # 保险机构员工与 APP 用户跨机构服务匹配分析
 
 > 文档状态：讨论稿（Living Document）  
-> 当前版本：0.2
+> 当前版本：0.3
 > 首次整理：2026-08-14  
 > 适用范围：保险机构优先；医疗机构等其他机构暂不实现，但 APP 用户与机构服务关系按多机构、多类型基础设计
 > 更新方式：后续产品、权限和数据口径讨论统一修改本文，不另建平行分析文档
@@ -31,7 +31,7 @@
 - `sys_user_tenant` 表示机构员工可以进入哪些机构后台，不用于表达 APP 用户接受服务；
 - `sys_user_role.tenant_id` 表示机构员工在某个租户内拥有什么后台角色；
 - 通用服务登记表示某个 APP 用户正在接受哪家机构的哪项服务；
-- `rehealth_insurance_subject` 表示 APP 用户在某一家保险机构内的匿名投保人身份；
+- `rehealth_insurance_subject` 表示 APP 用户在某一家保险机构内的投保人业务身份；
 - `rehealth_insurance_subject_manager` 表示某个保险员工负责哪些投保人。
 
 同一个账号既是某机构员工又接受某机构服务时，只是同时存在“后台员工关系”和“APP 服务登记”，
@@ -42,15 +42,17 @@
 推荐的负责关系是：
 
 ```text
-保险租户 tenant_id
-  + 保险员工 manager_user_id
-  + 员工所属部门 department_id
-  + APP 用户在该租户内的 subject_ref
-  = 一条负责人分配关系
+服务机构 provider_tenant_id
+  + 机构服务 service_id
+  + 负责人员 responsible_user_id
+  + 负责人员在该机构的专业角色 role_code
+  + 被负责 APP 用户 target_user_id
+  = 一条用户负责关系
 ```
 
-不能只用手机号、姓名、全局 `user_id` 或部门名称建立负责关系。所有查询至少同时包含
-`tenant_id`，保险业务查询使用租户内 `subject_ref`，避免跨机构串数。
+投保人不要求匿名，授权员工可以按业务需要看到姓名等可识别信息。数据库负责关系可以直接使用
+稳定的 `target_user_id`，但不能只用手机号、姓名或部门名称匹配。所有查询仍必须包含服务机构和
+服务范围；知道一个全局用户 ID 不等于有权读取该用户在其他机构的数据。
 
 ### 2.3 APP 用户与服务机构是多对多关系
 
@@ -58,14 +60,14 @@
 
 ```text
 用户 U100
-├─ 9101 睿安保险：保险服务登记 -> subject_ref_A -> 保单 A / 授权 A / 计划 A
-├─ 9102 康泰人寿：保险服务登记 -> subject_ref_B -> 保单 B / 授权 B / 计划 B
+├─ 9101 睿安保险：保险服务登记 -> 投保人记录 A -> 保单 A / 授权 A / 计划 A
+├─ 9102 康泰人寿：保险服务登记 -> 投保人记录 B -> 保单 B / 授权 B / 计划 B
 ├─ 9201 某医疗机构：医疗服务登记（后续领域实现）
 └─ 9103 华宁财险：机构员工后台关系 -> insurer_analyst
 ```
 
-`subject_ref_A` 与 `subject_ref_B` 必须不同。停用其中一家机构的服务登记，不得停用
-全局账号，也不得影响用户在其他保险、医疗机构的服务或任何机构员工身份。
+保险机构内的投保人记录、保单、授权和负责人关系仍相互隔离。停用其中一家机构的服务登记，
+不得停用全局账号，也不得影响用户在其他保险、医疗机构的服务或任何机构员工身份。
 
 ## 3. 角色与主体定义
 
@@ -85,6 +87,49 @@
 仅使用 APP 服务的用户不应因为接受保险或医疗服务而获得 `sys_user_tenant`；当前保险移动接口
 仍要求 APP 用户具备有效租户成员关系，这是需要迁移的现状限制。
 
+### 3.1 给 APP 账号增加角色的可行性
+
+可行，但角色分为两层：
+
+| 角色层级 | 示例 | 作用域 | 用途 |
+| --- | --- | --- | --- |
+| APP 基础角色 | `app_user` | 平台级，可使用 `tenant_id=0` 或等价平台范围 | 表示账号可以使用 APP，不表示接受了哪家机构服务 |
+| 机构专业角色 | `insurance_department_manager`、`insurance_operator`、未来 `medical_doctor`、`medical_nurse` | 必须带机构 `tenant_id` | 决定该人员可以在 APP 或后台执行哪些专业操作 |
+
+普通投保人、患者或其他服务接受者只需要 `app_user` 和服务登记，不授予保险或医疗专业角色。
+需要在 APP 中查询、随访或管理其他 APP 用户的保险员工、医生等人员，使用同一个 `sys_user`
+账号，并在对应机构下授予专业角色。
+
+是否允许某角色通过 APP、WEB 或两端使用，建议在角色或权限模板中增加客户端范围：
+
+```text
+client_scope = APP / WEB / BOTH
+```
+
+不能仅凭“拥有保险角色”返回本机构全部 APP 用户。最终数据范围必须是：
+
+```text
+机构专业角色允许的操作
+  AND 当前人员与目标 APP 用户之间存在有效负责关系
+  AND 目标用户正在接受当前机构的对应服务
+```
+
+示例：
+
+```text
+U100：app_user
+      -> 接受 9101 保险服务
+      -> 接受 9201 医疗服务
+
+U200：app_user
+      + 9101 / insurance_department_manager / BOTH
+      -> 只查询 9101 分配给 U200 的 APP 用户
+
+U300：app_user
+      + 9201 / medical_doctor / BOTH（未来）
+      -> 只查询 9201 分配给 U300 的患者
+```
+
 ## 4. 当前实现分析
 
 ### 4.1 已具备的基础
@@ -96,7 +141,7 @@
 4. `rehealth_insurance_subject` 已使用 `(tenant_id, rehealth_user_id)` 唯一约束，允许
    同一个 APP 用户在多个保险租户中分别建立投保人身份；
 5. 保单、授权、计划绑定和反馈均包含 `tenant_id` 与 `subject_ref`；
-6. `rehealth_insurance_subject_manager` 已包含租户、负责人、部门和投保人匿名引用；
+6. `rehealth_insurance_subject_manager` 已包含租户、负责人、部门和投保人技术引用；
 7. 风险工作台对 `insurance_department_manager` 使用负责人表进行 SQL 层过滤；
 8. APP 保险计划绑定会校验当前账号、租户成员关系、投保人映射、有效保单和授权；
 9. 停用某租户成员关系时不会停用全局账号；但当前 APP 服务也会随该成员关系失效，说明安全
@@ -131,9 +176,10 @@ flowchart LR
 | G-05 | 当前只有部门经理自动启用个人负责范围；分析员、运营员、查看员通常按租户范围读取 | 角色范围与实际业务责任可能不一致 | P1 |
 | G-06 | APP 缺少跨保险、医疗等机构的“我的服务”统一列表和服务切换流程 | 多机构用户难以明确选择当前服务上下文 | P1 |
 | G-07 | 负责人表缺少分配类型、有效期、分配人和变更原因 | 无法完整表达主负责人、协作人、转交和历史审计 | P1 |
-| G-08 | 当前匿名引用依赖确定性 SHA-256 规则 | 建议评估版本化、带服务端密钥的 HMAC，降低离线关联风险 | P1 |
+| G-08 | 当前保险负责关系只面向 `subject_ref`，缺少可供保险、医疗等角色共用的 APP 用户负责关系 | 后续不同专业角色无法统一按 `target_user_id` 查询其负责用户 | P0 |
 | G-09 | 尚无团体客户企业与其员工的独立业务维度 | 团体险场景只能识别投保人，不能按企业客户分组 | P2 |
 | G-10 | `sys_tenant` 之外缺少统一的机构类型和服务目录 | 后续医疗等机构无法复用一致的 APP 服务发现与登记流程 | P1 |
+| G-11 | 角色没有明确 APP / WEB 客户端适用范围 | 无法安全决定哪些机构员工角色可以进入 APP 专业工作台 | P1 |
 
 ## 5. 推荐目标模型
 
@@ -212,19 +258,40 @@ INDEX  (service_id, status)
 ```
 
 其中个人健康档案、设备绑定和原始健康数据仍归全局 APP 用户所有，不复制到每家保险机构。
-保险机构只读取在明确授权和用途范围内形成的匿名化、最小化业务投影。
+投保人不要求匿名；具备权限且确有负责关系的保险员工可以读取业务需要的可识别资料。保险机构
+仍只能读取明确授权、当前职责和用途范围内的最小必要数据。
 
-### 5.4 扩展负责人分配语义
+### 5.4 新增通用 APP 用户负责关系
 
-建议在现有 `rehealth_insurance_subject_manager` 基础上增加：
+为了让保险角色和后续医疗角色都能按当前登录人员查询其负责的 APP 用户，建议新增通用负责关系：
 
 ```text
-assignment_role    PRIMARY_MANAGER / COLLABORATOR / REVIEWER
+rehealth_service_user_assignment
+----------------------------------
+id
+provider_tenant_id
+service_id
+responsible_user_id
+responsible_role_code
+target_user_id
+department_id
+responsibility_type  PRIMARY / COLLABORATOR / REVIEWER / CARE_MEMBER
+status               ACTIVE / SUSPENDED / ENDED
 assigned_by
 assigned_at
 effective_from
 effective_to
 change_reason
+
+UNIQUE (
+  provider_tenant_id,
+  service_id,
+  responsible_user_id,
+  target_user_id,
+  responsibility_type
+)
+INDEX (provider_tenant_id, responsible_user_id, responsible_role_code, status)
+INDEX (provider_tenant_id, target_user_id, status)
 ```
 
 负责人写入必须同时验证：
@@ -232,13 +299,32 @@ change_reason
 1. 操作人属于当前租户并具备负责人维护权限；
 2. 被分配员工在当前租户具有有效 `sys_user_tenant` 后台成员关系；
 3. 被分配员工属于当前租户拥有的部门；
-4. 被分配员工具有允许承担该分配类型的保险角色；
-5. `subject_ref` 属于当前租户且投保人关系有效；
-6. 所有租户 ID 一致；
-7. 转交时保留旧记录历史，不直接物理删除。
+4. 被分配员工当前拥有 `responsible_role_code`，且该角色允许 APP 或 BOTH 客户端；
+5. `target_user_id` 存在当前机构、当前 `service_id` 的有效服务登记；
+6. 保险服务还要验证投保人、保单和授权，未来医疗服务验证患者和医疗授权；
+7. 所有机构和服务 ID 一致；
+8. 转交时保留旧记录历史，不直接物理删除。
 
-当前唯一键允许同一投保人关联多名员工，适合协作场景；如果业务规定只能有一名主负责人，
-还需要增加“同一租户、同一投保人只能有一个有效 `PRIMARY_MANAGER`”约束或事务锁定校验。
+员工查询负责用户时必须同时匹配当前认证账号、当前机构角色和有效负责关系：
+
+```sql
+WHERE assignment.provider_tenant_id = :currentTenantId
+  AND assignment.responsible_user_id = :currentUserId
+  AND assignment.responsible_role_code IN (:currentTenantRoleCodes)
+  AND assignment.status = 'ACTIVE'
+  AND enrollment.user_id = assignment.target_user_id
+  AND enrollment.service_id = assignment.service_id
+  AND enrollment.status = 'ACTIVE'
+```
+
+角色决定是否有“查询负责用户”的能力，负责关系决定具体能查询哪些用户，两者缺一不可。
+
+现有 `rehealth_insurance_subject_manager` 可作为保险兼容表，通过
+`rehealth_insurance_subject.rehealth_user_id` 映射到 `target_user_id`。实现通用负责关系后，可选择
+迁移历史分配或在过渡期双写；它不再作为医疗等其他机构的通用模型。
+
+通用唯一键允许同一 APP 用户关联多名专业人员，适合协作和医疗团队场景；如果某项服务规定只能
+有一名主负责人，还需要增加“同一机构、服务和目标用户只能有一个有效 `PRIMARY`”约束或事务锁定校验。
 
 ## 6. 匹配流程
 
@@ -264,9 +350,9 @@ change_reason
 ```text
 机构管理员进入当前保险租户
   -> 只查询当前租户后台员工
-  -> 选择具备负责人资格的员工和本租户部门
-  -> 只查询本租户已生效的 subject_ref
-  -> 创建 PRIMARY_MANAGER 或协作关系
+  -> 选择具备 APP/BOTH 保险专业角色的员工和本租户部门
+  -> 只查询正在接受本机构保险服务的 APP 用户
+  -> 使用 target_user_id 创建 PRIMARY 或协作关系
   -> 写入分配操作审计
 ```
 
@@ -282,9 +368,11 @@ change_reason
 账号有效
 AND 当前保险租户有效
 AND 当前员工的 sys_user_tenant 有效
-AND 当前租户角色拥有接口权限
+AND 当前租户专业角色拥有 APP 查询权限
+AND 存在 responsible_user_id = 当前员工的有效负责关系
+AND 负责关系的 responsible_role_code 仍是当前员工有效角色
+AND 目标 APP 用户仍在接受负责关系指定的机构服务
 AND 数据记录 tenant_id = 当前租户
-AND （角色允许租户全量 OR 存在有效负责人/协作分配）
 AND 数据用途在 APP 用户授权范围内
 ```
 
@@ -310,17 +398,19 @@ APP 登录后应提供“我的服务”，而不是把 `login_tenant_id` 当成
 
 下表中的“目标范围”是建议方案，尚未全部实现：
 
-| 角色 | 当前主要范围 | 建议目标范围 |
-| --- | --- | --- |
-| `insurance_org_admin` | 当前租户机构设置与成员维护，风险查询通常是租户范围 | 管理员工和分配；业务数据按最小必要原则，可查看租户总览 |
-| `insurance_department_manager` | 已按 `rehealth_insurance_subject_manager` 限制到负责对象 | 保持个人负责范围，可增加部门汇总但不默认扩大明细 |
-| `insurer_analyst` | 有接口权限时通常是租户范围 | 产品确认后选择租户聚合、部门范围或显式分析队列 |
-| `insurance_operator` | 导入和运营类租户权限 | 仅处理被授权业务流程，直接身份字段按需脱敏 |
-| `insurer_viewer` | 租户只读 | 默认聚合和脱敏，不提供负责人维护 |
-| `insurer_auditor` | 租户审计只读 | 查看授权和操作证据，不默认读取原始健康明细 |
+| 角色 | 当前主要范围 | 建议客户端 | 建议目标范围 |
+| --- | --- | --- | --- |
+| `insurance_org_admin` | 当前租户机构设置与成员维护，风险查询通常是租户范围 | WEB | 管理员工和分配；业务数据按最小必要原则，可查看租户总览 |
+| `insurance_department_manager` | 已按 `rehealth_insurance_subject_manager` 限制到负责对象 | BOTH | 在 APP/WEB 查询通用负责关系分配给自己的用户 |
+| `insurer_analyst` | 有接口权限时通常是租户范围 | WEB 或 BOTH，待确认 | 产品确认后选择租户聚合、部门范围或显式分析队列 |
+| `insurance_operator` | 导入和运营类租户权限 | BOTH | 仅处理分配给自己的运营用户或被授权业务流程 |
+| `insurer_viewer` | 租户只读 | WEB | 默认机构汇总，不提供负责人维护 |
+| `insurer_auditor` | 租户审计只读 | WEB | 查看授权和操作证据，不默认读取健康明细 |
+| `medical_doctor`（未来） | 尚未实现 | BOTH | 查询医疗机构分配给自己的患者 |
+| `medical_nurse`（未来） | 尚未实现 | BOTH | 查询分配给自己的随访或护理用户 |
 
-如果业务要求“每一名保险员工只能看自己负责的用户”，应将分析员和运营员也纳入统一的
-分配范围判定，或者建立队列/工作组关系；仅靠角色名称无法表达个人责任范围。
+保险、医疗角色使用不同命名空间和权限模板，但共用“角色能力 + 机构服务 + 负责关系”的查询框架。
+仅靠角色名称无法表达个人责任范围，也不能因为某角色属于 `BOTH` 就自动开放本机构全部用户。
 
 ## 8. 团体保险与企业员工场景
 
@@ -331,7 +421,7 @@ APP 登录后应提供“我的服务”，而不是把 `login_tenant_id` 当成
   -> 客户企业
       -> 团体保单
           -> 企业员工 / APP 用户
-              -> 保险投保人 subject_ref
+              -> 保险投保人记录 / app_user_id
                   -> 保险负责人
 ```
 
@@ -349,8 +439,8 @@ rehealth_insurance_client_member
 - id
 - tenant_id
 - client_org_id
-- subject_ref
-- employee_ref_hash
+- app_user_id
+- employee_no
 - status
 ```
 
@@ -361,31 +451,29 @@ rehealth_insurance_client_member
 
 ### 9.1 保险员工可以使用的数据
 
-- 租户内匿名 `subject_ref`；
+- 当前机构投保人的真实姓名、联系方式和投保信息，但必须符合角色职责和负责范围；
 - 已授权的风险等级、趋势和干预执行摘要；
 - 本机构保单、授权、计划和反馈状态；
-- 与岗位职责相符的必要联系方式，且默认脱敏；
 - 负责人分配与操作审计。
 
 ### 9.2 默认不得暴露的数据
 
-- 其他保险机构的 `subject_ref`、保单、授权或负责人；
+- APP 用户在其他保险或医疗机构的服务、保单、就诊、授权或负责人；
 - APP 健康问答原文；
 - 原始 BLE/手表时序数据；
 - 不属于当前用途授权的健康画像；
 - 其他机构的员工角色、部门和服务使用情况；
-- 可用于重新识别用户的跨租户稳定匿名标识。
+- 与当前职责无关的身份证件、联系方式或其他直接身份字段。
 
-### 9.3 匿名引用建议
+### 9.3 可识别投保人与技术关联键
 
-当前风险查询使用租户 ID 与用户 ID 的确定性 SHA-256 规则。后续建议评估：
+产品已确认投保人不需要匿名。目标负责关系直接使用平台 `target_user_id`，保险员工接口可在权限允许时
+关联 `sys_user` 和投保人资料返回真实身份字段。
 
-```text
-subject_ref = HMAC-SHA256(versioned_server_secret, tenant_id + ":" + user_id)
-```
-
-同时保存生成版本，支持密钥轮换和兼容迁移。该调整会影响历史 `subject_ref`、导入、风险查询和
-负责人关系，不能在没有迁移方案时直接替换。
+现有保险表大量使用 `subject_ref`，可以继续保留为内部业务关联键和兼容字段，但不再把它描述为
+隐私匿名边界，也不需要升级为 HMAC。新增通用负责关系不依赖 `subject_ref`；过渡查询通过
+`rehealth_insurance_subject.rehealth_user_id` 与 `target_user_id` 关联。即使返回真实身份，跨机构
+隔离、用途授权、最小权限和访问审计仍必须保留。
 
 ## 10. 推荐 API 边界
 
@@ -398,17 +486,21 @@ subject_ref = HMAC-SHA256(versioned_server_secret, tenant_id + ":" + user_id)
 | `POST` | `/rehealth/mobile/insurance/enrollments` | 使用可信证明申请加入保险服务 |
 | `GET` | `/rehealth/mobile/insurance/plans/current` | 按当前用户和明确租户读取保险计划；现有接口保留 |
 | `POST` | `/rehealth/mobile/insurance/consents/{id}/revoke` | 用户撤回指定机构、指定用途授权 |
+| `GET` | `/rehealth/mobile/professional/assigned-users` | 按当前机构专业角色和有效负责关系查询本人负责的 APP 用户 |
+| `GET` | `/rehealth/mobile/professional/assigned-users/{appUserId}` | 校验角色与负责关系后读取某个负责用户的允许字段 |
 
 ### 10.2 保险后台
 
 | 方法 | 建议路径 | 用途 |
 | --- | --- | --- |
 | `GET` | `/rehealth/insurance/v1/settings/staff` | 只返回当前租户后台员工 |
-| `GET` | `/rehealth/insurance/v1/subjects` | 返回当前角色有权查看的匿名 APP 用户 |
-| `PUT` | `/rehealth/insurance/v1/settings/assignments/{subjectRef}` | 建立或变更负责人关系 |
+| `GET` | `/rehealth/insurance/v1/subjects` | 返回当前角色有权查看的投保人及允许的真实身份字段 |
+| `PUT` | `/rehealth/insurance/v1/settings/assignments/{appUserId}` | 建立或变更保险员工与 APP 用户的负责关系 |
 | `GET` | `/rehealth/insurance/v1/settings/assignments/history` | 查看分配历史和转交审计 |
 
 现有 `/settings/members` 是否保留为员工接口，还是拆分为 `/settings/staff`，需要兼容官网调用后决定。
+现有以 `{subjectRef}` 为参数的负责人接口在迁移期可保留，并在服务端解析为 `target_user_id`；新通用
+负责关系和 APP 专业工作台使用 `appUserId`，不再要求调用方理解保险领域技术引用。
 
 ## 11. 测试数据设计
 
@@ -416,15 +508,17 @@ subject_ref = HMAC-SHA256(versioned_server_secret, tenant_id + ":" + user_id)
 
 | 场景 | 数据 |
 | --- | --- |
-| 基本负责范围 | 每个保险机构登记 12 名 APP 用户，两名部门经理各负责 6 人 |
-| 多保险服务 | 1 个全局 APP 账号同时登记 9101 和 9102 的保险服务，生成不同 `subject_ref` |
+| 基本负责范围 | 每个保险机构登记 12 名 APP 用户，两名具有 APP 保险角色的部门经理各负责 6 人 |
+| 真实身份 | 负责人接口返回合成姓名、手机号等允许字段，不以匿名结果验收 |
+| 多保险服务 | 1 个全局 APP 账号同时登记 9101 和 9102 的保险服务，形成两套独立保险业务记录 |
 | 跨类型机构 | 为同一账号预留保险服务与未来医疗服务并存的通用登记用例，当前不生成医疗业务数据 |
 | 员工与 APP 并存 | 1 个账号在 9101 有后台员工关系，同时在 9102 有 APP 保险服务登记 |
+| 角色与负责范围 | 有保险角色但无分配时返回空列表；有分配但角色被移除后拒绝访问 |
 | 转交 | 1 名投保人从经理 A 转交经理 B，旧分配保留为历史 |
 | 协作 | 1 名投保人同时有主负责人和审阅人 |
 | 授权异常 | 待授权、已撤回授权各 1 人 |
 | 业务异常 | 过期保单、停用租户关系各 1 人 |
-| 越权 | 9101 员工尝试读取 9102 用户必须返回 `403` 或空结果 |
+| 越权 | 9101 员工尝试读取 9102 用户，或篡改 `appUserId` 读取未负责用户，必须返回 `403` 或空结果 |
 
 所有测试数据必须明确标记为合成、非临床、仅限本地，不能用于医疗、核保、理赔或结算决策。
 
@@ -438,38 +532,42 @@ subject_ref = HMAC-SHA256(versioned_server_secret, tenant_id + ":" + user_id)
 4. 根据现有 `rehealth_insurance_subject` 回填保险服务登记；
 5. 先调整 APP 保险接口改查服务登记，再清理仅为 APP 服务兼容而建立的租户成员关系；
 6. 成员管理只返回当前租户后台员工；
-7. 负责人写入校验员工租户关系、角色和租户部门。
+7. 为 APP 账号配置基础 `app_user` 角色，并为机构专业角色定义 `APP / WEB / BOTH` 客户端范围。
 
 ### 阶段 B：补齐多机构 APP 服务
 
 1. 增加“我的服务”查询；
 2. 明确服务切换和租户上下文；
 3. 增加加入、撤回授权和退出服务流程；
-4. 验证同一账号多机构的保单、授权、计划和反馈完全隔离。
+4. 新增 `rehealth_service_user_assignment` 和角色加负责关系查询；
+5. 将现有保险负责人映射迁移或兼容映射到 `target_user_id`；
+6. 增加 APP 专业工作台的本人负责用户列表与详情接口；
+7. 验证同一账号多机构的保单、授权、计划、反馈和负责关系完全隔离。
 
 ### 阶段 C：完善责任范围和审计
 
-1. 增加主负责人、协作者、审阅人；
+1. 增加主负责人、协作者、审阅人和未来医疗团队成员类型；
 2. 增加生效期、转交原因和操作审计；
 3. 决定分析员和运营员是租户范围、部门范围还是分配范围；
 4. 如确认团体险需求，再增加客户企业及企业员工关系。
 
-医疗机构角色、医生患者关系和医疗数据授权不在当前阶段实现，但通用服务登记必须允许
-`institution_type=MEDICAL`。后续医疗领域在该登记之上另建患者、医生和医疗授权关系，不得复用
-保险负责人表硬编码医疗关系。
+医疗机构角色、患者业务关系和医疗数据授权不在当前阶段实现，但通用服务登记和负责关系必须允许
+`institution_type=MEDICAL` 及医疗专业角色。后续医疗领域在该基础上增加患者和医疗授权，不复用
+保险投保人表；医生与患者的基本负责范围可以复用通用 `target_user_id` 分配框架。
 
 ## 13. 验收标准
 
 1. 保险后台成员管理不会展示仅通过 APP 接受服务的用户；
-2. 同一全局账号可在不同租户拥有不同员工角色；
+2. 同一全局账号可在不同租户拥有不同保险或医疗专业角色；
 3. 同一 APP 用户可同时接受多家保险、医疗及其他机构的服务；
-4. 每家保险机构为该用户生成不同的 `subject_ref`，未来其他机构使用各自领域身份；
+4. 授权保险员工可以读取其负责投保人的真实身份字段，不以匿名结果作为验收目标；
 5. 停用一条机构关系不影响其他机构和全局账号；
-6. 部门经理只能读取有效分配给自己的投保人；
-7. 负责人只能从当前租户有效员工及允许角色中选择；
-8. 所有保单、授权、计划、反馈和负责人查询均包含 `tenant_id`；
-9. 浏览器或 APP 伪造租户、用户 ID、`subject_ref` 或绑定 ID 均不能跨租户读取；
-10. 分配转交、授权撤回和关系停用均保留审计证据。
+6. 专业角色只有同时命中有效负责关系时才能读取目标 APP 用户；
+7. 有角色但无分配返回空范围，有分配但角色失效必须拒绝访问；
+8. 负责人只能从当前租户有效员工及允许 APP/BOTH 的专业角色中选择；
+9. 所有保单、授权、计划、反馈和负责人查询均包含机构与服务范围；
+10. 浏览器或 APP 伪造机构、服务、用户 ID 或绑定 ID 均不能跨机构或越过负责范围读取；
+11. 分配转交、授权撤回和关系停用均保留审计证据。
 
 ## 14. 已确认原则
 
@@ -479,12 +577,15 @@ subject_ref = HMAC-SHA256(versioned_server_secret, tenant_id + ":" + user_id)
 | D-002 | 同一个 APP 用户可以同时接受多家保险、医疗及其他类型机构的服务 | 2026-08-14 |
 | D-003 | 机构员工后台关系与 APP 用户机构服务登记是两条独立关系，可以在同一账号上并存 | 2026-08-14 |
 | D-004 | 当前优先实现保险服务；医疗领域暂不实现，但通用服务登记必须保留医疗等机构类型扩展能力 | 2026-08-14 |
+| D-005 | 投保人不要求匿名；授权员工可以在职责和用途范围内查看真实身份信息 | 2026-08-14 |
+| D-006 | APP 账号可以拥有保险、医疗等机构专业角色，但角色必须按机构授权并声明客户端范围 | 2026-08-14 |
+| D-007 | 查询负责的 APP 用户必须同时满足专业角色权限和有效负责关系，不能只根据角色返回机构全量用户 | 2026-08-14 |
 
 ## 15. 待讨论问题
 
 以下问题尚未定稿，后续沟通结果直接更新本文：
 
-1. 保险员工看到 APP 用户真实姓名和手机号，还是只看脱敏信息？
+1. 不要求匿名后，不同保险角色分别允许查看姓名、手机号、证件号等哪些真实身份字段？
 2. 一个投保人是否必须只有一名主负责人？是否允许协作者和审阅人？
 3. 分析员和运营员是查看租户全量、部门范围，还是个人分配范围？
 4. APP 用户通过保单号、保险机构邀请、企业员工名册还是多种方式加入服务？
@@ -492,7 +593,7 @@ subject_ref = HMAC-SHA256(versioned_server_secret, tenant_id + ":" + user_id)
 6. “使用 APP 的员工”是否明确指团体客户企业员工？客户企业是否需要独立后台？
 7. 同一个 APP 用户是否可以在同一家保险机构同时参加多个服务计划？
 8. 机构员工本人同时通过 APP 接受本机构或其他机构服务时，如何处理利益冲突和自查数据？
-9. 是否将现有确定性 SHA-256 `subject_ref` 升级为版本化 HMAC？
+9. 现有 `subject_ref` 作为保险技术兼容键长期保留，还是在接口和负责人迁移完成后逐步退出？
 10. 负责人离职时采用自动转交、待分配队列，还是由管理员手工处理？
 11. 机构类型和服务目录由平台统一维护，还是允许每家机构在批准范围内配置自己的服务？
 
@@ -502,3 +603,4 @@ subject_ref = HMAC-SHA256(versioned_server_secret, tenant_id + ":" + user_id)
 | --- | --- | --- | --- |
 | 2026-08-14 | 0.1 | 基于现有 Jeecg 多租户、保险投保人、APP 计划绑定和负责人查询整理首版分析 | 待讨论 |
 | 2026-08-14 | 0.2 | 明确 APP 用户是平台级身份；将机构员工后台关系与跨保险、医疗等机构的服务登记彻底分离 | 核心原则已确认，细节待讨论 |
+| 2026-08-14 | 0.3 | 确认投保人无需匿名；增加 APP 基础角色、机构专业角色和基于角色加负责关系的通用查询模型 | 核心原则已确认，字段与角色细节待讨论 |
