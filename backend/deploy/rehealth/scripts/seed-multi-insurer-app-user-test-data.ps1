@@ -132,6 +132,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $softwareVerificationSql = @"
+SET @anchor_date = DATE('$anchorDateText');
 SELECT 'app_users', COUNT(*) FROM sys_user
 WHERE username REGEXP '^local_app_(910[123]_[0-9][0-9]|shared_0[12])$'
   AND id = LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_APP_QA:user:', username)));
@@ -290,6 +291,8 @@ $expectedSoftwareCounts = [ordered]@{
     risk_results = 420
     attribution_results = 14
     rhi_snapshots = 98
+    rdi_snapshots = 98
+    rdi_contributions = 294
     subjects = 36
     policies = 36
     coverages = 36
@@ -368,7 +371,7 @@ Write-Output '  staff: existing LOCAL_MULTI_INSURER_QA administrators/managers/a
 Write-Output '  APP accounts: 14 unique accounts, 36 insurer service relationships (12 subjects per insurer)'
 Write-Output '  assignments: 120 active staff-to-subject relationships; every active fixture staff account sees at least 4 subjects'
 Write-Output '  per relationship: policy, coverage, consent, plan binding, intervention, 3 feedback entries, 3 staff actions, claim'
-Write-Output '  per APP account: profile, interview, complete RHI manual fields, device, 30 CVD-16 risks, 7 RHI snapshots, 4 Factor16 entries, PIAS result'
+Write-Output '  per APP account: profile, interview, complete RHI manual fields, device, 30 CVD-16 risks, 7 RHI snapshots, 7 Mock RDI snapshots with 3 contributions each, 4 Factor16 entries, PIAS result'
 Write-Output '  per insurer workbench: pending action, pending review, in progress, and improved each have 3 subjects'
 Write-Output '  telemetry: 118 days, 10 measurements/day, sleep, activity, and diet'
 Write-Output '  password for all active synthetic staff and APP accounts: 123456'
