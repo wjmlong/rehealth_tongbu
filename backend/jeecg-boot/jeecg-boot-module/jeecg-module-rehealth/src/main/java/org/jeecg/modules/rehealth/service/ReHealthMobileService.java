@@ -20,6 +20,8 @@ import org.jeecg.modules.rehealth.mobile.dto.TelemetryBatchRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.TelemetryBatchResponseDto;
 import org.jeecg.modules.rehealth.mobile.dto.RhiManualHealthInputDto;
 
+import java.util.List;
+
 public interface ReHealthMobileService {
     HealthResponseDto health();
 
@@ -48,6 +50,8 @@ public interface ReHealthMobileService {
     JsonNode evaluateRhiSeries(String userId, JsonNode request);
 
     RiskEvaluateResponseDto latestRisk(String userId);
+
+    List<AttributionEventsRequestDto.AttributionHistoryPointDto> riskHistory(String userId, int limit);
 
     InterventionGenerateResponseDto generateIntervention(
             String tenantId,

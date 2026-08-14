@@ -253,6 +253,18 @@ public class ReHealthMobileController {
         }
     }
 
+    @GetMapping("/risk/history")
+    @Operation(summary = "Get current user's persisted CVD risk history for trend chart")
+    public Result<java.util.List<AttributionEventsRequestDto.AttributionHistoryPointDto>> riskHistory(
+            @RequestParam(value = "limit", defaultValue = "90") int limit
+    ) {
+        try {
+            return Result.OK(mobileService.riskHistory(currentUserId(), limit));
+        } catch (IllegalStateException e) {
+            return Result.error(503, "software_db persistence unavailable; retry risk history");
+        }
+    }
+
     @PostMapping("/interventions/generate")
     @Operation(summary = "Generate structured intervention from fresh authorized health context")
     public Result<InterventionGenerateResponseDto> generateIntervention(

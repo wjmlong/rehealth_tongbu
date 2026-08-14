@@ -88,6 +88,11 @@ public class E1PendingSoftwareDbReHealthBusinessRepository implements ReHealthBu
     }
 
     @Override
+    public List<AttributionEventsRequestDto.AttributionHistoryPointDto> findRiskHistory(String userId, int limit) {
+        return List.of();
+    }
+
+    @Override
     public void saveInterventionPlan(String userId, InterventionGenerateResponseDto response) {
         // E1 keeps the software_db boundary explicit; table/mappers are intentionally pending.
     }

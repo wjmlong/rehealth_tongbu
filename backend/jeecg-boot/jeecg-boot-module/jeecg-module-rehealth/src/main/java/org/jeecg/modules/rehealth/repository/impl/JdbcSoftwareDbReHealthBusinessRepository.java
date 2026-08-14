@@ -527,6 +527,30 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
                 resultSet.getTimestamp("evaluated_at"),
                 resultSet.getDouble("risk_score")
         ), userId);
+        return assembleHistory(userId, risks);
+    }
+
+    @Override
+    public List<AttributionEventsRequestDto.AttributionHistoryPointDto> findRiskHistory(String userId, int limit) {
+        requireUser(userId);
+        int boundedLimit = Math.max(1, Math.min(limit <= 0 ? 90 : limit, 365));
+        List<PersistedRiskPoint> risks = jdbcTemplate.query("""
+                SELECT evaluated_at, risk_score
+                FROM rehealth_cvd_risk_result
+                WHERE user_id = ?
+                ORDER BY evaluated_at DESC, id DESC
+                LIMIT ?
+                """, (resultSet, rowNum) -> new PersistedRiskPoint(
+                resultSet.getTimestamp("evaluated_at"),
+                resultSet.getDouble("risk_score")
+        ), userId, boundedLimit);
+        return assembleHistory(userId, risks);
+    }
+
+    private List<AttributionEventsRequestDto.AttributionHistoryPointDto> assembleHistory(
+            String userId,
+            List<PersistedRiskPoint> risks
+    ) {
         Collections.reverse(risks);
         Timestamp firstPlanAt = jdbcTemplate.query(
                 "SELECT MIN(generated_at) FROM rehealth_intervention_plan WHERE user_id = ?",

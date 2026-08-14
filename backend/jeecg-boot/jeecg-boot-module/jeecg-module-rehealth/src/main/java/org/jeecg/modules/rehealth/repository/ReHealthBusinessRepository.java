@@ -42,6 +42,8 @@ public interface ReHealthBusinessRepository {
 
     List<AttributionEventsRequestDto.AttributionHistoryPointDto> findAttributionHistory(String userId);
 
+    List<AttributionEventsRequestDto.AttributionHistoryPointDto> findRiskHistory(String userId, int limit);
+
     void saveInterventionPlan(String userId, InterventionGenerateResponseDto response);
 
     Optional<InterventionGenerateResponseDto> findLatestInterventionPlan(String userId);

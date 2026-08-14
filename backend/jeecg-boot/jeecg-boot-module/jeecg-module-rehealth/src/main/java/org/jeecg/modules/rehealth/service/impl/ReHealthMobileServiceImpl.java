@@ -121,6 +121,7 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
                 "POST /rehealth/mobile/features/evaluate",
                 "POST /rehealth/mobile/rhi/evaluate-series",
                 "GET /rehealth/mobile/risk/latest",
+                "GET /rehealth/mobile/risk/history",
                 "POST /rehealth/mobile/interventions/generate",
                 "GET /rehealth/mobile/interventions/today",
                 "POST /rehealth/mobile/interventions/{id}/feedback",
@@ -230,6 +231,12 @@ public class ReHealthMobileServiceImpl implements ReHealthMobileService {
     public RiskEvaluateResponseDto latestRisk(String userId) {
         requireSoftwareDb();
         return businessRepository.findLatestRiskResult(userId).orElse(null);
+    }
+
+    @Override
+    public List<AttributionEventsRequestDto.AttributionHistoryPointDto> riskHistory(String userId, int limit) {
+        requireSoftwareDb();
+        return businessRepository.findRiskHistory(userId, limit);
     }
 
     @Override
