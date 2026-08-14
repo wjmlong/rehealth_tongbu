@@ -161,6 +161,10 @@ SELECT 'behavior_records', COUNT(*) FROM rehealth_behavior_record WHERE model_ve
 SELECT 'feature_vectors', COUNT(*) FROM rehealth_cvd_feature_vector WHERE request_id LIKE 'miqa-cvd16-%';
 SELECT 'risk_results', COUNT(*) FROM rehealth_cvd_risk_result WHERE request_id LIKE 'miqa-cvd16-%';
 SELECT 'attribution_results', COUNT(*) FROM rehealth_attribution_result WHERE request_id LIKE 'miqa-pias-%';
+SELECT 'rhi_snapshots', COUNT(*) FROM rehealth_rhi_daily_snapshot snapshot
+JOIN sys_user app ON BINARY app.id = BINARY snapshot.user_id
+WHERE app.username REGEXP '^local_app_(910[123]_[0-9][0-9]|shared_0[12])$'
+  AND snapshot.calculation_source = 'LOCAL_MULTI_INSURER_APP_QA';
 SELECT 'subjects', COUNT(*) FROM rehealth_insurance_subject WHERE source_system = 'LOCAL_MULTI_INSURER_APP_QA';
 SELECT 'policies', COUNT(*) FROM rehealth_insurance_policy WHERE source_system = 'LOCAL_MULTI_INSURER_APP_QA';
 SELECT 'coverages', COUNT(*) FROM rehealth_insurance_coverage WHERE source_system = 'LOCAL_MULTI_INSURER_APP_QA';
@@ -168,9 +172,89 @@ SELECT 'consents', COUNT(*) FROM rehealth_insurance_consent WHERE source_system 
 SELECT 'plan_bindings', COUNT(*) FROM rehealth_insurance_plan_binding WHERE source_system = 'LOCAL_MULTI_INSURER_APP_QA';
 SELECT 'interventions', COUNT(*) FROM rehealth_insurance_intervention WHERE source_system = 'LOCAL_MULTI_INSURER_APP_QA';
 SELECT 'feedback', COUNT(*) FROM rehealth_insurance_intervention_feedback WHERE source_system = 'LOCAL_MULTI_INSURER_APP_QA';
+SELECT 'workbench_actions', COUNT(*) FROM rehealth_insurance_intervention_action WHERE request_id LIKE 'miqa-workbench-%';
 SELECT 'claims', COUNT(*) FROM rehealth_insurance_claim WHERE source_system = 'LOCAL_MULTI_INSURER_APP_QA';
 SELECT 'assignments', COUNT(*) FROM rehealth_insurance_subject_manager WHERE source_system = 'LOCAL_MULTI_INSURER_APP_QA';
 SELECT 'assignment_audits', COUNT(*) FROM rehealth_insurance_audit_event WHERE request_id LIKE 'miqa-assignment-%';
+WITH latest_risk AS (
+    SELECT result.*,
+           ROW_NUMBER() OVER (PARTITION BY result.user_id ORDER BY result.evaluated_at DESC, result.id DESC) AS row_no
+    FROM rehealth_cvd_risk_result result
+    WHERE result.request_id LIKE 'miqa-cvd16-%'
+), latest_attribution AS (
+    SELECT result.*,
+           ROW_NUMBER() OVER (PARTITION BY result.user_id ORDER BY result.created_at DESC, result.id DESC) AS row_no
+    FROM rehealth_attribution_result result
+    WHERE result.request_id LIKE 'miqa-pias-%'
+), workbench_state AS (
+    SELECT subject.tenant_id,
+           CASE
+             WHEN attribution.is_mock = 0
+              AND attribution.intervention_data_sufficient = 1
+              AND (attribution.individual_att < 0 OR attribution.trend_delta < 0)
+               THEN 'improved'
+             WHEN EXISTS (
+                    SELECT 1 FROM rehealth_insurance_intervention intervention
+                    WHERE intervention.tenant_id = subject.tenant_id
+                      AND intervention.subject_ref = subject.subject_ref
+                      AND intervention.status IN ('active', 'enrolled', 'in_progress')
+                  )
+               OR EXISTS (
+                    SELECT 1 FROM rehealth_insurance_intervention_action action
+                    WHERE action.tenant_id = subject.tenant_id
+                      AND action.subject_ref = subject.subject_ref
+                      AND action.status IN ('pending', 'in_progress')
+                  )
+               THEN 'in_progress'
+             WHEN risk.is_mock = 0 AND LOWER(risk.risk_level) = 'high' THEN 'pending_action'
+             ELSE 'pending_review'
+           END AS workflow_status
+    FROM rehealth_insurance_subject subject
+    JOIN latest_risk risk ON risk.user_id = subject.rehealth_user_id AND risk.row_no = 1
+    LEFT JOIN latest_attribution attribution
+      ON attribution.user_id = subject.rehealth_user_id AND attribution.row_no = 1
+    WHERE subject.source_system = 'LOCAL_MULTI_INSURER_APP_QA'
+)
+SELECT 'workbench_status_buckets', COUNT(*)
+FROM (
+    SELECT tenant_id, workflow_status
+    FROM workbench_state
+    GROUP BY tenant_id, workflow_status
+    HAVING COUNT(*) >= 3
+) complete_bucket;
+SELECT 'complete_workbench_details', COUNT(*)
+FROM rehealth_insurance_subject subject
+WHERE subject.source_system = 'LOCAL_MULTI_INSURER_APP_QA'
+  AND (SELECT COUNT(*) FROM rehealth_rhi_daily_snapshot snapshot
+       WHERE snapshot.user_id = subject.rehealth_user_id
+         AND snapshot.calculation_source = 'LOCAL_MULTI_INSURER_APP_QA') >= 3
+  AND (SELECT JSON_LENGTH(JSON_EXTRACT(risk.response_json, '$.factor_contributions'))
+       FROM rehealth_cvd_risk_result risk
+       WHERE risk.user_id = subject.rehealth_user_id
+       ORDER BY risk.evaluated_at DESC, risk.id DESC LIMIT 1) >= 3
+  AND (SELECT JSON_LENGTH(JSON_EXTRACT(plan.response_json, '$.items'))
+       FROM rehealth_insurance_plan_binding binding
+       JOIN rehealth_intervention_plan plan
+         ON plan.user_id = subject.rehealth_user_id COLLATE utf8mb4_0900_ai_ci
+        AND plan.plan_id = binding.plan_id
+       WHERE binding.tenant_id = subject.tenant_id
+         AND binding.subject_ref = subject.subject_ref
+       ORDER BY binding.updated_at DESC, plan.generated_at DESC LIMIT 1) >= 3
+  AND (SELECT COUNT(*) FROM rehealth_insurance_intervention_feedback feedback
+       WHERE feedback.tenant_id = subject.tenant_id
+         AND feedback.subject_ref = subject.subject_ref) >= 3
+  AND (SELECT COUNT(*) FROM rehealth_insurance_intervention_action action
+       WHERE action.tenant_id = subject.tenant_id
+         AND action.subject_ref = subject.subject_ref
+         AND action.request_id LIKE 'miqa-workbench-%') >= 3;
+SELECT 'staff_scope_minimums', COUNT(*)
+FROM (
+    SELECT tenant_id, manager_user_id
+    FROM rehealth_insurance_subject_manager
+    WHERE source_system = 'LOCAL_MULTI_INSURER_APP_QA' AND status = 'active'
+    GROUP BY tenant_id, manager_user_id
+    HAVING COUNT(*) >= 3
+) complete_staff;
 "@
 
 $softwareVerificationOutput = @($softwareVerificationSql | & docker exec -i -e "MYSQL_PWD=$softwarePassword" $SoftwareContainer `
@@ -187,20 +271,25 @@ $expectedSoftwareCounts = [ordered]@{
     manual_inputs = 14
     device_bindings = 14
     interviews = 14
-    behavior_records = 54
+    behavior_records = 108
     feature_vectors = 420
     risk_results = 420
     attribution_results = 14
-    subjects = 18
-    policies = 18
-    coverages = 18
-    consents = 18
-    plan_bindings = 18
-    interventions = 18
-    feedback = 18
-    claims = 18
-    assignments = 48
-    assignment_audits = 48
+    rhi_snapshots = 98
+    subjects = 36
+    policies = 36
+    coverages = 36
+    consents = 36
+    plan_bindings = 36
+    interventions = 36
+    feedback = 108
+    workbench_actions = 108
+    claims = 36
+    assignments = 120
+    assignment_audits = 120
+    workbench_status_buckets = 12
+    complete_workbench_details = 36
+    staff_scope_minimums = 21
 }
 
 $actualSoftwareCounts = @{}
@@ -238,12 +327,12 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $expectedHardwareCounts = [ordered]@{
-    upload_batches = 18
-    measurements = 21240
-    sleep_sessions = 2124
-    activities = 2124
-    diet_records = 2124
-    history_windows = 18
+    upload_batches = 36
+    measurements = 42480
+    sleep_sessions = 4248
+    activities = 4248
+    diet_records = 4248
+    history_windows = 36
 }
 
 $actualHardwareCounts = @{}
@@ -262,10 +351,11 @@ foreach ($entry in $expectedHardwareCounts.GetEnumerator()) {
 Write-Output 'Complete multi-insurer APP-user test data seeded successfully.'
 Write-Output '  insurers: 9101, 9102, 9103'
 Write-Output '  staff: existing LOCAL_MULTI_INSURER_QA administrators/managers/analysts/operators/viewers/auditor'
-Write-Output '  APP accounts: 14 unique accounts, 18 insurer service relationships'
-Write-Output '  assignments: 48 active staff-to-subject relationships'
-Write-Output '  per relationship: policy, coverage, consent, plan binding, intervention, feedback, claim'
-Write-Output '  per APP account: profile, interview, complete RHI manual fields, device, 30 CVD-16 risks, PIAS result'
+Write-Output '  APP accounts: 14 unique accounts, 36 insurer service relationships (12 subjects per insurer)'
+Write-Output '  assignments: 120 active staff-to-subject relationships; every active fixture staff account sees at least 4 subjects'
+Write-Output '  per relationship: policy, coverage, consent, plan binding, intervention, 3 feedback entries, 3 staff actions, claim'
+Write-Output '  per APP account: profile, interview, complete RHI manual fields, device, 30 CVD-16 risks, 7 RHI snapshots, 4 Factor16 entries, PIAS result'
+Write-Output '  per insurer workbench: pending action, pending review, in progress, and improved each have 3 subjects'
 Write-Output '  telemetry: 118 days, 10 measurements/day, sleep, activity, and diet'
 Write-Output '  password for all active synthetic staff and APP accounts: 123456'
 Write-Output '  source: LOCAL_MULTI_INSURER_APP_QA (local synthetic QA only)'

@@ -3,7 +3,9 @@
 -- This script deliberately reuses sys_user/sys_role plus the existing insurance
 -- subject, policy, consent, plan, manager, and audit tables. APP users are NOT
 -- inserted into sys_user_tenant or sys_user_depart. Every row is synthetic,
--- non-clinical, repeatable, and forbidden outside local development.
+-- non-clinical, repeatable, and forbidden outside local development. Each
+-- insurer receives 12 subjects so all four workbench workflow states have at
+-- least three rows; each subject detail receives at least three display items.
 
 SET NAMES utf8mb4;
 
@@ -31,7 +33,7 @@ INSERT INTO tmp_miqa_app_user (
     (1,  'local_app_9101_01', '[合成] 睿安用户01', '1c8b16ac552e6afbdf0373b1b0f4e86cf50be5a6147a4979', '00092000001', 'app01@local.qa.invalid', 1, 'male',   44, 175.00, 70.10, 22.89, 0.260000),
     (2,  'local_app_9101_02', '[合成] 睿安用户02', '1c8b16ac552e6afbdf0373b1b0f4e86c6977237059d17f4b', '00092000002', 'app02@local.qa.invalid', 2, 'female', 49, 163.00, 61.20, 23.03, 0.350000),
     (3,  'local_app_9101_03', '[合成] 睿安用户03', '1c8b16ac552e6afbdf0373b1b0f4e86cb37a058454ba5dfc', '00092000003', 'app03@local.qa.invalid', 1, 'male',   54, 172.00, 78.40, 26.50, 0.480000),
-    (4,  'local_app_9101_04', '[合成] 睿安用户04', '1c8b16ac552e6afbdf0373b1b0f4e86ce5dc1f0b0f86675d', '00092000004', 'app04@local.qa.invalid', 2, 'female', 59, 160.00, 71.00, 27.73, 0.650000),
+    (4,  'local_app_9101_04', '[合成] 睿安用户04', '1c8b16ac552e6afbdf0373b1b0f4e86ce5dc1f0b0f86675d', '00092000004', 'app04@local.qa.invalid', 2, 'female', 59, 160.00, 71.00, 27.73, 0.700000),
     (5,  'local_app_9102_01', '[合成] 康泰用户01', '1c8b16ac552e6afb172c2f8c31ad5b828d2bd45da9912a9b', '00092000005', 'app05@local.qa.invalid', 2, 'female', 42, 166.00, 60.80, 22.06, 0.230000),
     (6,  'local_app_9102_02', '[合成] 康泰用户02', '1c8b16ac552e6afb172c2f8c31ad5b824563e9e55a9d952a', '00092000006', 'app06@local.qa.invalid', 1, 'male',   47, 178.00, 76.20, 24.05, 0.330000),
     (7,  'local_app_9102_03', '[合成] 康泰用户03', '1c8b16ac552e6afb172c2f8c31ad5b829ef8c9b6a63f3755', '00092000007', 'app07@local.qa.invalid', 2, 'female', 55, 158.00, 67.40, 27.00, 0.520000),
@@ -56,12 +58,21 @@ INSERT INTO tmp_miqa_app_relationship (tenant_id, member_no, username) VALUES
     (9101, 1, 'local_app_9101_01'), (9101, 2, 'local_app_9101_02'),
     (9101, 3, 'local_app_9101_03'), (9101, 4, 'local_app_9101_04'),
     (9101, 5, 'local_app_shared_01'), (9101, 6, 'local_app_shared_02'),
+    (9101, 7, 'local_app_9102_04'), (9101, 8, 'local_app_9103_04'),
+    (9101, 9, 'local_app_9102_03'), (9101, 10, 'local_app_9103_03'),
+    (9101, 11, 'local_app_9102_02'), (9101, 12, 'local_app_9103_02'),
     (9102, 1, 'local_app_9102_01'), (9102, 2, 'local_app_9102_02'),
     (9102, 3, 'local_app_9102_03'), (9102, 4, 'local_app_9102_04'),
     (9102, 5, 'local_app_shared_01'), (9102, 6, 'local_app_shared_02'),
+    (9102, 7, 'local_app_9101_04'), (9102, 8, 'local_app_9103_04'),
+    (9102, 9, 'local_app_9101_03'), (9102, 10, 'local_app_9103_03'),
+    (9102, 11, 'local_app_9101_02'), (9102, 12, 'local_app_9103_02'),
     (9103, 1, 'local_app_9103_01'), (9103, 2, 'local_app_9103_02'),
     (9103, 3, 'local_app_9103_03'), (9103, 4, 'local_app_9103_04'),
-    (9103, 5, 'local_app_shared_01'), (9103, 6, 'local_app_shared_02');
+    (9103, 5, 'local_app_shared_01'), (9103, 6, 'local_app_shared_02'),
+    (9103, 7, 'local_app_9101_04'), (9103, 8, 'local_app_9102_04'),
+    (9103, 9, 'local_app_9101_03'), (9103, 10, 'local_app_9102_03'),
+    (9103, 11, 'local_app_9101_02'), (9103, 12, 'local_app_9102_02');
 
 DROP TEMPORARY TABLE IF EXISTS tmp_miqa_risk_day;
 CREATE TEMPORARY TABLE tmp_miqa_risk_day (days_ago INT NOT NULL PRIMARY KEY);
@@ -81,31 +92,35 @@ CREATE TEMPORARY TABLE tmp_miqa_assignment (
 INSERT INTO tmp_miqa_assignment (tenant_id, staff_username, member_no)
 SELECT tenant_id, CONCAT('local_ins_', tenant_id, '_admin'), member_no
 FROM (SELECT 9101 tenant_id UNION ALL SELECT 9102 UNION ALL SELECT 9103) tenants
-JOIN (SELECT 1 member_no UNION ALL SELECT 2) members
+JOIN (
+    SELECT 1 member_no UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+    UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8
+    UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL SELECT 11 UNION ALL SELECT 12
+) members
 UNION ALL
 SELECT tenant_id, CONCAT('local_ins_', tenant_id, '_mgr_health'), member_no
 FROM (SELECT 9101 tenant_id UNION ALL SELECT 9102 UNION ALL SELECT 9103) tenants
-JOIN (SELECT 1 member_no UNION ALL SELECT 2 UNION ALL SELECT 3) members
+JOIN (SELECT 1 member_no UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6) members
 UNION ALL
 SELECT tenant_id, CONCAT('local_ins_', tenant_id, '_mgr_risk'), member_no
 FROM (SELECT 9101 tenant_id UNION ALL SELECT 9102 UNION ALL SELECT 9103) tenants
-JOIN (SELECT 4 member_no UNION ALL SELECT 5 UNION ALL SELECT 6) members
+JOIN (SELECT 7 member_no UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL SELECT 11 UNION ALL SELECT 12) members
 UNION ALL
 SELECT tenant_id, CONCAT('local_ins_', tenant_id, '_analyst'), member_no
 FROM (SELECT 9101 tenant_id UNION ALL SELECT 9102 UNION ALL SELECT 9103) tenants
-JOIN (SELECT 1 member_no UNION ALL SELECT 4) members
+JOIN (SELECT 1 member_no UNION ALL SELECT 4 UNION ALL SELECT 7 UNION ALL SELECT 10) members
 UNION ALL
 SELECT tenant_id, CONCAT('local_ins_', tenant_id, '_operator'), member_no
 FROM (SELECT 9101 tenant_id UNION ALL SELECT 9102 UNION ALL SELECT 9103) tenants
-JOIN (SELECT 2 member_no UNION ALL SELECT 5) members
+JOIN (SELECT 2 member_no UNION ALL SELECT 5 UNION ALL SELECT 8 UNION ALL SELECT 11) members
 UNION ALL
 SELECT tenant_id, CONCAT('local_ins_', tenant_id, '_viewer'), member_no
 FROM (SELECT 9101 tenant_id UNION ALL SELECT 9102 UNION ALL SELECT 9103) tenants
-JOIN (SELECT 3 member_no UNION ALL SELECT 6) members
+JOIN (SELECT 3 member_no UNION ALL SELECT 6 UNION ALL SELECT 9 UNION ALL SELECT 12) members
 UNION ALL
 SELECT tenant_id, 'local_ins_shared_auditor', member_no
 FROM (SELECT 9101 tenant_id UNION ALL SELECT 9102 UNION ALL SELECT 9103) tenants
-JOIN (SELECT 1 member_no UNION ALL SELECT 6) members;
+JOIN (SELECT 1 member_no UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 12) members;
 
 START TRANSACTION;
 
@@ -381,7 +396,7 @@ SELECT
     LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:feature:', app.username, ':', day.days_ago), 256)),
     LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_APP_QA:user:', app.username))),
     CONCAT('miqa-cvd16-', app.profile_no, '-', DATE_FORMAT(DATE_SUB(@anchor_date, INTERVAL day.days_ago DAY), '%Y%m%d')),
-    'cvd-16-v1', 'local-qa-seeded-nonclinical-v1', 'local_qa_fixture', 1,
+    'cvd-16-v1', 'local-qa-seeded-nonclinical-v1', 'local_qa_fixture', 0,
     'LOCAL_MULTI_INSURER_APP_QA_NOT_A_MODEL', 'synthetic local fixture',
     'fixture', 'factor16-rule-v1.0.0',
     LEAST(0.95, app.risk_base + day.days_ago * 0.002),
@@ -396,8 +411,21 @@ SELECT
     JSON_ARRAY(), JSON_ARRAY('SYNTHETIC LOCAL QA - NOT FOR CLINICAL OR INSURANCE DECISIONS'),
     'Android Debug 全链路公式衍生的本地合成风险，仅用于权限和界面测试。',
     JSON_OBJECT(
-        'sourceSystem', 'LOCAL_MULTI_INSURER_APP_QA', 'isMock', TRUE,
-        'clinicalUseAllowed', FALSE, 'factorContributionVersion', 'factor16-rule-v1.0.0'
+        'sourceSystem', 'LOCAL_MULTI_INSURER_APP_QA', 'isMock', FALSE,
+        'clinicalUseAllowed', FALSE, 'syntheticLocalQa', TRUE,
+        'factorContributionVersion', 'factor16-rule-v1.0.0',
+        'factor_contributions', JSON_OBJECT(
+            '收缩压', ROUND(0.12 + app.risk_base * 0.18, 4),
+            'BMI', ROUND(0.08 + app.risk_base * 0.14, 4),
+            '睡眠规律', ROUND(-0.05 - (1 - app.risk_base) * 0.08, 4),
+            '每周运动天数', ROUND(-0.04 - (1 - app.risk_base) * 0.06, 4)
+        ),
+        'factor_measured_components', JSON_OBJECT(
+            '收缩压', ROUND(112 + app.risk_base * 28, 1),
+            'BMI', app.bmi,
+            '睡眠规律', ROUND(70 + (1 - app.risk_base) * 20, 1),
+            '每周运动天数', 5
+        )
     ),
     DATE_ADD(DATE_SUB(@anchor_date, INTERVAL day.days_ago DAY), INTERVAL 20 HOUR),
     DATE_ADD(DATE_SUB(@anchor_date, INTERVAL day.days_ago DAY), INTERVAL 20 HOUR)
@@ -406,7 +434,7 @@ CROSS JOIN tmp_miqa_risk_day day
 WHERE 1 = 1
 ON DUPLICATE KEY UPDATE
     model_version = VALUES(model_version), scorer_mode = VALUES(scorer_mode),
-    is_mock = 1, artifact_name = VALUES(artifact_name), risk_score = VALUES(risk_score),
+    is_mock = 0, artifact_name = VALUES(artifact_name), risk_score = VALUES(risk_score),
     risk_level = VALUES(risk_level), contribution_json = VALUES(contribution_json),
     factor_contribution_json = VALUES(factor_contribution_json),
     factor_contribution_version = VALUES(factor_contribution_version),
@@ -426,17 +454,21 @@ SELECT
     LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:attribution:', username), 256)),
     LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_APP_QA:user:', username))),
     'ready', 'local-qa-pias-nonclinical-v1', CONCAT('miqa-pias-', profile_no),
-    'synthetic_qa', 1, 'LOCAL_MULTI_INSURER_APP_QA_NOT_A_MODEL',
+    'synthetic_qa', IF(profile_no IN (2, 6, 10), 0, 1), 'LOCAL_MULTI_INSURER_APP_QA_NOT_A_MODEL',
     30, 14, 14, 1, risk_base,
     CASE WHEN risk_base >= 0.70 THEN 'high' WHEN risk_base >= 0.40 THEN 'medium' ELSE 'low' END,
     'improving', -0.035, -0.058, 0.82,
     '合成归因结果，仅用于验证 PIAS 数据展示和保险员工权限。',
     JSON_OBJECT('sourceSystem', 'LOCAL_MULTI_INSURER_APP_QA', 'historyDays', 30),
-    JSON_OBJECT('status', 'ready', 'isMock', TRUE, 'clinicalUseAllowed', FALSE),
+    JSON_OBJECT(
+        'status', 'ready', 'isMock', IF(profile_no IN (2, 6, 10), FALSE, TRUE),
+        'clinicalUseAllowed', FALSE, 'syntheticLocalQa', TRUE
+    ),
     @seed_time
 FROM tmp_miqa_app_user
 ON DUPLICATE KEY UPDATE
     status = VALUES(status), model_version = VALUES(model_version),
+    is_mock = VALUES(is_mock), intervention_data_sufficient = VALUES(intervention_data_sufficient),
     history_days = VALUES(history_days), current_risk_score = VALUES(current_risk_score),
     current_risk_level = VALUES(current_risk_level), current_trend = VALUES(current_trend),
     individual_att = VALUES(individual_att), trend_delta = VALUES(trend_delta),
@@ -460,7 +492,14 @@ SELECT
     '仅验证计划、反馈和负责人查询链路。', 0.80,
     '合成测试计划，不构成医疗建议，不替代医生诊疗。',
     DATE_SUB(@seed_time, INTERVAL 14 DAY),
-    JSON_OBJECT('sourceSystem', 'LOCAL_MULTI_INSURER_APP_QA', 'isMock', TRUE, 'clinicalUseAllowed', FALSE),
+    JSON_OBJECT(
+        'sourceSystem', 'LOCAL_MULTI_INSURER_APP_QA', 'isMock', TRUE, 'clinicalUseAllowed', FALSE,
+        'items', JSON_ARRAY(
+            JSON_OBJECT('title', '完成连续 7 日上臂袖带血压记录', 'action', '每日早晚各测量一次并由 APP 回传', 'target', '连续记录 7 日'),
+            JSON_OBJECT('title', '完成本周运动计划', 'action', '进行 5 次中等强度步行，每次 30 分钟', 'target', '本周完成 5 次'),
+            JSON_OBJECT('title', '改善睡眠规律', 'action', '固定就寝时间并记录睡眠时长', 'target', '连续 7 日保持规律')
+        )
+    ),
     DATE_SUB(@seed_time, INTERVAL 14 DAY)
 FROM tmp_miqa_app_user
 ON DUPLICATE KEY UPDATE
@@ -469,6 +508,43 @@ ON DUPLICATE KEY UPDATE
     rationale = VALUES(rationale), expected_impact = VALUES(expected_impact),
     confidence = VALUES(confidence), medical_disclaimer = VALUES(medical_disclaimer),
     response_json = VALUES(response_json), generated_at = VALUES(generated_at);
+
+INSERT INTO rehealth_rhi_daily_snapshot (
+    id, user_id, scored_on, raw_score, display_score, data_confidence,
+    status, product_tier, available_days, available_feature_count,
+    smoothing_alpha, algorithm_version, calculation_source,
+    domains_json, features_json, quality_json, created_at, updated_at
+)
+SELECT
+    LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:rhi:', app.username, ':', day.days_ago), 256)),
+    LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_APP_QA:user:', app.username))),
+    DATE_SUB(@anchor_date, INTERVAL day.days_ago DAY),
+    ROUND(58 + (1 - app.risk_base) * 24 - day.days_ago * 0.35, 4),
+    ROUND(58 + (1 - app.risk_base) * 24 - day.days_ago * 0.35, 4),
+    ROUND(0.82 + (app.profile_no % 3) * 0.04, 6),
+    'ready', 'STANDARD', 30, 16, 0.300000,
+    'rhi-local-qa-display-v1', 'LOCAL_MULTI_INSURER_APP_QA',
+    JSON_OBJECT(
+        'activity', ROUND(62 + (1 - app.risk_base) * 18, 2),
+        'sleep', ROUND(60 + (1 - app.risk_base) * 20, 2),
+        'cardiovascular', ROUND(58 + (1 - app.risk_base) * 22, 2)
+    ),
+    JSON_OBJECT('availableFeatureCount', 16, 'syntheticLocalQa', TRUE),
+    JSON_OBJECT('synthetic', TRUE, 'clinicalUseAllowed', FALSE, 'quality', 96),
+    DATE_ADD(DATE_SUB(@anchor_date, INTERVAL day.days_ago DAY), INTERVAL 21 HOUR),
+    DATE_ADD(DATE_SUB(@anchor_date, INTERVAL day.days_ago DAY), INTERVAL 21 HOUR)
+FROM tmp_miqa_app_user app
+CROSS JOIN tmp_miqa_risk_day day
+WHERE day.days_ago < 7
+ON DUPLICATE KEY UPDATE
+    scored_on = VALUES(scored_on), raw_score = VALUES(raw_score),
+    display_score = VALUES(display_score), data_confidence = VALUES(data_confidence),
+    status = VALUES(status), product_tier = VALUES(product_tier),
+    available_days = VALUES(available_days), available_feature_count = VALUES(available_feature_count),
+    smoothing_alpha = VALUES(smoothing_alpha), algorithm_version = VALUES(algorithm_version),
+    calculation_source = VALUES(calculation_source), domains_json = VALUES(domains_json),
+    features_json = VALUES(features_json), quality_json = VALUES(quality_json),
+    created_at = VALUES(created_at), updated_at = VALUES(updated_at);
 
 INSERT INTO rehealth_insurance_subject (
     id, tenant_id, subject_ref, rehealth_user_id, external_subject_ref_hash,
@@ -595,7 +671,10 @@ SELECT
     CONCAT('miqa-health-plan-', app.profile_no),
     LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:plan:', rel.username), 256)),
     LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:consent:', rel.tenant_id, ':', rel.username), 256)),
-    'active', DATE_SUB(@seed_time, INTERVAL 90 DAY), NULL, DATE_SUB(@seed_time, INTERVAL 1 DAY),
+    IF(rel.member_no IN (3, 9, 10), 'active', 'completed'),
+    DATE_SUB(@seed_time, INTERVAL 90 DAY),
+    IF(rel.member_no IN (3, 9, 10), NULL, DATE_SUB(@seed_time, INTERVAL 2 DAY)),
+    DATE_SUB(@seed_time, INTERVAL 1 DAY),
     'LOCAL_MULTI_INSURER_APP_QA', CONCAT('intervention-', rel.tenant_id, '-', rel.member_no),
     JSON_OBJECT('synthetic', TRUE, 'completionRate', 0.82, 'clinicalUseAllowed', FALSE),
     DATE_SUB(@seed_time, INTERVAL 90 DAY), @seed_time
@@ -604,7 +683,7 @@ JOIN tmp_miqa_app_user app ON app.username = rel.username
 WHERE 1 = 1
 ON DUPLICATE KEY UPDATE
     plan_id = VALUES(plan_id), source_plan_id = VALUES(source_plan_id),
-    consent_id = VALUES(consent_id), status = 'active',
+    consent_id = VALUES(consent_id), status = VALUES(status), ended_at = VALUES(ended_at),
     last_feedback_at = VALUES(last_feedback_at), metadata_json = VALUES(metadata_json),
     updated_at = VALUES(updated_at);
 
@@ -614,22 +693,111 @@ INSERT INTO rehealth_insurance_intervention_feedback (
     source_system, source_record_id, created_at
 )
 SELECT
-    LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:feedback:', rel.tenant_id, ':', rel.username), 256)),
+    LOWER(SHA2(CONCAT(
+        'LOCAL_MULTI_INSURER_APP_QA:feedback:', rel.tenant_id, ':', rel.username,
+        IF(item.feedback_no = 1, '', CONCAT(':', item.feedback_no))
+    ), 256)),
     rel.tenant_id,
     LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:binding:', rel.tenant_id, ':', rel.username), 256)),
     LOWER(SHA2(CONCAT(rel.tenant_id, ':', LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_APP_QA:user:', rel.username)))), 256)),
     LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:insurance-intervention:', rel.tenant_id, ':', rel.username), 256)),
-    'weekly_progress', DATE_SUB(@seed_time, INTERVAL 1 DAY), 0.82, 0.86,
-    JSON_OBJECT('synthetic', TRUE, 'sleepImproved', TRUE, 'activityGoalMet', TRUE),
-    'LOCAL_MULTI_INSURER_APP_QA', CONCAT('feedback-', rel.tenant_id, '-', rel.member_no),
+    item.feedback_type, DATE_SUB(@seed_time, INTERVAL item.days_ago DAY),
+    item.completion_rate, item.adherence_score,
+    JSON_OBJECT(
+        'synthetic', TRUE, 'clinicalUseAllowed', FALSE,
+        'sleepImproved', item.feedback_no >= 2,
+        'activityGoalMet', item.feedback_no = 3,
+        'note', item.note
+    ),
+    'LOCAL_MULTI_INSURER_APP_QA', CONCAT(
+        'feedback-', rel.tenant_id, '-', rel.member_no,
+        IF(item.feedback_no = 1, '', CONCAT('-', item.feedback_no))
+    ),
     @seed_time
 FROM tmp_miqa_app_relationship rel
+CROSS JOIN (
+    SELECT 1 feedback_no, 'plan_started' feedback_type, 7 days_ago,
+           0.48 completion_rate, 0.56 adherence_score, '已确认计划并开始执行' note
+    UNION ALL
+    SELECT 2, 'weekly_progress', 4, 0.68, 0.74, '已完成睡眠和运动记录'
+    UNION ALL
+    SELECT 3, 'weekly_progress', 1, 0.86, 0.88, '已回传本周执行结果'
+) item
+WHERE 1 = 1
 ON DUPLICATE KEY UPDATE
     binding_id = VALUES(binding_id), subject_ref = VALUES(subject_ref),
     intervention_id = VALUES(intervention_id), feedback_type = VALUES(feedback_type),
     occurred_at = VALUES(occurred_at), completion_rate = VALUES(completion_rate),
     adherence_score = VALUES(adherence_score), outcome_summary_json = VALUES(outcome_summary_json),
     created_at = VALUES(created_at);
+
+INSERT INTO rehealth_insurance_intervention_action (
+    id, tenant_id, subject_ref, plan_id, action_type, title, content,
+    assignee_user_id, status, due_at, completed_at, result_json,
+    created_by, request_id, created_at, updated_at
+)
+SELECT
+    LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:workbench-action:', rel.tenant_id, ':', rel.username, ':', item.action_no), 256)),
+    rel.tenant_id,
+    LOWER(SHA2(CONCAT(rel.tenant_id, ':', LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_APP_QA:user:', rel.username)))), 256)),
+    CONCAT('miqa-health-plan-', app.profile_no), item.action_type, item.title, item.content,
+    assignee.id,
+    CASE
+        WHEN rel.member_no IN (3, 9, 10) AND item.action_no = 1 THEN 'pending'
+        WHEN rel.member_no IN (3, 9, 10) AND item.action_no = 2 THEN 'in_progress'
+        WHEN item.action_no = 3 THEN 'completed'
+        ELSE 'completed'
+    END,
+    DATE_ADD(@seed_time, INTERVAL item.due_days DAY),
+    CASE
+        WHEN rel.member_no IN (3, 9, 10) AND item.action_no IN (1, 2) THEN NULL
+        ELSE DATE_SUB(@seed_time, INTERVAL (4 - item.action_no) DAY)
+    END,
+    JSON_OBJECT(
+        'synthetic', TRUE, 'clinicalUseAllowed', FALSE,
+        'result', IF(rel.member_no IN (3, 9, 10) AND item.action_no IN (1, 2), '待执行', '已完成本地验收记录')
+    ),
+    assignee.id,
+    CONCAT('miqa-workbench-', rel.tenant_id, '-', LPAD(rel.member_no, 2, '0'), '-', item.action_no),
+    DATE_SUB(@seed_time, INTERVAL (10 - item.action_no) DAY),
+    DATE_SUB(@seed_time, INTERVAL (4 - item.action_no) DAY)
+FROM tmp_miqa_app_relationship rel
+JOIN tmp_miqa_app_user app ON app.username = rel.username
+JOIN sys_user assignee
+  ON assignee.username = CONCAT('local_ins_', rel.tenant_id, '_admin')
+ AND assignee.status = 1 AND assignee.del_flag = 0
+CROSS JOIN (
+    SELECT 1 action_no, 'followup' action_type, '首次健康管理随访' title,
+           '核对计划理解情况和当前执行困难；仅作合成本地界面验收。' content, 1 due_days
+    UNION ALL
+    SELECT 2, 'reminder', '计划执行提醒',
+           '提醒完成运动、睡眠和血压记录；不构成医疗建议。', 3
+    UNION ALL
+    SELECT 3, 'review', '阶段执行记录复核',
+           '复核 APP 回传记录的完整性，不把单次波动作为改善结论。', 7
+) item
+WHERE 1 = 1
+ON DUPLICATE KEY UPDATE
+    subject_ref = VALUES(subject_ref), plan_id = VALUES(plan_id),
+    action_type = VALUES(action_type), title = VALUES(title), content = VALUES(content),
+    assignee_user_id = VALUES(assignee_user_id), status = VALUES(status),
+    due_at = VALUES(due_at), completed_at = VALUES(completed_at),
+    result_json = VALUES(result_json), created_by = VALUES(created_by),
+    created_at = VALUES(created_at), updated_at = VALUES(updated_at);
+
+-- Re-running the local fixture resets ad-hoc workbench actions created against
+-- these synthetic subjects, so the four deterministic workflow cohorts remain
+-- three rows each. No non-QA subject is affected.
+UPDATE rehealth_insurance_intervention_action action
+JOIN rehealth_insurance_subject subject
+  ON subject.tenant_id = action.tenant_id
+ AND subject.subject_ref = action.subject_ref
+ AND subject.source_system = 'LOCAL_MULTI_INSURER_APP_QA'
+SET action.status = 'completed',
+    action.completed_at = COALESCE(action.completed_at, @seed_time),
+    action.updated_at = @seed_time
+WHERE action.request_id NOT LIKE 'miqa-workbench-%'
+  AND action.status IN ('pending', 'in_progress');
 
 INSERT INTO rehealth_insurance_claim (
     id, tenant_id, claim_no, policy_id, subject_ref, claim_type,
@@ -659,6 +827,15 @@ ON DUPLICATE KEY UPDATE
     billed_amount = VALUES(billed_amount), approved_amount = VALUES(approved_amount),
     paid_amount = VALUES(paid_amount), metadata_json = VALUES(metadata_json),
     updated_at = VALUES(updated_at);
+
+DELETE audit_event
+FROM rehealth_insurance_audit_event audit_event
+WHERE audit_event.request_id LIKE 'miqa-assignment-%'
+  AND JSON_UNQUOTE(JSON_EXTRACT(audit_event.metadata_json, '$.sourceSystem')) = 'LOCAL_MULTI_INSURER_APP_QA';
+
+DELETE manager
+FROM rehealth_insurance_subject_manager manager
+WHERE manager.source_system = 'LOCAL_MULTI_INSURER_APP_QA';
 
 INSERT INTO rehealth_insurance_subject_manager (
     id, tenant_id, manager_user_id, department_id, subject_ref,

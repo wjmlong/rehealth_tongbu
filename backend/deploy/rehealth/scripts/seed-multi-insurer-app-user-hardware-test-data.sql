@@ -22,12 +22,21 @@ INSERT INTO miqa_relationship (tenant_id, member_no, username) VALUES
     ('9101', 1, 'local_app_9101_01'), ('9101', 2, 'local_app_9101_02'),
     ('9101', 3, 'local_app_9101_03'), ('9101', 4, 'local_app_9101_04'),
     ('9101', 5, 'local_app_shared_01'), ('9101', 6, 'local_app_shared_02'),
+    ('9101', 7, 'local_app_9102_04'), ('9101', 8, 'local_app_9103_04'),
+    ('9101', 9, 'local_app_9102_03'), ('9101', 10, 'local_app_9103_03'),
+    ('9101', 11, 'local_app_9102_02'), ('9101', 12, 'local_app_9103_02'),
     ('9102', 1, 'local_app_9102_01'), ('9102', 2, 'local_app_9102_02'),
     ('9102', 3, 'local_app_9102_03'), ('9102', 4, 'local_app_9102_04'),
     ('9102', 5, 'local_app_shared_01'), ('9102', 6, 'local_app_shared_02'),
+    ('9102', 7, 'local_app_9101_04'), ('9102', 8, 'local_app_9103_04'),
+    ('9102', 9, 'local_app_9101_03'), ('9102', 10, 'local_app_9103_03'),
+    ('9102', 11, 'local_app_9101_02'), ('9102', 12, 'local_app_9103_02'),
     ('9103', 1, 'local_app_9103_01'), ('9103', 2, 'local_app_9103_02'),
     ('9103', 3, 'local_app_9103_03'), ('9103', 4, 'local_app_9103_04'),
-    ('9103', 5, 'local_app_shared_01'), ('9103', 6, 'local_app_shared_02');
+    ('9103', 5, 'local_app_shared_01'), ('9103', 6, 'local_app_shared_02'),
+    ('9103', 7, 'local_app_9101_04'), ('9103', 8, 'local_app_9102_04'),
+    ('9103', 9, 'local_app_9101_03'), ('9103', 10, 'local_app_9102_03'),
+    ('9103', 11, 'local_app_9101_02'), ('9103', 12, 'local_app_9102_02');
 
 DELETE FROM hardware_upload_batch batch
 USING miqa_relationship rel
@@ -76,7 +85,7 @@ SELECT
     day_index,
     day_index / 117.0 AS trend,
     sin(day_index * 2.0 * pi() / 14.0) AS wave,
-    (rel.member_no - 3.5) * 0.35 AS member_bias
+    (rel.member_no - 6.5) * 0.24 AS member_bias
 FROM miqa_relationship rel
 CROSS JOIN LATERAL (
     SELECT

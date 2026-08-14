@@ -268,24 +268,40 @@ powershell -ExecutionPolicy Bypass -File `
 
 By default this command first refreshes the `LOCAL_MULTI_INSURER_QA` organization
 and staff baseline, then writes `LOCAL_MULTI_INSURER_APP_QA` data to MySQL and
-TimescaleDB. It creates 14 global APP accounts: four exclusive accounts for each
-of tenants `9101`–`9103`, plus `local_app_shared_01` and
-`local_app_shared_02`, which receive services from all three insurers. This yields
-18 independent insurer-subject relationships and 48 staff responsibility
-assignments. APP accounts are deliberately absent from `sys_user_tenant`; insurer
+TimescaleDB. It creates 14 global APP accounts: four home-labelled accounts for
+each of tenants `9101`–`9103`, plus `local_app_shared_01` and
+`local_app_shared_02`. The shared accounts and selected home-labelled accounts
+receive services from multiple insurers. This yields
+36 independent insurer-subject relationships and 120 staff responsibility
+assignments. Each insurer keeps its original six subjects and adds six APP users
+already served by another insurer, producing 12 visible subjects per insurer and
+exercising the supported “one APP user, multiple service institutions” model.
+APP accounts are deliberately absent from `sys_user_tenant`; insurer
 service membership comes from `rehealth_insurance_subject`, while WEB staff
 membership continues to use Jeecg tenant membership and tenant-scoped roles.
 
 Each APP account has a profile, complete RHI manual input, interview, device
-binding, behavior records, 30 CVD-16 risk-history fixtures, PIAS attribution and
-an intervention plan. Every insurer relationship has its own policy, coverage,
-consent, plan binding, intervention, feedback and claim. TimescaleDB receives 118
+binding, behavior records, 30 CVD-16 risk-history fixtures, seven RHI daily
+snapshots, four Factor16 explanations, PIAS attribution and an intervention plan
+containing three actions. Every insurer relationship has its own policy,
+coverage, consent, plan binding, intervention, three APP feedback entries, three
+staff actions and a claim. Each insurer's intervention workbench contains exactly
+three `pending_action`, three `pending_review`, three `in_progress`, and three
+`improved` subjects; every active fixture staff account is responsible for at
+least four subjects. TimescaleDB receives 118
 days matching the Android Debug full-chain rehearsal shape: ten measurements,
 one sleep record, one activity record and one diet record per relationship per
 day. All active synthetic staff and APP accounts use password `123456`. Re-running
 the script is idempotent and verifies exact counts. The data is synthetic,
 non-clinical and local-only; do not use it for medical, underwriting, claim or
 settlement decisions.
+
+To make every workbench status and risk distribution visible, the CVD fixture
+rows use `is_mock=0` together with `scorer_mode=local_qa_fixture`,
+`artifact_name=LOCAL_MULTI_INSURER_APP_QA_NOT_A_MODEL`, `[合成]` display names,
+and `clinicalUseAllowed=false`. Only the three explicit improvement-cohort APP
+accounts use a non-Mock attribution row. This exception exists solely for local
+UI/permission acceptance and must never be copied to staging or production.
 
 Health chat now supports two server-side engines behind the unchanged mobile API:
 
