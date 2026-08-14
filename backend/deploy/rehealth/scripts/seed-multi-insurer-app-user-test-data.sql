@@ -546,6 +546,68 @@ ON DUPLICATE KEY UPDATE
     features_json = VALUES(features_json), quality_json = VALUES(quality_json),
     created_at = VALUES(created_at), updated_at = VALUES(updated_at);
 
+-- RDI remains a user-owned daily aggregate. These fixtures are deliberately
+-- marked Mock so they can exercise the UI without becoming business evidence.
+INSERT INTO rehealth_rdi_daily_snapshot (
+    id, user_id, scored_on, raw_score, display_score, data_confidence,
+    status, is_mock, algorithm_version, calculation_source, created_at, updated_at
+)
+SELECT
+    LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:rdi:', app.username, ':', day.days_ago), 256)),
+    LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_APP_QA:user:', app.username))),
+    DATE_SUB(@anchor_date, INTERVAL day.days_ago DAY),
+    ROUND(38 + app.risk_base * 45 + day.days_ago * 0.40, 4),
+    ROUND(38 + app.risk_base * 45 + day.days_ago * 0.40, 4),
+    ROUND(0.78 + (app.profile_no % 3) * 0.05, 6),
+    'DEBUG_MOCK', 1, 'rdi-rule-1.0.1', 'LOCAL_MULTI_INSURER_APP_QA',
+    DATE_ADD(DATE_SUB(@anchor_date, INTERVAL day.days_ago DAY), INTERVAL 21 HOUR),
+    DATE_ADD(DATE_SUB(@anchor_date, INTERVAL day.days_ago DAY), INTERVAL 21 HOUR)
+FROM tmp_miqa_app_user app
+CROSS JOIN tmp_miqa_risk_day day
+WHERE day.days_ago < 7
+ON DUPLICATE KEY UPDATE
+    raw_score = VALUES(raw_score), display_score = VALUES(display_score),
+    data_confidence = VALUES(data_confidence), status = VALUES(status),
+    is_mock = VALUES(is_mock), algorithm_version = VALUES(algorithm_version),
+    calculation_source = VALUES(calculation_source), updated_at = VALUES(updated_at);
+
+INSERT INTO rehealth_rdi_contribution (
+    id, snapshot_id, factor_code, domain_code, source_code, current_value,
+    baseline_value, unit, raw_points, confidence, final_points,
+    source_factor_id, algorithm_version, created_at
+)
+SELECT
+    LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:rdi-contribution:', app.username, ':',
+                      day.days_ago, ':', factor.factor_code), 256)),
+    LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:rdi:', app.username, ':', day.days_ago), 256)),
+    factor.factor_code, factor.domain_code, 'LOCAL_MULTI_INSURER_APP_QA',
+    CASE factor.factor_code
+      WHEN 'steps' THEN 4200 + app.profile_no * 90
+      WHEN 'sleep_duration' THEN 390 + app.profile_no * 3
+      ELSE 30 + app.profile_no * 0.8
+    END,
+    CASE factor.factor_code WHEN 'steps' THEN 6800 WHEN 'sleep_duration' THEN 480 ELSE 42 END,
+    factor.unit,
+    ROUND(app.risk_base * factor.weight, 6),
+    ROUND(0.78 + (app.profile_no % 3) * 0.05, 6),
+    ROUND(app.risk_base * factor.weight * (0.78 + (app.profile_no % 3) * 0.05), 6),
+    CONCAT('LOCAL_MULTI_INSURER_APP_QA:', factor.factor_code, ':', app.username, ':', day.days_ago),
+    'rdi-rule-1.0.1',
+    DATE_ADD(DATE_SUB(@anchor_date, INTERVAL day.days_ago DAY), INTERVAL 21 HOUR)
+FROM tmp_miqa_app_user app
+CROSS JOIN tmp_miqa_risk_day day
+CROSS JOIN (
+    SELECT 'steps' factor_code, 'activity' domain_code, 'steps/day' unit, 1.20 weight
+    UNION ALL SELECT 'sleep_duration', 'sleep', 'min/night', 1.00
+    UNION ALL SELECT 'nocturnal_hrv', 'recovery', 'ms', 0.80
+) factor
+WHERE day.days_ago < 7
+ON DUPLICATE KEY UPDATE
+    current_value = VALUES(current_value), baseline_value = VALUES(baseline_value),
+    raw_points = VALUES(raw_points), confidence = VALUES(confidence),
+    final_points = VALUES(final_points), source_factor_id = VALUES(source_factor_id),
+    algorithm_version = VALUES(algorithm_version), created_at = VALUES(created_at);
+
 INSERT INTO rehealth_insurance_subject (
     id, tenant_id, subject_ref, rehealth_user_id, external_subject_ref_hash,
     enrollment_status, consent_status, consent_version, consented_at,

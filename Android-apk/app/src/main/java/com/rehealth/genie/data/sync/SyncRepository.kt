@@ -7,10 +7,12 @@ import com.rehealth.genie.network.AuthState
 import com.rehealth.genie.network.MeasurementUploadClient
 import com.rehealth.genie.network.HealthInterviewUploadClient
 import com.rehealth.genie.network.RhiSnapshotUploadClient
+import com.rehealth.genie.network.RdiSnapshotUploadClient
 import com.rehealth.genie.network.RhiManualHealthInputSyncClient
 import com.rehealth.genie.network.dto.HealthInterviewSubmitRequestDto
 import com.rehealth.genie.network.dto.RhiDailySnapshotBatchDto
 import com.rehealth.genie.network.dto.RhiDailySnapshotResponseDto
+import com.rehealth.genie.network.dto.RdiDailySnapshotBatchDto
 import com.rehealth.genie.network.dto.TelemetryBatchRequestDto
 import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
 import com.rehealth.genie.network.dto.RhiManualHealthInputDto
@@ -37,6 +39,7 @@ class SyncRepository(
     private val nowProvider: () -> Long = System::currentTimeMillis,
     private val healthInterviewClient: HealthInterviewUploadClient? = apiClient as? HealthInterviewUploadClient,
     private val rhiSnapshotClient: RhiSnapshotUploadClient? = apiClient as? RhiSnapshotUploadClient,
+    private val rdiSnapshotClient: RdiSnapshotUploadClient? = apiClient as? RdiSnapshotUploadClient,
     private val rhiManualHealthInputClient: RhiManualHealthInputSyncClient? =
         apiClient as? RhiManualHealthInputSyncClient,
 ) {
@@ -86,6 +89,7 @@ class SyncRepository(
         MEASUREMENT_KIND -> uploadMeasurement(item)
         HEALTH_INTERVIEW_KIND -> uploadHealthInterview(item)
         RHI_SNAPSHOT_KIND -> uploadRhiSnapshot(item)
+        RDI_SNAPSHOT_KIND -> uploadRdiSnapshot(item)
         RHI_MANUAL_INPUT_KIND -> uploadRhiManualHealthInput(item)
         else -> MeasurementUploadOutcome.Skipped
     }
@@ -149,6 +153,36 @@ class SyncRepository(
             is ApiResult.InvalidResponse -> saveDeadLetter(item, "rhi_snapshot_invalid")
             is ApiResult.NetworkError -> saveRetry(item, "rhi_snapshot_network")
             is ApiResult.ServiceUnavailable -> saveRetry(item, "rhi_snapshot_service_unavailable")
+        }
+    }
+
+    private suspend fun uploadRdiSnapshot(item: UploadQueueEntity): MeasurementUploadOutcome {
+        val client = rdiSnapshotClient ?: return saveRetry(item, "rdi_snapshot_client_unavailable")
+        val request = try {
+            gson.fromJson(item.payloadJson, RdiDailySnapshotBatchDto::class.java)
+                ?: return deadLetter(item)
+        } catch (_: JsonParseException) {
+            return deadLetter(item)
+        }
+        if (request.userId.isBlank() || request.snapshots.isEmpty()) return deadLetter(item)
+        return when (val result = client.uploadRdiSnapshot(request)) {
+            is ApiResult.Success -> {
+                if (result.data.persisted && result.data.accepted) {
+                    dao.update(item.copy(status = "done", lastError = null))
+                    MeasurementUploadOutcome.Uploaded
+                } else {
+                    saveDeadLetter(item, "rdi_snapshot_not_persisted")
+                }
+            }
+            is ApiResult.Unauthorized -> {
+                pauseQueue()
+                MeasurementUploadOutcome.Paused
+            }
+            is ApiResult.Forbidden -> saveDeadLetter(item, "rdi_snapshot_forbidden")
+            is ApiResult.InvalidRequest,
+            is ApiResult.InvalidResponse -> saveDeadLetter(item, "rdi_snapshot_invalid")
+            is ApiResult.NetworkError -> saveRetry(item, "rdi_snapshot_network")
+            is ApiResult.ServiceUnavailable -> saveRetry(item, "rdi_snapshot_service_unavailable")
         }
     }
 
@@ -285,6 +319,7 @@ class SyncRepository(
         const val MEASUREMENT_KIND = "telemetry_batch"
         const val HEALTH_INTERVIEW_KIND = "health_interview"
         const val RHI_SNAPSHOT_KIND = "rhi_daily_snapshot"
+        const val RDI_SNAPSHOT_KIND = "rdi_daily_snapshot"
         const val RHI_MANUAL_INPUT_KIND = "rhi_manual_health_input"
     }
 }

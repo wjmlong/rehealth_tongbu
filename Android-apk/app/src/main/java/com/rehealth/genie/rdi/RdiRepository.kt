@@ -9,6 +9,12 @@ import com.rehealth.genie.ring.data.RingMeasurementEntity
 import com.rehealth.genie.ring.data.RingSleepSessionEntity
 import com.rehealth.genie.diet.DietRecordDao
 import com.rehealth.genie.diet.DietRecordEntity
+import com.rehealth.genie.data.sync.SyncRepository
+import com.rehealth.genie.data.sync.UploadQueueEntity
+import com.rehealth.genie.network.dto.RdiContributionDto
+import com.rehealth.genie.network.dto.RdiDailyIndexDto
+import com.rehealth.genie.network.dto.RdiDailySnapshotBatchDto
+import com.google.gson.Gson
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -39,6 +45,8 @@ class RdiRepository(
     private val rdiLabMealDao: RdiLabMealDao,
     private val dietRecordDao: DietRecordDao,
     private val userIdProvider: () -> String?,
+    private val syncRepository: SyncRepository? = null,
+    private val gson: Gson = Gson(),
     private val zoneId: ZoneId = ZoneId.systemDefault(),
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
@@ -131,6 +139,9 @@ class RdiRepository(
             )
         }
         rdiDao.replaceCalculation(snapshot, records)
+        if (userIdProvider()?.takeIf { it.isNotBlank() } != null) {
+            enqueueUpload(snapshot, records)
+        }
         val sevenDaysAgo = rdiDao.snapshotForDay(userId, scoredOn.minusDays(7).toString())
         return RdiDisplayData(
             score = snapshot.displayScore,
@@ -139,6 +150,53 @@ class RdiRepository(
             status = snapshot.status,
             scoredOn = snapshot.scoredOn,
             contributions = records,
+        )
+    }
+
+    private suspend fun enqueueUpload(
+        snapshot: RdiDailySnapshotEntity,
+        records: List<RdiContributionEntity>,
+    ) {
+        val repository = syncRepository ?: return
+        val request = RdiDailySnapshotBatchDto(
+            userId = snapshot.userId,
+            snapshots = listOf(
+                RdiDailyIndexDto(
+                    scoredOn = snapshot.scoredOn,
+                    rawScore = snapshot.rawScore,
+                    displayScore = snapshot.displayScore,
+                    dataConfidence = snapshot.dataConfidence,
+                    status = snapshot.status,
+                    isMock = snapshot.isMock,
+                    algorithmVersion = snapshot.algorithmVersion,
+                    calculationSource = "android_local",
+                    contributions = records.map { record ->
+                        RdiContributionDto(
+                            factorCode = record.factorCode,
+                            domain = record.domain,
+                            source = record.source,
+                            currentValue = record.currentValue,
+                            baselineValue = record.baselineValue,
+                            unit = record.unit,
+                            rawPoints = record.rawPoints,
+                            confidence = record.confidence,
+                            finalPoints = record.finalPoints,
+                            sourceFactorId = record.sourceFactorId,
+                        )
+                    },
+                ),
+            ),
+        )
+        val now = clock()
+        repository.enqueue(
+            UploadQueueEntity(
+                id = "rdi:${snapshot.userId}:${snapshot.scoredOn}",
+                kind = "rdi_daily_snapshot",
+                payloadJson = gson.toJson(request),
+                status = "pending",
+                createdAt = now,
+                nextRetryAt = now,
+            ),
         )
     }
 

@@ -255,7 +255,7 @@ RHI v2 当前以可回滚的 preview 链路接入，不替代既有临床风险�
 负责。算法规划见
 `rehealth-algorithms/docs/RHI_V2_ALGORITHM_PLAN.md`。
 
-Android 当前保留独立的本地 `RDI rdi-rule-1.0.0` 算法与持久化骨架，但它
+Android 当前保留独立的本地 `RDI rdi-rule-1.0.1` 算法与持久化骨架，但它
 不再驱动“健康改善得分”。归因页顶部改由 `RHI Lite
 rhi-deterministic-preview-2.1.0-android-lite` 从 Room、经核对的健康档案
 和当前用户资料计算 RHI-100；阈值曲线、适用域权重、可信度收缩和
@@ -269,8 +269,9 @@ rhi-deterministic-preview-2.1.0-android-lite` 从 Room、经核对的健康档�
 原 RDI 骨架可从 Room 的近
 7/28 日活动、睡眠及满足同设备/有效天数要求的 HRV 生成近期可干预负荷，
 将可信度直接乘入贡献，并对展示值做 `0.30/0.70` 平滑和普通日 `±3` 限幅。
-数据不足时结果向 50 收缩或冻结上一有效展示值。它不调用新接口、不覆盖
-CVD-16 风险历史，也不从消费设备反推验证血压、LDL 或 HbA1c。Room v8
+数据不足时结果向 50 收缩或冻结上一有效展示值。登录用户完成 Room 写入后通过稳定队列调用
+`POST /rehealth/mobile/rdi/daily-snapshot`，仅上传日级分数、状态、Mock 标记和结构化贡献；
+服务端不接收原始遥测或本地化证据文本。它不覆盖 CVD-16 风险历史，也不从消费设备反推验证血压、LDL 或 HbA1c。Room v8
 通过显式 7→8 迁移保存每日快照和逐因素证据；Room v9/v10 保存用户手填
 RHI 指标和经核对的临床血压/血检值，所有空白字段仍为 `NULL`。
 归因页“健康改善得分”显示最近有效 RHI 与 90 天窗口最早有效个人基准的
@@ -328,7 +329,7 @@ unknown 记录计入临床风险。
 | 数据 | 权威存储 | 说明 |
 | --- | --- | --- |
 | Android 本地遥测和待上传任务 | Room | 本地优先、离线可用 |
-| Android 每日 RDI 与贡献证据 | Room v8 | 本地产品趋势；不作为临床概率或云端权威风险 |
+| Android 每日 RDI 与贡献证据 | Room v8 + MySQL `rehealth_rdi_daily_snapshot` / `rehealth_rdi_contribution` | 本地计算后认证上传日级投影；不作为临床概率，机构读取仍经过服务关系、授权和负责人范围 |
 | Android RHI 手填指标与已确认临床输入 | Room v9/v10 + MySQL `rehealth_rhi_manual_health_input` | 本地先写、按用户隔离、稳定队列重试；空白保存为 `NULL`，按客户端 `updatedAt` 防止旧副本覆盖新值 |
 | Android RHI 每日聚合快照 | Room + MySQL `rehealth_rhi_daily_snapshot` | 本地计算和持久化后认证上传；按用户/日期幂等，不存原始遥测，供授权管理端趋势展示 |
 | Android 手工饮食记录 | Room v11 | 先本地持久化，再通过 durable queue 以 `telemetry-v2 dietRecords` 上传；显式 10→11 迁移保留既有健康数据 |

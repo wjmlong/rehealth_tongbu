@@ -27,6 +27,8 @@ import com.rehealth.genie.network.dto.TelemetryBatchRequestDto
 import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
 import com.rehealth.genie.network.dto.RhiDailySnapshotBatchDto
 import com.rehealth.genie.network.dto.RhiDailySnapshotResponseDto
+import com.rehealth.genie.network.dto.RdiDailySnapshotBatchDto
+import com.rehealth.genie.network.dto.RdiDailySnapshotResponseDto
 import com.rehealth.genie.network.dto.RhiManualHealthInputDto
 import com.rehealth.genie.network.dto.RecentTelemetryResponseDto
 import com.rehealth.genie.network.dto.ViomiBindRequestDto
@@ -101,6 +103,11 @@ interface ReHealthApi {
     suspend fun uploadRhiSnapshot(
         @Body request: RhiDailySnapshotBatchDto,
     ): Response<JeecgResult<RhiDailySnapshotResponseDto>>
+
+    @POST("rehealth/mobile/rdi/daily-snapshot")
+    suspend fun uploadRdiSnapshot(
+        @Body request: RdiDailySnapshotBatchDto,
+    ): Response<JeecgResult<RdiDailySnapshotResponseDto>>
 
     @POST("rehealth/mobile/rhi/evaluate-series")
     suspend fun evaluateRhiSeries(

@@ -165,6 +165,13 @@ SELECT 'rhi_snapshots', COUNT(*) FROM rehealth_rhi_daily_snapshot snapshot
 JOIN sys_user app ON BINARY app.id = BINARY snapshot.user_id
 WHERE app.username REGEXP '^local_app_(910[123]_[0-9][0-9]|shared_0[12])$'
   AND snapshot.calculation_source = 'LOCAL_MULTI_INSURER_APP_QA';
+SELECT 'rdi_snapshots', COUNT(*) FROM rehealth_rdi_daily_snapshot snapshot
+JOIN sys_user app ON BINARY app.id = BINARY snapshot.user_id
+WHERE app.username REGEXP '^local_app_(910[123]_[0-9][0-9]|shared_0[12])$'
+  AND snapshot.calculation_source = 'LOCAL_MULTI_INSURER_APP_QA';
+SELECT 'rdi_contributions', COUNT(*) FROM rehealth_rdi_contribution contribution
+JOIN rehealth_rdi_daily_snapshot snapshot ON snapshot.id = contribution.snapshot_id
+WHERE snapshot.calculation_source = 'LOCAL_MULTI_INSURER_APP_QA';
 SELECT 'subjects', COUNT(*) FROM rehealth_insurance_subject WHERE source_system = 'LOCAL_MULTI_INSURER_APP_QA';
 SELECT 'policies', COUNT(*) FROM rehealth_insurance_policy WHERE source_system = 'LOCAL_MULTI_INSURER_APP_QA';
 SELECT 'coverages', COUNT(*) FROM rehealth_insurance_coverage WHERE source_system = 'LOCAL_MULTI_INSURER_APP_QA';
@@ -227,7 +234,14 @@ FROM rehealth_insurance_subject subject
 WHERE subject.source_system = 'LOCAL_MULTI_INSURER_APP_QA'
   AND (SELECT COUNT(*) FROM rehealth_rhi_daily_snapshot snapshot
        WHERE snapshot.user_id = subject.rehealth_user_id
+          AND snapshot.calculation_source = 'LOCAL_MULTI_INSURER_APP_QA') >= 3
+  AND (SELECT COUNT(*) FROM rehealth_rdi_daily_snapshot snapshot
+       WHERE snapshot.user_id = subject.rehealth_user_id
          AND snapshot.calculation_source = 'LOCAL_MULTI_INSURER_APP_QA') >= 3
+  AND (SELECT COUNT(*) FROM rehealth_rdi_contribution contribution
+       JOIN rehealth_rdi_daily_snapshot snapshot ON snapshot.id = contribution.snapshot_id
+       WHERE snapshot.user_id = subject.rehealth_user_id
+         AND snapshot.scored_on = @anchor_date) >= 3
   AND (SELECT JSON_LENGTH(JSON_EXTRACT(risk.response_json, '$.factor_contributions'))
        FROM rehealth_cvd_risk_result risk
        WHERE risk.user_id = subject.rehealth_user_id

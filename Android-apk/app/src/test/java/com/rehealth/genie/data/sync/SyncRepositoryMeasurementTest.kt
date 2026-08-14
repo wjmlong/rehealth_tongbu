@@ -5,10 +5,14 @@ import com.rehealth.genie.network.AuthState
 import com.rehealth.genie.network.MeasurementUploadClient
 import com.rehealth.genie.network.HealthInterviewUploadClient
 import com.rehealth.genie.network.RhiManualHealthInputSyncClient
+import com.rehealth.genie.network.RdiSnapshotUploadClient
 import com.rehealth.genie.network.dto.HealthInterviewSubmitRequestDto
 import com.rehealth.genie.network.dto.TelemetryBatchRequestDto
 import com.rehealth.genie.network.dto.TelemetryBatchResponseDto
 import com.rehealth.genie.network.dto.RhiManualHealthInputDto
+import com.rehealth.genie.network.dto.RdiDailyIndexDto
+import com.rehealth.genie.network.dto.RdiDailySnapshotBatchDto
+import com.rehealth.genie.network.dto.RdiDailySnapshotResponseDto
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -160,6 +164,48 @@ class SyncRepositoryMeasurementTest {
         assertEquals(8.5, client.manualInputRequests.single().sedentaryHoursPerDay)
     }
 
+    @Test
+    fun `uploads RDI snapshot and requires durable backend acknowledgement`() = runTest {
+        val dao = FakeUploadQueueDao()
+        val client = FakeMeasurementUploadClient(
+            result = ApiResult.NetworkError("unused"),
+            rdiResult = ApiResult.Success(
+                RdiDailySnapshotResponseDto(accepted = true, persisted = true, status = "ACCEPTED_PERSISTED"),
+            ),
+        )
+        val repository = SyncRepository(dao, client, nowProvider = { NOW })
+        val request = RdiDailySnapshotBatchDto(
+            userId = "user-a",
+            snapshots = listOf(
+                RdiDailyIndexDto(
+                    scoredOn = "2026-08-14",
+                    rawScore = 58.0,
+                    displayScore = 57.0,
+                    dataConfidence = 0.8,
+                    status = "CONFIRMED",
+                    isMock = false,
+                    algorithmVersion = "rdi-rule-1.0.1",
+                    calculationSource = "android_local",
+                    contributions = emptyList(),
+                ),
+            ),
+        )
+        val item = UploadQueueEntity(
+            id = "rdi:user-a:2026-08-14",
+            kind = "rdi_daily_snapshot",
+            payloadJson = com.google.gson.Gson().toJson(request),
+            status = "pending",
+            createdAt = NOW,
+            nextRetryAt = NOW,
+        )
+
+        val outcome = repository.uploadQueuedItem(item)
+
+        assertIs<MeasurementUploadOutcome.Uploaded>(outcome)
+        assertEquals("done", dao.saved.single().status)
+        assertEquals("2026-08-14", client.rdiRequests.single().snapshots.single().scoredOn)
+    }
+
     private fun validQueueItem(
         attempts: Int = 0,
         payloadJson: String = VALID_PAYLOAD,
@@ -189,11 +235,14 @@ class SyncRepositoryMeasurementTest {
 private class FakeMeasurementUploadClient(
     private val result: ApiResult<TelemetryBatchResponseDto>,
     private val interviewResult: ApiResult<HealthInterviewSubmitRequestDto> = ApiResult.NetworkError("unused"),
-) : MeasurementUploadClient, HealthInterviewUploadClient, RhiManualHealthInputSyncClient {
+    private val rdiResult: ApiResult<RdiDailySnapshotResponseDto> = ApiResult.NetworkError("unused"),
+) : MeasurementUploadClient, HealthInterviewUploadClient, RhiManualHealthInputSyncClient,
+    RdiSnapshotUploadClient {
     override var authState: AuthState = AuthState.Authorized
     val requests = mutableListOf<TelemetryBatchRequestDto>()
     val interviewRequests = mutableListOf<HealthInterviewSubmitRequestDto>()
     val manualInputRequests = mutableListOf<RhiManualHealthInputDto>()
+    val rdiRequests = mutableListOf<RdiDailySnapshotBatchDto>()
 
     override suspend fun uploadMeasurements(
         request: TelemetryBatchRequestDto,
@@ -219,6 +268,14 @@ private class FakeMeasurementUploadClient(
     ): ApiResult<RhiManualHealthInputDto> {
         manualInputRequests += request
         return ApiResult.Success(request)
+    }
+
+    override suspend fun uploadRdiSnapshot(
+        request: RdiDailySnapshotBatchDto,
+    ): ApiResult<RdiDailySnapshotResponseDto> {
+        rdiRequests += request
+        if (rdiResult is ApiResult.Unauthorized) authState = AuthState.Unauthorized
+        return rdiResult
     }
 }
 

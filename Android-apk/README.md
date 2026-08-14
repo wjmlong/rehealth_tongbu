@@ -199,10 +199,13 @@ MIUI 相机，并避免重复打开 `content://` URI。读取失败日志只记�
 
 Room v8 新增 `rdi_daily_snapshots` 与 `rdi_contribution_records`。`7→8`
 显式迁移只建表和索引，不删除既有健康、设备、队列、风险或健康问答数据。
-`rdi-rule-1.0.0` 以 50 为中性值，从近 7/28 日活动、睡眠和满足同设备门槛的
+`rdi-rule-1.0.1` 以 50 为中性值，从近 7/28 日活动、睡眠和满足同设备门槛的
 HRV 生成本地近期可干预负荷；每项贡献乘数据可信度，展示值按 `0.30/0.70`
 平滑并限制普通单日最多变化 3 分。数据不足时向中性收缩或保持上一展示值，
-不会把缺失当正常，也不会纳入消费级无袖带血压或伪造血检值。
+不会把缺失当正常，也不会纳入消费级无袖带血压或伪造血检值。登录用户完成
+RDI 本地写入后会生成稳定的 `rdi_daily_snapshot` 队列项，由 WorkManager 调用
+`POST /rehealth/mobile/rdi/daily-snapshot`；访客仍只保存在 `__local_device__`，
+网络不可用或 401 不会阻断本地 RDI 计算与持久化。
 其中 6000 步/150 分钟和成人 7–9 小时睡眠只作为产品目标锚点，分别参考
 [《中国居民膳食指南（2022）》公开解读](https://www.sport.gov.cn/n20001280/n20001265/n20066978/c24291669/content.html)
 与 [AHA Life's Essential 8](https://www.heart.org/en/healthy-living/healthy-lifestyle/lifes-essential-8)；

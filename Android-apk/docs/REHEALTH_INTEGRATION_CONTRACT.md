@@ -322,8 +322,14 @@ Android Room schema v8 adds `rdi_daily_snapshots` and
 indices, preserving all prior records. A snapshot stores raw/display scores,
 confidence, status, date and algorithm version; each contribution stores the
 source, current/baseline values, unit, raw points, confidence-adjusted points,
-evidence text, source-factor ID and version. These tables are local-only and are
-not part of telemetry, public mobile DTOs, PIAS, or clinical-risk persistence.
+evidence text, source-factor ID and version. Authenticated users enqueue a bounded
+daily projection only after this local transaction succeeds. The typed
+`POST /rehealth/mobile/rdi/daily-snapshot` request carries scores, status, Mock
+provenance, algorithm version and structured contributions; it deliberately omits
+localized evidence text and raw telemetry. JeecgBoot stores the projection in
+`rehealth_rdi_daily_snapshot` and `rehealth_rdi_contribution`, keyed by authenticated
+user and date. Guest rows remain local-only. RDI stays separate from PIAS and
+clinical CVD-risk persistence.
 
 Feedback and device binding completion require `persisted == true`.
 

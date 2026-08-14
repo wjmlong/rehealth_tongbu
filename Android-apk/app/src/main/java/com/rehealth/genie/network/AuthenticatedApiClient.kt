@@ -22,6 +22,14 @@ interface RhiSnapshotUploadClient {
     ): ApiResult<RhiDailySnapshotResponseDto>
 }
 
+interface RdiSnapshotUploadClient {
+    val authState: AuthState
+
+    suspend fun uploadRdiSnapshot(
+        request: RdiDailySnapshotBatchDto,
+    ): ApiResult<RdiDailySnapshotResponseDto>
+}
+
 interface HealthInterviewUploadClient {
     val authState: AuthState
 
@@ -57,6 +65,7 @@ class AuthenticatedApiClient(
 ) : MeasurementUploadClient,
     HealthInterviewUploadClient,
     RhiSnapshotUploadClient,
+    RdiSnapshotUploadClient,
     RhiManualHealthInputSyncClient {
     private var mobileApi = ReHealthMobileApi(
         baseUrl = baseUrl,
@@ -77,6 +86,12 @@ class AuthenticatedApiClient(
         request: RhiDailySnapshotBatchDto,
     ): ApiResult<RhiDailySnapshotResponseDto> = executeWithAuth {
         mobileApi.uploadRhiSnapshot(request)
+    }
+
+    override suspend fun uploadRdiSnapshot(
+        request: RdiDailySnapshotBatchDto,
+    ): ApiResult<RdiDailySnapshotResponseDto> = executeWithAuth {
+        mobileApi.uploadRdiSnapshot(request)
     }
 
     suspend fun evaluateRhiSeries(

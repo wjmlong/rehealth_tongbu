@@ -75,17 +75,17 @@ JeecgBoot `rehealth:insurance:organization:*`、`member:*`、`role:assign` 和
 
 ### 2.2 干预改善工作台
 
-干预改善工作台复用上述负责人范围，不接受浏览器提供租户或用户范围。所有保险后台角色可用 `rehealth:insurance:risk:view` 读取其负责 APP 用户的完整聚合业务数据；只有机构管理员、部门经理和运营员等被授予 `rehealth:insurance:intervention:manage` 的角色可以创建或更新人工行动。操作均写入现有保险审计事件。
+干预改善工作台复用上述负责人范围，不接受浏览器提供租户或用户范围，并只返回 `consent_status=granted` 的服务对象。所有保险后台角色可用 `rehealth:insurance:risk:view` 读取其负责 APP 用户的完整聚合业务数据；只有机构管理员、部门经理和运营员等被授予 `rehealth:insurance:intervention:manage` 的角色可以创建或更新人工行动。操作均写入现有保险审计事件。
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | `GET` | `/rehealth/insurance/v1/interventions/dashboard` | 按当前员工负责范围汇总待行动、进行中、待复核和已改善数量 |
-| `GET` | `/rehealth/insurance/v1/interventions` | 分页查询负责用户的风险、RHI、依从性、负责人和流程状态 |
-| `GET` | `/rehealth/insurance/v1/interventions/{subjectId}` | 返回风险趋势、Factor16、RHI 日快照、计划、反馈、人工行动和归因证据 |
+| `GET` | `/rehealth/insurance/v1/interventions` | 分页查询负责用户的 CVD 风险、RHI、RDI、依从性、负责人和流程状态 |
+| `GET` | `/rehealth/insurance/v1/interventions/{subjectId}` | 返回 CVD 风险趋势、Factor16、RHI/RDI 日快照、RDI 结构化贡献项、计划、反馈、人工行动和归因证据 |
 | `POST` | `/rehealth/insurance/v1/interventions/{subjectId}/actions` | 创建随访、任务或人工复核行动 |
 | `PUT` | `/rehealth/insurance/v1/intervention-actions/{actionId}` | 更新行动状态、负责人、期限和有界结果 |
 
-APP 通用干预反馈会按同一用户和计划标识投影到其全部有效保险服务关系，并在每个租户/绑定内幂等保存。工作台只消费聚合后的风险、RHI、计划和反馈，不返回原始遥测。只有真实、数据充分且方向一致的归因证据才会自动标记“已改善”；Mock 或证据不足时必须显示说明，不能把合成风险评分当作业务判断。
+APP 通用干预反馈会按同一用户和计划标识投影到其全部有效保险服务关系，并在每个租户/绑定内幂等保存。工作台只消费聚合后的 CVD 风险、RHI、RDI、计划和反馈，不返回原始遥测；CVD 风险、RHI 与 RDI 是三个独立指标，前端不得用风险分数推导 RDI。RDI Mock、过期或数据不足状态必须显式展示，且不参与现有 PIAS/风险工作流状态计算。只有真实、数据充分且方向一致的归因证据才会自动标记“已改善”；Mock 或证据不足时必须显示说明，不能把合成风险评分当作业务判断。
 
 JeecgBoot 基础路径：`/jeecg-boot/rehealth/insurance/v1`。
 
@@ -152,6 +152,7 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 - `V20260813_7__grant_insurance_settings_to_admin.sql`：本地 `admin` 验收账号的机构设置读取/维护权限，不用于正式账号授权。
 - `V20260814_2__create_insurance_intervention_actions.sql`：保险人工行动表、干预写权限、反馈计划标识扩容及最小角色授权。
 - `V20260814_3__create_rhi_daily_snapshot.sql`：认证 APP 用户的 RHI 每日聚合快照；不存原始遥测，并按用户/日期幂等更新。
+- `V20260814_4__create_rdi_daily_snapshot.sql`：认证 APP 用户的 RDI 每日聚合快照与结构化贡献项；不存原始遥测或自由文本证据，并按用户/日期幂等更新。
 
 迁移均为向前兼容的非破坏性变更，不删除既有保险数据。完整逐表结构见 `backend/docs/REHEALTH_DB_SCHEMA.md`。
 
@@ -163,7 +164,7 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 
 多租户成员与权限验收可执行 `backend/deploy/rehealth/scripts/seed-multi-insurer-tenant-test-data.ps1` 写入 `LOCAL_MULTI_INSURER_QA` 基线：租户 `9101`–`9103` 各包含机构节点、健康险运营部、精算与风控部，以及机构管理员、部门经理、分析员、运营员、查看员和待接受邀请账号；共享审计员使用同一个全局 Jeecg 账号加入三个租户。默认执行账号 `admin` 也会加入三个 QA 租户，以便在 Jeecg 租户选择器中切换后检查按当前租户过滤的部门树，但其默认登录租户保持不变。该基线只验证租户成员、部门与角色隔离，不生成投保人、保单、理赔或风险数据，并拒绝覆盖同编号的非 QA 租户。
 
-完整多机构 APP 用户验收可执行 `backend/deploy/rehealth/scripts/seed-multi-insurer-app-user-test-data.ps1 -AnchorDate 2026-08-14`。脚本复用上述机构和员工，创建 14 个全局 APP 账号、36 条保险服务关系和 120 条员工负责关系；每家机构保留原有 6 位服务用户，并增加 6 位已经接受其他保险机构服务的 APP 用户，因此每家机构的工作台均有 12 位负责对象。每个 APP 账号包含完整档案、RHI 手填、访谈、设备、30 天风险、7 条 RHI 日快照、4 个 Factor16 解释项及归因/干预数据；每条服务关系包含独立保单、保障、授权、计划绑定、3 条 APP 反馈、3 条人工行动和理赔。四种工作流状态 `pending_action`、`pending_review`、`in_progress`、`improved` 在每家机构内各 3 条；每个活跃测试员工最少负责 4 人。TimescaleDB 另写入按 Android Debug 全链路演练口径生成的 118 天测量、睡眠、活动和饮食记录。APP 账号不加入 `sys_user_tenant`，全部合成账号密码为 `123456`，来源标记为 `LOCAL_MULTI_INSURER_APP_QA`，仅限本地非临床验收。为了覆盖风险分布和“已改善”界面，风险行使用 `is_mock=0`、`scorer_mode=local_qa_fixture`、`artifact_name=LOCAL_MULTI_INSURER_APP_QA_NOT_A_MODEL`、`[合成]` 姓名和 `clinicalUseAllowed=false` 的组合，且只有明确的 3 人改善组使用非 Mock 归因；该例外绝不能复制到预发布或生产环境。
+完整多机构 APP 用户验收可执行 `backend/deploy/rehealth/scripts/seed-multi-insurer-app-user-test-data.ps1 -AnchorDate 2026-08-14`。脚本复用上述机构和员工，创建 14 个全局 APP 账号、36 条保险服务关系和 120 条员工负责关系；每家机构保留原有 6 位服务用户，并增加 6 位已经接受其他保险机构服务的 APP 用户，因此每家机构的工作台均有 12 位负责对象。每个 APP 账号包含完整档案、RHI 手填、访谈、设备、30 天风险、7 条 RHI 日快照、7 条显式 Mock RDI 日快照（每条 3 个结构化贡献项）、4 个 Factor16 解释项及归因/干预数据；每条服务关系包含独立保单、保障、授权、计划绑定、3 条 APP 反馈、3 条人工行动和理赔。四种工作流状态 `pending_action`、`pending_review`、`in_progress`、`improved` 在每家机构内各 3 条；每个活跃测试员工最少负责 4 人。TimescaleDB 另写入按 Android Debug 全链路演练口径生成的 118 天测量、睡眠、活动和饮食记录。APP 账号不加入 `sys_user_tenant`，全部合成账号密码为 `123456`，来源标记为 `LOCAL_MULTI_INSURER_APP_QA`，仅限本地非临床验收。为了覆盖风险分布和“已改善”界面，风险行使用 `is_mock=0`、`scorer_mode=local_qa_fixture`、`artifact_name=LOCAL_MULTI_INSURER_APP_QA_NOT_A_MODEL`、`[合成]` 姓名和 `clinicalUseAllowed=false` 的组合，且只有明确的 3 人改善组使用非 Mock 归因；该例外绝不能复制到预发布或生产环境。
 
 该基线同时创建 2 个保险部门和 2 个经理账号（`local_insurance_manager_01`、`local_insurance_manager_02`，密码均为 `123456`），并在 `rehealth_insurance_subject_manager` 中按部门分别分配 6 名投保人。风险查询和机构设置的部门、成员、负责人只读接口均在 JeecgBoot 查询层按该映射表过滤，不能仅依赖前端隐藏菜单实现越权防护。
 

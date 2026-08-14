@@ -34,6 +34,11 @@ public final class InsuranceInterventionWorkbenchResponse {
             @JsonProperty("risk_is_mock") Boolean riskIsMock,
             @JsonProperty("rhi_score") Double rhiScore,
             @JsonProperty("rhi_confidence") Double rhiConfidence,
+            @JsonProperty("rdi_score") Double rdiScore,
+            @JsonProperty("rdi_confidence") Double rdiConfidence,
+            @JsonProperty("rdi_status") String rdiStatus,
+            @JsonProperty("rdi_is_mock") Boolean rdiIsMock,
+            @JsonProperty("rdi_scored_on") String rdiScoredOn,
             @JsonProperty("adherence_score") Double adherenceScore,
             @JsonProperty("owner_name") String ownerName,
             @JsonProperty("department_name") String departmentName,
@@ -55,6 +60,18 @@ public final class InsuranceInterventionWorkbenchResponse {
     }
 
     public record Factor(String key, Double contribution, Double value) {
+    }
+
+    public record RdiContribution(
+            @JsonProperty("factor_code") String factorCode,
+            String domain,
+            String source,
+            @JsonProperty("current_value") Double currentValue,
+            @JsonProperty("baseline_value") Double baselineValue,
+            String unit,
+            @JsonProperty("final_points") Double finalPoints,
+            Double confidence
+    ) {
     }
 
     @JsonInclude(JsonInclude.Include.ALWAYS)
@@ -114,7 +131,9 @@ public final class InsuranceInterventionWorkbenchResponse {
             SubjectSummary subject,
             @JsonProperty("risk_trend") List<TrendPoint> riskTrend,
             @JsonProperty("rhi_trend") List<TrendPoint> rhiTrend,
+            @JsonProperty("rdi_trend") List<TrendPoint> rdiTrend,
             List<Factor> factors,
+            @JsonProperty("rdi_contributions") List<RdiContribution> rdiContributions,
             Plan plan,
             List<Feedback> feedback,
             List<Action> actions,

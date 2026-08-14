@@ -191,4 +191,17 @@ class InsuranceSchemaMigrationTest {
         assertFalse(sql.toLowerCase().contains("raw_rri"));
         assertTrue(sql.contains("software-V20260814.3"));
     }
+
+    @Test
+    void rdiSnapshotMigrationSeparatesDailyAggregateAndStructuredContributions() throws Exception {
+        String sql = read("db/software/mysql/V20260814_4__create_rdi_daily_snapshot.sql");
+        assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS rehealth_rdi_daily_snapshot"));
+        assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS rehealth_rdi_contribution"));
+        assertTrue(sql.contains("UNIQUE KEY uk_rdi_daily_user_date (user_id, scored_on)"));
+        assertTrue(sql.contains("source_factor_id"));
+        assertFalse(sql.toLowerCase().contains("evidence_text"));
+        assertFalse(sql.toLowerCase().contains("raw_ppg"));
+        assertFalse(sql.toLowerCase().contains("raw_rri"));
+        assertTrue(sql.contains("software-V20260814.4"));
+    }
 }

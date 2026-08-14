@@ -65,6 +65,7 @@ http://localhost:8080/jeecg-boot/rehealth/mobile
 | `POST` | `/rehealth/mobile/features/evaluate` | 调用 model-service 的 `POST /v1/cvd/risk/evaluate`；不可用时返回受控错误；将 M1 引入的治理跟踪块 `model_trace` 从 model-service 透传到 Android 客户端，该字段可空；详见 `model-service/docs/MODEL_REGISTRY.md`。 |
 | `POST` | `/rehealth/mobile/rhi/evaluate-series` | 认证的 RHI 预览。接受 1–120 个有序的 RHI v2 每日请求，依次调用 `model-service POST /v2/rhi/evaluate`，并返回数量相同且顺序一致的评估结果。它不持久化权威 RHI 快照。 |
 | `POST` | `/rehealth/mobile/rhi/daily-snapshot` | 接收 Android App 本地计算并供管理平台使用的 RHI 每日快照。请求体为 `RhiDailySnapshotBatchDto`：一个 `userId` 和一个 `RhiDailyIndexDto` 列表；每项包含当日总分、领域分数、特征快照和数据质量快照。后端按 `(user_id, scored_on)` 新增或更新，并返回 `{accepted, persisted, status}`。这是为管理端 RHI 视图提供数据的权威上传路径；`rhi/evaluate-series` 仍是独立的远程复算通道，不写入该存储。 |
+| `POST` | `/rehealth/mobile/rdi/daily-snapshot` | 接收认证 Android App 在 Room 落库后排队上传的 RDI 每日快照。请求体包含 `userId`、日级总分、置信度、状态、Mock 标记、算法版本和结构化贡献项；后端从认证上下文确认数据归属，按 `(user_id, scored_on)` 幂等更新快照并原子替换贡献项。只接收管理端展示所需的聚合值，不接收原始遥测或自由文本证据。 |
 | `GET` | `/rehealth/mobile/risk/latest` | 读取当前认证用户最新的已持久化风险。 |
 | `POST` | `/rehealth/mobile/interventions/generate` | 忽略客户端拥有的健康上下文，重新加载档案、访谈、最新风险及按租户限定的 Device Service 遥测上下文，通过 LangChain4j 生成结构化行动，再持久化版本化 JSON 计划。 |
 | `GET` | `/rehealth/mobile/interventions/today` | 只读取当前认证用户在 `rehealth.mobile.time-zone` 当前自然日内生成的结构化计划。 |
@@ -155,7 +156,7 @@ rehealth:
     enabled: true
 ```
 
-档案、RHI 手工健康输入与每日快照、访谈、设备绑定、特征/风险结果、干预、反馈和归因结果均使用已认证的 `LoginUser.id` 限定范围。`POST /rhi/daily-snapshot` 还会拒绝请求体 `userId` 与当前登录用户不一致的载荷，只保存管理端所需的日级聚合分数、领域分数、特征快照和质量快照，不保存原始遥测。Android 先在本地保存已完成的访谈或手工健康编辑，再将类型化载荷入队并通过 WorkManager 重试；禁用的 `software_db` 绝不会产生虚假的持久成功。现有数据库必须应用 `V20260805_1__add_rhi_manual_health_input.sql` 和 `V20260814_3__create_rhi_daily_snapshot.sql`。
+档案、RHI 手工健康输入与每日快照、RDI 每日快照、访谈、设备绑定、特征/风险结果、干预、反馈和归因结果均使用已认证的 `LoginUser.id` 限定范围。`POST /rhi/daily-snapshot` 与 `POST /rdi/daily-snapshot` 都会拒绝请求体 `userId` 与当前登录用户不一致的载荷；RDI 路径只保存日级聚合分数、置信度、状态和结构化贡献项，不保存原始遥测或自由文本证据。Android 先在本地保存已完成的数据，再将类型化载荷入队并通过 WorkManager 重试；访客计算只保留在本机，禁用的 `software_db` 绝不会产生虚假的持久成功。现有数据库必须应用 `V20260805_1__add_rhi_manual_health_input.sql`、`V20260814_3__create_rhi_daily_snapshot.sql` 和 `V20260814_4__create_rdi_daily_snapshot.sql`。
 
 `PatientProfileDto.version` 是乐观锁令牌。客户端应先通过 GET 获取档案，在编辑期间保留返回的版本，并随 PUT 发送。服务端忽略请求中的 `patientId`，从认证主体派生归属、校验数值范围，并根据身高和体重计算 BMI。运营档案和访谈字段保存在类型化列/子表中；模型证据快照按设计保留为 JSON。
 

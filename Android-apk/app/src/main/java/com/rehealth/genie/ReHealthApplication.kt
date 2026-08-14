@@ -125,6 +125,7 @@ class ReHealthApplication : Application() {
             rdiLabMealDao = database.rdiLabMealDao(),
             dietRecordDao = database.dietRecordDao(),
             userIdProvider = { sessionStore.userId },
+            syncRepository = syncRepository,
         )
     }
 

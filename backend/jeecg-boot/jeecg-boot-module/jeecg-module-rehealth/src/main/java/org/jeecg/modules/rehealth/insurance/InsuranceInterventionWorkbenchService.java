@@ -40,6 +40,7 @@ public class InsuranceInterventionWorkbenchService {
             LEFT JOIN rehealth_patient_profile profile
               ON profile.user_id = subject.rehealth_user_id COLLATE utf8mb4_0900_ai_ci
             WHERE subject.tenant_id = ? AND subject.enrollment_status = 'active'
+              AND subject.consent_status = 'granted'
             """;
     private static final Set<String> ACTION_STATUSES = Set.of("pending", "in_progress", "completed", "cancelled");
 
@@ -101,7 +102,8 @@ public class InsuranceInterventionWorkbenchService {
         RiskSnapshot latestRisk = latestRisk(identity.userId());
         return new InsuranceInterventionWorkbenchResponse.SubjectDetail(
                 "assigned_subjects", summary, riskTrend(identity.userId()), rhiTrend(identity.userId()),
-                factors(latestRisk == null ? null : latestRisk.responseJson()), plan(tenantId, identity),
+                rdiTrend(identity.userId()), factors(latestRisk == null ? null : latestRisk.responseJson()),
+                rdiContributions(identity.userId()), plan(tenantId, identity),
                 feedback(tenantId, identity.subjectRef()), actions(tenantId, identity.subjectRef()),
                 attribution(identity.userId()),
                 Boolean.TRUE.equals(summary.riskIsMock())
@@ -199,6 +201,7 @@ public class InsuranceInterventionWorkbenchService {
     private InsuranceInterventionWorkbenchResponse.SubjectSummary summary(int tenantId, Identity identity) {
         RiskSnapshot risk = latestRisk(identity.userId());
         RhiSnapshot rhi = latestRhi(identity.userId());
+        RdiSnapshot rdi = latestRdi(identity.userId());
         FeedbackAggregate feedback = latestFeedback(tenantId, identity.subjectRef());
         AttributionSnapshot attribution = latestAttribution(identity.userId());
         Owner owner = owner(tenantId, identity.subjectRef());
@@ -215,12 +218,16 @@ public class InsuranceInterventionWorkbenchService {
         String updated = StreamDates.max(
                 risk == null ? null : format(risk.evaluatedAt()),
                 rhi == null ? null : rhi.updatedAt(),
+                rdi == null ? null : rdi.updatedAt(),
                 feedback == null ? null : feedback.occurredAt());
         return new InsuranceInterventionWorkbenchResponse.SubjectSummary(
                 identity.subjectRef(), identity.name(), workflow,
                 risk == null ? null : risk.score(), risk == null ? null : risk.level(),
                 risk == null ? null : risk.isMock(), rhi == null ? null : rhi.score(),
-                rhi == null ? null : rhi.confidence(), feedback == null ? null : feedback.adherence(),
+                rhi == null ? null : rhi.confidence(), rdi == null ? null : rdi.score(),
+                rdi == null ? null : rdi.confidence(), rdi == null ? null : rdi.status(),
+                rdi == null ? null : rdi.isMock(), rdi == null ? null : rdi.scoredOn(),
+                feedback == null ? null : feedback.adherence(),
                 owner == null ? null : owner.name(), owner == null ? null : owner.department(), updated);
     }
 
@@ -271,6 +278,42 @@ public class InsuranceInterventionWorkbenchService {
                 ORDER BY scored_on
                 """, (rs, row) -> new InsuranceInterventionWorkbenchResponse.TrendPoint(
                 rs.getDate(1).toString(), nullableDouble(rs, 2), rs.getString(3), false), userId);
+    }
+
+    private RdiSnapshot latestRdi(String userId) {
+        return jdbc.query("""
+                SELECT display_score, data_confidence, status, is_mock, scored_on, updated_at
+                FROM rehealth_rdi_daily_snapshot
+                WHERE user_id=? ORDER BY scored_on DESC LIMIT 1
+                """, (rs, row) -> new RdiSnapshot(nullableDouble(rs, 1), nullableDouble(rs, 2),
+                rs.getString(3), nullableBoolean(rs, 4), rs.getDate(5).toString(), format(rs.getTimestamp(6))),
+                userId).stream().findFirst().orElse(null);
+    }
+
+    private List<InsuranceInterventionWorkbenchResponse.TrendPoint> rdiTrend(String userId) {
+        return jdbc.query("""
+                SELECT scored_on, display_score, status, is_mock FROM rehealth_rdi_daily_snapshot
+                WHERE user_id=? AND scored_on >= DATE_SUB(CURRENT_DATE, INTERVAL 90 DAY)
+                ORDER BY scored_on
+                """, (rs, row) -> new InsuranceInterventionWorkbenchResponse.TrendPoint(
+                rs.getDate(1).toString(), nullableDouble(rs, 2), rs.getString(3), nullableBoolean(rs, 4)), userId);
+    }
+
+    private List<InsuranceInterventionWorkbenchResponse.RdiContribution> rdiContributions(String userId) {
+        return jdbc.query("""
+                SELECT contribution.factor_code, contribution.domain_code, contribution.source_code,
+                       contribution.current_value, contribution.baseline_value, contribution.unit,
+                       contribution.final_points, contribution.confidence
+                FROM rehealth_rdi_contribution contribution
+                INNER JOIN rehealth_rdi_daily_snapshot snapshot ON snapshot.id=contribution.snapshot_id
+                WHERE snapshot.user_id=?
+                  AND snapshot.scored_on=(SELECT MAX(latest.scored_on)
+                                          FROM rehealth_rdi_daily_snapshot latest WHERE latest.user_id=?)
+                ORDER BY ABS(contribution.final_points) DESC, contribution.factor_code
+                """, (rs, row) -> new InsuranceInterventionWorkbenchResponse.RdiContribution(
+                rs.getString(1), rs.getString(2), rs.getString(3), nullableDouble(rs, 4),
+                nullableDouble(rs, 5), rs.getString(6), nullableDouble(rs, 7), nullableDouble(rs, 8)),
+                userId, userId);
     }
 
     private FeedbackAggregate latestFeedback(int tenantId, String subjectRef) {
@@ -468,6 +511,8 @@ public class InsuranceInterventionWorkbenchService {
     private record Identity(String subjectRef, String userId, String name) {}
     private record RiskSnapshot(Double score, String level, Boolean isMock, String responseJson, Timestamp evaluatedAt) {}
     private record RhiSnapshot(Double score, Double confidence, String updatedAt) {}
+    private record RdiSnapshot(Double score, Double confidence, String status, Boolean isMock,
+                               String scoredOn, String updatedAt) {}
     private record FeedbackAggregate(Double adherence, String occurredAt) {}
     private record AttributionSnapshot(Boolean dataSufficient, Boolean isMock, Double individualAtt,
                                        Double trendDelta, String status, String interpretation, Timestamp createdAt) {}

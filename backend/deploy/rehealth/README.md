@@ -29,11 +29,12 @@ Do not interpret a static pass as a deployed-service health result.
 
 ## Local insurer workflow
 
-Apply the non-destructive MySQL migrations through `V20260814_3` before testing
+Apply the non-destructive MySQL migrations through `V20260814_4` before testing
 the insurer website. They add import/job/plan-feedback tables, workflow
 permissions, insurance organization settings, tenant-scoped department codes and
 local-admin acceptance grants, read-only organization/member settings, insurer
-intervention actions and aggregate RHI daily snapshots. Production must assign
+intervention actions and aggregate RHI/RDI daily snapshots plus structured RDI
+contributions. Production must assign
 `insurer_viewer`, `insurer_analyst`, `insurance_operator` or `insurer_auditor`
 explicitly and must not rely on the local admin grant.
 
@@ -282,7 +283,8 @@ membership continues to use Jeecg tenant membership and tenant-scoped roles.
 
 Each APP account has a profile, complete RHI manual input, interview, device
 binding, behavior records, 30 CVD-16 risk-history fixtures, seven RHI daily
-snapshots, four Factor16 explanations, PIAS attribution and an intervention plan
+snapshots, seven explicitly Mock RDI daily snapshots with three structured
+contributions each, four Factor16 explanations, PIAS attribution and an intervention plan
 containing three actions. Every insurer relationship has its own policy,
 coverage, consent, plan binding, intervention, three APP feedback entries, three
 staff actions and a claim. Each insurer's intervention workbench contains exactly
