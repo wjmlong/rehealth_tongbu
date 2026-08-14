@@ -138,6 +138,23 @@ class InsuranceSchemaMigrationTest {
     }
 
     @Test
+    void insurerRolesCanReadOrganizationAndMemberSettings() throws Exception {
+        String sql = read("db/software/mysql/V20260814_1__grant_insurance_settings_view.sql");
+
+        for (String role : List.of(
+                "insurer_viewer",
+                "insurer_analyst",
+                "insurance_operator",
+                "insurer_auditor")) {
+            assertTrue(sql.contains(role), role);
+        }
+        assertTrue(sql.contains("rehealth:insurance:organization:view"));
+        assertTrue(sql.contains("rehealth:insurance:member:view"));
+        assertFalse(sql.contains("rehealth:insurance:member:manage"));
+        assertTrue(sql.contains("software-V20260814.1"));
+    }
+
+    @Test
     void departmentMigrationUsesTenantScopedCodesAndNormalizesTheLocalTree() throws Exception {
         String sql = read("db/software/mysql/V20260813_8__isolate_department_codes_by_tenant.sql");
 

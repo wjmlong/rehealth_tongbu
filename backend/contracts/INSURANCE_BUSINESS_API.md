@@ -67,6 +67,7 @@ JeecgBoot `rehealth:insurance:organization:*`、`member:*`、`role:assign` 和
 | `PUT` | `/rehealth/insurance/v1/settings/assignments/{subjectRef}` | 由机构管理员维护负责人关系 |
 
 `insurance_org_admin`（保险机构管理员）可维护机构、成员、角色和负责人；
+`insurer_viewer`、`insurer_analyst`、`insurance_operator` 和 `insurer_auditor` 可只读查看当前租户的机构信息与员工目录；员工姓名、账号、邮箱和手机号不脱敏，成员、角色及负责人关系的修改权限仍只授予机构管理员等管理角色。
 `insurance_department_manager`（保险部门经理）只能读取自己负责的投保人、所属部门及对应负责人关系，不能读取同租户其他经理或未分配投保人的信息。风险看板、列表和详情对所有保险后台角色统一应用 `rehealth_insurance_subject_manager`：角色只区分允许执行的后台操作，不裁剪负责用户的可读业务字段。
 邀请接口只匹配已经注册的 Jeecg 手机号，写入状态为 `5` 的待接受租户关系；被邀请人同意后才能登录该保险机构工作台，管理员不能通过状态接口跳过成员确认直接启用。当前操作人不能停用自己的租户成员关系，避免机构管理会话自锁。
 风险列表、详情和看板从 `rehealth_insurance_subject` 取得当前租户 APP 服务用户，并按当前员工 ID 关联 `rehealth_insurance_subject_manager`；APP 用户不需要加入 `sys_user_tenant`。有保险角色但没有分配时返回空范围，没有当前租户保险角色时拒绝访问。
