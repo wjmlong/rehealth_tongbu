@@ -79,4 +79,27 @@ class InsuranceTenantAccessGuardTest {
 
         assertEquals(HttpStatus.SERVICE_UNAVAILABLE, error.status());
     }
+
+    @Test
+    void everyInsuranceWebRoleUsesItsOwnResponsibilityScope() {
+        LoginUser user = new LoginUser().setId("insurance-staff");
+        when(jdbc.queryForObject(anyString(), eq(Integer.class), eq("insurance-staff"), eq(9101)))
+                .thenReturn(1);
+
+        assertEquals("insurance-staff", guard.responsibilityScope(user, 9101));
+    }
+
+    @Test
+    void accountWithoutInsuranceWebRoleCannotReadTenantWideRiskData() {
+        LoginUser user = new LoginUser().setId("plain-member");
+        when(jdbc.queryForObject(anyString(), eq(Integer.class), eq("plain-member"), eq(9101)))
+                .thenReturn(0);
+
+        InsuranceApiException error = assertThrows(
+                InsuranceApiException.class,
+                () -> guard.responsibilityScope(user, 9101)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, error.status());
+    }
 }

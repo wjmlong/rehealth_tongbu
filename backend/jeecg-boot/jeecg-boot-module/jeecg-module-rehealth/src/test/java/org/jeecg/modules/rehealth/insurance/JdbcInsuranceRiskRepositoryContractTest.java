@@ -34,10 +34,11 @@ class JdbcInsuranceRiskRepositoryContractTest {
                 ArgumentMatchers.<RowMapper<InsuranceRiskRepository.SubjectSnapshot>>any(),
                 eq(1000), isNull(), isNull(), eq(subjectRef));
         String query = sql.getValue();
-        assertTrue(query.contains("SHA2(CONCAT(ut.tenant_id, ':', ut.user_id), 256)"));
-        assertTrue(query.contains("ut.user_id AS internal_user_id"));
+        assertTrue(query.contains("insurance_subject.subject_ref AS subject_id"));
+        assertTrue(query.contains("insurance_subject.rehealth_user_id AS internal_user_id"));
+        assertTrue(query.contains("insurance_subject.enrollment_status = 'active'"));
         assertTrue(query.contains("WHERE ts.subject_id = ?"));
-        assertFalse(query.contains("ut.user_id AS subject_id"));
+        assertFalse(query.contains("FROM sys_user_tenant"));
         assertFalse(query.contains("SELECT ts.internal_user_id"));
         assertFalse(query.contains("ROW_NUMBER()"));
         assertFalse(query.contains("profile.user_id COLLATE"));

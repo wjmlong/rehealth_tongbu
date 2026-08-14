@@ -17,7 +17,7 @@
 - JeecgBoot 对每次保险查询、导入、研究、报告和结算操作重新校验当前账号的有效租户成员关系。
 - 所有业务表查询必须包含 `tenant_id`；路径 ID 不能绕过租户条件。
 - 同一 Jeecg 账号可以属于多个保险租户；机构设置修改成员部门或角色时，只允许修改当前租户拥有的关系，不得删除或覆盖该账号在其他租户的部门与角色。
-- 官网只展示匿名化 `subject_ref`、聚合风险和业务结果，不展示原始健康遥测、手机号或身份证号。
+- 投保人不要求匿名；只有同时命中当前租户保险角色和有效负责关系的员工才能查看其负责用户的身份与业务数据。`subject_ref` 继续作为租户内技术关联键，原始健康遥测仍不直接提供给保险官网。
 - FastAPI 不持有 MySQL 凭据；文件解析后的类型化批次仍通过 JeecgBoot API 写入。
 
 ## 2. 角色与权限
@@ -28,6 +28,8 @@
 | 保险分析员（`insurer_analyst`） | 风险只读；创建研究、冻结快照、运行和审核 PSM；报告只读 |
 | 保险运营员（`insurance_operator`） | 风险只读；业务数据导入；研究只读；报告与结算操作 |
 | 保险审计员（`insurer_auditor`） | 风险、研究、报告和审计证据只读 |
+| 保险机构管理员（`insurance_org_admin`） | 机构、员工、角色和负责人管理；读取本人负责用户 |
+| 保险部门经理（`insurance_department_manager`） | 读取本人负责用户及本部门负责人关系 |
 
 对应权限码为：
 
@@ -65,10 +67,9 @@ JeecgBoot `rehealth:insurance:organization:*`、`member:*`、`role:assign` 和
 | `PUT` | `/rehealth/insurance/v1/settings/assignments/{subjectRef}` | 由机构管理员维护负责人关系 |
 
 `insurance_org_admin`（保险机构管理员）可维护机构、成员、角色和负责人；
-`insurance_department_manager`（保险部门经理）只能读取自己负责的投保人、所属部门及对应负责人关系，不能读取同租户其他经理或未分配投保人的信息。
+`insurance_department_manager`（保险部门经理）只能读取自己负责的投保人、所属部门及对应负责人关系，不能读取同租户其他经理或未分配投保人的信息。风险看板、列表和详情对所有保险后台角色统一应用 `rehealth_insurance_subject_manager`：角色只区分允许执行的后台操作，不裁剪负责用户的可读业务字段。
 邀请接口只匹配已经注册的 Jeecg 手机号，写入状态为 `5` 的待接受租户关系；被邀请人同意后才能登录该保险机构工作台，管理员不能通过状态接口跳过成员确认直接启用。当前操作人不能停用自己的租户成员关系，避免机构管理会话自锁。
-风险列表、详情和看板在识别到部门经理角色时自动关联
-`rehealth_insurance_subject_manager`，未分配的投保人不会返回。
+风险列表、详情和看板从 `rehealth_insurance_subject` 取得当前租户 APP 服务用户，并按当前员工 ID 关联 `rehealth_insurance_subject_manager`；APP 用户不需要加入 `sys_user_tenant`。有保险角色但没有分配时返回空范围，没有当前租户保险角色时拒绝访问。
 
 JeecgBoot 基础路径：`/jeecg-boot/rehealth/insurance/v1`。
 
@@ -143,6 +144,8 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 完整工作流可执行 `backend/deploy/rehealth/scripts/seed-insurance-workflow-test-data.ps1` 写入 `LOCAL_INSURANCE_QA` 验收基线：12 名合成租户成员、12 张有效保单、12 条已支付理赔，以及处理组/对照组各 6 人的 PSM 候选和 1 个草稿研究。脚本使用固定业务键重复更新，不重复插入；合成用户没有密码、手机号或邮箱，不能登录。
 
 多租户成员与权限验收可执行 `backend/deploy/rehealth/scripts/seed-multi-insurer-tenant-test-data.ps1` 写入 `LOCAL_MULTI_INSURER_QA` 基线：租户 `9101`–`9103` 各包含机构节点、健康险运营部、精算与风控部，以及机构管理员、部门经理、分析员、运营员、查看员和待接受邀请账号；共享审计员使用同一个全局 Jeecg 账号加入三个租户。默认执行账号 `admin` 也会加入三个 QA 租户，以便在 Jeecg 租户选择器中切换后检查按当前租户过滤的部门树，但其默认登录租户保持不变。该基线只验证租户成员、部门与角色隔离，不生成投保人、保单、理赔或风险数据，并拒绝覆盖同编号的非 QA 租户。
+
+完整多机构 APP 用户验收可执行 `backend/deploy/rehealth/scripts/seed-multi-insurer-app-user-test-data.ps1 -AnchorDate 2026-08-14`。脚本复用上述机构和员工，创建 14 个全局 APP 账号、18 条保险服务关系和 48 条员工负责关系；其中每家机构有 4 个独享账号，另有 2 个共享账号同时接受三家机构服务。每个 APP 账号包含完整档案、RHI 手填、访谈、设备、30 天风险及归因/干预数据，每条服务关系包含独立保单、保障、授权、计划绑定、反馈和理赔；TimescaleDB 另写入按 Android Debug 全链路演练口径生成的 118 天测量、睡眠、活动和饮食记录。APP 账号不加入 `sys_user_tenant`，全部合成账号密码为 `123456`，来源标记为 `LOCAL_MULTI_INSURER_APP_QA`，仅限本地非临床验收。
 
 该基线同时创建 2 个保险部门和 2 个经理账号（`local_insurance_manager_01`、`local_insurance_manager_02`，密码均为 `123456`），并在 `rehealth_insurance_subject_manager` 中按部门分别分配 6 名投保人。风险查询和机构设置的部门、成员、负责人只读接口均在 JeecgBoot 查询层按该映射表过滤，不能仅依赖前端隐藏菜单实现越权防护。
 

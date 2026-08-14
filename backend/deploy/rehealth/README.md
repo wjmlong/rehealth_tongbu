@@ -201,6 +201,35 @@ default login tenant. In the Jeecg console, use the tenant selector to switch to
 `9101`, `9102`, or `9103` before opening department management; system department
 queries intentionally show only the currently selected tenant.
 
+To extend those three organizations with complete APP-user service fixtures, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File `
+  backend/deploy/rehealth/scripts/seed-multi-insurer-app-user-test-data.ps1 `
+  -AnchorDate 2026-08-14
+```
+
+By default this command first refreshes the `LOCAL_MULTI_INSURER_QA` organization
+and staff baseline, then writes `LOCAL_MULTI_INSURER_APP_QA` data to MySQL and
+TimescaleDB. It creates 14 global APP accounts: four exclusive accounts for each
+of tenants `9101`–`9103`, plus `local_app_shared_01` and
+`local_app_shared_02`, which receive services from all three insurers. This yields
+18 independent insurer-subject relationships and 48 staff responsibility
+assignments. APP accounts are deliberately absent from `sys_user_tenant`; insurer
+service membership comes from `rehealth_insurance_subject`, while WEB staff
+membership continues to use Jeecg tenant membership and tenant-scoped roles.
+
+Each APP account has a profile, complete RHI manual input, interview, device
+binding, behavior records, 30 CVD-16 risk-history fixtures, PIAS attribution and
+an intervention plan. Every insurer relationship has its own policy, coverage,
+consent, plan binding, intervention, feedback and claim. TimescaleDB receives 118
+days matching the Android Debug full-chain rehearsal shape: ten measurements,
+one sleep record, one activity record and one diet record per relationship per
+day. All active synthetic staff and APP accounts use password `123456`. Re-running
+the script is idempotent and verifies exact counts. The data is synthetic,
+non-clinical and local-only; do not use it for medical, underwriting, claim or
+settlement decisions.
+
 Health chat now supports two server-side engines behind the unchanged mobile API:
 
 - `REHEALTH_HEALTH_AGENT_ENGINE=langchain4j` is the default and runs prompt assembly, bounded

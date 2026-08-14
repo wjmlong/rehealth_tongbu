@@ -16,14 +16,14 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
     private static final String TENANT_AND_RISK_CTE = """
             WITH tenant_subject AS (
                 SELECT DISTINCT
-                       ut.user_id AS internal_user_id,
-                       LOWER(SHA2(CONCAT(ut.tenant_id, ':', ut.user_id), 256)) AS subject_id
-                FROM sys_user_tenant ut
+                       insurance_subject.rehealth_user_id AS internal_user_id,
+                       insurance_subject.subject_ref AS subject_id
+                FROM rehealth_insurance_subject insurance_subject
                 INNER JOIN sys_user account
-                    ON account.id = CONVERT(ut.user_id USING utf8mb3) COLLATE utf8mb3_general_ci
-                INNER JOIN sys_tenant tenant ON tenant.id = ut.tenant_id
-                WHERE ut.tenant_id = ?
-                  AND ut.status = '1'
+                    ON account.id = CONVERT(insurance_subject.rehealth_user_id USING utf8mb3) COLLATE utf8mb3_general_ci
+                INNER JOIN sys_tenant tenant ON tenant.id = insurance_subject.tenant_id
+                WHERE insurance_subject.tenant_id = ?
+                  AND insurance_subject.enrollment_status = 'active'
                   AND account.status = 1
                   AND account.del_flag = 0
                   AND tenant.status = 1
@@ -33,20 +33,20 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
                           SELECT 1
                           FROM rehealth_patient_profile candidate_profile
                           WHERE candidate_profile.user_id
-                              = ut.user_id COLLATE utf8mb4_0900_ai_ci
+                              = insurance_subject.rehealth_user_id COLLATE utf8mb4_0900_ai_ci
                       )
                       OR EXISTS (
                           SELECT 1
                           FROM rehealth_cvd_risk_result candidate_risk
                           WHERE candidate_risk.user_id
-                              = ut.user_id COLLATE utf8mb4_0900_ai_ci
+                              = insurance_subject.rehealth_user_id COLLATE utf8mb4_0900_ai_ci
                       )
                   )
                   AND (? IS NULL OR EXISTS (
                       SELECT 1 FROM rehealth_insurance_subject_manager scope
-                      WHERE scope.tenant_id = ut.tenant_id
+                      WHERE scope.tenant_id = insurance_subject.tenant_id
                         AND scope.manager_user_id = ?
-                        AND scope.subject_ref = LOWER(SHA2(CONCAT(ut.tenant_id, ':', ut.user_id), 256))
+                        AND scope.subject_ref = insurance_subject.subject_ref
                         AND scope.status = 'active'
                   ))
             ), latest_risk AS (
