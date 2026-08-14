@@ -55,7 +55,7 @@ class InsuranceRiskServiceTest {
 
         InsuranceRiskResponse.Dashboard dashboard = service.dashboard(1000);
 
-        assertEquals(InsuranceRiskService.DEV_SCOPE_MODE, dashboard.scopeMode());
+        assertEquals(InsuranceRiskService.RESPONSIBILITY_SCOPE_MODE, dashboard.scopeMode());
         assertEquals(9, dashboard.totalInsured());
         assertEquals(5, dashboard.assessedInsured());
         assertEquals(2, dashboard.syntheticInsured());
@@ -105,7 +105,7 @@ class InsuranceRiskServiceTest {
 
         InsuranceRiskResponse.Subject subject = service.insureds(1000, 1, 20, null, null).records().get(0);
 
-        assertEquals("张*丰", subject.displayName());
+        assertEquals("张三丰", subject.displayName());
         assertEquals("synthetic", subject.risk().status());
         assertNull(subject.risk().score());
         assertNull(subject.risk().level());
@@ -133,7 +133,7 @@ class InsuranceRiskServiceTest {
 
         InsuranceRiskResponse.Subject subject = service.insured(1000, SUBJECT_TWO).subject();
 
-        assertTrue(subject.displayName().startsWith("受保人-"));
+        assertEquals("未命名受保人", subject.displayName());
         assertEquals("assessed", subject.risk().status());
         assertEquals(0.61, subject.risk().score());
         assertEquals("medium", subject.risk().level());

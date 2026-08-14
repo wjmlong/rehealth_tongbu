@@ -8,13 +8,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Supplier;
@@ -34,7 +30,7 @@ import static org.jeecg.modules.rehealth.insurance.InsuranceRiskResponse.Subject
 @Service
 @ConditionalOnProperty(name = "rehealth.software-db.enabled", havingValue = "true")
 public class InsuranceRiskService {
-    public static final String DEV_SCOPE_MODE = "tenant_membership_dev_only";
+    public static final String RESPONSIBILITY_SCOPE_MODE = "assigned_app_users";
     private static final int MAX_PAGE_SIZE = 100;
     private static final int MAX_KEYWORD_LENGTH = 100;
 
@@ -79,7 +75,7 @@ public class InsuranceRiskService {
                 ? new InsuranceRiskRepository.BusinessSnapshot(0, 0, 0, null, null, 0, "unknown", null)
                 : businessRepository.tenant(tenantId));
         return new Dashboard(
-                DEV_SCOPE_MODE,
+                RESPONSIBILITY_SCOPE_MODE,
                 snapshot.totalInsured(),
                 snapshot.assessedInsured(),
                 snapshot.syntheticInsured(),
@@ -114,7 +110,7 @@ public class InsuranceRiskService {
                 ? repository.subjects(tenantId, pageNo, pageSize, normalizedKeyword, normalizedRiskLevel)
                 : repository.subjects(tenantId, managerUserId, pageNo, pageSize, normalizedKeyword, normalizedRiskLevel));
         return new InsuredPage(
-                DEV_SCOPE_MODE,
+                RESPONSIBILITY_SCOPE_MODE,
                 pageNo,
                 pageSize,
                 page.total(),
@@ -133,7 +129,7 @@ public class InsuranceRiskService {
                 ? repository.subject(tenantId, normalizedSubjectId)
                 : repository.subject(tenantId, managerUserId, normalizedSubjectId))
                 .orElseThrow(() -> InsuranceApiException.notFound("insured subject was not found in the requested tenant"));
-        return new InsuredDetail(DEV_SCOPE_MODE, subject(tenantId, snapshot));
+        return new InsuredDetail(RESPONSIBILITY_SCOPE_MODE, subject(tenantId, snapshot));
     }
 
     public InsuredDetail insured(int tenantId, String subjectId) {
@@ -143,7 +139,7 @@ public class InsuranceRiskService {
     private Subject subject(InsuranceRiskRepository.SubjectSnapshot snapshot) {
         return new Subject(
                 snapshot.subjectId(),
-                maskedName(snapshot.name(), snapshot.subjectId()),
+                displayName(snapshot.name()),
                 snapshot.age(),
                 normalizeGender(snapshot.gender()),
                 snapshot.bmi(),
@@ -159,7 +155,7 @@ public class InsuranceRiskService {
                 : businessRepository.subject(tenantId, snapshot.subjectId()));
         return new Subject(
                 snapshot.subjectId(),
-                maskedName(snapshot.name(), snapshot.subjectId()),
+                displayName(snapshot.name()),
                 snapshot.age(),
                 normalizeGender(snapshot.gender()),
                 snapshot.bmi(),
@@ -268,30 +264,11 @@ public class InsuranceRiskService {
         }
     }
 
-    private String maskedName(String name, String subjectId) {
+    private String displayName(String name) {
         if (name == null || name.isBlank()) {
-            return "受保人-" + shortSubjectToken(subjectId);
+            return "未命名受保人";
         }
-        int[] codePoints = name.trim().codePoints().toArray();
-        if (codePoints.length == 1) {
-            return "*";
-        }
-        String first = new String(codePoints, 0, 1);
-        if (codePoints.length == 2) {
-            return first + "*";
-        }
-        String last = new String(codePoints, codePoints.length - 1, 1);
-        return first + "*".repeat(Math.min(codePoints.length - 2, 6)) + last;
-    }
-
-    private String shortSubjectToken(String subjectId) {
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256")
-                    .digest(subjectId.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(digest, 0, 4);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 is unavailable", e);
-        }
+        return name.trim();
     }
 
     private String normalizeGender(String gender) {
