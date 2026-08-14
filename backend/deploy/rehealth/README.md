@@ -29,11 +29,11 @@ Do not interpret a static pass as a deployed-service health result.
 
 ## Local insurer workflow
 
-Apply the non-destructive MySQL migrations through `V20260814_1` before testing
+Apply the non-destructive MySQL migrations through `V20260814_3` before testing
 the insurer website. They add import/job/plan-feedback tables, workflow
 permissions, insurance organization settings, tenant-scoped department codes and
-local-admin acceptance grants and read-only organization/member settings for
-all insurer back-office roles. Production must assign
+local-admin acceptance grants, read-only organization/member settings, insurer
+intervention actions and aggregate RHI daily snapshots. Production must assign
 `insurer_viewer`, `insurer_analyst`, `insurance_operator` or `insurer_auditor`
 explicitly and must not rely on the local admin grant.
 
@@ -348,8 +348,10 @@ and a synthetic device binding, then replaces one stable TimescaleDB batch with
 script is idempotent for its fixed batch and binding IDs. All rows are marked
 `LOCAL_TEST_SEED` and are for QA only. Because the profile and manual-input rows
 are shared per user, run the desired admin scenario seed immediately before its
-test. This seed persists RHI inputs; it does not create an authoritative cloud
-RHI snapshot, which is not part of the current preview architecture.
+test. This seed persists RHI inputs but does not fabricate a cloud RHI daily
+snapshot. Snapshots are accepted only through the authenticated
+`POST /rehealth/mobile/rhi/daily-snapshot` path after the App has persisted and
+calculated a real local result.
 
 To keep using the legacy model-service health Q&A locally with the YAML-first path:
 

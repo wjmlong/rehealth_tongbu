@@ -693,6 +693,31 @@ public class JdbcSoftwareDbReHealthBusinessRepository implements ReHealthBusines
                 throw race;
             }
         }
+        // Project the generic APP feedback to every active insurer binding for the same
+        // user and plan. One APP user may belong to several institutions, so the INSERT
+        // deliberately fans out by tenant/binding while preserving tenant-local rows.
+        jdbcTemplate.update("""
+                INSERT INTO rehealth_insurance_intervention_feedback (
+                    id, tenant_id, binding_id, subject_ref, intervention_id,
+                    feedback_type, occurred_at, completion_rate, adherence_score,
+                    outcome_summary_json, source_system, source_record_id, created_at
+                )
+                SELECT REPLACE(UUID(), '-', ''), binding.tenant_id, binding.id, binding.subject_ref, ?,
+                       ?, ?, ?, ?, ?, 'rehealth_app_generic',
+                       LEFT(CONCAT('generic:', ?, ':', binding.id), 128), ?
+                FROM rehealth_insurance_plan_binding binding
+                JOIN rehealth_insurance_subject subject
+                  ON subject.tenant_id = binding.tenant_id
+                 AND subject.subject_ref = binding.subject_ref
+                 AND subject.rehealth_user_id = ?
+                WHERE binding.status = 'active' AND binding.plan_id = ?
+                ON DUPLICATE KEY UPDATE source_record_id = VALUES(source_record_id)
+                """, planId, status,
+                request.checkedAt == null ? now : new Timestamp(request.checkedAt),
+                "completed".equalsIgnoreCase(status) ? 1.0 : null,
+                request.adherence,
+                json(Map.of("status", status, "note", request.note == null ? "" : request.note)),
+                idempotencyKey, now, userId, planId);
     }
 
     @Override

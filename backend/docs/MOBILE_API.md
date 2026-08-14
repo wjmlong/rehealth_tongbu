@@ -155,7 +155,7 @@ rehealth:
     enabled: true
 ```
 
-档案、RHI 手工健康输入、访谈、设备绑定、特征/风险结果、干预、反馈和归因结果均使用已认证的 `LoginUser.id` 限定范围。Android 先在本地保存已完成的访谈或手工健康编辑，再将类型化载荷入队并通过 WorkManager 重试；禁用的 `software_db` 绝不会产生虚假的持久成功。现有数据库必须应用 `V20260805_1__add_rhi_manual_health_input.sql`。
+档案、RHI 手工健康输入与每日快照、访谈、设备绑定、特征/风险结果、干预、反馈和归因结果均使用已认证的 `LoginUser.id` 限定范围。`POST /rhi/daily-snapshot` 还会拒绝请求体 `userId` 与当前登录用户不一致的载荷，只保存管理端所需的日级聚合分数、领域分数、特征快照和质量快照，不保存原始遥测。Android 先在本地保存已完成的访谈或手工健康编辑，再将类型化载荷入队并通过 WorkManager 重试；禁用的 `software_db` 绝不会产生虚假的持久成功。现有数据库必须应用 `V20260805_1__add_rhi_manual_health_input.sql` 和 `V20260814_3__create_rhi_daily_snapshot.sql`。
 
 `PatientProfileDto.version` 是乐观锁令牌。客户端应先通过 GET 获取档案，在编辑期间保留返回的版本，并随 PUT 发送。服务端忽略请求中的 `patientId`，从认证主体派生归属、校验数值范围，并根据身高和体重计算 BMI。运营档案和访谈字段保存在类型化列/子表中；模型证据快照按设计保留为 JSON。
 

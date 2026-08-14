@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
         InsuranceImportController.class,
         InsuranceStudyController.class,
         InsuranceMobilePlanController.class,
+        InsuranceInterventionWorkbenchController.class,
         DisabledInsuranceRiskController.class
 })
 public class InsuranceAuthorizationExceptionHandler {

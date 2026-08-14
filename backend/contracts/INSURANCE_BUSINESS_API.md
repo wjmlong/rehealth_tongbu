@@ -1,6 +1,6 @@
 # 保险业务、PSM、RWE 与结算契约
 
-状态：本地 MVP 实现，2026-08-12。权威业务库为 JeecgBoot `software_db`（MySQL）；官网 FastAPI 是受控 BFF 和 PSM 执行器，不直接连接数据库。
+状态：本地 MVP 实现，2026-08-14。权威业务库为 JeecgBoot `software_db`（MySQL）；官网 FastAPI 是受控 BFF 和 PSM 执行器，不直接连接数据库。
 
 ## 1. 边界与租户安全
 
@@ -42,6 +42,7 @@ rehealth:insurance:report:view
 rehealth:insurance:report:manage
 rehealth:insurance:settlement:operate
 rehealth:insurance:audit:view
+rehealth:insurance:intervention:manage
 ```
 
 迁移仅创建角色模板和权限关系，不自动给业务用户授权。`V20260813_3` 为本地既有 `admin` 角色补齐保险工作流权限，`V20260813_7` 补齐机构设置验收所需权限，仍不创建用户或租户成员；正式环境应通过 `insurance_org_admin` 等最小权限角色授权。
@@ -71,6 +72,20 @@ JeecgBoot `rehealth:insurance:organization:*`、`member:*`、`role:assign` 和
 `insurance_department_manager`（保险部门经理）只能读取自己负责的投保人、所属部门及对应负责人关系，不能读取同租户其他经理或未分配投保人的信息。风险看板、列表和详情对所有保险后台角色统一应用 `rehealth_insurance_subject_manager`：角色只区分允许执行的后台操作，不裁剪负责用户的可读业务字段。
 邀请接口只匹配已经注册的 Jeecg 手机号，写入状态为 `5` 的待接受租户关系；被邀请人同意后才能登录该保险机构工作台，管理员不能通过状态接口跳过成员确认直接启用。当前操作人不能停用自己的租户成员关系，避免机构管理会话自锁。
 风险列表、详情和看板从 `rehealth_insurance_subject` 取得当前租户 APP 服务用户，并按当前员工 ID 关联 `rehealth_insurance_subject_manager`；APP 用户不需要加入 `sys_user_tenant`。有保险角色但没有分配时返回空范围，没有当前租户保险角色时拒绝访问。
+
+### 2.2 干预改善工作台
+
+干预改善工作台复用上述负责人范围，不接受浏览器提供租户或用户范围。所有保险后台角色可用 `rehealth:insurance:risk:view` 读取其负责 APP 用户的完整聚合业务数据；只有机构管理员、部门经理和运营员等被授予 `rehealth:insurance:intervention:manage` 的角色可以创建或更新人工行动。操作均写入现有保险审计事件。
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `GET` | `/rehealth/insurance/v1/interventions/dashboard` | 按当前员工负责范围汇总待行动、进行中、待复核和已改善数量 |
+| `GET` | `/rehealth/insurance/v1/interventions` | 分页查询负责用户的风险、RHI、依从性、负责人和流程状态 |
+| `GET` | `/rehealth/insurance/v1/interventions/{subjectId}` | 返回风险趋势、Factor16、RHI 日快照、计划、反馈、人工行动和归因证据 |
+| `POST` | `/rehealth/insurance/v1/interventions/{subjectId}/actions` | 创建随访、任务或人工复核行动 |
+| `PUT` | `/rehealth/insurance/v1/intervention-actions/{actionId}` | 更新行动状态、负责人、期限和有界结果 |
+
+APP 通用干预反馈会按同一用户和计划标识投影到其全部有效保险服务关系，并在每个租户/绑定内幂等保存。工作台只消费聚合后的风险、RHI、计划和反馈，不返回原始遥测。只有真实、数据充分且方向一致的归因证据才会自动标记“已改善”；Mock 或证据不足时必须显示说明，不能把合成风险评分当作业务判断。
 
 JeecgBoot 基础路径：`/jeecg-boot/rehealth/insurance/v1`。
 
@@ -135,6 +150,8 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 - `V20260813_4__add_insurance_subject_manager_scope.sql`：经理与投保人负责关系表，为后续经理级数据权限提供租户隔离基础。
 - `V20260813_6__create_insurance_settings.sql`：机构设置、成员管理权限和保险机构管理角色模板。
 - `V20260813_7__grant_insurance_settings_to_admin.sql`：本地 `admin` 验收账号的机构设置读取/维护权限，不用于正式账号授权。
+- `V20260814_2__create_insurance_intervention_actions.sql`：保险人工行动表、干预写权限、反馈计划标识扩容及最小角色授权。
+- `V20260814_3__create_rhi_daily_snapshot.sql`：认证 APP 用户的 RHI 每日聚合快照；不存原始遥测，并按用户/日期幂等更新。
 
 迁移均为向前兼容的非破坏性变更，不删除既有保险数据。完整逐表结构见 `backend/docs/REHEALTH_DB_SCHEMA.md`。
 

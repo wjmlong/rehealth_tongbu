@@ -166,4 +166,29 @@ class InsuranceSchemaMigrationTest {
         assertTrue(MybatisPlusSaasConfig.TENANT_TABLE.contains("sys_depart"));
         assertFalse(MybatisPlusSaasConfig.OPEN_SYSTEM_TENANT_CONTROL);
     }
+
+    @Test
+    void interventionWorkbenchMigrationAddsAuditedActionsAndSeparatedWritePermission() throws Exception {
+        String sql = read("db/software/mysql/V20260814_2__create_insurance_intervention_actions.sql");
+        assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS rehealth_insurance_intervention_action"));
+        assertTrue(sql.contains("tenant_id INT NOT NULL"));
+        assertTrue(sql.contains("rehealth:insurance:intervention:manage"));
+        assertTrue(sql.contains("insurance_org_admin"));
+        assertTrue(sql.contains("insurance_department_manager"));
+        assertTrue(sql.contains("insurance_operator"));
+        assertFalse(sql.contains("insurer_viewer', 'rehealth:insurance:intervention:manage"));
+        assertTrue(sql.contains("software-V20260814.2"));
+    }
+
+    @Test
+    void rhiSnapshotMigrationStoresOnlyDailyAggregates() throws Exception {
+        String sql = read("db/software/mysql/V20260814_3__create_rhi_daily_snapshot.sql");
+        assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS rehealth_rhi_daily_snapshot"));
+        assertTrue(sql.contains("UNIQUE KEY uk_rhi_daily_user_date (user_id, scored_on)"));
+        assertTrue(sql.contains("domains_json"));
+        assertTrue(sql.contains("quality_json"));
+        assertFalse(sql.toLowerCase().contains("raw_ppg"));
+        assertFalse(sql.toLowerCase().contains("raw_rri"));
+        assertTrue(sql.contains("software-V20260814.3"));
+    }
 }

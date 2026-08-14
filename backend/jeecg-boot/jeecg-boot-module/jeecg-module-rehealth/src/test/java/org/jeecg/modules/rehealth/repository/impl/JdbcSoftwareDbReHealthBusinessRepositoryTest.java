@@ -45,6 +45,28 @@ class JdbcSoftwareDbReHealthBusinessRepositoryTest {
         jdbcTemplate.execute("ALTER TABLE rehealth_cvd_risk_result ADD COLUMN factor_contribution_json LONGTEXT");
         jdbcTemplate.execute("ALTER TABLE rehealth_cvd_risk_result ADD COLUMN factor_measured_component_json LONGTEXT");
         jdbcTemplate.execute("ALTER TABLE rehealth_cvd_risk_result ADD COLUMN factor_control_support_json LONGTEXT");
+        jdbcTemplate.execute("""
+                CREATE TABLE rehealth_insurance_subject (
+                  id VARCHAR(64) PRIMARY KEY, tenant_id INT NOT NULL, subject_ref VARCHAR(64) NOT NULL,
+                  rehealth_user_id VARCHAR(64) NOT NULL, enrollment_status VARCHAR(32) NOT NULL
+                )
+                """);
+        jdbcTemplate.execute("""
+                CREATE TABLE rehealth_insurance_plan_binding (
+                  id VARCHAR(64) PRIMARY KEY, tenant_id INT NOT NULL, subject_ref VARCHAR(64) NOT NULL,
+                  plan_id VARCHAR(128) NOT NULL, status VARCHAR(32) NOT NULL
+                )
+                """);
+        jdbcTemplate.execute("""
+                CREATE TABLE rehealth_insurance_intervention_feedback (
+                  id VARCHAR(64) PRIMARY KEY, tenant_id INT NOT NULL, binding_id VARCHAR(64) NOT NULL,
+                  subject_ref VARCHAR(64) NOT NULL, intervention_id VARCHAR(128), feedback_type VARCHAR(64) NOT NULL,
+                  occurred_at DATETIME(3) NOT NULL, completion_rate DECIMAL(8,6), adherence_score DECIMAL(8,6),
+                  outcome_summary_json LONGTEXT, source_system VARCHAR(64) NOT NULL,
+                  source_record_id VARCHAR(128) NOT NULL, created_at DATETIME(3) NOT NULL,
+                  UNIQUE(tenant_id, source_system, source_record_id)
+                )
+                """);
         repository = new JdbcSoftwareDbReHealthBusinessRepository(jdbcTemplate, new ObjectMapper());
     }
 
@@ -211,6 +233,29 @@ class JdbcSoftwareDbReHealthBusinessRepositoryTest {
         assertEquals(List.of("sleep"),
                 repository.findLatestHealthInterview("user-a").orElseThrow().focusAreas);
         assertTrue(repository.findLatestHealthInterview("user-b").isEmpty());
+    }
+
+    @Test
+    void genericFeedbackProjectsToEveryActiveInsurerBinding() {
+        InterventionGenerateResponseDto plan = new InterventionGenerateResponseDto();
+        plan.planId = "shared-plan";
+        plan.modelVersion = "test-v1";
+        plan.generatedAt = "2026-08-14T00:00:00Z";
+        repository.saveInterventionPlan("app-user", plan);
+        for (int tenant : List.of(9101, 9102)) {
+            jdbcTemplate.update("INSERT INTO rehealth_insurance_subject VALUES (?,?,?,?,?)",
+                    "subject-row-" + tenant, tenant, "subject-" + tenant, "app-user", "active");
+            jdbcTemplate.update("INSERT INTO rehealth_insurance_plan_binding VALUES (?,?,?,?,?)",
+                    "binding-" + tenant, tenant, "subject-" + tenant, "shared-plan", "active");
+        }
+        FeedbackRequestDto feedback = new FeedbackRequestDto();
+        feedback.status = "completed";
+        feedback.adherence = 0.9;
+
+        repository.saveFeedback("app-user", "shared-plan", feedback);
+        repository.saveFeedback("app-user", "shared-plan", feedback);
+
+        assertEquals(2, count("rehealth_insurance_intervention_feedback"));
     }
 
     @Test

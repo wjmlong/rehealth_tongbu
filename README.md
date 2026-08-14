@@ -249,8 +249,10 @@ RHI v2 当前以可回滚的 preview 链路接入，不替代既有临床风险�
 开发验收仍可通过 JeecgBoot 远程复算：
 `POST /rehealth/mobile/rhi/evaluate-series` 由 JeecgBoot 逐日调用
 `model-service /v2/rhi/evaluate`，Android 不直连 model-service。该 preview
-不把 RHI 当作疾病概率，也不建立云端 RHI 权威缓存；后续仍需由独立 Feature
-Pipeline 生成并持久化版本化日快照。算法规划见
+不把 RHI 当作疾病概率。Android 可在本地持久化并完成计算后，通过认证的
+`POST /rehealth/mobile/rhi/daily-snapshot` 上传日级聚合快照，供保险干预工作台展示趋势；
+服务端校验当前用户且不接收原始遥测。持续云端特征生产仍应由独立 Feature Pipeline
+负责。算法规划见
 `rehealth-algorithms/docs/RHI_V2_ALGORITHM_PLAN.md`。
 
 Android 当前保留独立的本地 `RDI rdi-rule-1.0.0` 算法与持久化骨架，但它
@@ -328,6 +330,7 @@ unknown 记录计入临床风险。
 | Android 本地遥测和待上传任务 | Room | 本地优先、离线可用 |
 | Android 每日 RDI 与贡献证据 | Room v8 | 本地产品趋势；不作为临床概率或云端权威风险 |
 | Android RHI 手填指标与已确认临床输入 | Room v9/v10 + MySQL `rehealth_rhi_manual_health_input` | 本地先写、按用户隔离、稳定队列重试；空白保存为 `NULL`，按客户端 `updatedAt` 防止旧副本覆盖新值 |
+| Android RHI 每日聚合快照 | Room + MySQL `rehealth_rhi_daily_snapshot` | 本地计算和持久化后认证上传；按用户/日期幂等，不存原始遥测，供授权管理端趋势展示 |
 | Android 手工饮食记录 | Room v11 | 先本地持久化，再通过 durable queue 以 `telemetry-v2 dietRecords` 上传；显式 10→11 迁移保留既有健康数据 |
 | Android PIAS 展示缓存 | Room v17 | 按登录用户保存最新响应 JSON、模型版本与 `is_mock`；Mock 行只允许显式全量 Mock Debug 读取，不是云端权威归因结果 |
 | 规范化硬件时序数据 | TimescaleDB | Device Service 独占写入和读取 |
