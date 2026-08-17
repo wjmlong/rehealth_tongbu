@@ -405,12 +405,28 @@ SELECT
         WHEN app.risk_base + day.days_ago * 0.002 >= 0.40 THEN 'medium'
         ELSE 'low'
     END,
-    JSON_OBJECT(
-        '年龄相关风险', ROUND(0.10 + app.age / 500.0, 4),
-        'BMI偏高', ROUND(GREATEST(0.04, (app.bmi - 20) / 40.0), 4),
-        '收缩压偏高', ROUND(0.08 + app.risk_base * 0.16, 4),
-        '规律运动', ROUND(-0.05 - (1 - app.risk_base) * 0.08, 4)
-    ),
+    CASE MOD(app.profile_no - 1, 4)
+        WHEN 0 THEN JSON_OBJECT(
+            '收缩压偏高', ROUND(0.14 + app.risk_base * 0.16, 4),
+            '膳食钠摄入', ROUND(0.10 + app.risk_base * 0.12, 4),
+            'BMI偏高', ROUND(0.06 + app.risk_base * 0.10, 4),
+            '规律运动', ROUND(-0.04 - (1 - app.risk_base) * 0.06, 4))
+        WHEN 1 THEN JSON_OBJECT(
+            'LDL-C偏高', ROUND(0.16 + app.risk_base * 0.14, 4),
+            '总胆固醇偏高', ROUND(0.12 + app.risk_base * 0.10, 4),
+            '心血管家族史', ROUND(0.09 + app.age / 1000.0, 4),
+            '规律运动', ROUND(-0.03 - (1 - app.risk_base) * 0.05, 4))
+        WHEN 2 THEN JSON_OBJECT(
+            '睡眠效率偏低', ROUND(0.15 + app.risk_base * 0.12, 4),
+            '每周运动不足', ROUND(0.12 + app.risk_base * 0.10, 4),
+            '静息心率偏高', ROUND(0.08 + app.risk_base * 0.08, 4),
+            '睡眠时长达标', ROUND(-0.03 - (1 - app.risk_base) * 0.04, 4))
+        ELSE JSON_OBJECT(
+            '空腹血糖偏高', ROUND(0.17 + app.risk_base * 0.13, 4),
+            'BMI偏高', ROUND(0.12 + app.risk_base * 0.11, 4),
+            '腰围偏高', ROUND(0.10 + app.risk_base * 0.09, 4),
+            '规律运动', ROUND(-0.03 - (1 - app.risk_base) * 0.04, 4))
+    END,
     JSON_OBJECT('profile', 0.38, 'vitals', 0.30, 'lifestyle', 0.18, 'labs', 0.14),
     JSON_OBJECT('measured', 1.0), JSON_OBJECT('supported', 1.0),
     JSON_ARRAY(), JSON_ARRAY('SYNTHETIC LOCAL QA - NOT FOR CLINICAL OR INSURANCE DECISIONS'),
@@ -419,18 +435,50 @@ SELECT
         'sourceSystem', 'LOCAL_MULTI_INSURER_APP_QA', 'isMock', FALSE,
         'clinicalUseAllowed', FALSE, 'syntheticLocalQa', TRUE,
         'factorContributionVersion', 'factor16-rule-v1.0.0',
-        'factor_contributions', JSON_OBJECT(
-            '收缩压', ROUND(0.12 + app.risk_base * 0.18, 4),
-            'BMI', ROUND(0.08 + app.risk_base * 0.14, 4),
-            '睡眠规律', ROUND(-0.05 - (1 - app.risk_base) * 0.08, 4),
-            '每周运动天数', ROUND(-0.04 - (1 - app.risk_base) * 0.06, 4)
-        ),
-        'factor_measured_components', JSON_OBJECT(
-            '收缩压', ROUND(112 + app.risk_base * 28, 1),
-            'BMI', app.bmi,
-            '睡眠规律', ROUND(70 + (1 - app.risk_base) * 20, 1),
-            '每周运动天数', 5
-        )
+        'factor_contributions', CASE MOD(app.profile_no - 1, 4)
+            WHEN 0 THEN JSON_OBJECT(
+                '收缩压', ROUND(0.14 + app.risk_base * 0.16, 4),
+                '膳食钠摄入', ROUND(0.10 + app.risk_base * 0.12, 4),
+                'BMI', ROUND(0.06 + app.risk_base * 0.10, 4),
+                '每周运动天数', ROUND(-0.04 - (1 - app.risk_base) * 0.06, 4))
+            WHEN 1 THEN JSON_OBJECT(
+                'LDL-C', ROUND(0.16 + app.risk_base * 0.14, 4),
+                '总胆固醇', ROUND(0.12 + app.risk_base * 0.10, 4),
+                '心血管家族史', ROUND(0.09 + app.age / 1000.0, 4),
+                '每周运动天数', ROUND(-0.03 - (1 - app.risk_base) * 0.05, 4))
+            WHEN 2 THEN JSON_OBJECT(
+                '睡眠效率', ROUND(0.15 + app.risk_base * 0.12, 4),
+                '每周运动天数', ROUND(0.12 + app.risk_base * 0.10, 4),
+                '静息心率', ROUND(0.08 + app.risk_base * 0.08, 4),
+                '睡眠时长', ROUND(-0.03 - (1 - app.risk_base) * 0.04, 4))
+            ELSE JSON_OBJECT(
+                '空腹血糖', ROUND(0.17 + app.risk_base * 0.13, 4),
+                'BMI', ROUND(0.12 + app.risk_base * 0.11, 4),
+                '腰围', ROUND(0.10 + app.risk_base * 0.09, 4),
+                '每周运动天数', ROUND(-0.03 - (1 - app.risk_base) * 0.04, 4))
+        END,
+        'factor_measured_components', CASE MOD(app.profile_no - 1, 4)
+            WHEN 0 THEN JSON_OBJECT(
+                '收缩压', ROUND(122 + app.risk_base * 28, 1),
+                '膳食钠摄入', ROUND(5.2 + app.risk_base * 3.5, 1),
+                'BMI', app.bmi,
+                '每周运动天数', 4)
+            WHEN 1 THEN JSON_OBJECT(
+                'LDL-C', ROUND(2.6 + app.risk_base * 2.1, 1),
+                '总胆固醇', ROUND(4.3 + app.risk_base * 2.2, 1),
+                '心血管家族史', 1,
+                '每周运动天数', 3)
+            WHEN 2 THEN JSON_OBJECT(
+                '睡眠效率', ROUND(90 - app.risk_base * 24, 1),
+                '每周运动天数', 2,
+                '静息心率', ROUND(62 + app.risk_base * 24, 1),
+                '睡眠时长', ROUND(7.8 - app.risk_base * 2.2, 1))
+            ELSE JSON_OBJECT(
+                '空腹血糖', ROUND(4.8 + app.risk_base * 3.2, 1),
+                'BMI', app.bmi,
+                '腰围', ROUND(72 + app.risk_base * 30, 1),
+                '每周运动天数', 3)
+        END
     ),
     DATE_ADD(DATE_SUB(@anchor_date, INTERVAL day.days_ago DAY), INTERVAL 20 HOUR),
     DATE_ADD(DATE_SUB(@anchor_date, INTERVAL day.days_ago DAY), INTERVAL 20 HOUR)
@@ -492,7 +540,12 @@ SELECT
     CONCAT('miqa-health-plan-', profile_no), CONCAT('miqa-plan-request-', profile_no),
     'cvd-16-v1', 'local-qa-seeded-nonclinical-v1', 'local_qa_fixture', 1,
     'LOCAL_MULTI_INSURER_APP_QA_NOT_A_MODEL',
-    '保持规律睡眠、每周完成五次中等强度活动并持续记录血压。',
+    CASE MOD(profile_no - 1, 4)
+        WHEN 0 THEN '连续 7 日早晚记录血压，配合低盐饮食并完成一次健康管理随访。'
+        WHEN 1 THEN '补充血脂复查，确认用药执行情况，并完成膳食结构评估。'
+        WHEN 2 THEN '固定就寝时间，每周完成四次有氧活动并复盘睡眠效率。'
+        ELSE '连续记录空腹血糖、体重与腰围，完成代谢风险复核。'
+    END,
     '依据完整合成档案、设备趋势和 CVD-16 合成结果生成。',
     '仅验证计划、反馈和负责人查询链路。', 0.80,
     '合成测试计划，不构成医疗建议，不替代医生诊疗。',
@@ -513,6 +566,20 @@ ON DUPLICATE KEY UPDATE
     rationale = VALUES(rationale), expected_impact = VALUES(expected_impact),
     confidence = VALUES(confidence), medical_disclaimer = VALUES(medical_disclaimer),
     response_json = VALUES(response_json), generated_at = VALUES(generated_at);
+
+-- Snapshot IDs are stable by relative day while the unique business key uses
+-- the calendar date. Remove only this fixture's projections before rebuilding
+-- them so changing AnchorDate cannot make old relative-day IDs collide.
+DELETE contribution
+FROM rehealth_rdi_contribution contribution
+JOIN rehealth_rdi_daily_snapshot snapshot ON snapshot.id = contribution.snapshot_id
+WHERE snapshot.calculation_source = 'LOCAL_MULTI_INSURER_APP_QA';
+
+DELETE FROM rehealth_rdi_daily_snapshot
+WHERE calculation_source = 'LOCAL_MULTI_INSURER_APP_QA';
+
+DELETE FROM rehealth_rhi_daily_snapshot
+WHERE calculation_source = 'LOCAL_MULTI_INSURER_APP_QA';
 
 INSERT INTO rehealth_rhi_daily_snapshot (
     id, user_id, scored_on, raw_score, display_score, data_confidence,
@@ -816,7 +883,30 @@ SELECT
     LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:workbench-action:', rel.tenant_id, ':', rel.username, ':', item.action_no), 256)),
     rel.tenant_id,
     LOWER(SHA2(CONCAT(rel.tenant_id, ':', LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_APP_QA:user:', rel.username)))), 256)),
-    CONCAT('miqa-health-plan-', app.profile_no), item.action_type, item.title, item.content,
+    CONCAT('miqa-health-plan-', app.profile_no), item.action_type,
+    CASE item.action_no
+        WHEN 1 THEN CASE MOD(app.profile_no - 1, 4)
+            WHEN 0 THEN '血压管理首次随访'
+            WHEN 1 THEN '血脂资料首次复核'
+            WHEN 2 THEN '睡眠与运动首次随访'
+            ELSE '代谢指标首次复核' END
+        WHEN 2 THEN CASE MOD(app.profile_no - 1, 4)
+            WHEN 0 THEN '血压记录完成提醒'
+            WHEN 1 THEN '血脂复查预约提醒'
+            WHEN 2 THEN '睡眠与运动计划提醒'
+            ELSE '血糖与体重记录提醒' END
+        ELSE CASE MOD(app.profile_no - 1, 4)
+            WHEN 0 THEN '血压趋势阶段复核'
+            WHEN 1 THEN '血脂管理阶段复核'
+            WHEN 2 THEN '生活方式执行复核'
+            ELSE '代谢管理阶段复核' END
+    END,
+    CASE MOD(app.profile_no - 1, 4)
+        WHEN 0 THEN '核对早晚血压记录、低盐饮食执行和复测安排；不根据单次读数调整治疗。'
+        WHEN 1 THEN '核对血脂复查、用药确认和膳食记录；具体用药由医生审核。'
+        WHEN 2 THEN '核对睡眠记录、有氧活动次数和当前执行困难。'
+        ELSE '核对空腹血糖、体重和腰围记录，确认是否需要人工复核。'
+    END,
     assignee.id,
     CASE
         WHEN rel.member_no IN (3, 9, 10) AND item.action_no = 1 THEN 'pending'
