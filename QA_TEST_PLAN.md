@@ -210,6 +210,10 @@ git diff --check
      midnight and ends today; verify today's duration equals valid stage totals (or elapsed time
      only when stages are absent). Verify 7/30-day risk and health index use only confirmed daily
      results and show their valid-day count.
+   - Confirm the device-data notice appears before the metric sections and centrally states which
+     values are device estimates plus the medical disclaimer. Start blood glucose, blood component,
+     and body composition measurements; while the action reads “测量中”, the action and footer status
+     must remain on one line without changing the card height or clipping the action label.
    - For HBand HRV/stress/MET, verify capability flags alone never reveal a card. A card appears
      only after Room contains a valid real-Provider value: HRV/MET `> 0`, stress `1..100`.
      History-only HRV/stress cards have no measure action; MET never has a real-time action.
