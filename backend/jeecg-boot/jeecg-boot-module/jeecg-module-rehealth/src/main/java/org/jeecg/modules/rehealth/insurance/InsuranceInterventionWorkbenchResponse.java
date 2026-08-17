@@ -32,6 +32,7 @@ public final class InsuranceInterventionWorkbenchResponse {
             @JsonProperty("risk_score") Double riskScore,
             @JsonProperty("risk_level") String riskLevel,
             @JsonProperty("risk_is_mock") Boolean riskIsMock,
+            List<Factor> factors,
             @JsonProperty("rhi_score") Double rhiScore,
             @JsonProperty("rhi_confidence") Double rhiConfidence,
             @JsonProperty("rdi_score") Double rdiScore,
@@ -42,6 +43,8 @@ public final class InsuranceInterventionWorkbenchResponse {
             @JsonProperty("adherence_score") Double adherenceScore,
             @JsonProperty("owner_name") String ownerName,
             @JsonProperty("department_name") String departmentName,
+            @JsonProperty("current_intervention") String currentIntervention,
+            @JsonProperty("intervention_due_at") String interventionDueAt,
             @JsonProperty("updated_at") String updatedAt
     ) {
     }

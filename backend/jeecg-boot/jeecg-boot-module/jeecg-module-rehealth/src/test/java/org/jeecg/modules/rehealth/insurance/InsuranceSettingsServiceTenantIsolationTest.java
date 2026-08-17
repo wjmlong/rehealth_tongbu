@@ -6,6 +6,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -13,8 +14,41 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.ArgumentCaptor;
 
 class InsuranceSettingsServiceTenantIsolationTest {
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void memberDirectoryExcludesPlatformAdministratorsInSql() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        InsuranceSettingsService service = new InsuranceSettingsService(jdbc);
+        when(jdbc.query(anyString(), any(org.springframework.jdbc.core.RowMapper.class), any(Object[].class)))
+                .thenReturn(List.of());
+
+        service.members(1001);
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbc).query(sql.capture(), any(org.springframework.jdbc.core.RowMapper.class), any(Object[].class));
+        assertTrue(sql.getValue().contains("platform_role.role_code IN ('admin', 'super_admin')"));
+        assertTrue(sql.getValue().contains("NOT EXISTS"));
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void departmentCountsExcludePlatformAdministratorsInSql() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        InsuranceSettingsService service = new InsuranceSettingsService(jdbc);
+        when(jdbc.query(anyString(), any(org.springframework.jdbc.core.RowMapper.class), any(Object[].class)))
+                .thenReturn(List.of());
+
+        service.departments(1001);
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbc).query(sql.capture(), any(org.springframework.jdbc.core.RowMapper.class), any(Object[].class));
+        assertTrue(sql.getValue().contains("platform_role.role_code IN ('admin', 'super_admin')"));
+        assertTrue(sql.getValue().contains("platform_user_role.user_id = department_user.id"));
+    }
 
     @Test
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -31,6 +65,12 @@ class InsuranceSettingsServiceTenantIsolationTest {
         assertThrows(
                 InsuranceApiException.class,
                 () -> service.updateMemberDepartment(1001, "shared-user", "tenant-1001-department")
+        );
+
+        verify(jdbc).queryForObject(
+                org.mockito.ArgumentMatchers.argThat(sql ->
+                        sql.contains("platform_role.role_code IN ('admin', 'super_admin')")),
+                eq(Integer.class), eq("shared-user"), eq(1001)
         );
 
         org.mockito.InOrder writes = inOrder(jdbc);
@@ -73,6 +113,11 @@ class InsuranceSettingsServiceTenantIsolationTest {
         verify(jdbc).update(
                 eq("INSERT INTO sys_user_depart (id, user_id, dep_id) VALUES (?, ?, ?)"),
                 anyString(), eq("invited-user"), eq("tenant-1001-department")
+        );
+        verify(jdbc).queryForObject(
+                org.mockito.ArgumentMatchers.argThat(sql ->
+                        sql.contains("platform_role.role_code IN ('admin', 'super_admin')")),
+                eq(String.class), eq("13800000000")
         );
         org.junit.jupiter.api.Assertions.assertEquals("invited", invitation.status());
     }

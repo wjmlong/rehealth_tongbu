@@ -69,6 +69,8 @@ JeecgBoot `rehealth:insurance:organization:*`、`member:*`、`role:assign` 和
 
 `insurance_org_admin`（保险机构管理员）可维护机构、成员、角色和负责人；
 `insurer_viewer`、`insurer_analyst`、`insurance_operator` 和 `insurer_auditor` 可只读查看当前租户的机构信息与员工目录；员工姓名、账号、邮箱和手机号不脱敏，成员、角色及负责人关系的修改权限仍只授予机构管理员等管理角色。
+
+平台级 `admin`、`super_admin` 账号即使因本地验收加入了保险租户，也不会出现在机构成员目录、部门成员数或负责人候选中，且不能通过邀请、成员修改或负责人接口由机构管理员操作。平台管理员仍可使用其平台权限进行验收，但不属于保险机构可管理的业务成员。
 `insurance_department_manager`（保险部门经理）只能读取自己负责的投保人、所属部门及对应负责人关系，不能读取同租户其他经理或未分配投保人的信息。风险看板、列表和详情对所有保险后台角色统一应用 `rehealth_insurance_subject_manager`：角色只区分允许执行的后台操作，不裁剪负责用户的可读业务字段。
 邀请接口只匹配已经注册的 Jeecg 手机号，写入状态为 `5` 的待接受租户关系；被邀请人同意后才能登录该保险机构工作台，管理员不能通过状态接口跳过成员确认直接启用。当前操作人不能停用自己的租户成员关系，避免机构管理会话自锁。
 风险列表、详情和看板从 `rehealth_insurance_subject` 取得当前租户 APP 服务用户，并按当前员工 ID 关联 `rehealth_insurance_subject_manager`；APP 用户不需要加入 `sys_user_tenant`。有保险角色但没有分配时返回空范围，没有当前租户保险角色时拒绝访问。
@@ -80,7 +82,7 @@ JeecgBoot `rehealth:insurance:organization:*`、`member:*`、`role:assign` 和
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | `GET` | `/rehealth/insurance/v1/interventions/dashboard` | 按当前员工负责范围汇总待行动、进行中、待复核和已改善数量 |
-| `GET` | `/rehealth/insurance/v1/interventions` | 分页查询负责用户的 CVD 风险、RHI、RDI、依从性、负责人和流程状态 |
+| `GET` | `/rehealth/insurance/v1/interventions` | 分页查询负责用户的 CVD 风险、主要 Factor16、RHI、RDI、当前干预、依从性、负责人和流程状态；队列首屏无需再读取详情 |
 | `GET` | `/rehealth/insurance/v1/interventions/{subjectId}` | 返回 CVD 风险趋势、Factor16、RHI/RDI 日快照、RDI 结构化贡献项、计划、反馈、人工行动和归因证据 |
 | `POST` | `/rehealth/insurance/v1/interventions/{subjectId}/actions` | 创建随访、任务或人工复核行动 |
 | `PUT` | `/rehealth/insurance/v1/intervention-actions/{actionId}` | 更新行动状态、负责人、期限和有界结果 |

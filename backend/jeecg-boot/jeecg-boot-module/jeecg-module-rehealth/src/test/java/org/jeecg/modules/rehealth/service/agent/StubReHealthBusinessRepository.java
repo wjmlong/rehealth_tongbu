@@ -117,6 +117,11 @@ class StubReHealthBusinessRepository implements ReHealthBusinessRepository {
     }
 
     @Override
+    public List<AttributionEventsRequestDto.AttributionHistoryPointDto> findRiskHistory(String userId, int limit) {
+        return List.of();
+    }
+
+    @Override
     public void saveInterventionPlan(String userId, InterventionGenerateResponseDto response) {
     }
 

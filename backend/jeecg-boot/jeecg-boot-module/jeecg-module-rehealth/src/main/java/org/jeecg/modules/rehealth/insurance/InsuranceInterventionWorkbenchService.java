@@ -202,9 +202,13 @@ public class InsuranceInterventionWorkbenchService {
         RiskSnapshot risk = latestRisk(identity.userId());
         RhiSnapshot rhi = latestRhi(identity.userId());
         RdiSnapshot rdi = latestRdi(identity.userId());
+        List<InsuranceInterventionWorkbenchResponse.Factor> mainFactors = risk == null
+                ? List.of()
+                : factors(risk.responseJson()).stream().limit(3).toList();
         FeedbackAggregate feedback = latestFeedback(tenantId, identity.subjectRef());
         AttributionSnapshot attribution = latestAttribution(identity.userId());
         Owner owner = owner(tenantId, identity.subjectRef());
+        CurrentIntervention currentIntervention = currentIntervention(tenantId, identity);
         Integer openActions = jdbc.queryForObject("""
                 SELECT COUNT(*) FROM rehealth_insurance_intervention_action
                 WHERE tenant_id=? AND subject_ref=? AND status IN ('pending','in_progress')
@@ -223,12 +227,14 @@ public class InsuranceInterventionWorkbenchService {
         return new InsuranceInterventionWorkbenchResponse.SubjectSummary(
                 identity.subjectRef(), identity.name(), workflow,
                 risk == null ? null : risk.score(), risk == null ? null : risk.level(),
-                risk == null ? null : risk.isMock(), rhi == null ? null : rhi.score(),
+                risk == null ? null : risk.isMock(), mainFactors, rhi == null ? null : rhi.score(),
                 rhi == null ? null : rhi.confidence(), rdi == null ? null : rdi.score(),
                 rdi == null ? null : rdi.confidence(), rdi == null ? null : rdi.status(),
                 rdi == null ? null : rdi.isMock(), rdi == null ? null : rdi.scoredOn(),
                 feedback == null ? null : feedback.adherence(),
-                owner == null ? null : owner.name(), owner == null ? null : owner.department(), updated);
+                owner == null ? null : owner.name(), owner == null ? null : owner.department(),
+                currentIntervention == null ? null : currentIntervention.summary(),
+                currentIntervention == null ? null : currentIntervention.dueAt(), updated);
     }
 
     private String workflowStatus(RiskSnapshot risk, AttributionSnapshot attribution, boolean active) {
@@ -346,6 +352,21 @@ public class InsuranceInterventionWorkbenchService {
                 ORDER BY manager.updated_at DESC LIMIT 1
                 """, (rs, row) -> new Owner(rs.getString(1), rs.getString(2)), tenantId, subjectRef)
                 .stream().findFirst().orElse(null);
+    }
+
+    private CurrentIntervention currentIntervention(int tenantId, Identity identity) {
+        CurrentIntervention action = jdbc.query("""
+                SELECT title, due_at
+                FROM rehealth_insurance_intervention_action
+                WHERE tenant_id=? AND subject_ref=? AND status IN ('pending','in_progress')
+                ORDER BY CASE WHEN status='in_progress' THEN 0 ELSE 1 END, updated_at DESC, id DESC
+                LIMIT 1
+                """, (rs, row) -> new CurrentIntervention(rs.getString(1), format(rs.getTimestamp(2))),
+                tenantId, identity.subjectRef()).stream().findFirst().orElse(null);
+        if (action != null) return action;
+        InsuranceInterventionWorkbenchResponse.Plan currentPlan = plan(tenantId, identity);
+        if (currentPlan == null || currentPlan.summary() == null || currentPlan.summary().isBlank()) return null;
+        return new CurrentIntervention(currentPlan.summary(), null);
     }
 
     private InsuranceInterventionWorkbenchResponse.Plan plan(int tenantId, Identity identity) {
@@ -517,6 +538,7 @@ public class InsuranceInterventionWorkbenchService {
     private record AttributionSnapshot(Boolean dataSufficient, Boolean isMock, Double individualAtt,
                                        Double trendDelta, String status, String interpretation, Timestamp createdAt) {}
     private record Owner(String name, String department) {}
+    private record CurrentIntervention(String summary, String dueAt) {}
 
     private static final class StreamDates {
         private StreamDates() {}

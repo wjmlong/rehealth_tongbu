@@ -23,6 +23,15 @@ import static org.jeecg.modules.rehealth.insurance.InsuranceSettingsResponse.Mem
 @ConditionalOnProperty(name = "rehealth.software-db.enabled", havingValue = "true")
 public class InsuranceSettingsService {
     private static final Pattern SUBJECT_REF = Pattern.compile("(?i)[0-9a-f]{64}");
+    private static final String EXCLUDE_PLATFORM_ADMINS = """
+            AND NOT EXISTS (
+                SELECT 1
+                FROM sys_user_role platform_user_role
+                INNER JOIN sys_role platform_role ON platform_role.id = platform_user_role.role_id
+                WHERE platform_user_role.user_id = u.id
+                  AND platform_role.role_code IN ('admin', 'super_admin')
+            )
+            """;
     private final JdbcTemplate jdbc;
 
     public InsuranceSettingsService(@Qualifier("rehealthSoftwareJdbcTemplate") JdbcTemplate jdbc) {
@@ -85,7 +94,17 @@ public class InsuranceSettingsService {
     public List<Department> departments(int tenantId, String managerUserId) {
         return jdbc.query("""
                 SELECT d.id, d.depart_name, d.parent_id,
-                       (SELECT COUNT(*) FROM sys_user_depart ud WHERE ud.dep_id = d.id) AS member_count
+                       (SELECT COUNT(*)
+                        FROM sys_user_depart ud
+                        INNER JOIN sys_user department_user ON department_user.id = ud.user_id
+                        WHERE ud.dep_id = d.id
+                          AND NOT EXISTS (
+                              SELECT 1
+                              FROM sys_user_role platform_user_role
+                              INNER JOIN sys_role platform_role ON platform_role.id = platform_user_role.role_id
+                              WHERE platform_user_role.user_id = department_user.id
+                                AND platform_role.role_code IN ('admin', 'super_admin')
+                          )) AS member_count
                 FROM sys_depart d
                 WHERE d.tenant_id = ? AND COALESCE(d.del_flag, '0') = '0' AND COALESCE(d.status, '1') = '1'
                   AND (? IS NULL OR EXISTS (
@@ -106,9 +125,10 @@ public class InsuranceSettingsService {
     }
 
     /**
-     * Lists all tenant members for administrators, or only the insured
-     * subjects assigned to a department manager. The scope is enforced in
-     * SQL so direct Java API calls cannot bypass the website permissions.
+     * Lists tenant business members for administrators, or only the insured
+     * subjects assigned to a department manager. Platform administrators are
+     * never exposed to tenant settings. The scope is enforced in SQL so direct
+     * Java API calls cannot bypass the website permissions.
      */
     public List<Member> members(int tenantId, String managerUserId) {
         return jdbc.query("""
@@ -132,6 +152,7 @@ public class InsuranceSettingsService {
                 LEFT JOIN sys_user_role ur ON ur.user_id = u.id AND ur.tenant_id = ut.tenant_id
                 LEFT JOIN sys_role r ON r.id = ur.role_id
                  WHERE ut.tenant_id = ?
+                """ + EXCLUDE_PLATFORM_ADMINS + """
                    AND (? IS NULL OR EXISTS (
                        SELECT 1
                        FROM rehealth_insurance_subject_manager scope
@@ -199,7 +220,11 @@ public class InsuranceSettingsService {
         }
         String userId;
         try {
-            userId = jdbc.queryForObject("SELECT id FROM sys_user WHERE phone = ? AND del_flag = 0", String.class, normalizedPhone);
+            userId = jdbc.queryForObject("""
+                    SELECT u.id
+                    FROM sys_user u
+                    WHERE u.phone = ? AND u.del_flag = 0
+                    """ + EXCLUDE_PLATFORM_ADMINS, String.class, normalizedPhone);
         } catch (EmptyResultDataAccessException ignored) {
             throw InsuranceApiException.notFound("no registered Jeecg account matches the phone number");
         }
@@ -268,7 +293,12 @@ public class InsuranceSettingsService {
     }
 
     private void requireMember(int tenantId, String userId) {
-        Integer valid = jdbc.queryForObject("SELECT COUNT(*) FROM sys_user_tenant WHERE user_id = ? AND tenant_id = ?", Integer.class, userId, tenantId);
+        Integer valid = jdbc.queryForObject("""
+                SELECT COUNT(*)
+                FROM sys_user_tenant membership
+                INNER JOIN sys_user u ON u.id = membership.user_id
+                WHERE membership.user_id = ? AND membership.tenant_id = ?
+                """ + EXCLUDE_PLATFORM_ADMINS, Integer.class, userId, tenantId);
         if (valid == null || valid < 1) {
             throw InsuranceApiException.notFound("member was not found in the requested tenant");
         }
@@ -287,7 +317,7 @@ public class InsuranceSettingsService {
                 JOIN sys_depart d ON d.id = ud.dep_id AND d.tenant_id = ut.tenant_id
                 JOIN sys_user u ON u.id = ut.user_id
                 WHERE ut.tenant_id = ? AND ut.user_id = ? AND ut.status = '1' AND u.status = 1 AND u.del_flag = 0
-                """, Integer.class, departmentId, tenantId, managerId);
+                """ + EXCLUDE_PLATFORM_ADMINS, Integer.class, departmentId, tenantId, managerId);
         if (valid == null || valid < 1) {
             throw InsuranceApiException.badRequest("managerUserId is not an active member of departmentId");
         }
