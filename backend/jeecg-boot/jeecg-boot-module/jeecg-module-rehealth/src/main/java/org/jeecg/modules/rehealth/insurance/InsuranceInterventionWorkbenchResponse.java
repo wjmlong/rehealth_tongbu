@@ -28,6 +28,9 @@ public final class InsuranceInterventionWorkbenchResponse {
     public record SubjectSummary(
             @JsonProperty("subject_id") String subjectId,
             @JsonProperty("display_name") String displayName,
+            Integer age,
+            String gender,
+            BigDecimal bmi,
             @JsonProperty("workflow_status") String workflowStatus,
             @JsonProperty("risk_score") Double riskScore,
             @JsonProperty("risk_level") String riskLevel,

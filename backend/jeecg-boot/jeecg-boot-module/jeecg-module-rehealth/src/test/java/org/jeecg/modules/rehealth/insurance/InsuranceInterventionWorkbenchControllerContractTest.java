@@ -7,9 +7,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 
 import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class InsuranceInterventionWorkbenchControllerContractTest {
     @Test
@@ -24,6 +28,16 @@ class InsuranceInterventionWorkbenchControllerContractTest {
                 "createAction", String.class, String.class, InsuranceInterventionWorkbenchRequest.CreateAction.class);
         assertPermission("rehealth:insurance:intervention:manage", PutMapping.class,
                 "updateAction", String.class, String.class, InsuranceInterventionWorkbenchRequest.UpdateAction.class);
+    }
+
+    @Test
+    void subjectSummaryExposesExistingPatientProfileDemographics() {
+        Set<String> components = Arrays.stream(InsuranceInterventionWorkbenchResponse.SubjectSummary.class
+                        .getRecordComponents())
+                .map(component -> component.getName())
+                .collect(Collectors.toSet());
+
+        assertTrue(components.containsAll(Set.of("age", "gender", "bmi")));
     }
 
     private void assertPermission(String expected, Class<?> mapping, String methodName, Class<?>... args) throws Exception {

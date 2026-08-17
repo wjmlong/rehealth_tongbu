@@ -181,19 +181,23 @@ public class InsuranceInterventionWorkbenchService {
     private List<Identity> identities(int tenantId, String managerUserId, String keyword, int limit, int offset) {
         String like = keyword == null || keyword.isBlank() ? null : "%" + keyword.trim() + "%";
         return jdbc.query("""
-                SELECT subject.subject_ref, subject.rehealth_user_id, profile.name
+                SELECT subject.subject_ref, subject.rehealth_user_id, profile.name,
+                       profile.age, profile.gender, profile.bmi
                 """ + SCOPE_SQL + """
                   AND (? IS NULL OR profile.name LIKE ? OR subject.subject_ref = ?)
                 ORDER BY profile.name, subject.subject_ref LIMIT ? OFFSET ?
-                """, (rs, row) -> new Identity(rs.getString(1), rs.getString(2), rs.getString(3)),
+                """, (rs, row) -> new Identity(rs.getString(1), rs.getString(2), rs.getString(3),
+                        nullableInteger(rs, 4), rs.getString(5), rs.getBigDecimal(6)),
                 managerUserId, tenantId, like, like, keyword, limit, offset);
     }
 
     private Identity requireIdentity(int tenantId, String managerUserId, String subjectId) {
         String normalized = required(subjectId, "subjectId", 64);
-        return jdbc.query("SELECT subject.subject_ref, subject.rehealth_user_id, profile.name " + SCOPE_SQL
+        return jdbc.query("SELECT subject.subject_ref, subject.rehealth_user_id, profile.name, "
+                        + "profile.age, profile.gender, profile.bmi " + SCOPE_SQL
                         + " AND subject.subject_ref = ? LIMIT 1",
-                (rs, row) -> new Identity(rs.getString(1), rs.getString(2), rs.getString(3)),
+                (rs, row) -> new Identity(rs.getString(1), rs.getString(2), rs.getString(3),
+                        nullableInteger(rs, 4), rs.getString(5), rs.getBigDecimal(6)),
                 managerUserId, tenantId, normalized).stream().findFirst()
                 .orElseThrow(() -> InsuranceApiException.notFound("assigned insurance subject was not found"));
     }
@@ -225,7 +229,7 @@ public class InsuranceInterventionWorkbenchService {
                 rdi == null ? null : rdi.updatedAt(),
                 feedback == null ? null : feedback.occurredAt());
         return new InsuranceInterventionWorkbenchResponse.SubjectSummary(
-                identity.subjectRef(), identity.name(), workflow,
+                identity.subjectRef(), identity.name(), identity.age(), identity.gender(), identity.bmi(), workflow,
                 risk == null ? null : risk.score(), risk == null ? null : risk.level(),
                 risk == null ? null : risk.isMock(), mainFactors, rhi == null ? null : rhi.score(),
                 rhi == null ? null : rhi.confidence(), rdi == null ? null : rdi.score(),
@@ -517,6 +521,11 @@ public class InsuranceInterventionWorkbenchService {
         return value == null ? null : value.doubleValue();
     }
 
+    private static Integer nullableInteger(ResultSet rs, int column) throws SQLException {
+        Number value = (Number) rs.getObject(column);
+        return value == null ? null : value.intValue();
+    }
+
     private static Boolean nullableBoolean(ResultSet rs, int column) throws SQLException {
         Object value = rs.getObject(column);
         if (value == null) return null;
@@ -529,7 +538,7 @@ public class InsuranceInterventionWorkbenchService {
 
     private static String uuid() { return UUID.randomUUID().toString().replace("-", ""); }
 
-    private record Identity(String subjectRef, String userId, String name) {}
+    private record Identity(String subjectRef, String userId, String name, Integer age, String gender, BigDecimal bmi) {}
     private record RiskSnapshot(Double score, String level, Boolean isMock, String responseJson, Timestamp evaluatedAt) {}
     private record RhiSnapshot(Double score, Double confidence, String updatedAt) {}
     private record RdiSnapshot(Double score, Double confidence, String status, Boolean isMock,
