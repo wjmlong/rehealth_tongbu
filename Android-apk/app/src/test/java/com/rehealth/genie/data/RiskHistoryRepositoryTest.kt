@@ -29,6 +29,7 @@ class RiskHistoryRepositoryTest {
         )
         feedbackDao.rows += InterventionFeedbackEntity(
             id = "feedback-1",
+            ownerUserId = "user-1",
             interventionId = "plan-1",
             status = "completed",
             checkedAt = 1_700_000_000_000L,
@@ -85,11 +86,11 @@ private class FakeFeedbackDao : InterventionFeedbackDao {
 
     override suspend fun insert(feedback: InterventionFeedbackEntity) { rows += feedback }
     override suspend fun update(feedback: InterventionFeedbackEntity) = Unit
-    override suspend fun pendingUploads(now: Long): List<InterventionFeedbackEntity> = emptyList()
-    override suspend fun getLatestForIntervention(interventionId: String): InterventionFeedbackEntity? = null
-    override fun observePendingFeedback(): Flow<List<InterventionFeedbackEntity>> = flowOf(emptyList())
-    override suspend fun completedFeedbackSince(since: Long): List<InterventionFeedbackEntity> =
-        rows.filter { it.checkedAt >= since }
+    override suspend fun pendingUploads(ownerUserId: String, now: Long): List<InterventionFeedbackEntity> = emptyList()
+    override suspend fun getLatestForIntervention(ownerUserId: String, interventionId: String): InterventionFeedbackEntity? = null
+    override fun observePendingFeedback(ownerUserId: String): Flow<List<InterventionFeedbackEntity>> = flowOf(emptyList())
+    override suspend fun completedFeedbackSince(ownerUserId: String, since: Long): List<InterventionFeedbackEntity> =
+        rows.filter { it.ownerUserId == ownerUserId && it.checkedAt >= since }
     override suspend fun pruneDone(cutoffTimestamp: Long) = Unit
-    override suspend fun countPending(): Int = 0
+    override suspend fun countPending(ownerUserId: String): Int = 0
 }

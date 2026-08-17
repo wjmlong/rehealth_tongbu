@@ -244,6 +244,14 @@ Room v17 adds `pias_attribution_cache`, keyed by authenticated user, for the lat
 PIAS display payload, model version, update time, and explicit `is_mock` provenance.
 The seeded Debug preview is persisted before display. Ordinary Debug and Release
 must ignore cached mock rows; this cache never replaces the server-side attribution authority.
+Room v18 extends `intervention_feedback_queue` with authenticated owner, insurance
+tenant, insurance binding, stable plan-item ID, expected/completed counts, and
+verification type. Every pending/latest/count read is owner-scoped. Institution
+feedback is uploaded only to
+`POST /rehealth/mobile/insurance/plans/{bindingId}/feedback`; generic intervention
+feedback remains on `/interventions/{id}/feedback` and is never fanned out to every
+institution serving the user. The server revalidates the active subject, tenant,
+policy, consent, and binding before deriving adherence from completed/expected facts.
 No other screen may generate this fixture. `quality.rawSignalExcluded=true`
 declares that raw PPG/RRI samples are absent and is valid control metadata; actual
 raw payload keys and signal chunks remain rejected while raw upload is disabled.

@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import java.util.List;
 import java.util.function.Supplier;
 
 @Tag(name = "ReHealth Mobile Insurance Plan API")
@@ -45,6 +46,12 @@ public class InsuranceMobilePlanController {
             @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId
     ) {
         return respond(() -> service.current(currentUserId(), tenantId));
+    }
+
+    @GetMapping("/plans/active")
+    @Operation(summary = "List all active insurer plan bindings owned by the current APP user")
+    public ResponseEntity<Result<List<InsuranceMobilePlanResponse>>> active() {
+        return respond(() -> service.active(currentUserId()));
     }
 
     @PostMapping("/plans/{bindingId}/feedback")

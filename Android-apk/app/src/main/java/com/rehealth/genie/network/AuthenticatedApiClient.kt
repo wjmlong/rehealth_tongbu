@@ -147,6 +147,10 @@ class AuthenticatedApiClient(
         mobileApi.getCurrentInsurancePlan()
     }
 
+    suspend fun getActiveInsurancePlans(): ApiResult<List<InsurancePlanBindingDto>> = executeWithAuth {
+        mobileApi.getActiveInsurancePlans()
+    }
+
     suspend fun submitInsurancePlanFeedback(
         bindingId: String,
         request: InsurancePlanFeedbackRequestDto,

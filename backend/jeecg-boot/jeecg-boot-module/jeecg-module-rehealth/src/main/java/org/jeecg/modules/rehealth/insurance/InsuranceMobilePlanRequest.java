@@ -28,6 +28,10 @@ public final class InsuranceMobilePlanRequest {
             BigDecimal adherenceScore,
             String sourceRecordId,
             String interventionId,
+            String planItemId,
+            BigDecimal expectedCount,
+            BigDecimal completedCount,
+            String verificationType,
             Map<String, Object> outcomeSummary
     ) {
     }

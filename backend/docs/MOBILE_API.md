@@ -41,7 +41,7 @@ http://localhost:8080/jeecg-boot/rehealth/mobile
 
 只有 `GET /rehealth/mobile/health` 标记了 `@IgnoreAuth`。所有生产型移动端点都使用 JeecgBoot 常规认证流程。
 
-保险计划接口同样只接受当前 Jeecg 登录身份。`tenantId` 仅用于声明要加入的保险计划，服务端会重新校验当前用户是该租户成员、投保人映射存在、保单有效且授权版本有效。App 只回传计划标识、授权证据引用、完成率、依从性和有界结果摘要；原始心率、血压、睡眠、ECG、手机号和身份证号不得进入保险接口。Android 当前已接入类型化网络客户端，Compose 授权/撤回页面与离线反馈队列尚未完成。
+保险计划接口同样只接受当前 Jeecg 登录身份。APP 服务用户不加入机构后台的 `sys_user_tenant` 成员目录；服务端以当前登录用户在 `rehealth_insurance_subject` 中的有效服务关系为入口，并继续校验保险租户、保单、授权和计划绑定均有效。一个 APP 用户可以同时拥有多家机构的有效绑定，`GET /insurance/plans/active` 返回全部绑定。保险反馈必须带稳定的计划项标识和完成事实，服务端忽略客户端自报的依从分，统一按 `completedCount / expectedCount` 计算。App 只回传计划、授权、完成事实、验证方式和有界结果摘要；原始心率、血压、睡眠、ECG、手机号和身份证号不得进入保险接口。Android 已接入按用户与机构绑定隔离的 Room v18 离线反馈队列和归因页执行入口；授权/撤回 UI 仍待完成。
 
 ## 端点
 
@@ -57,7 +57,8 @@ http://localhost:8080/jeecg-boot/rehealth/mobile
 | `POST` | `/rehealth/mobile/devices/bind` | 当 `software_db` 启用时持久化当前认证用户的绑定。 |
 | `POST` | `/rehealth/mobile/insurance/plans/bind` | 在当前用户、租户、有效保单和授权记录全部匹配时绑定保险健康计划。 |
 | `GET` | `/rehealth/mobile/insurance/plans/current` | 返回当前认证用户的有效保险计划绑定；没有绑定时返回 `null`。 |
-| `POST` | `/rehealth/mobile/insurance/plans/{bindingId}/feedback` | 按 `sourceRecordId` 幂等回传干预完成率、依从性和有界结果摘要。 |
+| `GET` | `/rehealth/mobile/insurance/plans/active` | 返回当前认证 APP 用户在全部有效保险服务关系中的有效计划绑定；每条包含 `tenantId`，不依赖后台机构成员关系。 |
+| `POST` | `/rehealth/mobile/insurance/plans/{bindingId}/feedback` | 按 `sourceRecordId` 幂等回传计划项完成事实。`feedbackType` 限 `completed`、`partially_completed`、`skipped`、`not_applicable`；`verificationType` 限 `self_report`、`device_verified`、`staff_confirmed`。除不适用外必须有 `planItemId`，服务端以最多 366 的正数 `expectedCount` 和不超过它的 `completedCount` 计算依从性，客户端 `completionRate/adherenceScore` 不作为权威值。 |
 | `POST` | `/rehealth/mobile/viomi/bind` | 使用服务端云米账号验证 IMEI，并持久化哈希后的 ReHealth 绑定。 |
 | `POST` | `/rehealth/mobile/viomi/sync` | 在最长 31 天的 Epoch 毫秒时间窗内拉取心率、血压和血氧历史；将无偏移量的厂商时间戳按 Asia/Shanghai 解释，拒绝无效生理值，通过硬件接入完成持久化后返回规范化记录。 |
 | `POST` | `/rehealth/mobile/measurements/batch` | 经 Gateway 路由的 Device Service 权威端校验 `telemetry-v2`，并在事务中将测量、睡眠、活动和饮食记录写入 TimescaleDB；重复重试返回现有收据。 |
@@ -67,6 +68,7 @@ http://localhost:8080/jeecg-boot/rehealth/mobile
 | `POST` | `/rehealth/mobile/rhi/daily-snapshot` | 接收 Android App 本地计算并供管理平台使用的 RHI 每日快照。请求体为 `RhiDailySnapshotBatchDto`：一个 `userId` 和一个 `RhiDailyIndexDto` 列表；每项包含当日总分、领域分数、特征快照和数据质量快照。后端按 `(user_id, scored_on)` 新增或更新，并返回 `{accepted, persisted, status}`。这是为管理端 RHI 视图提供数据的权威上传路径；`rhi/evaluate-series` 仍是独立的远程复算通道，不写入该存储。 |
 | `POST` | `/rehealth/mobile/rdi/daily-snapshot` | 接收认证 Android App 在 Room 落库后排队上传的 RDI 每日快照。请求体包含 `userId`、日级总分、置信度、状态、Mock 标记、算法版本和结构化贡献项；后端从认证上下文确认数据归属，按 `(user_id, scored_on)` 幂等更新快照并原子替换贡献项。只接收管理端展示所需的聚合值，不接收原始遥测或自由文本证据。 |
 | `GET` | `/rehealth/mobile/risk/latest` | 读取当前认证用户最新的已持久化风险。 |
+| `GET` | `/rehealth/mobile/risk/history?limit=90` | 读取当前认证用户有界的已持久化 CVD 风险历史，用于趋势展示；`limit` 被限制在 2–365。 |
 | `POST` | `/rehealth/mobile/interventions/generate` | 忽略客户端拥有的健康上下文，重新加载档案、访谈、最新风险及按租户限定的 Device Service 遥测上下文，通过 LangChain4j 生成结构化行动，再持久化版本化 JSON 计划。 |
 | `GET` | `/rehealth/mobile/interventions/today` | 只读取当前认证用户在 `rehealth.mobile.time-zone` 当前自然日内生成的结构化计划。 |
 | `POST` | `/rehealth/mobile/interventions/{id}/feedback` | 在当前认证用户下持久化反馈，并返回类型化持久确认。 |

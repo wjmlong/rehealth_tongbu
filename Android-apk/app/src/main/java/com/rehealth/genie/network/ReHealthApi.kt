@@ -139,6 +139,9 @@ interface ReHealthApi {
     @GET("rehealth/mobile/insurance/plans/current")
     suspend fun getCurrentInsurancePlan(): Response<JeecgResult<InsurancePlanBindingDto?>>
 
+    @GET("rehealth/mobile/insurance/plans/active")
+    suspend fun getActiveInsurancePlans(): Response<JeecgResult<List<InsurancePlanBindingDto>>>
+
     @POST("rehealth/mobile/insurance/plans/{bindingId}/feedback")
     suspend fun submitInsurancePlanFeedback(
         @Path("bindingId") bindingId: String,

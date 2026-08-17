@@ -70,6 +70,7 @@ import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.data.profileAvatarStorageKey
 import com.rehealth.genie.network.PatientProfilePayload
 import com.rehealth.genie.network.dto.BehaviorRecordDto
+import com.rehealth.genie.network.dto.InsurancePlanBindingDto
 import com.rehealth.genie.phm.AttributionHistoryPoint
 import com.rehealth.genie.rdi.RdiPeriodImpact
 import com.rehealth.genie.rdi.RdiPeriodImpactFactor
@@ -121,6 +122,11 @@ fun AttributionScreen(
         factory = remember(application) { BehaviorRecordViewModel.Factory(application) },
     )
     val behaviorState by behaviorViewModel.state.collectAsState()
+    val feedbackViewModel: InterventionFeedbackViewModel = viewModel(
+        key = "insurance-feedback-$behaviorOwnerKey",
+        factory = InterventionFeedbackViewModel.Factory(LocalContext.current),
+    )
+    val feedbackState by feedbackViewModel.uiState.collectAsState()
 
     LaunchedEffect(behaviorOwnerKey) {
         behaviorViewModel.refreshToday()
@@ -285,6 +291,8 @@ fun AttributionScreen(
             it.periodDays == selectedPeriod.days.toInt()
         },
         behaviorRecords = behaviorState.records,
+        feedbackState = feedbackState,
+        onSubmitFeedback = feedbackViewModel::submitInstitutionFeedback,
     )
 }
 
@@ -303,6 +311,8 @@ private fun AttributionContent(
     onRetry: () -> Unit,
     rdiPeriodImpact: RdiPeriodImpact?,
     behaviorRecords: List<BehaviorRecordDto>,
+    feedbackState: FeedbackUiState,
+    onSubmitFeedback: (InsurancePlanBindingDto, String, String, String?) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(Palette.Page).statusBarsPadding(),
@@ -363,6 +373,8 @@ private fun AttributionContent(
                 isGenerating = isInterventionGenerating,
                 generationError = interventionGenerationError,
                 onGenerate = onGenerateIntervention,
+                feedbackState = feedbackState,
+                onSubmitFeedback = onSubmitFeedback,
             )
         }
         item {
@@ -1101,6 +1113,8 @@ private fun AttributionPlanCard(
     isGenerating: Boolean,
     generationError: String?,
     onGenerate: () -> Unit,
+    feedbackState: FeedbackUiState,
+    onSubmitFeedback: (InsurancePlanBindingDto, String, String, String?) -> Unit,
 ) {
     var expanded by remember(interventions) { mutableStateOf(interventions.isNotEmpty()) }
     Card(
@@ -1135,7 +1149,13 @@ private fun AttributionPlanCard(
                     verticalArrangement = Arrangement.spacedBy(Dimensions.PlanItemGap),
                 ) {
                     interventions.forEachIndexed { index, intervention ->
-                        AttributionInterventionRow(number = index + 1, intervention = intervention)
+                        AttributionInterventionRow(
+                            number = index + 1,
+                            intervention = intervention,
+                            bindings = feedbackState.activeBindings.filter { it.planId == intervention.id },
+                            feedbackEnabled = !feedbackState.isSubmitting,
+                            onSubmitFeedback = onSubmitFeedback,
+                        )
                     }
                 }
             }
@@ -1159,6 +1179,15 @@ private fun AttributionPlanCard(
                 Text(
                     text = error,
                     color = Palette.ContributionRisk,
+                    style = Type.Detail,
+                    modifier = Modifier.padding(top = Dimensions.PlanFeedbackTop),
+                )
+            }
+
+            feedbackState.message?.let { message ->
+                Text(
+                    text = message,
+                    color = Palette.Accent,
                     style = Type.Detail,
                     modifier = Modifier.padding(top = Dimensions.PlanFeedbackTop),
                 )
@@ -1200,6 +1229,9 @@ private fun AttributionPlanCard(
 private fun AttributionInterventionRow(
     number: Int,
     intervention: AttributionInterventionUi,
+    bindings: List<InsurancePlanBindingDto>,
+    feedbackEnabled: Boolean,
+    onSubmitFeedback: (InsurancePlanBindingDto, String, String, String?) -> Unit,
 ) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
         Box(
@@ -1226,9 +1258,49 @@ private fun AttributionInterventionRow(
                     modifier = Modifier.padding(top = Dimensions.InterventionSupportingTop),
                 )
             }
+            bindings.forEach { binding ->
+                val planItemId = stablePlanItemId(intervention.id, number, intervention.title)
+                Text(
+                    "保险机构 ${binding.tenantId} · APP计划执行反馈",
+                    color = Palette.TextSecondary,
+                    style = Type.Detail,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    PlanFeedbackButton("完成", feedbackEnabled) {
+                        onSubmitFeedback(binding, planItemId, "completed", null)
+                    }
+                    PlanFeedbackButton("部分完成", feedbackEnabled) {
+                        onSubmitFeedback(binding, planItemId, "partially_completed", null)
+                    }
+                    PlanFeedbackButton("稍后", feedbackEnabled) {
+                        onSubmitFeedback(binding, planItemId, "skipped", null)
+                    }
+                    PlanFeedbackButton("不适用", feedbackEnabled) {
+                        onSubmitFeedback(binding, planItemId, "not_applicable", null)
+                    }
+                }
+            }
         }
     }
 }
+
+@Composable
+private fun PlanFeedbackButton(label: String, enabled: Boolean, onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        enabled = enabled,
+        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+    ) {
+        Text(label, style = Type.Detail)
+    }
+}
+
+private fun stablePlanItemId(planId: String, position: Int, title: String): String =
+    "$planId:item:$position:${title.hashCode().toUInt().toString(16)}".take(128)
 
 @Composable
 private fun AttributionCard(content: @Composable ColumnScope.() -> Unit) {

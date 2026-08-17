@@ -46,7 +46,7 @@ class RiskHistoryRepository(
         val history = riskHistoryDao.latestForUser(userId, limit).asReversed()
         if (history.isEmpty()) return emptyList()
 
-        val completedDays = feedbackDao.completedFeedbackSince(history.first().evaluatedAt)
+        val completedDays = feedbackDao.completedFeedbackSince(userId, history.first().evaluatedAt)
             .asSequence()
             .filter { it.status == "completed" || it.status == "partially_completed" }
             .map { dayFor(it.checkedAt) }

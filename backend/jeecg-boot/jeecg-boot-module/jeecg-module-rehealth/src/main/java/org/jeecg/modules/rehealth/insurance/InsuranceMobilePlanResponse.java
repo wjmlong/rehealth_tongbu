@@ -3,6 +3,7 @@ package org.jeecg.modules.rehealth.insurance;
 import java.time.LocalDateTime;
 
 public record InsuranceMobilePlanResponse(
+        Integer tenantId,
         String bindingId,
         String subjectRef,
         String policyId,

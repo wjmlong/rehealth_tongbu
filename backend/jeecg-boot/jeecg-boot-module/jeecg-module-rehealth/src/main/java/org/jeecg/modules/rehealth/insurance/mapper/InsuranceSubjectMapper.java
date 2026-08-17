@@ -23,4 +23,12 @@ public interface InsuranceSubjectMapper extends BaseMapper<InsuranceSubjectEntit
               AND tenant.del_flag = 0
             """)
     int countActiveMember(@Param("tenantId") int tenantId, @Param("userId") String userId);
+
+    @Select("""
+            SELECT COUNT(*) FROM sys_tenant tenant
+            WHERE tenant.id = #{tenantId}
+              AND tenant.status = 1
+              AND tenant.del_flag = 0
+            """)
+    int countActiveTenant(@Param("tenantId") int tenantId);
 }

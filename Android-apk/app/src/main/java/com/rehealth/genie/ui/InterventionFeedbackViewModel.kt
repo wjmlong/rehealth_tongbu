@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.rehealth.genie.ReHealthApplication
+import com.rehealth.genie.network.ApiResult
+import com.rehealth.genie.network.dto.InsurancePlanBindingDto
 import com.rehealth.genie.work.MeasurementSyncWorker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,6 +15,8 @@ import kotlinx.coroutines.launch
 
 data class FeedbackUiState(
     val isSubmitting: Boolean = false,
+    val isLoadingBindings: Boolean = false,
+    val activeBindings: List<InsurancePlanBindingDto> = emptyList(),
     val message: String? = null,
     val lastSubmittedId: String? = null,
 )
@@ -30,9 +34,33 @@ class InterventionFeedbackViewModel(private val context: Context) : ViewModel() 
     private val _uiState = MutableStateFlow(FeedbackUiState())
     val uiState: StateFlow<FeedbackUiState> = _uiState.asStateFlow()
 
+    init {
+        refreshActiveBindings()
+    }
+
+    fun refreshActiveBindings() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoadingBindings = true)
+            _uiState.value = when (val result = app.authenticatedApiClient.getActiveInsurancePlans()) {
+                is ApiResult.Success -> _uiState.value.copy(
+                    isLoadingBindings = false,
+                    activeBindings = result.data,
+                )
+                is ApiResult.Unauthorized -> _uiState.value.copy(
+                    isLoadingBindings = false,
+                    message = "登录已失效，机构计划暂不可用",
+                )
+                else -> _uiState.value.copy(
+                    isLoadingBindings = false,
+                    message = "机构计划读取失败，可稍后重试",
+                )
+            }
+        }
+    }
+
     fun submitFeedback(interventionId: String, status: String, note: String? = null) {
         viewModelScope.launch {
-            _uiState.value = FeedbackUiState(isSubmitting = true)
+            _uiState.value = _uiState.value.copy(isSubmitting = true, message = null)
             try {
                 val feedbackId = feedbackRepo.submitFeedback(
                     interventionId = interventionId,
@@ -41,12 +69,56 @@ class InterventionFeedbackViewModel(private val context: Context) : ViewModel() 
                 )
                 // D3: trigger immediate upload of queued feedback
                 MeasurementSyncWorker.triggerImmediate(context)
-                _uiState.value = FeedbackUiState(
+                _uiState.value = _uiState.value.copy(
+                    isSubmitting = false,
                     message = getSuccessMessage(status),
                     lastSubmittedId = feedbackId,
                 )
             } catch (e: Exception) {
-                _uiState.value = FeedbackUiState(message = "反馈保存失败: ${e.message}")
+                _uiState.value = _uiState.value.copy(
+                    isSubmitting = false,
+                    message = "反馈保存失败: ${e.message}",
+                )
+            }
+        }
+    }
+
+    fun submitInstitutionFeedback(
+        binding: InsurancePlanBindingDto,
+        planItemId: String,
+        status: String,
+        note: String? = null,
+    ) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isSubmitting = true, message = null)
+            try {
+                val completedCount = when (status) {
+                    "completed" -> 1.0
+                    "partially_completed" -> 0.5
+                    "skipped" -> 0.0
+                    else -> null
+                }
+                val feedbackId = feedbackRepo.submitFeedback(
+                    interventionId = binding.planId,
+                    status = status,
+                    note = note,
+                    bindingId = binding.bindingId,
+                    tenantId = binding.tenantId,
+                    planItemId = planItemId,
+                    expectedCount = if (status == "not_applicable") null else 1.0,
+                    completedCount = completedCount,
+                )
+                MeasurementSyncWorker.triggerImmediate(context)
+                _uiState.value = _uiState.value.copy(
+                    isSubmitting = false,
+                    message = "机构 ${binding.tenantId}：${getSuccessMessage(status)}",
+                    lastSubmittedId = feedbackId,
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isSubmitting = false,
+                    message = "反馈保存失败: ${e.message}",
+                )
             }
         }
     }

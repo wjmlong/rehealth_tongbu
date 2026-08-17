@@ -76,6 +76,7 @@ class ReHealthApplication : Application() {
         InterventionFeedbackRepository(
             dao = database.interventionFeedbackDao(),
             apiClient = authenticatedApiClient,
+            userIdProvider = { sessionStore.userId },
         )
     }
 

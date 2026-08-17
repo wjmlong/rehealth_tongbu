@@ -8,6 +8,9 @@
 -- least three rows; each subject detail receives at least three display items.
 
 SET NAMES utf8mb4;
+SET @anchor_date = COALESCE(@anchor_date, CURRENT_DATE());
+SET @seed_time = COALESCE(@seed_time, TIMESTAMP(@anchor_date, '10:00:00'));
+SET @seed_actor = COALESCE(@seed_actor, 'admin');
 
 DROP TEMPORARY TABLE IF EXISTS tmp_miqa_app_user;
 CREATE TEMPORARY TABLE tmp_miqa_app_user (
@@ -832,7 +835,8 @@ ON DUPLICATE KEY UPDATE
 
 INSERT INTO rehealth_insurance_intervention_feedback (
     id, tenant_id, binding_id, subject_ref, intervention_id, feedback_type,
-    occurred_at, completion_rate, adherence_score, outcome_summary_json,
+    occurred_at, completion_rate, adherence_score, plan_item_id,
+    expected_count, completed_count, verification_type, calculation_version, outcome_summary_json,
     source_system, source_record_id, created_at
 )
 SELECT
@@ -844,8 +848,17 @@ SELECT
     LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:binding:', rel.tenant_id, ':', rel.username), 256)),
     LOWER(SHA2(CONCAT(rel.tenant_id, ':', LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_APP_QA:user:', rel.username)))), 256)),
     LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:insurance-intervention:', rel.tenant_id, ':', rel.username), 256)),
-    item.feedback_type, DATE_SUB(@seed_time, INTERVAL item.days_ago DAY),
-    item.completion_rate, item.adherence_score,
+    CASE
+        WHEN GREATEST(0, LEAST(1, 1.05 - app.risk_base + item.score_offset)) >= 0.95 THEN 'completed'
+        WHEN GREATEST(0, LEAST(1, 1.05 - app.risk_base + item.score_offset)) >= 0.20 THEN 'partially_completed'
+        ELSE 'skipped'
+    END,
+    DATE_SUB(@seed_time, INTERVAL item.days_ago DAY),
+    ROUND(GREATEST(0, LEAST(1, 1.05 - app.risk_base + item.score_offset)), 2),
+    ROUND(GREATEST(0, LEAST(1, 1.05 - app.risk_base + item.score_offset)), 2),
+    CONCAT('miqa-plan-item-', MOD(app.profile_no - 1, 4) + 1, '-', item.feedback_no),
+    1.000, ROUND(GREATEST(0, LEAST(1, 1.05 - app.risk_base + item.score_offset)), 2),
+    'self_report', 'insurance-adherence-event-v1',
     JSON_OBJECT(
         'synthetic', TRUE, 'clinicalUseAllowed', FALSE,
         'sleepImproved', item.feedback_no >= 2,
@@ -858,20 +871,23 @@ SELECT
     ),
     @seed_time
 FROM tmp_miqa_app_relationship rel
+JOIN tmp_miqa_app_user app ON app.username = rel.username
 CROSS JOIN (
-    SELECT 1 feedback_no, 'plan_started' feedback_type, 7 days_ago,
-           0.48 completion_rate, 0.56 adherence_score, '已确认计划并开始执行' note
+    SELECT 1 feedback_no, 7 days_ago, -0.15 score_offset, '已确认计划并开始执行' note
     UNION ALL
-    SELECT 2, 'weekly_progress', 4, 0.68, 0.74, '已完成睡眠和运动记录'
+    SELECT 2, 4, 0.00, '已完成睡眠和运动记录'
     UNION ALL
-    SELECT 3, 'weekly_progress', 1, 0.86, 0.88, '已回传本周执行结果'
+    SELECT 3, 1, 0.15, '已回传本周执行结果'
 ) item
 WHERE 1 = 1
 ON DUPLICATE KEY UPDATE
     binding_id = VALUES(binding_id), subject_ref = VALUES(subject_ref),
     intervention_id = VALUES(intervention_id), feedback_type = VALUES(feedback_type),
     occurred_at = VALUES(occurred_at), completion_rate = VALUES(completion_rate),
-    adherence_score = VALUES(adherence_score), outcome_summary_json = VALUES(outcome_summary_json),
+    adherence_score = VALUES(adherence_score), plan_item_id = VALUES(plan_item_id),
+    expected_count = VALUES(expected_count), completed_count = VALUES(completed_count),
+    verification_type = VALUES(verification_type), calculation_version = VALUES(calculation_version),
+    outcome_summary_json = VALUES(outcome_summary_json),
     created_at = VALUES(created_at);
 
 INSERT INTO rehealth_insurance_intervention_action (

@@ -110,9 +110,14 @@ class ReHealthMobileApiRouteContractTest {
     @Test
     fun `binds insurance plan and reports privacy safe plan feedback`() = runTest {
         server.start()
-        val bindingEnvelope = """{"success":true,"code":200,"result":{"bindingId":"binding-1","subjectRef":"subject-1","policyId":"policy-1","policyNo":"POL-001","planId":"plan-1","consentId":"consent-1","consentVersion":"v1","status":"ACTIVE","boundAt":"2026-08-12 10:00:00"}}"""
+        val bindingEnvelope = """{"success":true,"code":200,"result":{"tenantId":1000,"bindingId":"binding-1","subjectRef":"subject-1","policyId":"policy-1","policyNo":"POL-001","planId":"plan-1","consentId":"consent-1","consentVersion":"v1","status":"ACTIVE","boundAt":"2026-08-12 10:00:00"}}"""
         server.enqueue(MockResponse().setResponseCode(200).setBody(bindingEnvelope))
         server.enqueue(MockResponse().setResponseCode(200).setBody(bindingEnvelope))
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"success":true,"code":200,"result":[{"tenantId":1000,"bindingId":"binding-1","subjectRef":"subject-1","policyId":"policy-1","policyNo":"POL-001","planId":"plan-1","consentId":"consent-1","consentVersion":"v1","status":"ACTIVE","boundAt":"2026-08-12 10:00:00"}]}""",
+            ),
+        )
         server.enqueue(
             MockResponse().setResponseCode(200).setBody(
                 """{"success":true,"code":200,"result":{"feedbackId":"feedback-1","duplicate":false}}""",
@@ -140,6 +145,9 @@ class ReHealthMobileApiRouteContractTest {
         assertIs<RemotePhmOutcome.Success<*>>(api.getCurrentInsurancePlan())
         assertRequest("/jeecg-boot/rehealth/mobile/insurance/plans/current", "GET")
 
+        assertIs<RemotePhmOutcome.Success<*>>(api.getActiveInsurancePlans())
+        assertRequest("/jeecg-boot/rehealth/mobile/insurance/plans/active", "GET")
+
         assertIs<RemotePhmOutcome.Success<*>>(
             api.submitInsurancePlanFeedback(
                 bindingId = "binding-1",
@@ -149,6 +157,7 @@ class ReHealthMobileApiRouteContractTest {
                     completionRate = 1.0,
                     adherenceScore = 0.9,
                     sourceRecordId = "feedback-1",
+                    planItemId = "plan-item-1",
                     outcomeSummary = mapOf("riskTrend" to "improving"),
                 ),
             ),

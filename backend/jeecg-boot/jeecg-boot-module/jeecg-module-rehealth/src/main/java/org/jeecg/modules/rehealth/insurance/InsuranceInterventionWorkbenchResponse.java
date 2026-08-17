@@ -44,6 +44,9 @@ public final class InsuranceInterventionWorkbenchResponse {
             @JsonProperty("rdi_is_mock") Boolean rdiIsMock,
             @JsonProperty("rdi_scored_on") String rdiScoredOn,
             @JsonProperty("adherence_score") Double adherenceScore,
+            @JsonProperty("adherence_completed_count") Double adherenceCompletedCount,
+            @JsonProperty("adherence_expected_count") Double adherenceExpectedCount,
+            @JsonProperty("adherence_window_days") Integer adherenceWindowDays,
             @JsonProperty("owner_name") String ownerName,
             @JsonProperty("department_name") String departmentName,
             @JsonProperty("current_intervention") String currentIntervention,
@@ -96,8 +99,13 @@ public final class InsuranceInterventionWorkbenchResponse {
             String id,
             @JsonProperty("feedback_type") String feedbackType,
             @JsonProperty("intervention_id") String interventionId,
+            @JsonProperty("plan_item_id") String planItemId,
             @JsonProperty("completion_rate") Double completionRate,
             @JsonProperty("adherence_score") Double adherenceScore,
+            @JsonProperty("expected_count") Double expectedCount,
+            @JsonProperty("completed_count") Double completedCount,
+            @JsonProperty("verification_type") String verificationType,
+            @JsonProperty("calculation_version") String calculationVersion,
             @JsonProperty("occurred_at") String occurredAt,
             JsonNode outcome
     ) {

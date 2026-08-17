@@ -54,7 +54,9 @@ class RhiRepository(
         val sleepSessions = ringDataDao.getSleepSessionsSinceForOwner(since, persistenceUserId)
         val measurements = ringDataDao.getMeasurementsSinceForOwner(since, persistenceUserId)
         val manual = authenticatedUserId?.let { manualInputDao?.get(it) }
-        val feedback = interventionFeedbackDao?.completedFeedbackSince(since).orEmpty()
+        val feedback = authenticatedUserId?.let { owner ->
+            interventionFeedbackDao?.completedFeedbackSince(owner, since)
+        }.orEmpty()
         val daily = withContext(Dispatchers.Default) {
             val firstDate = scoredOn.minusDays((calculationDays + 27).toLong())
             var previousDisplay: Double? = null

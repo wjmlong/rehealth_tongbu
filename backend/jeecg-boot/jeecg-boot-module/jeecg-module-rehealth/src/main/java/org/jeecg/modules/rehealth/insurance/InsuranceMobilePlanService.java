@@ -18,13 +18,25 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 @ConditionalOnProperty(name = "rehealth.software-db.enabled", havingValue = "true")
 public class InsuranceMobilePlanService {
+    private static final String ADHERENCE_CALCULATION_VERSION = "insurance-adherence-event-v1";
+    private static final Set<String> FEEDBACK_TYPES = Set.of(
+            "completed", "partially_completed", "skipped", "not_applicable"
+    );
+    private static final Set<String> VERIFICATION_TYPES = Set.of(
+            "self_report", "device_verified", "staff_confirmed"
+    );
     private final InsuranceSubjectMapper subjectMapper;
     private final InsurancePolicyMapper policyMapper;
     private final InsuranceConsentRecordMapper consentMapper;
@@ -51,10 +63,11 @@ public class InsuranceMobilePlanService {
     @Transactional
     public InsuranceMobilePlanResponse bind(String userId, InsuranceMobilePlanRequest.Bind request) {
         int tenantId = positiveTenant(request.tenantId());
-        requireActiveTenantMember(tenantId, userId);
+        requireActiveTenant(tenantId);
         InsuranceSubjectEntity subject = subjectMapper.selectOne(new LambdaQueryWrapper<InsuranceSubjectEntity>()
                 .eq(InsuranceSubjectEntity::getTenantId, tenantId)
                 .eq(InsuranceSubjectEntity::getRehealthUserId, userId)
+                .eq(InsuranceSubjectEntity::getEnrollmentStatus, "active")
                 .last("LIMIT 1"));
         if (subject == null || !"active".equals(subject.getEnrollmentStatus())) {
             throw InsuranceApiException.forbidden("current user is not enrolled in the requested insurance tenant");
@@ -133,10 +146,11 @@ public class InsuranceMobilePlanService {
 
     public InsuranceMobilePlanResponse current(String userId, String tenantValue) {
         int tenantId = positiveTenant(tenantValue);
-        requireActiveTenantMember(tenantId, userId);
+        requireActiveTenant(tenantId);
         InsuranceSubjectEntity subject = subjectMapper.selectOne(new LambdaQueryWrapper<InsuranceSubjectEntity>()
                 .eq(InsuranceSubjectEntity::getTenantId, tenantId)
                 .eq(InsuranceSubjectEntity::getRehealthUserId, userId)
+                .eq(InsuranceSubjectEntity::getEnrollmentStatus, "active")
                 .last("LIMIT 1"));
         if (subject == null) {
             throw InsuranceApiException.notFound("insurance enrollment was not found");
@@ -159,10 +173,49 @@ public class InsuranceMobilePlanService {
                         .eq(InsuranceConsentRecordEntity::getTenantId, tenantId)
                         .eq(InsuranceConsentRecordEntity::getId, binding.getConsentId())
                         .last("LIMIT 1"));
-        if (policy == null || consent == null) {
+        if (policy == null || !"active".equals(policy.getStatus())
+                || consent == null || !"granted".equals(consent.getStatus())) {
             throw InsuranceApiException.notFound("tenant-scoped policy or consent was not found");
         }
         return response(binding, policy, consent);
+    }
+
+    public List<InsuranceMobilePlanResponse> active(String userId) {
+        if (userId == null || userId.isBlank()) return List.of();
+        List<InsuranceMobilePlanResponse> result = new ArrayList<>();
+        List<InsuranceSubjectEntity> subjects = subjectMapper.selectList(
+                new LambdaQueryWrapper<InsuranceSubjectEntity>()
+                        .eq(InsuranceSubjectEntity::getRehealthUserId, userId)
+                        .eq(InsuranceSubjectEntity::getEnrollmentStatus, "active")
+        );
+        for (InsuranceSubjectEntity subject : subjects) {
+            if (subject.getTenantId() == null || subjectMapper.countActiveTenant(subject.getTenantId()) < 1) continue;
+            List<InsurancePlanBindingEntity> bindings = bindingMapper.selectList(
+                    new LambdaQueryWrapper<InsurancePlanBindingEntity>()
+                            .eq(InsurancePlanBindingEntity::getTenantId, subject.getTenantId())
+                            .eq(InsurancePlanBindingEntity::getSubjectRef, subject.getSubjectRef())
+                            .eq(InsurancePlanBindingEntity::getStatus, "active")
+                            .orderByDesc(InsurancePlanBindingEntity::getUpdatedAt)
+            );
+            for (InsurancePlanBindingEntity binding : bindings) {
+                InsurancePolicyEntity policy = policyMapper.selectOne(
+                        new LambdaQueryWrapper<InsurancePolicyEntity>()
+                                .eq(InsurancePolicyEntity::getTenantId, subject.getTenantId())
+                                .eq(InsurancePolicyEntity::getId, binding.getPolicyId())
+                                .eq(InsurancePolicyEntity::getStatus, "active")
+                                .last("LIMIT 1")
+                );
+                InsuranceConsentRecordEntity consent = consentMapper.selectOne(
+                        new LambdaQueryWrapper<InsuranceConsentRecordEntity>()
+                                .eq(InsuranceConsentRecordEntity::getTenantId, subject.getTenantId())
+                                .eq(InsuranceConsentRecordEntity::getId, binding.getConsentId())
+                                .eq(InsuranceConsentRecordEntity::getStatus, "granted")
+                                .last("LIMIT 1")
+                );
+                if (policy != null && consent != null) result.add(response(binding, policy, consent));
+            }
+        }
+        return result;
     }
 
     @Transactional
@@ -173,14 +226,29 @@ public class InsuranceMobilePlanService {
         if (binding == null || !"active".equals(binding.getStatus())) {
             throw InsuranceApiException.notFound("active insurance plan binding was not found");
         }
-        requireActiveTenantMember(binding.getTenantId(), userId);
+        requireActiveTenant(binding.getTenantId());
         InsuranceSubjectEntity subject = subjectMapper.selectOne(new LambdaQueryWrapper<InsuranceSubjectEntity>()
                 .eq(InsuranceSubjectEntity::getTenantId, binding.getTenantId())
                 .eq(InsuranceSubjectEntity::getSubjectRef, binding.getSubjectRef())
                 .eq(InsuranceSubjectEntity::getRehealthUserId, userId)
+                .eq(InsuranceSubjectEntity::getEnrollmentStatus, "active")
                 .last("LIMIT 1"));
         if (subject == null) {
             throw InsuranceApiException.forbidden("binding does not belong to the current user");
+        }
+        InsurancePolicyEntity policy = policyMapper.selectOne(new LambdaQueryWrapper<InsurancePolicyEntity>()
+                .eq(InsurancePolicyEntity::getTenantId, binding.getTenantId())
+                .eq(InsurancePolicyEntity::getId, binding.getPolicyId())
+                .eq(InsurancePolicyEntity::getStatus, "active")
+                .last("LIMIT 1"));
+        InsuranceConsentRecordEntity consent = consentMapper.selectOne(
+                new LambdaQueryWrapper<InsuranceConsentRecordEntity>()
+                        .eq(InsuranceConsentRecordEntity::getTenantId, binding.getTenantId())
+                        .eq(InsuranceConsentRecordEntity::getId, binding.getConsentId())
+                        .eq(InsuranceConsentRecordEntity::getStatus, "granted")
+                        .last("LIMIT 1"));
+        if (policy == null || consent == null) {
+            throw InsuranceApiException.forbidden("insurance policy or consent is no longer active");
         }
         String sourceRecordId = required(request.sourceRecordId(), "sourceRecordId", 128);
         InsuranceInterventionFeedbackEntity existing = feedbackMapper.selectOne(
@@ -192,38 +260,88 @@ public class InsuranceMobilePlanService {
         if (existing != null) {
             return Map.of("feedbackId", existing.getId(), "status", "accepted", "idempotentReplay", true);
         }
-        checkScore(request.completionRate(), "completionRate");
-        checkScore(request.adherenceScore(), "adherenceScore");
+        String feedbackType = required(request.feedbackType(), "feedbackType", 64).toLowerCase();
+        if (!FEEDBACK_TYPES.contains(feedbackType)) {
+            throw InsuranceApiException.badRequest("feedbackType is unsupported");
+        }
+        String verificationType = optional(request.verificationType(), "self_report", 32).toLowerCase();
+        if (!VERIFICATION_TYPES.contains(verificationType)) {
+            throw InsuranceApiException.badRequest("verificationType is unsupported");
+        }
+        BigDecimal expectedCount = "not_applicable".equals(feedbackType)
+                ? null : count(request.expectedCount(), BigDecimal.ONE, "expectedCount");
+        BigDecimal completedCount = "not_applicable".equals(feedbackType)
+                ? null : completed(request, feedbackType, expectedCount);
+        BigDecimal completionRate = expectedCount == null ? null
+                : completedCount.divide(expectedCount, 6, RoundingMode.HALF_UP);
         InsuranceInterventionFeedbackEntity entity = new InsuranceInterventionFeedbackEntity();
         entity.setId(uuid());
         entity.setTenantId(binding.getTenantId());
         entity.setBindingId(binding.getId());
         entity.setSubjectRef(binding.getSubjectRef());
         entity.setInterventionId(trim(request.interventionId(), 64));
-        entity.setFeedbackType(required(request.feedbackType(), "feedbackType", 64));
+        entity.setPlanItemId(required(request.planItemId(), "planItemId", 128));
+        entity.setFeedbackType(feedbackType);
         entity.setOccurredAt(request.occurredAt() == null ? LocalDateTime.now() : request.occurredAt());
-        entity.setCompletionRate(request.completionRate());
-        entity.setAdherenceScore(request.adherenceScore());
+        entity.setCompletionRate(completionRate);
+        entity.setAdherenceScore(completionRate);
+        entity.setExpectedCount(expectedCount);
+        entity.setCompletedCount(completedCount);
+        entity.setVerificationType(verificationType);
+        entity.setCalculationVersion(ADHERENCE_CALCULATION_VERSION);
         entity.setOutcomeSummaryJson(json(request.outcomeSummary()));
         entity.setSourceSystem("rehealth_app");
         entity.setSourceRecordId(sourceRecordId);
         entity.setCreatedAt(LocalDateTime.now());
         feedbackMapper.insert(entity);
-        return Map.of("feedbackId", entity.getId(), "status", "accepted", "idempotentReplay", false);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("feedbackId", entity.getId());
+        response.put("status", "accepted");
+        response.put("idempotentReplay", false);
+        response.put("calculationVersion", ADHERENCE_CALCULATION_VERSION);
+        if (expectedCount != null) response.put("expectedCount", expectedCount);
+        if (completedCount != null) response.put("completedCount", completedCount);
+        if (completionRate != null) response.put("adherenceScore", completionRate);
+        return response;
     }
 
     private InsuranceMobilePlanResponse response(
             InsurancePlanBindingEntity binding, InsurancePolicyEntity policy, InsuranceConsentRecordEntity consent
     ) {
-        return new InsuranceMobilePlanResponse(binding.getId(), binding.getSubjectRef(), binding.getPolicyId(),
+        return new InsuranceMobilePlanResponse(binding.getTenantId(), binding.getId(), binding.getSubjectRef(), binding.getPolicyId(),
                 policy == null ? null : policy.getPolicyNo(), binding.getPlanId(), binding.getConsentId(),
                 consent == null ? null : consent.getConsentVersion(), binding.getStatus(), binding.getBoundAt());
     }
 
-    private void requireActiveTenantMember(int tenantId, String userId) {
-        if (userId == null || userId.isBlank() || subjectMapper.countActiveMember(tenantId, userId) < 1) {
-            throw InsuranceApiException.forbidden("current user is not an active member of the requested insurance tenant");
+    private void requireActiveTenant(int tenantId) {
+        if (subjectMapper.countActiveTenant(tenantId) < 1) {
+            throw InsuranceApiException.forbidden("requested insurance tenant is not active");
         }
+    }
+
+    private static BigDecimal count(BigDecimal value, BigDecimal fallback, String field) {
+        BigDecimal normalized = value == null ? fallback : value;
+        if (normalized == null || normalized.signum() <= 0 || normalized.compareTo(BigDecimal.valueOf(366)) > 0) {
+            throw InsuranceApiException.badRequest(field + " must be greater than 0 and at most 366");
+        }
+        return normalized;
+    }
+
+    private static BigDecimal completed(
+            InsuranceMobilePlanRequest.Feedback request, String feedbackType, BigDecimal expectedCount
+    ) {
+        BigDecimal value = request.completedCount();
+        if (value == null) {
+            value = switch (feedbackType) {
+                case "completed" -> expectedCount;
+                case "partially_completed" -> expectedCount.multiply(BigDecimal.valueOf(0.5));
+                default -> BigDecimal.ZERO;
+            };
+        }
+        if (value.signum() < 0 || value.compareTo(expectedCount) > 0) {
+            throw InsuranceApiException.badRequest("completedCount must be between 0 and expectedCount");
+        }
+        return value;
     }
 
     private static int positiveTenant(String value) {
@@ -233,12 +351,6 @@ public class InsuranceMobilePlanService {
             return tenant;
         } catch (NumberFormatException e) {
             throw InsuranceApiException.badRequest("tenantId must be a positive integer");
-        }
-    }
-
-    private static void checkScore(BigDecimal value, String field) {
-        if (value != null && (value.signum() < 0 || value.compareTo(BigDecimal.ONE) > 0)) {
-            throw InsuranceApiException.badRequest(field + " must be between 0 and 1");
         }
     }
 

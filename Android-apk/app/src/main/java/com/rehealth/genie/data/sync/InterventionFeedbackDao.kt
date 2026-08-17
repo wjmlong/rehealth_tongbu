@@ -15,21 +15,21 @@ interface InterventionFeedbackDao {
     @Update
     suspend fun update(feedback: InterventionFeedbackEntity)
 
-    @Query("SELECT * FROM intervention_feedback_queue WHERE upload_status IN ('pending', 'failed') AND next_retry_at <= :now ORDER BY created_at ASC")
-    suspend fun pendingUploads(now: Long = System.currentTimeMillis()): List<InterventionFeedbackEntity>
+    @Query("SELECT * FROM intervention_feedback_queue WHERE owner_user_id = :ownerUserId AND upload_status IN ('pending', 'failed') AND next_retry_at <= :now ORDER BY created_at ASC")
+    suspend fun pendingUploads(ownerUserId: String, now: Long = System.currentTimeMillis()): List<InterventionFeedbackEntity>
 
-    @Query("SELECT * FROM intervention_feedback_queue WHERE intervention_id = :interventionId ORDER BY created_at DESC LIMIT 1")
-    suspend fun getLatestForIntervention(interventionId: String): InterventionFeedbackEntity?
+    @Query("SELECT * FROM intervention_feedback_queue WHERE owner_user_id = :ownerUserId AND intervention_id = :interventionId ORDER BY created_at DESC LIMIT 1")
+    suspend fun getLatestForIntervention(ownerUserId: String, interventionId: String): InterventionFeedbackEntity?
 
-    @Query("SELECT * FROM intervention_feedback_queue WHERE upload_status != 'done' ORDER BY created_at DESC")
-    fun observePendingFeedback(): Flow<List<InterventionFeedbackEntity>>
+    @Query("SELECT * FROM intervention_feedback_queue WHERE owner_user_id = :ownerUserId AND upload_status != 'done' ORDER BY created_at DESC")
+    fun observePendingFeedback(ownerUserId: String): Flow<List<InterventionFeedbackEntity>>
 
-    @Query("SELECT * FROM intervention_feedback_queue WHERE checked_at >= :since ORDER BY checked_at ASC")
-    suspend fun completedFeedbackSince(since: Long): List<InterventionFeedbackEntity>
+    @Query("SELECT * FROM intervention_feedback_queue WHERE owner_user_id = :ownerUserId AND checked_at >= :since ORDER BY checked_at ASC")
+    suspend fun completedFeedbackSince(ownerUserId: String, since: Long): List<InterventionFeedbackEntity>
 
     @Query("DELETE FROM intervention_feedback_queue WHERE upload_status = 'done' AND created_at < :cutoffTimestamp")
     suspend fun pruneDone(cutoffTimestamp: Long)
 
-    @Query("SELECT COUNT(*) FROM intervention_feedback_queue WHERE upload_status = 'pending'")
-    suspend fun countPending(): Int
+    @Query("SELECT COUNT(*) FROM intervention_feedback_queue WHERE owner_user_id = :ownerUserId AND upload_status = 'pending'")
+    suspend fun countPending(ownerUserId: String): Int
 }

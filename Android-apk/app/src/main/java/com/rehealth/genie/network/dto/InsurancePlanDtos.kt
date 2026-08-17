@@ -18,6 +18,7 @@ data class InsurancePlanBindRequestDto(
 
 @JsonClass(generateAdapter = true)
 data class InsurancePlanBindingDto(
+    val tenantId: Int,
     val bindingId: String,
     val subjectRef: String,
     val policyId: String,
@@ -37,5 +38,9 @@ data class InsurancePlanFeedbackRequestDto(
     val adherenceScore: Double? = null,
     val sourceRecordId: String,
     val interventionId: String? = null,
+    val planItemId: String,
+    val expectedCount: Double = 1.0,
+    val completedCount: Double? = null,
+    val verificationType: String = "self_report",
     val outcomeSummary: Map<String, String> = emptyMap(),
 )

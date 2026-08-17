@@ -17,10 +17,15 @@ public class InsuranceInterventionFeedbackEntity {
     @TableField("binding_id") private String bindingId;
     @TableField("subject_ref") private String subjectRef;
     @TableField("intervention_id") private String interventionId;
+    @TableField("plan_item_id") private String planItemId;
     @TableField("feedback_type") private String feedbackType;
     @TableField("occurred_at") private LocalDateTime occurredAt;
     @TableField("completion_rate") private BigDecimal completionRate;
     @TableField("adherence_score") private BigDecimal adherenceScore;
+    @TableField("expected_count") private BigDecimal expectedCount;
+    @TableField("completed_count") private BigDecimal completedCount;
+    @TableField("verification_type") private String verificationType;
+    @TableField("calculation_version") private String calculationVersion;
     @TableField("outcome_summary_json") private String outcomeSummaryJson;
     @TableField("source_system") private String sourceSystem;
     @TableField("source_record_id") private String sourceRecordId;

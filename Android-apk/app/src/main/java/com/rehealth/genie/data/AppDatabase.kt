@@ -82,7 +82,7 @@ data class AttributionLogEntity(
         DietRecordEntity::class,
         PiasAttributionCacheEntity::class,
     ],
-    version = 17,
+    version = 18,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -100,6 +100,26 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun piasAttributionCacheDao(): PiasAttributionCacheDao
 
     companion object {
+        /** Adds authenticated institution-plan scope and execution facts to the durable feedback queue. */
+        val Migration17To18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE intervention_feedback_queue ADD COLUMN owner_user_id TEXT")
+                db.execSQL("ALTER TABLE intervention_feedback_queue ADD COLUMN binding_id TEXT")
+                db.execSQL("ALTER TABLE intervention_feedback_queue ADD COLUMN tenant_id INTEGER")
+                db.execSQL("ALTER TABLE intervention_feedback_queue ADD COLUMN plan_item_id TEXT")
+                db.execSQL("ALTER TABLE intervention_feedback_queue ADD COLUMN expected_count REAL")
+                db.execSQL("ALTER TABLE intervention_feedback_queue ADD COLUMN completed_count REAL")
+                db.execSQL(
+                    "ALTER TABLE intervention_feedback_queue ADD COLUMN verification_type TEXT " +
+                        "NOT NULL DEFAULT 'self_report'",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_intervention_feedback_queue_owner_status_retry " +
+                        "ON intervention_feedback_queue(owner_user_id, upload_status, next_retry_at)",
+                )
+            }
+        }
+
         /** Adds a user-scoped cache for PIAS responses without altering existing health data. */
         val Migration16To17 = object : Migration(16, 17) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -741,6 +761,7 @@ abstract class AppDatabase : RoomDatabase() {
                     Migration14To15,
                     Migration15To16,
                     Migration16To17,
+                    Migration17To18,
                 )
                 .build()
     }

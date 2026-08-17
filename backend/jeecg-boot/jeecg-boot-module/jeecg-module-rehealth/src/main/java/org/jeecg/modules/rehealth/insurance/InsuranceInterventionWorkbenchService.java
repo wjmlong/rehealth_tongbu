@@ -63,11 +63,14 @@ public class InsuranceInterventionWorkbenchService {
         long inProgress = summaries.stream().filter(v -> "in_progress".equals(v.workflowStatus())).count();
         long pendingReview = summaries.stream().filter(v -> "pending_review".equals(v.workflowStatus())).count();
         long improved = summaries.stream().filter(v -> "improved".equals(v.workflowStatus())).count();
-        BigDecimal adherence = summaries.stream().map(InsuranceInterventionWorkbenchResponse.SubjectSummary::adherenceScore)
+        BigDecimal completed = summaries.stream()
+                .map(InsuranceInterventionWorkbenchResponse.SubjectSummary::adherenceCompletedCount)
                 .filter(v -> v != null).map(BigDecimal::valueOf).reduce(BigDecimal.ZERO, BigDecimal::add);
-        long adherenceCount = summaries.stream().filter(v -> v.adherenceScore() != null).count();
-        if (adherenceCount > 0) adherence = adherence.divide(BigDecimal.valueOf(adherenceCount), 4, RoundingMode.HALF_UP);
-        else adherence = null;
+        BigDecimal expected = summaries.stream()
+                .map(InsuranceInterventionWorkbenchResponse.SubjectSummary::adherenceExpectedCount)
+                .filter(v -> v != null).map(BigDecimal::valueOf).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal adherence = expected.signum() > 0
+                ? completed.divide(expected, 4, RoundingMode.HALF_UP) : null;
         String updated = summaries.stream().map(InsuranceInterventionWorkbenchResponse.SubjectSummary::updatedAt)
                 .filter(v -> v != null).max(String::compareTo).orElse(null);
         return new InsuranceInterventionWorkbenchResponse.Dashboard(
@@ -236,6 +239,9 @@ public class InsuranceInterventionWorkbenchService {
                 rdi == null ? null : rdi.confidence(), rdi == null ? null : rdi.status(),
                 rdi == null ? null : rdi.isMock(), rdi == null ? null : rdi.scoredOn(),
                 feedback == null ? null : feedback.adherence(),
+                feedback == null ? null : feedback.completedCount(),
+                feedback == null ? null : feedback.expectedCount(),
+                feedback == null ? null : 28,
                 owner == null ? null : owner.name(), owner == null ? null : owner.department(),
                 currentIntervention == null ? null : currentIntervention.summary(),
                 currentIntervention == null ? null : currentIntervention.dueAt(), updated);
@@ -328,9 +334,24 @@ public class InsuranceInterventionWorkbenchService {
 
     private FeedbackAggregate latestFeedback(int tenantId, String subjectRef) {
         return jdbc.query("""
-                SELECT AVG(adherence_score), MAX(occurred_at)
-                FROM rehealth_insurance_intervention_feedback WHERE tenant_id=? AND subject_ref=?
-                """, (rs, row) -> new FeedbackAggregate(nullableDouble(rs, 1), format(rs.getTimestamp(2))),
+                SELECT
+                  SUM(COALESCE(feedback.completed_count, feedback.adherence_score))
+                    / NULLIF(SUM(COALESCE(feedback.expected_count,
+                        CASE WHEN feedback.adherence_score IS NULL THEN 0 ELSE 1 END)), 0),
+                  SUM(COALESCE(feedback.completed_count, feedback.adherence_score)),
+                  SUM(COALESCE(feedback.expected_count,
+                        CASE WHEN feedback.adherence_score IS NULL THEN 0 ELSE 1 END)),
+                  MAX(feedback.occurred_at)
+                FROM rehealth_insurance_intervention_feedback feedback
+                JOIN rehealth_insurance_plan_binding binding
+                  ON binding.id=feedback.binding_id
+                 AND binding.tenant_id=feedback.tenant_id
+                 AND binding.status='active'
+                WHERE feedback.tenant_id=? AND feedback.subject_ref=?
+                  AND feedback.occurred_at >= DATE_SUB(NOW(3), INTERVAL 28 DAY)
+                """, (rs, row) -> new FeedbackAggregate(
+                        nullableDouble(rs, 1), nullableDouble(rs, 2), nullableDouble(rs, 3),
+                        format(rs.getTimestamp(4))),
                 tenantId, subjectRef).stream().findFirst().orElse(null);
     }
 
@@ -393,13 +414,18 @@ public class InsuranceInterventionWorkbenchService {
 
     private List<InsuranceInterventionWorkbenchResponse.Feedback> feedback(int tenantId, String subjectRef) {
         return jdbc.query("""
-                SELECT id, feedback_type, intervention_id, completion_rate, adherence_score,
-                       occurred_at, outcome_summary_json
+                SELECT id, feedback_type, intervention_id, plan_item_id,
+                       completion_rate, adherence_score, expected_count, completed_count,
+                       verification_type, calculation_version, occurred_at, outcome_summary_json
                 FROM rehealth_insurance_intervention_feedback
-                WHERE tenant_id=? AND subject_ref=? ORDER BY occurred_at DESC LIMIT 100
+                WHERE tenant_id=? AND subject_ref=?
+                  AND occurred_at >= DATE_SUB(NOW(3), INTERVAL 28 DAY)
+                ORDER BY occurred_at DESC LIMIT 100
                 """, (rs, row) -> new InsuranceInterventionWorkbenchResponse.Feedback(
-                rs.getString(1), rs.getString(2), rs.getString(3), nullableDouble(rs, 4),
-                nullableDouble(rs, 5), format(rs.getTimestamp(6)), tree(rs.getString(7))), tenantId, subjectRef);
+                rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4),
+                nullableDouble(rs, 5), nullableDouble(rs, 6), nullableDouble(rs, 7),
+                nullableDouble(rs, 8), rs.getString(9), rs.getString(10),
+                format(rs.getTimestamp(11)), tree(rs.getString(12))), tenantId, subjectRef);
     }
 
     private List<InsuranceInterventionWorkbenchResponse.Action> actions(int tenantId, String subjectRef) {
@@ -543,7 +569,9 @@ public class InsuranceInterventionWorkbenchService {
     private record RhiSnapshot(Double score, Double confidence, String updatedAt) {}
     private record RdiSnapshot(Double score, Double confidence, String status, Boolean isMock,
                                String scoredOn, String updatedAt) {}
-    private record FeedbackAggregate(Double adherence, String occurredAt) {}
+    private record FeedbackAggregate(
+            Double adherence, Double completedCount, Double expectedCount, String occurredAt
+    ) {}
     private record AttributionSnapshot(Boolean dataSufficient, Boolean isMock, Double individualAtt,
                                        Double trendDelta, String status, String interpretation, Timestamp createdAt) {}
     private record Owner(String name, String department) {}

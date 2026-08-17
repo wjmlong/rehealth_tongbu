@@ -176,6 +176,9 @@ suspend fun uploadRhiSnapshot(
     suspend fun getCurrentInsurancePlan(): RemotePhmOutcome<InsurancePlanBindingDto?> =
         unwrapNullable { api.getCurrentInsurancePlan() }
 
+    suspend fun getActiveInsurancePlans(): RemotePhmOutcome<List<InsurancePlanBindingDto>> =
+        unwrap { api.getActiveInsurancePlans() }
+
     suspend fun submitInsurancePlanFeedback(
         bindingId: String,
         request: InsurancePlanFeedbackRequestDto,

@@ -26,7 +26,7 @@ ReHealth 是面向可穿戴设备和健康干预场景的软硬件一体化系�
 
 云米 S8/S9/GS20/GS17/A67/K9L 使用独立云端拉取链路：App 以 IMEI 绑定，JeecgBoot
 持有厂商凭据并先将心率、血氧、血压持久化到硬件库，再返回 App 写入 Room。首次绑定
-回填最多 31 天，后续增量同步；Room v15 隔离测量，Room v16 将相同的登录用户/设备归属扩展到睡眠、活动和信号/ECG，Room v17 增加按登录用户隔离的 PIAS 展示缓存；旧的无归属行保留但不向其他账号展示。
+回填最多 31 天，后续增量同步；Room v15 隔离测量，Room v16 将相同的登录用户/设备归属扩展到睡眠、活动和信号/ECG，Room v17 增加按登录用户隔离的 PIAS 展示缓存，Room v18 将保险干预反馈队列按登录用户、保险租户、计划绑定和计划项隔离；旧的无归属行保留但不向其他账号展示。
 
 Android 按 `productCode` 选择单一有效 Provider，Release 只注册 HBand 和 Viomi Cloud；
 MRD/RWFit 仅保留在 Debug 工程测试目录。HBand 已完成
@@ -228,7 +228,9 @@ Android Room
   -> JeecgBoot LangChain4j 生成 1–5 条结构化保守行动
   -> software_db 持久化计划
   -> Android 本地反馈队列
-  -> JeecgBoot feedback API
+  -> 通用计划反馈写入 JeecgBoot /interventions/{id}/feedback
+  -> 保险计划项反馈按 bindingId 写入 /insurance/plans/{bindingId}/feedback
+  -> 保险工作台按近 28 日完成次数 / 应完成次数加权汇总依从性
 ```
 
 饮食记录自 `telemetry-v2` 起作为 `dietRecords` 随本地持久化后的上传批次进入
@@ -334,6 +336,7 @@ unknown 记录计入临床风险。
 | Android RHI 每日聚合快照 | Room + MySQL `rehealth_rhi_daily_snapshot` | 本地计算和持久化后认证上传；按用户/日期幂等，不存原始遥测，供授权管理端趋势展示 |
 | Android 手工饮食记录 | Room v11 | 先本地持久化，再通过 durable queue 以 `telemetry-v2 dietRecords` 上传；显式 10→11 迁移保留既有健康数据 |
 | Android PIAS 展示缓存 | Room v17 | 按登录用户保存最新响应 JSON、模型版本与 `is_mock`；Mock 行只允许显式全量 Mock Debug 读取，不是云端权威归因结果 |
+| Android 保险干预反馈队列 | Room v18 + MySQL `rehealth_insurance_intervention_feedback` | 按登录用户、租户、绑定和计划项隔离；服务端依据 `completed_count / expected_count` 计算依从性，官网按近 28 日加权汇总；不把通用反馈自动复制给所有机构 |
 | 规范化硬件时序数据 | TimescaleDB | Device Service 独占写入和读取 |
 | 用户、档案、绑定、风险、干预、反馈、健康问答历史 | MySQL `software_db` | JeecgBoot 业务权威；聊天按用户+租户隔离 |
 | 遥测持久化/质量事件 | Kafka | 事件通知，不存原始健康值 |
