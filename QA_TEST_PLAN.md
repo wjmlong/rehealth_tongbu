@@ -57,6 +57,14 @@ python backend/qa/rehealth_stack_gate.py topology --compose backend/deploy/rehea
 git diff --check
 ```
 
+## 保险风险分层 QA
+
+1. 使用两个保险租户及机构管理员、部门经理、运营员、查看员账号，确认风险列表、筛选选项、导出和批量激励都只覆盖当前账号的 `rehealth_insurance_subject_manager` 负责关系。
+2. 分别组合风险等级、渠道、年龄段和关键词，核对列表记录、总数、分页及导出 CSV 完全一致；切换租户后渠道选项不得残留上一租户数据。
+3. 导出超过 10000 条时必须拒绝并提示缩小范围；姓名或渠道以 `= + - @` 开头时，CSV 不得被电子表格解释为公式。
+4. 选择 1、100、101 人验证批量上限；其中任一对象无效、跨租户或不在当前负责人范围时，不得写入任何行动。
+5. 机构管理员、部门经理和运营员可创建激励行动并看到审计记录；查看员、分析员和审计员的批量按钮不可用，直接请求接口返回 403。
+
 ## Manual Android QA
 
 1. Android install/onboarding

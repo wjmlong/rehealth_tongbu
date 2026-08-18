@@ -187,6 +187,37 @@ class InsuranceRiskServiceTest {
         assertEquals(HttpStatus.SERVICE_UNAVAILABLE, error.status());
     }
 
+    @Test
+    void memberFiltersAreNormalizedAndAppliedInsideTheResponsibilityScope() {
+        InsuranceRiskRepository repository = mock(InsuranceRiskRepository.class);
+        when(repository.subjects(1000, "manager-1", 2, 20, "张", "high", "代理人渠道", 40, 59))
+                .thenReturn(new InsuranceRiskRepository.SubjectPage(0, List.of()));
+        when(repository.filterOptions(1000, "manager-1"))
+                .thenReturn(new InsuranceRiskRepository.FilterOptions(List.of("代理人渠道", "团险渠道"), 18, 76));
+        InsuranceRiskService service = new InsuranceRiskService(repository, objectMapper, true, "development");
+
+        InsuranceRiskResponse.InsuredPage page = service.insureds(
+                1000, "manager-1", 2, 20, " 张 ", "HIGH", " 代理人渠道 ", 40, 59);
+        InsuranceRiskResponse.InsuredFilterOptions options = service.filterOptions(1000, "manager-1");
+
+        assertEquals(0, page.total());
+        assertEquals(List.of("代理人渠道", "团险渠道"), options.channels());
+        assertEquals(18, options.minAge());
+        assertEquals(76, options.maxAge());
+        verify(repository).subjects(1000, "manager-1", 2, 20, "张", "high", "代理人渠道", 40, 59);
+    }
+
+    @Test
+    void invalidAgeRangeIsRejectedBeforeQueryingTheRepository() {
+        InsuranceRiskRepository repository = mock(InsuranceRiskRepository.class);
+        InsuranceRiskService service = new InsuranceRiskService(repository, objectMapper, true, "development");
+
+        InsuranceApiException error = assertThrows(InsuranceApiException.class,
+                () -> service.insureds(1000, "manager-1", 1, 20, null, null, null, 70, 40));
+
+        assertEquals(HttpStatus.BAD_REQUEST, error.status());
+    }
+
     private InsuranceRiskRepository.SubjectSnapshot snapshot(
             String subjectId,
             String name,

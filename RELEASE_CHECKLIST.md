@@ -112,6 +112,8 @@
 ## Backend 与数据
 
 - [ ] telemetry contracts、Device Service 和 Jeecg ReHealth 测试通过。
+- [ ] 保险风险列表的渠道/年龄筛选在 JeecgBoot 数据库分页和总数查询中生效，并按当前租户及负责人关系隔离；筛选选项、列表与 CSV 导出范围一致。
+- [ ] 保险批量激励限制为 1–100 人，完整范围校验后单事务写入并生成审计；越权对象导致整批回滚，只读保险角色返回 403。
 - [ ] OpenAPI/DTO characterization 门禁通过且检查数大于零。
 - [ ] software_db 与 TimescaleDB migrations 在目标版本数据库验证。
 - [ ] TimescaleDB V4 `hardware_diet_record` 为 hypertable，`telemetry-v2` 混合批次的饮食计数、幂等、同事务回滚、7 日压缩和配置化保留策略验证通过。

@@ -328,6 +328,8 @@ Flyway 迁移，但不授予任何默认角色。
 unknown 记录计入临床风险。
 旧 `/rehealth/admin/v1/users` 已禁用并返回 410 业务码。
 
+保险风险分层使用独立的 `/rehealth/insurance/v1/insureds` 链路：所有查询先按当前保险租户和 `rehealth_insurance_subject_manager` 负责人关系收敛，再在数据库内应用风险等级、当前有效保单渠道和档案年龄条件。官网导出复用同一查询条件且最多 10000 条；批量激励通过 JeecgBoot 单事务接口为最多 100 名负责用户创建审计行动，不在浏览器逐项拼接写入。
+
 | 数据 | 权威存储 | 说明 |
 | --- | --- | --- |
 | Android 本地遥测和待上传任务 | Room | 本地优先、离线可用 |

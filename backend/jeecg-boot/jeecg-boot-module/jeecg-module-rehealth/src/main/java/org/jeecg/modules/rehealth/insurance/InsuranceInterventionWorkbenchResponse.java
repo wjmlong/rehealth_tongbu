@@ -128,6 +128,14 @@ public final class InsuranceInterventionWorkbenchResponse {
     }
 
     @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record BatchActions(
+            int requested,
+            int created,
+            List<Action> actions
+    ) {
+    }
+
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     public record Attribution(
             String status,
             @JsonProperty("data_sufficient") Boolean dataSufficient,

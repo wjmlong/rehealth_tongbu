@@ -152,6 +152,41 @@ public class InsuranceInterventionWorkbenchService {
     }
 
     @Transactional
+    public InsuranceInterventionWorkbenchResponse.BatchActions createActions(
+            int tenantId, String managerUserId, String actorUserId,
+            InsuranceInterventionWorkbenchRequest.BatchCreateAction request
+    ) {
+        if (request == null) throw InsuranceApiException.badRequest("batch action request is required");
+        if (request.subjectIds() == null || request.subjectIds().isEmpty()) {
+            throw InsuranceApiException.badRequest("subject_ids must contain at least one subject");
+        }
+        List<String> subjectIds = request.subjectIds().stream()
+                .map(subjectId -> required(subjectId, "subject_id", 64))
+                .distinct()
+                .toList();
+        if (subjectIds.size() > 100) {
+            throw InsuranceApiException.badRequest("subject_ids must not contain more than 100 subjects");
+        }
+        String requestId = required(request.requestId(), "request_id", 100);
+        subjectIds.forEach(subjectId -> requireIdentity(tenantId, managerUserId, subjectId));
+
+        List<InsuranceInterventionWorkbenchResponse.Action> actions = new ArrayList<>(subjectIds.size());
+        for (int index = 0; index < subjectIds.size(); index++) {
+            InsuranceInterventionWorkbenchRequest.CreateAction action = new InsuranceInterventionWorkbenchRequest.CreateAction(
+                    null,
+                    request.actionType(),
+                    request.title(),
+                    request.content(),
+                    request.assigneeUserId(),
+                    request.dueAt(),
+                    requestId + "-" + (index + 1)
+            );
+            actions.add(createAction(tenantId, managerUserId, actorUserId, subjectIds.get(index), action));
+        }
+        return new InsuranceInterventionWorkbenchResponse.BatchActions(subjectIds.size(), actions.size(), actions);
+    }
+
+    @Transactional
     public InsuranceInterventionWorkbenchResponse.Action updateAction(
             int tenantId, String managerUserId, String actorUserId, String actionId,
             InsuranceInterventionWorkbenchRequest.UpdateAction request

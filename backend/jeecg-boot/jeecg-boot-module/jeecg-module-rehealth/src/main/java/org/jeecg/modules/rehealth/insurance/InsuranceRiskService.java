@@ -18,6 +18,7 @@ import java.util.function.Supplier;
 import static org.jeecg.modules.rehealth.insurance.InsuranceRiskResponse.Dashboard;
 import static org.jeecg.modules.rehealth.insurance.InsuranceRiskResponse.BusinessSummary;
 import static org.jeecg.modules.rehealth.insurance.InsuranceRiskResponse.InsuredDetail;
+import static org.jeecg.modules.rehealth.insurance.InsuranceRiskResponse.InsuredFilterOptions;
 import static org.jeecg.modules.rehealth.insurance.InsuranceRiskResponse.InsuredPage;
 import static org.jeecg.modules.rehealth.insurance.InsuranceRiskResponse.Intervention;
 import static org.jeecg.modules.rehealth.insurance.InsuranceRiskResponse.PositiveFactor;
@@ -33,6 +34,7 @@ public class InsuranceRiskService {
     public static final String RESPONSIBILITY_SCOPE_MODE = "assigned_app_users";
     private static final int MAX_PAGE_SIZE = 100;
     private static final int MAX_KEYWORD_LENGTH = 100;
+    private static final int MAX_CHANNEL_LENGTH = 100;
 
     private final InsuranceRiskRepository repository;
     private final InsuranceBusinessRepository businessRepository;
@@ -102,13 +104,36 @@ public class InsuranceRiskService {
             String keyword,
             String riskLevel
     ) {
+        return insureds(tenantId, managerUserId, pageNo, pageSize, keyword, riskLevel, null, null, null);
+    }
+
+    public InsuredPage insureds(
+            int tenantId,
+            String managerUserId,
+            int pageNo,
+            int pageSize,
+            String keyword,
+            String riskLevel,
+            String channel,
+            Integer minAge,
+            Integer maxAge
+    ) {
         validatePage(pageNo, pageSize);
         String normalizedKeyword = normalizeKeyword(keyword);
         String normalizedRiskLevel = normalizeFilterRiskLevel(riskLevel);
+        String normalizedChannel = normalizeChannel(channel);
+        validateAgeRange(minAge, maxAge);
         requireScopeEnabled();
-        InsuranceRiskRepository.SubjectPage page = query(() -> managerUserId == null
-                ? repository.subjects(tenantId, pageNo, pageSize, normalizedKeyword, normalizedRiskLevel)
-                : repository.subjects(tenantId, managerUserId, pageNo, pageSize, normalizedKeyword, normalizedRiskLevel));
+        boolean usesMemberFilters = normalizedChannel != null || minAge != null || maxAge != null;
+        InsuranceRiskRepository.SubjectPage page = query(() -> {
+            if (usesMemberFilters) {
+                return repository.subjects(tenantId, managerUserId, pageNo, pageSize, normalizedKeyword,
+                        normalizedRiskLevel, normalizedChannel, minAge, maxAge);
+            }
+            return managerUserId == null
+                    ? repository.subjects(tenantId, pageNo, pageSize, normalizedKeyword, normalizedRiskLevel)
+                    : repository.subjects(tenantId, managerUserId, pageNo, pageSize, normalizedKeyword, normalizedRiskLevel);
+        });
         return new InsuredPage(
                 RESPONSIBILITY_SCOPE_MODE,
                 pageNo,
@@ -120,6 +145,12 @@ public class InsuranceRiskService {
 
     public InsuredPage insureds(int tenantId, int pageNo, int pageSize, String keyword, String riskLevel) {
         return insureds(tenantId, null, pageNo, pageSize, keyword, riskLevel);
+    }
+
+    public InsuredFilterOptions filterOptions(int tenantId, String managerUserId) {
+        requireScopeEnabled();
+        InsuranceRiskRepository.FilterOptions options = query(() -> repository.filterOptions(tenantId, managerUserId));
+        return new InsuredFilterOptions(RESPONSIBILITY_SCOPE_MODE, options.channels(), options.minAge(), options.maxAge());
     }
 
     public InsuredDetail insured(int tenantId, String managerUserId, String subjectId) {
@@ -318,6 +349,27 @@ public class InsuranceRiskService {
             throw InsuranceApiException.badRequest("keyword must not exceed 100 characters");
         }
         return normalized;
+    }
+
+    private String normalizeChannel(String channel) {
+        if (channel == null || channel.isBlank()) {
+            return null;
+        }
+        String normalized = channel.trim();
+        if (normalized.length() > MAX_CHANNEL_LENGTH) {
+            throw InsuranceApiException.badRequest("channel must not exceed 100 characters");
+        }
+        return normalized;
+    }
+
+    private void validateAgeRange(Integer minAge, Integer maxAge) {
+        if ((minAge != null && (minAge < 0 || minAge > 130))
+                || (maxAge != null && (maxAge < 0 || maxAge > 130))) {
+            throw InsuranceApiException.badRequest("age filters must be between 0 and 130");
+        }
+        if (minAge != null && maxAge != null && minAge > maxAge) {
+            throw InsuranceApiException.badRequest("minAge must not exceed maxAge");
+        }
     }
 
     private String normalizeSubjectId(String subjectId) {

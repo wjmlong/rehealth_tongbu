@@ -175,21 +175,35 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
 
     @Override
     public SubjectPage subjects(int tenantId, int pageNo, int pageSize, String keyword, String riskLevel) {
-        return subjectsScoped(tenantId, null, pageNo, pageSize, keyword, riskLevel);
+        return subjectsScoped(tenantId, null, pageNo, pageSize, keyword, riskLevel, null, null, null);
     }
 
     @Override
     public SubjectPage subjects(int tenantId, String managerUserId, int pageNo, int pageSize, String keyword, String riskLevel) {
-        return subjectsScoped(tenantId, managerUserId, pageNo, pageSize, keyword, riskLevel);
+        return subjectsScoped(tenantId, managerUserId, pageNo, pageSize, keyword, riskLevel, null, null, null);
     }
 
-    private SubjectPage subjectsScoped(int tenantId, String managerUserId, int pageNo, int pageSize, String keyword, String riskLevel) {
+    @Override
+    public SubjectPage subjects(
+            int tenantId, String managerUserId, int pageNo, int pageSize, String keyword, String riskLevel,
+            String channel, Integer minAge, Integer maxAge
+    ) {
+        return subjectsScoped(tenantId, managerUserId, pageNo, pageSize, keyword, riskLevel, channel, minAge, maxAge);
+    }
+
+    private SubjectPage subjectsScoped(
+            int tenantId, String managerUserId, int pageNo, int pageSize, String keyword, String riskLevel,
+            String channel, Integer minAge, Integer maxAge
+    ) {
         String keywordLike = keyword == null ? null : "%" + escapeLike(keyword) + "%";
         String filters = """
                 WHERE (? IS NULL OR profile.name LIKE ? ESCAPE '!' OR ts.subject_id = ?)
                   AND (? IS NULL OR (r.is_mock = 0 AND
                 """ + NORMALIZED_RISK_LEVEL + """
                       = ?))
+                  AND (? IS NULL OR policy.channel_name = ?)
+                  AND (? IS NULL OR profile.age >= ?)
+                  AND (? IS NULL OR profile.age <= ?)
                 """;
         String countSql = SUBJECT_CTE + "SELECT COUNT(*) " + SUBJECT_FROM + filters;
         Long total = jdbc.queryForObject(
@@ -202,7 +216,13 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
                 keywordLike,
                 keyword,
                 riskLevel,
-                riskLevel
+                riskLevel,
+                channel,
+                channel,
+                minAge,
+                minAge,
+                maxAge,
+                maxAge
         );
 
         String pageSql = SUBJECT_CTE + """
@@ -242,10 +262,35 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
                 keyword,
                 riskLevel,
                 riskLevel,
+                channel,
+                channel,
+                minAge,
+                minAge,
+                maxAge,
+                maxAge,
                 pageSize,
                 (pageNo - 1) * pageSize
         );
         return new SubjectPage(total == null ? 0 : total, records);
+    }
+
+    @Override
+    public FilterOptions filterOptions(int tenantId, String managerUserId) {
+        List<String> channels = jdbc.query(SUBJECT_CTE + """
+                SELECT DISTINCT TRIM(policy.channel_name) AS channel_name
+                """ + SUBJECT_FROM + """
+                WHERE policy.channel_name IS NOT NULL AND TRIM(policy.channel_name) <> ''
+                ORDER BY channel_name
+                """, (resultSet, rowNum) -> resultSet.getString("channel_name"),
+                tenantId, managerUserId, managerUserId);
+        return jdbc.queryForObject(SUBJECT_CTE + """
+                SELECT MIN(profile.age) AS min_age, MAX(profile.age) AS max_age
+                """ + SUBJECT_FROM,
+                (resultSet, rowNum) -> new FilterOptions(
+                        channels,
+                        nullableInteger(resultSet, "min_age"),
+                        nullableInteger(resultSet, "max_age")
+                ), tenantId, managerUserId, managerUserId);
     }
 
     @Override

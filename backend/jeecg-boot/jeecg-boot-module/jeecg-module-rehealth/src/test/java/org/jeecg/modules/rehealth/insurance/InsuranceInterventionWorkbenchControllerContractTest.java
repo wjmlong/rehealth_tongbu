@@ -26,6 +26,8 @@ class InsuranceInterventionWorkbenchControllerContractTest {
                 "subject", String.class, String.class);
         assertPermission("rehealth:insurance:intervention:manage", PostMapping.class,
                 "createAction", String.class, String.class, InsuranceInterventionWorkbenchRequest.CreateAction.class);
+        assertPermission("rehealth:insurance:intervention:manage", PostMapping.class,
+                "createActions", String.class, InsuranceInterventionWorkbenchRequest.BatchCreateAction.class);
         assertPermission("rehealth:insurance:intervention:manage", PutMapping.class,
                 "updateAction", String.class, String.class, InsuranceInterventionWorkbenchRequest.UpdateAction.class);
     }

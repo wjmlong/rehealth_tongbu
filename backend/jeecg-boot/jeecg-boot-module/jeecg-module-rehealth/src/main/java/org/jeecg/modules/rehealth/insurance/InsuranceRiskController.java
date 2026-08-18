@@ -57,12 +57,29 @@ public class InsuranceRiskController {
             @RequestParam(value = "pageNo", defaultValue = "1") int pageNo,
             @RequestParam(value = "pageSize", defaultValue = "20") int pageSize,
             @RequestParam(value = "keyword", required = false) String keyword,
-            @RequestParam(value = "riskLevel", required = false) String riskLevel
+            @RequestParam(value = "riskLevel", required = false) String riskLevel,
+            @RequestParam(value = "channel", required = false) String channel,
+            @RequestParam(value = "minAge", required = false) Integer minAge,
+            @RequestParam(value = "maxAge", required = false) Integer maxAge
     ) {
         return respond(() -> {
             LoginUser user = currentUser();
             int tenant = tenantAccessGuard.requireTenant(user, tenantId);
-            return service.insureds(tenant, tenantAccessGuard.responsibilityScope(user, tenant), pageNo, pageSize, keyword, riskLevel);
+            return service.insureds(tenant, tenantAccessGuard.responsibilityScope(user, tenant), pageNo, pageSize,
+                    keyword, riskLevel, channel, minAge, maxAge);
+        });
+    }
+
+    @GetMapping("/insureds/filter-options")
+    @RequiresPermissions(VIEW_PERMISSION)
+    @Operation(summary = "Get tenant-scoped channel and age filter options")
+    public ResponseEntity<Result<InsuranceRiskResponse.InsuredFilterOptions>> filterOptions(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId
+    ) {
+        return respond(() -> {
+            LoginUser user = currentUser();
+            int tenant = tenantAccessGuard.requireTenant(user, tenantId);
+            return service.filterOptions(tenant, tenantAccessGuard.responsibilityScope(user, tenant));
         });
     }
 

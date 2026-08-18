@@ -75,6 +75,19 @@ JeecgBoot `rehealth:insurance:organization:*`、`member:*`、`role:assign` 和
 邀请接口只匹配已经注册的 Jeecg 手机号，写入状态为 `5` 的待接受租户关系；被邀请人同意后才能登录该保险机构工作台，管理员不能通过状态接口跳过成员确认直接启用。当前操作人不能停用自己的租户成员关系，避免机构管理会话自锁。
 风险列表、详情和看板从 `rehealth_insurance_subject` 取得当前租户 APP 服务用户，并按当前员工 ID 关联 `rehealth_insurance_subject_manager`；APP 用户不需要加入 `sys_user_tenant`。有保险角色但没有分配时返回空范围，没有当前租户保险角色时拒绝访问。
 
+### 2.1 投保人风险分层
+
+风险分层查询、筛选选项和详情均在 JeecgBoot 内按“当前租户 + 当前员工有效负责关系”限定范围，浏览器不能提交租户或负责人标识。渠道取当前有效保单 `metadata_json.channel`，年龄取 APP 用户档案；渠道、年龄和风险条件在数据库分页及总数查询中同时生效，禁止仅在浏览器当前页过滤。
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `GET` | `/rehealth/insurance/v1/dashboard/risk` | 汇总当前负责范围的真实高、中、低风险与未评估人数 |
+| `GET` | `/rehealth/insurance/v1/insureds` | 分页查询风险名单；支持 `keyword`、`riskLevel`、`channel`、`minAge`、`maxAge` |
+| `GET` | `/rehealth/insurance/v1/insureds/filter-options` | 返回当前负责范围内可用渠道及年龄上下界 |
+| `GET` | `/rehealth/insurance/v1/insureds/{subjectId}` | 查询负责范围内单个投保人的档案、保单和风险摘要 |
+
+官网 BFF 的 `GET /api/insurer/insureds/export` 使用相同服务端条件导出 UTF-8 CSV，最多 10000 条，并对电子表格公式前缀做转义。导出不新增数据权限，也不返回租户 ID、原始健康遥测或未列入风险列表白名单的字段。
+
 ### 2.2 干预改善工作台
 
 干预改善工作台复用上述负责人范围，不接受浏览器提供租户或用户范围，并只返回 `consent_status=granted` 的服务对象。所有保险后台角色可用 `rehealth:insurance:risk:view` 读取其负责 APP 用户的完整聚合业务数据；只有机构管理员、部门经理和运营员等被授予 `rehealth:insurance:intervention:manage` 的角色可以创建或更新人工行动。操作均写入现有保险审计事件。
@@ -85,9 +98,10 @@ JeecgBoot `rehealth:insurance:organization:*`、`member:*`、`role:assign` 和
 | `GET` | `/rehealth/insurance/v1/interventions` | 分页查询负责用户档案中的年龄、性别、BMI，以及 CVD 风险、主要 Factor16、RHI、RDI、当前干预、依从性、负责人和流程状态；队列首屏无需再读取详情 |
 | `GET` | `/rehealth/insurance/v1/interventions/{subjectId}` | 返回 CVD 风险趋势、Factor16、RHI/RDI 日快照、RDI 结构化贡献项、计划、反馈、人工行动和归因证据 |
 | `POST` | `/rehealth/insurance/v1/interventions/{subjectId}/actions` | 创建随访、任务或人工复核行动 |
+| `POST` | `/rehealth/insurance/v1/interventions/actions/batch` | 为 1–100 名负责范围内用户原子创建同一批激励行动；全部范围校验通过后才写入 |
 | `PUT` | `/rehealth/insurance/v1/intervention-actions/{actionId}` | 更新行动状态、负责人、期限和有界结果 |
 
-APP 通用干预反馈会按同一用户和计划标识投影到其全部有效保险服务关系，并在每个租户/绑定内幂等保存。工作台只消费聚合后的 CVD 风险、RHI、RDI、计划和反馈，不返回原始遥测；CVD 风险、RHI 与 RDI 是三个独立指标，前端不得用风险分数推导 RDI。RDI Mock、过期或数据不足状态必须显式展示，且不参与现有 PIAS/风险工作流状态计算。只有真实、数据充分且方向一致的归因证据才会自动标记“已改善”；Mock 或证据不足时必须显示说明，不能把合成风险评分当作业务判断。
+批量激励要求 `rehealth:insurance:intervention:manage`，使用批次请求 ID 派生逐行动幂等键；任一主体越权、无效或写入失败时整个事务回滚。APP 通用干预反馈会按同一用户和计划标识投影到其全部有效保险服务关系，并在每个租户/绑定内幂等保存。工作台只消费聚合后的 CVD 风险、RHI、RDI、计划和反馈，不返回原始遥测；CVD 风险、RHI 与 RDI 是三个独立指标，前端不得用风险分数推导 RDI。RDI Mock、过期或数据不足状态必须显式展示，且不参与现有 PIAS/风险工作流状态计算。只有真实、数据充分且方向一致的归因证据才会自动标记“已改善”；Mock 或证据不足时必须显示说明，不能把合成风险评分当作业务判断。
 
 JeecgBoot 基础路径：`/jeecg-boot/rehealth/insurance/v1`。
 
