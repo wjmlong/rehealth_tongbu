@@ -305,6 +305,26 @@ and `clinicalUseAllowed=false`. Only the three explicit improvement-cohort APP
 accounts use a non-Mock attribution row. This exception exists solely for local
 UI/permission acceptance and must never be copied to staging or production.
 
+### Local medical workspace test data
+
+To populate the medical workspace with two isolated institutions, four staff
+logins, 24 fictional App patients, Mock risk/intervention chains, RHI/RDI
+snapshots, and 30-day device histories, run with the local MySQL and
+TimescaleDB containers already started:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File `
+  backend/deploy/rehealth/scripts/seed-medical-workspace-test-data.ps1 `
+  -AnchorDate 2026-08-18
+```
+
+The seed is repeatable and verifies exact software and hardware row counts.
+All rows use the narrow `LOCAL_MEDICAL_TEST_SEED` marker, all model outputs are
+explicitly Mock/non-clinical, and the command refuses reserved-ID or account
+collisions. Remove only this cohort with the same command plus `-Cleanup`.
+Accounts, data topology, known patient-list behavior, safety rules, and exact
+counts are documented in [MEDICAL_TEST_DATA.md](MEDICAL_TEST_DATA.md).
+
 Health chat now supports two server-side engines behind the unchanged mobile API:
 
 - `REHEALTH_HEALTH_AGENT_ENGINE=langchain4j` is the default and runs prompt assembly, bounded
