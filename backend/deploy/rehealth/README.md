@@ -166,7 +166,10 @@ column, the admin API fails closed and excludes a user who has another active
 tenant membership. Detail reads are bounded to one operator-membership lookup,
 one target aggregation query, and one Device Service summary request. Synthetic,
 mock, demo, sample, `LOCAL_TEST_SEED`, and `ring_sim` provenance is returned as a
-summary flag and suppresses `latestRisk` in detail responses;
+summary flag. A synthetic detail may include risk, RHI/RDI, and structured Factor16
+only when each returned result is explicitly Mock; clients must label it as a test
+preview and exclude it from clinical aggregates. Provenance/result mismatches are
+suppressed;
 raw telemetry rows and the internal credential are never logged or returned.
 The list deliberately avoids an N+1 Device Service fan-out, so every row returns
 `provenanceStatus=unknown`; website/BFF charts and counters must not include an
@@ -174,8 +177,8 @@ The list deliberately avoids an N+1 Device Service fan-out, so every row returns
 `verified_real` only when its non-empty provenance set contains exclusively
 registered real sources (`hband_wearable`, `hband_cloud_restore`, `viomi_cloud`,
 `mrd_ring`, `mrd-sdk`, or `rwfit`). Empty, mixed-unregistered, or unknown sources
-remain `unknown` and suppress `latestRisk`; synthetic sources are `synthetic` and
-also suppress `latestRisk`.
+remain `unknown` and suppress risk and index results. Synthetic sources are
+`synthetic` and follow the explicit Mock preview rule above.
 
 Flyway migration `V3.9.2_1__rehealth_admin_patient_permission.sql` creates the
 assignable `rehealth:admin:patient:view` permission idempotently and grants it to

@@ -73,5 +73,7 @@
 - 姓名、手机号、邮箱、地址均为虚构测试值；邮箱使用 `.invalid` 保留域。
 - 模型产物使用 `LOCAL_MEDICAL_TEST_SEED_NOT_A_MODEL`，并带 `is_mock=1`、`clinicalUseAllowed=false`。
 - 硬件来源固定为 `LOCAL_MEDICAL_TEST_SEED`，会被现有 provenance 规则识别为 synthetic。
+- 医疗患者详情会将同一 synthetic 来源下明确标记为 Mock 的风险、RHI/RDI 和结构化 Factor16
+  作为“测试/合成”预览返回；这些值不得计入真实风险统计或用于临床判断。来源与 Mock 标记不匹配时继续隐藏。
 - 脚本对固定租户 ID、权限 ID、用户名及联系方式做冲突保护；发现被非测试数据占用时 fail-closed。
 - 不创建新表、不改变 schema，不包含真实身份证、真实手机号或真实病历。

@@ -1,5 +1,6 @@
 package org.jeecg.modules.rehealth.service;
 
+import com.alibaba.fastjson.JSONArray;
 import org.jeecg.modules.rehealth.vo.RehealthPatientPageVO;
 import org.jeecg.modules.rehealth.vo.RehealthUserHealthVO;
 import org.jeecg.modules.system.entity.SysUserTenant;
@@ -40,19 +41,22 @@ public class RehealthUserHealthService {
                    p.name, p.gender, p.age, p.height_cm, p.weight_kg, p.bmi,
                    p.family_history, p.smoking, p.drinking,
                    p.diabetes_history, p.hypertension_history, p.updated_at,
-                   risk.risk_score, risk.risk_level, risk.model_version, risk.evaluated_at
+                   risk.risk_score, risk.risk_level, risk.model_version, risk.evaluated_at,
+                   risk.is_mock, risk.factor_contribution_json
             FROM sys_user_tenant sut
             JOIN sys_user u ON u.id = sut.user_id AND u.del_flag = 0
             LEFT JOIN rehealth_patient_profile p ON p.user_id = u.id
             LEFT JOIN (
-                SELECT user_id, risk_score, risk_level, model_version, evaluated_at
+                SELECT user_id, risk_score, risk_level, model_version, evaluated_at,
+                       is_mock, factor_contribution_json
                 FROM (
                     SELECT user_id, risk_score, risk_level, model_version, evaluated_at,
+                           is_mock, factor_contribution_json,
                            ROW_NUMBER() OVER (
-                               PARTITION BY user_id ORDER BY evaluated_at DESC, id DESC
+                               PARTITION BY user_id
+                               ORDER BY COALESCE(is_mock, 1) ASC, evaluated_at DESC, id DESC
                            ) AS risk_row_num
                     FROM rehealth_cvd_risk_result
-                    WHERE COALESCE(is_mock, 0) = 0
                 ) ranked_risk
                 WHERE risk_row_num = 1
             ) risk ON risk.user_id = u.id
@@ -171,6 +175,7 @@ public class RehealthUserHealthService {
         RehealthUserHealthVO patient = matches.get(0);
         var telemetry = deviceHealthClient.fetch(String.valueOf(tenantId), patientId);
         attachTelemetry(patient, telemetry);
+        attachDailyIndices(patient, jdbc);
         return patient;
     }
 
@@ -223,9 +228,78 @@ public class RehealthUserHealthService {
         patient.setTelemetry(telemetry);
         String provenanceStatus = provenanceStatus(telemetry);
         patient.setProvenanceStatus(provenanceStatus);
-        if (!"verified_real".equals(provenanceStatus)) {
+        RehealthUserHealthVO.RiskSummary risk = patient.getLatestRisk();
+        boolean verifiedRealRisk = "verified_real".equals(provenanceStatus)
+                && risk != null && !Boolean.TRUE.equals(risk.getIsMock());
+        boolean syntheticPreviewRisk = "synthetic".equals(provenanceStatus)
+                && risk != null && Boolean.TRUE.equals(risk.getIsMock());
+        if (!verifiedRealRisk && !syntheticPreviewRisk) {
             patient.setLatestRisk(null);
         }
+    }
+
+    private void attachDailyIndices(RehealthUserHealthVO patient, JdbcTemplate jdbc) {
+        String provenanceStatus = patient.getProvenanceStatus();
+        if (!Set.of("verified_real", "synthetic").contains(provenanceStatus)) {
+            return;
+        }
+        List<RehealthUserHealthVO.RhiSummary> rhiRows = jdbc.query("""
+                SELECT display_score, data_confidence, status, scored_on,
+                       algorithm_version, calculation_source
+                FROM rehealth_rhi_daily_snapshot
+                WHERE user_id = ?
+                ORDER BY scored_on DESC, updated_at DESC
+                LIMIT 1
+                """, (result, rowNumber) -> {
+            RehealthUserHealthVO.RhiSummary summary = new RehealthUserHealthVO.RhiSummary();
+            summary.setDisplayScore(result.getDouble("display_score"));
+            summary.setDataConfidence(result.getDouble("data_confidence"));
+            summary.setStatus(result.getString("status"));
+            summary.setScoredOn(result.getDate("scored_on"));
+            summary.setAlgorithmVersion(result.getString("algorithm_version"));
+            summary.setCalculationSource(result.getString("calculation_source"));
+            summary.setIsMock(isSyntheticSource(summary.getCalculationSource()));
+            return summary;
+        }, patient.getId());
+        if (!rhiRows.isEmpty() && previewMatchesProvenance(provenanceStatus, rhiRows.get(0).getIsMock())) {
+            patient.setLatestRhi(rhiRows.get(0));
+        }
+
+        List<RehealthUserHealthVO.RdiSummary> rdiRows = jdbc.query("""
+                SELECT display_score, data_confidence, status, scored_on, is_mock,
+                       algorithm_version, calculation_source
+                FROM rehealth_rdi_daily_snapshot
+                WHERE user_id = ?
+                ORDER BY scored_on DESC, updated_at DESC
+                LIMIT 1
+                """, (result, rowNumber) -> {
+            RehealthUserHealthVO.RdiSummary summary = new RehealthUserHealthVO.RdiSummary();
+            summary.setDisplayScore(result.getDouble("display_score"));
+            summary.setDataConfidence(result.getDouble("data_confidence"));
+            summary.setStatus(result.getString("status"));
+            summary.setScoredOn(result.getDate("scored_on"));
+            summary.setIsMock(result.getBoolean("is_mock"));
+            summary.setAlgorithmVersion(result.getString("algorithm_version"));
+            summary.setCalculationSource(result.getString("calculation_source"));
+            return summary;
+        }, patient.getId());
+        if (!rdiRows.isEmpty() && previewMatchesProvenance(provenanceStatus, rdiRows.get(0).getIsMock())) {
+            patient.setLatestRdi(rdiRows.get(0));
+        }
+    }
+
+    static boolean previewMatchesProvenance(String provenanceStatus, Boolean isMock) {
+        return ("verified_real".equals(provenanceStatus) && !Boolean.TRUE.equals(isMock))
+                || ("synthetic".equals(provenanceStatus) && Boolean.TRUE.equals(isMock));
+    }
+
+    static boolean isSyntheticSource(String source) {
+        if (source == null || source.isBlank()) {
+            return false;
+        }
+        String normalized = source.strip().toLowerCase(Locale.ROOT);
+        return SYNTHETIC_PROVENANCE_MARKERS.stream().anyMatch(normalized::contains)
+                || normalized.contains("local_test");
     }
 
     static String provenanceStatus(com.alibaba.fastjson.JSONObject telemetry) {
@@ -287,6 +361,15 @@ public class RehealthUserHealthService {
             risk.setLevel(result.getString("risk_level"));
             risk.setModelVersion(result.getString("model_version"));
             risk.setEvaluatedAt(result.getTimestamp("evaluated_at"));
+            risk.setIsMock(nullableBoolean(result, "is_mock"));
+            String factorContributions = result.getString("factor_contribution_json");
+            if (factorContributions != null && !factorContributions.isBlank()) {
+                try {
+                    risk.setFactorContributions(JSONArray.parseArray(factorContributions));
+                } catch (RuntimeException invalidStoredJson) {
+                    risk.setFactorContributions(new JSONArray());
+                }
+            }
             patient.setLatestRisk(risk);
         }
         return patient;

@@ -320,8 +320,10 @@ Release 对应工厂固定不可用。演练数据统一标记 `synthetic_qa`，
 尚无租户列，具有其他活动租户成员关系的用户会被 fail-closed 排除。两个端点均要求
 标准 `X-Access-Token`、`X-Tenant-Id` 和 `rehealth:admin:patient:view` 权限，不返回手机号、
 邮箱或账号名。遥测详情携带服务端生成的 `provenance` / `isSynthetic`；只有非空且全部命中
-真实设备来源白名单的详情才标记 `verified_real`，空、混合未知或未识别来源保持 `unknown`，
-合成及 unknown 数据均不返回 `latestRisk`。生产/预发布需挂载 `REHEALTH_DEVICE_SERVICE_INTERNAL_TOKEN_FILE`，缺失
+真实设备来源白名单的详情才标记 `verified_real`，空、混合未知或未识别来源保持 `unknown`。
+`synthetic` 详情仅在风险、RHI/RDI 结果也明确标记为 Mock 时返回对应测试预览和结构化
+Factor16 贡献，消费者必须显式标注“测试/合成”且不得计入临床风险统计；来源与结果标记不匹配及
+`unknown` 数据继续 fail-closed。生产/预发布需挂载 `REHEALTH_DEVICE_SERVICE_INTERNAL_TOKEN_FILE`，缺失
 凭据或 Device Service 不可用时详情返回 503；Compose 实际运行的 Cloud JAR 内置并启用权限
 Flyway 迁移，但不授予任何默认角色。
 列表为避免逐用户调用 Device Service，逐条返回 `provenanceStatus=unknown`；官网统计不得将

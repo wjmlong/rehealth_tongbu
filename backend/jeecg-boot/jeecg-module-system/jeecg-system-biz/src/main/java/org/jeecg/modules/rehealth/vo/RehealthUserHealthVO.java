@@ -1,5 +1,6 @@
 package org.jeecg.modules.rehealth.vo;
 
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
@@ -20,6 +21,8 @@ public class RehealthUserHealthVO {
     private Date createTime;
     private ProfileSummary profile;
     private RiskSummary latestRisk;
+    private RhiSummary latestRhi;
+    private RdiSummary latestRdi;
     /**
      * `unknown` on list rows because the list deliberately performs no per-user
      * telemetry calls. Detail responses replace it with `verified_real` or
@@ -51,5 +54,29 @@ public class RehealthUserHealthVO {
         private String level;
         private String modelVersion;
         private Date evaluatedAt;
+        private Boolean isMock;
+        private JSONArray factorContributions;
+    }
+
+    @Data
+    public static class RhiSummary {
+        private Double displayScore;
+        private Double dataConfidence;
+        private String status;
+        private Date scoredOn;
+        private String algorithmVersion;
+        private String calculationSource;
+        private Boolean isMock;
+    }
+
+    @Data
+    public static class RdiSummary {
+        private Double displayScore;
+        private Double dataConfidence;
+        private String status;
+        private Date scoredOn;
+        private String algorithmVersion;
+        private String calculationSource;
+        private Boolean isMock;
     }
 }
