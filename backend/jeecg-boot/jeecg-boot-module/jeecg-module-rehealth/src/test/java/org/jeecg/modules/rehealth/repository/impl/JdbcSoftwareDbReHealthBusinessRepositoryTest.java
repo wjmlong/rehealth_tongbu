@@ -236,7 +236,7 @@ class JdbcSoftwareDbReHealthBusinessRepositoryTest {
     }
 
     @Test
-    void genericFeedbackProjectsToEveryActiveInsurerBinding() {
+    void genericFeedbackRemainsPersonalAndDoesNotProjectToInsurerBindings() {
         InterventionGenerateResponseDto plan = new InterventionGenerateResponseDto();
         plan.planId = "shared-plan";
         plan.modelVersion = "test-v1";
@@ -255,7 +255,8 @@ class JdbcSoftwareDbReHealthBusinessRepositoryTest {
         repository.saveFeedback("app-user", "shared-plan", feedback);
         repository.saveFeedback("app-user", "shared-plan", feedback);
 
-        assertEquals(2, count("rehealth_insurance_intervention_feedback"));
+        assertEquals(1, count("rehealth_intervention_feedback"));
+        assertEquals(0, count("rehealth_insurance_intervention_feedback"));
     }
 
     @Test
