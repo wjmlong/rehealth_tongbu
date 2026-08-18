@@ -42,10 +42,17 @@ public class RehealthUserHealthService {
                    p.family_history, p.smoking, p.drinking,
                    p.diabetes_history, p.hypertension_history, p.updated_at,
                    risk.risk_score, risk.risk_level, risk.model_version, risk.evaluated_at,
-                   risk.is_mock, risk.factor_contribution_json
+                   risk.is_mock, risk.factor_contribution_json,
+                   plan.priority_intervention, plan.rationale AS intervention_rationale,
+                   plan.expected_impact AS intervention_expected_impact,
+                   plan.confidence AS intervention_confidence,
+                   plan.model_version AS intervention_model_version,
+                   plan.generated_at AS intervention_generated_at,
+                   plan.is_mock AS intervention_is_mock,
+                   plan.medical_disclaimer AS intervention_medical_disclaimer
             FROM sys_user_tenant sut
             JOIN sys_user u ON u.id = sut.user_id AND u.del_flag = 0
-            LEFT JOIN rehealth_patient_profile p ON p.user_id = u.id
+            JOIN rehealth_patient_profile p ON p.user_id = u.id
             LEFT JOIN (
                 SELECT user_id, risk_score, risk_level, model_version, evaluated_at,
                        is_mock, factor_contribution_json
@@ -60,6 +67,20 @@ public class RehealthUserHealthService {
                 ) ranked_risk
                 WHERE risk_row_num = 1
             ) risk ON risk.user_id = u.id
+            LEFT JOIN (
+                SELECT user_id, priority_intervention, rationale, expected_impact,
+                       confidence, model_version, generated_at, is_mock, medical_disclaimer
+                FROM (
+                    SELECT user_id, priority_intervention, rationale, expected_impact,
+                           confidence, model_version, generated_at, is_mock, medical_disclaimer,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY user_id
+                               ORDER BY COALESCE(is_mock, 1) ASC, generated_at DESC, id DESC
+                           ) AS intervention_row_num
+                    FROM rehealth_intervention_plan
+                ) ranked_intervention
+                WHERE intervention_row_num = 1
+            ) plan ON plan.user_id = u.id
             WHERE sut.tenant_id = ? AND sut.status = '1'
               AND NOT EXISTS (
                   SELECT 1
@@ -236,6 +257,14 @@ public class RehealthUserHealthService {
         if (!verifiedRealRisk && !syntheticPreviewRisk) {
             patient.setLatestRisk(null);
         }
+        RehealthUserHealthVO.InterventionSummary intervention = patient.getLatestIntervention();
+        boolean verifiedRealIntervention = "verified_real".equals(provenanceStatus)
+                && intervention != null && !Boolean.TRUE.equals(intervention.getIsMock());
+        boolean syntheticPreviewIntervention = "synthetic".equals(provenanceStatus)
+                && intervention != null && Boolean.TRUE.equals(intervention.getIsMock());
+        if (!verifiedRealIntervention && !syntheticPreviewIntervention) {
+            patient.setLatestIntervention(null);
+        }
     }
 
     private void attachDailyIndices(RehealthUserHealthVO patient, JdbcTemplate jdbc) {
@@ -371,6 +400,19 @@ public class RehealthUserHealthService {
                 }
             }
             patient.setLatestRisk(risk);
+        }
+        if (result.getString("priority_intervention") != null) {
+            RehealthUserHealthVO.InterventionSummary intervention =
+                    new RehealthUserHealthVO.InterventionSummary();
+            intervention.setPriorityIntervention(result.getString("priority_intervention"));
+            intervention.setRationale(result.getString("intervention_rationale"));
+            intervention.setExpectedImpact(result.getString("intervention_expected_impact"));
+            intervention.setConfidence(nullableDouble(result, "intervention_confidence"));
+            intervention.setModelVersion(result.getString("intervention_model_version"));
+            intervention.setGeneratedAt(result.getTimestamp("intervention_generated_at"));
+            intervention.setIsMock(nullableBoolean(result, "intervention_is_mock"));
+            intervention.setMedicalDisclaimer(result.getString("intervention_medical_disclaimer"));
+            patient.setLatestIntervention(intervention);
         }
         return patient;
     }

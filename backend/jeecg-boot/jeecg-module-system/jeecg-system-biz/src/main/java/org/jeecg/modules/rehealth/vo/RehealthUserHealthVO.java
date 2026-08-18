@@ -23,6 +23,7 @@ public class RehealthUserHealthVO {
     private RiskSummary latestRisk;
     private RhiSummary latestRhi;
     private RdiSummary latestRdi;
+    private InterventionSummary latestIntervention;
     /**
      * `unknown` on list rows because the list deliberately performs no per-user
      * telemetry calls. Detail responses replace it with `verified_real` or
@@ -78,5 +79,17 @@ public class RehealthUserHealthVO {
         private String algorithmVersion;
         private String calculationSource;
         private Boolean isMock;
+    }
+
+    @Data
+    public static class InterventionSummary {
+        private String priorityIntervention;
+        private String rationale;
+        private String expectedImpact;
+        private Double confidence;
+        private String modelVersion;
+        private Date generatedAt;
+        private Boolean isMock;
+        private String medicalDisclaimer;
     }
 }

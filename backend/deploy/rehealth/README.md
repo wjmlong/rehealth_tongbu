@@ -161,14 +161,17 @@ the response never silently reports telemetry as absent. Requests to
 `/rehealth/admin/v1/patients/**` also require `X-Access-Token`, `X-Tenant-Id`,
 an active membership of that tenant, and `rehealth:admin:patient:view`. The
 Device Service internal health URL requires `tenantId` and scopes every query by
-both tenant and user. Because current profile and CVD tables do not carry a tenant
+both tenant and user. Patient list/detail queries require an existing
+`rehealth_patient_profile`, so institution employee accounts without a patient
+profile are not returned as patients. Because current profile and CVD tables do not carry a tenant
 column, the admin API fails closed and excludes a user who has another active
 tenant membership. Detail reads are bounded to one operator-membership lookup,
 one target aggregation query, and one Device Service summary request. Synthetic,
 mock, demo, sample, `LOCAL_TEST_SEED`, and `ring_sim` provenance is returned as a
-summary flag. A synthetic detail may include risk, RHI/RDI, and structured Factor16
-only when each returned result is explicitly Mock; clients must label it as a test
-preview and exclude it from clinical aggregates. Provenance/result mismatches are
+summary flag. A synthetic detail may include risk, RHI/RDI, structured Factor16,
+and the latest intervention summary only when each returned result is explicitly
+Mock; clients must label it as a test preview, exclude it from clinical aggregates,
+and not present it as medical advice. Provenance/result mismatches are
 suppressed;
 raw telemetry rows and the internal credential are never logged or returned.
 The list deliberately avoids an N+1 Device Service fan-out, so every row returns

@@ -36,6 +36,9 @@ class RehealthUserHealthServiceTest {
         assertTrue(RehealthUserHealthService.BASE_SELECT.contains("WHERE risk_row_num = 1"));
         assertTrue(RehealthUserHealthService.BASE_SELECT.contains("COALESCE(is_mock, 1) ASC"));
         assertTrue(RehealthUserHealthService.BASE_SELECT.contains("factor_contribution_json"));
+        assertTrue(RehealthUserHealthService.BASE_SELECT.contains("JOIN rehealth_patient_profile p"));
+        assertTrue(RehealthUserHealthService.BASE_SELECT.contains("priority_intervention"));
+        assertTrue(RehealthUserHealthService.BASE_SELECT.contains("intervention_row_num = 1"));
         assertFalse(RehealthUserHealthService.BASE_SELECT.contains(") AS row_number"));
     }
 
@@ -75,9 +78,15 @@ class RehealthUserHealthServiceTest {
         RehealthUserHealthVO.RiskSummary mockRisk = new RehealthUserHealthVO.RiskSummary();
         mockRisk.setIsMock(true);
         syntheticPreview.setLatestRisk(mockRisk);
+        RehealthUserHealthVO.InterventionSummary mockIntervention =
+                new RehealthUserHealthVO.InterventionSummary();
+        mockIntervention.setIsMock(true);
+        syntheticPreview.setLatestIntervention(mockIntervention);
         RehealthUserHealthService.attachTelemetry(syntheticPreview, telemetry);
         assertNotNull(syntheticPreview.getLatestRisk());
         assertTrue(syntheticPreview.getLatestRisk().getIsMock());
+        assertNotNull(syntheticPreview.getLatestIntervention());
+        assertTrue(syntheticPreview.getLatestIntervention().getIsMock());
 
         RehealthUserHealthVO markerPatient = new RehealthUserHealthVO();
         markerPatient.setLatestRisk(new RehealthUserHealthVO.RiskSummary());
@@ -93,9 +102,22 @@ class RehealthUserHealthServiceTest {
         RehealthUserHealthVO.RiskSummary realRisk = new RehealthUserHealthVO.RiskSummary();
         realRisk.setIsMock(false);
         realPatient.setLatestRisk(realRisk);
+        RehealthUserHealthVO.InterventionSummary realIntervention =
+                new RehealthUserHealthVO.InterventionSummary();
+        realIntervention.setIsMock(false);
+        realPatient.setLatestIntervention(realIntervention);
         RehealthUserHealthService.attachTelemetry(realPatient, realTelemetry);
         assertEquals("verified_real", realPatient.getProvenanceStatus());
         assertNotNull(realPatient.getLatestRisk());
+        assertNotNull(realPatient.getLatestIntervention());
+
+        RehealthUserHealthVO mismatchedPlan = new RehealthUserHealthVO();
+        RehealthUserHealthVO.InterventionSummary unmarkedPlan =
+                new RehealthUserHealthVO.InterventionSummary();
+        unmarkedPlan.setIsMock(false);
+        mismatchedPlan.setLatestIntervention(unmarkedPlan);
+        RehealthUserHealthService.attachTelemetry(mismatchedPlan, telemetry);
+        assertNull(mismatchedPlan.getLatestIntervention());
 
         for (JSONObject unverified : List.of(
                 new JSONObject(),

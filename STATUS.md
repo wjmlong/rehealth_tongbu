@@ -99,13 +99,15 @@ Play Console 内测、物理设备与完整线上闭环验收仍保持发布阻�
 
 2026-08-09 已补齐官网管理后台与 App 后端的最小安全只读连接：JeecgBoot 新增
 `/rehealth/admin/v1/patients` 分页/搜索/风险等级筛选和患者详情，使用标准登录令牌、
-`rehealth:admin:patient:view` 权限并校验当前管理员的活动租户成员关系。列表批量读取
-`software_db` 的类型化档案和最新非 Mock CVD 风险，不逐用户访问硬件库；详情在目标成员校验
+`rehealth:admin:patient:view` 权限并校验当前管理员的活动租户成员关系。列表只读取当前租户内
+存在类型化患者档案的用户，机构员工不会作为患者返回；同时批量读取 `software_db` 的最新 CVD
+风险和干预计划，不逐用户访问硬件库；详情在目标成员校验
 后仅调用一次 Device Service。由于软件档案/风险表暂未携带租户列，多活动租户用户会被
 fail-closed 排除。Device Service 健康摘要的每条 TimescaleDB 查询均同时限定 `tenant_id`
 与 `user_id`，并返回 `provenance` / `isSynthetic`；`LOCAL_TEST_SEED`、`ring_sim`、mock、demo、
-sample 和 synthetic 来源不会在详情中和临床风险分数同时展示；只有非空且全部属于已登记
-真实设备来源的详情才是 `verified_real`，空或未知来源保持 `unknown` 并清除 `latestRisk`。
+sample 和 synthetic 来源仅在风险、RHI/RDI、Factor16 和干预计划分别明确标记为 Mock 时作为
+测试预览展示；只有非空且全部属于已登记真实设备来源的详情才是 `verified_real`，空或未知来源
+保持 `unknown` 并清除风险、指数和干预结果。测试预览不得进入临床统计或作为医疗建议。
 凭据缺失或 Device Service 不可用时详情返回 503。列表逐条标记 `provenanceStatus=unknown`，BFF
 不得将 unknown 记录计入临床风险统计。Compose 使用的 `jeecg-system-cloud-start` JAR 已包含并
 启用权限 Flyway 迁移，但未授权任何默认角色。返回 DTO 不含手机号、邮箱和账号名，旧全库
