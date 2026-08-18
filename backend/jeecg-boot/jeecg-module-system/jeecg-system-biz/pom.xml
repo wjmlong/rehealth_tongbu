@@ -11,6 +11,12 @@
 	<artifactId>jeecg-system-biz</artifactId>
 
 	<dependencies>
+		<!-- WeChat mini-program jscode2session client used by WechatMiniLoginServiceImpl. -->
+		<dependency>
+			<groupId>cn.hutool</groupId>
+			<artifactId>hutool-http</artifactId>
+			<version>${hutool.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>org.jeecgframework.boot3</groupId>
 			<artifactId>jeecg-system-local-api</artifactId>
