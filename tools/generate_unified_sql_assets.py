@@ -600,6 +600,7 @@ def generate_issues(output: Path, mysql_tables: int, missing_tables: int, missin
 - Timescale V1–V4 尚无原生 `COMMENT ON`；统一快照已补齐，但正式迁移链若要求线上 catalog 也具备注释，应新增只追加 COMMENT 的后续 Flyway，不能修改已发布版本。
 - MySQL 历史迁移大量字段无注释。统一快照使用中文通用含义补齐；标有“TODO：待确认”的平台/厂商字段仍需模块负责人确认。
 - `cvd_risk_cache` 存在 Room Entity/DAO，但未注册到 AppDatabase，不属于 Room v19 实际表；保留为代码清理/接入待办。
+- 当前工作区的 `backend/docs/database/ROOM_SCHEMA_V19.md` 标题和表清单已是 v19/23 表，但导语仍写 16.json/22 表；该文件属于并行文档改动，应在对应分支修正生成器输入后重新生成。
 - 旧 JeecgBoot Java 中仍有 MySQL `hardware_*` 兼容写入代码；当前权威硬件事实库是 TimescaleDB，需继续避免双写形成两个权威源。
 - 医疗工作台专用测试数据保留“测试”提示以防误认真实患者；保险演示数据使用自然业务名称，不再以“（测试）”污染真实展示样式。
 - 测试脚本统一固定 UTC 和锚点日期 2026-08-19；跨日期回归时应显式修改锚点，不应使用隐式 `CURRENT_DATE` 导致结果漂移。
