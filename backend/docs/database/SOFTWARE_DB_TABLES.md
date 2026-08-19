@@ -3,7 +3,7 @@
 > 本文件由 `tools/generate_database_schema_docs.py` 根据只读结构元数据生成。
 > 不包含数据库账号、密码、业务行内容或原始健康数据。
 
-结构来自运行中的 `rehealth_software`（MySQL 8.4.6）information_schema，共 186 张基础表。InnoDB 行数为当前本地实例估算。
+结构来自运行中的 `rehealth_software`（MySQL 8.4.6）information_schema，共 193 张基础表。InnoDB 行数为当前本地实例估算。
 
 ## 表清单
 
@@ -95,106 +95,113 @@
 | 84 | [`rehealth_attribution_event`](#rehealth-attribution-event) | 归因请求事件表 | ReHealth 核心业务 | 保存提交给 PIAS 的个体归因请求元数据和版本化输入快照。 | 是 |
 | 85 | [`rehealth_attribution_result`](#rehealth-attribution-result) | 个体归因结果表 | ReHealth 核心业务 | 保存 PIAS 个体归因结果及模型证据快照。 | 是 |
 | 86 | [`rehealth_behavior_record`](#rehealth-behavior-record) | 结构化行为记录表 | ReHealth 核心业务 | 保存拍照食物/OCR 的已验证结构化结果；不保存原始图片。 | 是 |
-| 87 | [`rehealth_cvd_feature_vector`](#rehealth-cvd-feature-vector) | CVD 特征向量表 | ReHealth 核心业务 | 保存一次 CVD-16 评估使用的版本化特征向量和质量证据。 | 是 |
-| 88 | [`rehealth_cvd_risk_result`](#rehealth-cvd-risk-result) | CVD 风险结果表 | ReHealth 核心业务 | 保存模型风险分数、等级、模型贡献、Factor16 贡献、警告和模型版本。 | 是 |
-| 89 | [`rehealth_device_binding`](#rehealth-device-binding) | 用户设备绑定表 | ReHealth 核心业务 | 保存认证用户与产品、稳定设备身份及状态的绑定关系。 | 是 |
-| 90 | [`rehealth_health_interview`](#rehealth-health-interview) | 健康访谈主表 | ReHealth 核心业务 | 保存认证用户每次结构化健康访谈的主记录和兼容 JSON 快照。 | 是 |
-| 91 | [`rehealth_health_interview_answer`](#rehealth-health-interview-answer) | 健康访谈回答表 | ReHealth 核心业务 | 保存访谈下的有序问答明细。 | 是 |
-| 92 | [`rehealth_health_interview_baseline`](#rehealth-health-interview-baseline) | 健康访谈基线表 | ReHealth 核心业务 | 保存访谈提取的有序健康基线指标。 | 是 |
-| 93 | [`rehealth_health_interview_focus`](#rehealth-health-interview-focus) | 健康访谈关注项表 | ReHealth 核心业务 | 保存访谈识别出的重点健康关注项。 | 是 |
-| 94 | [`rehealth_insurance_audit_event`](#rehealth-insurance-audit-event) | 保险操作审计表 | ReHealth 保险业务 | 保存租户内保险资源操作的不可变审计事件和前后哈希。 | 是（保险域） |
-| 95 | [`rehealth_insurance_claim`](#rehealth-insurance-claim) | 保险理赔表 | ReHealth 保险业务 | 保存理赔事件、金额、状态和保障代码。 | 是（保险域） |
-| 96 | [`rehealth_insurance_consent`](#rehealth-insurance-consent) | 保险授权同意表 | ReHealth 保险业务 | 保存主体按类型和版本授予或撤销的授权及证据哈希。 | 是（保险域） |
-| 97 | [`rehealth_insurance_coverage`](#rehealth-insurance-coverage) | 保险保障责任表 | ReHealth 保险业务 | 保存保单下的保障代码、限额、免赔额和有效期。 | 是（保险域） |
-| 98 | [`rehealth_insurance_import_batch`](#rehealth-insurance-import-batch) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
-| 99 | [`rehealth_insurance_intervention`](#rehealth-insurance-intervention) | 保险干预参与表 | ReHealth 保险业务 | 保存主体加入健康干预计划的状态与反馈时间。 | 是（保险域） |
-| 100 | [`rehealth_insurance_intervention_action`](#rehealth-insurance-intervention-action) | 保险人工干预行动表 | ReHealth 保险业务 | 保存租户和负责人范围内的随访、任务与人工复核行动及完成结果。 | 是（保险域） |
-| 101 | [`rehealth_insurance_intervention_feedback`](#rehealth-insurance-intervention-feedback) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
-| 102 | [`rehealth_insurance_plan_binding`](#rehealth-insurance-plan-binding) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
-| 103 | [`rehealth_insurance_policy`](#rehealth-insurance-policy) | 保险保单表 | ReHealth 保险业务 | 保存租户内保单、产品、金额、期限和被保主体引用。 | 是（保险域） |
-| 104 | [`rehealth_insurance_rwe_report`](#rehealth-insurance-rwe-report) | 真实世界证据报告表 | ReHealth 保险业务 | 保存版本化 RWE 报告及审批证据。 | 是（保险域） |
-| 105 | [`rehealth_insurance_settlement_approval`](#rehealth-insurance-settlement-approval) | 保险结算审批记录表 | ReHealth 保险业务 | 保存结算包的审批动作、意见和请求幂等键。 | 是（保险域） |
-| 106 | [`rehealth_insurance_settlement_package`](#rehealth-insurance-settlement-package) | 保险结算包表 | ReHealth 保险业务 | 保存由研究和报告形成的版本化结算证据包。 | 是（保险域） |
-| 107 | [`rehealth_insurance_study`](#rehealth-insurance-study) | 保险研究定义表 | ReHealth 保险业务 | 保存真实世界研究人群、干预、结局规则和审批状态。 | 是（保险域） |
-| 108 | [`rehealth_insurance_study_job`](#rehealth-insurance-study-job) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
-| 109 | [`rehealth_insurance_study_member`](#rehealth-insurance-study-member) | 保险研究成员表 | ReHealth 保险业务 | 保存研究快照中的去标识主体、队列分组和结局值。 | 是（保险域） |
-| 110 | [`rehealth_insurance_study_result`](#rehealth-insurance-study-result) | 保险研究结果表 | ReHealth 保险业务 | 保存 PSM/真实世界研究估计、区间、平衡和成本结果。 | 是（保险域） |
-| 111 | [`rehealth_insurance_study_snapshot`](#rehealth-insurance-study-snapshot) | 保险研究快照表 | ReHealth 保险业务 | 保存研究人群不可变快照、来源水位和内容哈希。 | 是（保险域） |
-| 112 | [`rehealth_insurance_subject`](#rehealth-insurance-subject) | 保险业务主体表 | ReHealth 保险业务 | 保存租户隔离、去标识化的保险主体与 ReHealth 用户映射。 | 是（保险域） |
-| 113 | [`rehealth_insurance_subject_manager`](#rehealth-insurance-subject-manager) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
-| 114 | [`rehealth_insurance_tenant_profile`](#rehealth-insurance-tenant-profile) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
-| 115 | [`rehealth_intervention_contraindication`](#rehealth-intervention-contraindication) | 干预禁忌表 | ReHealth 核心业务 | 保存某次干预计划包含的有序禁忌与安全限制。 | 是 |
-| 116 | [`rehealth_intervention_feedback`](#rehealth-intervention-feedback) | 干预反馈表 | ReHealth 核心业务 | 保存用户对具体干预计划/行动的完成、跳过或不适用反馈。 | 是 |
-| 117 | [`rehealth_intervention_plan`](#rehealth-intervention-plan) | 健康干预计划表 | ReHealth 核心业务 | 保存基于权威画像、风险和设备行为上下文生成的结构化保守干预计划。 | 是 |
-| 118 | [`rehealth_model_request_log`](#rehealth-model-request-log) | 模型请求审计表 | ReHealth 审计日志 | 保存不含原始 PII/遥测的模型调用元数据、状态、耗时和错误码。 | 否（日志/支持） |
-| 119 | [`rehealth_patient_allergy`](#rehealth-patient-allergy) | 患者过敏史表 | ReHealth 核心业务 | 保存健康档案下的有序过敏条目。 | 是 |
-| 120 | [`rehealth_patient_diagnosis`](#rehealth-patient-diagnosis) | 患者诊断史表 | ReHealth 核心业务 | 保存健康档案下的有序诊断史条目。 | 是 |
-| 121 | [`rehealth_patient_medication`](#rehealth-patient-medication) | 患者用药史表 | ReHealth 核心业务 | 保存健康档案下的有序用药条目。 | 是 |
-| 122 | [`rehealth_patient_profile`](#rehealth-patient-profile) | 患者健康档案表 | ReHealth 核心业务 | 保存认证用户的类型化健康档案、BMI 和乐观锁版本。 | 是 |
-| 123 | [`rehealth_rhi_daily_snapshot`](#rehealth-rhi-daily-snapshot) | 云端 RHI 每日聚合快照表 | ReHealth 核心业务 | 保存认证用户从 App 上传的日级 RHI 分数、领域、特征与质量聚合快照；不保存原始遥测。 | 是 |
-| 124 | [`rehealth_rhi_manual_health_input`](#rehealth-rhi-manual-health-input) | 云端 RHI 手工输入表 | ReHealth 核心业务 | 保存认证用户 Room-first 手工健康输入的云端副本，并按 updated_at 合并。 | 是 |
-| 125 | [`rehealth_schema_migration`](#rehealth-schema-migration) | ReHealth 迁移版本表 | 迁移元数据 | 记录 ReHealth 自定义软件库迁移版本；不是业务数据。 | 否（迁移元数据） |
-| 126 | [`rehealth_telemetry_event_projection`](#rehealth-telemetry-event-projection) | 遥测事件运营投影表 | ReHealth 运营投影 | 保存 Kafka 遥测生命周期事件的隐私安全运营投影。 | 是 |
-| 127 | [`rehealth_telemetry_quality_case`](#rehealth-telemetry-quality-case) | 遥测质量工单表 | ReHealth 运营投影 | 保存由遥测质量事件派生的运营质量工单。 | 是 |
-| 128 | [`rehealth_website_record`](#rehealth-website-record) | 官网业务记录表 | ReHealth 核心业务 | 保存官网侧按租户隔离的结构化业务记录；具体记录类型由业务代码定义。 | 是 |
-| 129 | [`rep_demo_dxtj`](#rep-demo-dxtj) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 130 | [`rep_demo_employee`](#rep-demo-employee) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 131 | [`rep_demo_gongsi`](#rep-demo-gongsi) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 132 | [`rep_demo_jianpiao`](#rep-demo-jianpiao) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 133 | [`rep_demo_order_main`](#rep-demo-order-main) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 134 | [`rep_demo_order_product`](#rep-demo-order-product) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 135 | [`sys_announcement`](#sys-announcement) | 系统通告表 | Jeecg 系统 | 系统通告表 | 否 |
-| 136 | [`sys_announcement_send`](#sys-announcement-send) | 用户通告阅读标记表 | Jeecg 系统 | 用户通告阅读标记表 | 否 |
-| 137 | [`sys_category`](#sys-category) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 138 | [`sys_check_rule`](#sys-check-rule) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 139 | [`sys_comment`](#sys-comment) | 系统评论回复表 | Jeecg 系统 | 系统评论回复表 | 否 |
-| 140 | [`sys_data_log`](#sys-data-log) | 待确认 | Jeecg 日志 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 141 | [`sys_data_source`](#sys-data-source) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 142 | [`sys_depart`](#sys-depart) | 组织机构表 | Jeecg 用户权限 | 组织机构表 | 否 |
-| 143 | [`sys_depart_permission`](#sys-depart-permission) | 部门权限表 | Jeecg 用户权限 | 部门权限表 | 否 |
-| 144 | [`sys_depart_role`](#sys-depart-role) | 部门角色表 | Jeecg 用户权限 | 部门角色表 | 否 |
-| 145 | [`sys_depart_role_permission`](#sys-depart-role-permission) | 部门角色权限表 | Jeecg 用户权限 | 部门角色权限表 | 否 |
-| 146 | [`sys_depart_role_user`](#sys-depart-role-user) | 部门角色用户表 | Jeecg 用户权限 | 部门角色用户表 | 否 |
-| 147 | [`sys_dict`](#sys-dict) | 待确认 | Jeecg 字典 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 148 | [`sys_dict_item`](#sys-dict-item) | 待确认 | Jeecg 字典 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 149 | [`sys_files`](#sys-files) | 知识库-文档管理 | Jeecg 系统 | 知识库-文档管理 | 否 |
-| 150 | [`sys_fill_rule`](#sys-fill-rule) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 151 | [`sys_form_file`](#sys-form-file) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 152 | [`sys_gateway_route`](#sys-gateway-route) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 153 | [`sys_log`](#sys-log) | 系统日志表 | Jeecg 日志 | 系统日志表 | 否 |
-| 154 | [`sys_permission`](#sys-permission) | 菜单权限表 | Jeecg 用户权限 | 菜单权限表 | 是（平台基础） |
-| 155 | [`sys_permission_data_rule`](#sys-permission-data-rule) | 待确认 | Jeecg 用户权限 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 156 | [`sys_position`](#sys-position) | 职务级别 | Jeecg 用户权限 | 职务级别 | 否 |
-| 157 | [`sys_quartz_job`](#sys-quartz-job) | 待确认 | 调度 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 158 | [`sys_role`](#sys-role) | 角色表 | Jeecg 用户权限 | 角色表 | 是（平台基础） |
-| 159 | [`sys_role_index`](#sys-role-index) | 角色首页表 | Jeecg 用户权限 | 角色首页表 | 否 |
-| 160 | [`sys_role_permission`](#sys-role-permission) | 角色权限表 | Jeecg 用户权限 | 角色权限表 | 是（平台基础） |
-| 161 | [`sys_sms`](#sys-sms) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 162 | [`sys_sms_template`](#sys-sms-template) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 163 | [`sys_table_white_list`](#sys-table-white-list) | 系统表白名单 | Jeecg 系统 | 系统表白名单 | 否 |
-| 164 | [`sys_tenant`](#sys-tenant) | 多租户信息表 | Jeecg 用户权限 | 多租户信息表 | 是（平台基础） |
-| 165 | [`sys_tenant_pack`](#sys-tenant-pack) | 租户产品包 | Jeecg 用户权限 | 租户产品包 | 否 |
-| 166 | [`sys_tenant_pack_perms`](#sys-tenant-pack-perms) | 租户产品包和菜单关系表 | Jeecg 用户权限 | 租户产品包和菜单关系表 | 否 |
-| 167 | [`sys_tenant_pack_user`](#sys-tenant-pack-user) | 租户套餐人员表 | Jeecg 用户权限 | 租户套餐人员表 | 否 |
-| 168 | [`sys_third_account`](#sys-third-account) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 169 | [`sys_third_app_config`](#sys-third-app-config) | 租户第三方配置表 | Jeecg 系统 | 租户第三方配置表 | 否 |
-| 170 | [`sys_ugroup`](#sys-ugroup) | 用户组表 | Jeecg 用户权限 | 用户组表 | 否 |
-| 171 | [`sys_ugroup_user`](#sys-ugroup-user) | 用户组关系表 | Jeecg 用户权限 | 用户组关系表 | 否 |
-| 172 | [`sys_user`](#sys-user) | 用户表 | Jeecg 用户权限 | 用户表 | 是（平台基础） |
-| 173 | [`sys_user_dep_post`](#sys-user-dep-post) | 待确认 | Jeecg 用户权限 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 174 | [`sys_user_depart`](#sys-user-depart) | 待确认 | Jeecg 用户权限 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 175 | [`sys_user_position`](#sys-user-position) | 待确认 | Jeecg 用户权限 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 176 | [`sys_user_role`](#sys-user-role) | 用户角色表 | Jeecg 用户权限 | 用户角色表 | 是（平台基础） |
-| 177 | [`sys_user_tenant`](#sys-user-tenant) | 用户租户关系表 | Jeecg 用户权限 | 用户租户关系表 | 否 |
-| 178 | [`test_demo`](#test-demo) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 179 | [`test_enhance_select`](#test-enhance-select) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 180 | [`test_note`](#test-note) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 181 | [`test_online_link`](#test-online-link) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 182 | [`test_order_customer`](#test-order-customer) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 183 | [`test_order_main`](#test-order-main) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 184 | [`test_order_product`](#test-order-product) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 185 | [`test_person`](#test-person) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 186 | [`test_shoptype_tree`](#test-shoptype-tree) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 87 | [`rehealth_care_plan`](#rehealth-care-plan) | 机构干预计划主表 | ReHealth 核心业务 | 保存按租户、机构类型和服务对象隔离的计划聚合、当前/草稿版本指针及乐观锁。 | 是 |
+| 88 | [`rehealth_care_plan_audit_event`](#rehealth-care-plan-audit-event) | 机构干预计划审计表 | ReHealth 核心业务 | 保存不含计划正文的版本生命周期操作、内容哈希和变更原因。 | 是 |
+| 89 | [`rehealth_care_plan_item`](#rehealth-care-plan-item) | 机构干预计划项目表 | ReHealth 核心业务 | 保存绑定到具体版本的患者可见计划项目快照及稳定逻辑项目标识。 | 是 |
+| 90 | [`rehealth_care_plan_occurrence`](#rehealth-care-plan-occurrence) | 机构干预任务实例表 | ReHealth 核心业务 | 保存绑定计划版本和项目的到期任务实例，为后续真实依从性分母提供稳定标识。 | 是 |
+| 91 | [`rehealth_care_plan_revision`](#rehealth-care-plan-revision) | 机构干预计划版本表 | ReHealth 核心业务 | 保存草稿、已发布和已撤回的计划版本；已发布内容不可原地覆盖。 | 是 |
+| 92 | [`rehealth_cvd_feature_vector`](#rehealth-cvd-feature-vector) | CVD 特征向量表 | ReHealth 核心业务 | 保存一次 CVD-16 评估使用的版本化特征向量和质量证据。 | 是 |
+| 93 | [`rehealth_cvd_risk_result`](#rehealth-cvd-risk-result) | CVD 风险结果表 | ReHealth 核心业务 | 保存模型风险分数、等级、模型贡献、Factor16 贡献、警告和模型版本。 | 是 |
+| 94 | [`rehealth_device_binding`](#rehealth-device-binding) | 用户设备绑定表 | ReHealth 核心业务 | 保存认证用户与产品、稳定设备身份及状态的绑定关系。 | 是 |
+| 95 | [`rehealth_health_interview`](#rehealth-health-interview) | 健康访谈主表 | ReHealth 核心业务 | 保存认证用户每次结构化健康访谈的主记录和兼容 JSON 快照。 | 是 |
+| 96 | [`rehealth_health_interview_answer`](#rehealth-health-interview-answer) | 健康访谈回答表 | ReHealth 核心业务 | 保存访谈下的有序问答明细。 | 是 |
+| 97 | [`rehealth_health_interview_baseline`](#rehealth-health-interview-baseline) | 健康访谈基线表 | ReHealth 核心业务 | 保存访谈提取的有序健康基线指标。 | 是 |
+| 98 | [`rehealth_health_interview_focus`](#rehealth-health-interview-focus) | 健康访谈关注项表 | ReHealth 核心业务 | 保存访谈识别出的重点健康关注项。 | 是 |
+| 99 | [`rehealth_insurance_audit_event`](#rehealth-insurance-audit-event) | 保险操作审计表 | ReHealth 保险业务 | 保存租户内保险资源操作的不可变审计事件和前后哈希。 | 是（保险域） |
+| 100 | [`rehealth_insurance_claim`](#rehealth-insurance-claim) | 保险理赔表 | ReHealth 保险业务 | 保存理赔事件、金额、状态和保障代码。 | 是（保险域） |
+| 101 | [`rehealth_insurance_consent`](#rehealth-insurance-consent) | 保险授权同意表 | ReHealth 保险业务 | 保存主体按类型和版本授予或撤销的授权及证据哈希。 | 是（保险域） |
+| 102 | [`rehealth_insurance_coverage`](#rehealth-insurance-coverage) | 保险保障责任表 | ReHealth 保险业务 | 保存保单下的保障代码、限额、免赔额和有效期。 | 是（保险域） |
+| 103 | [`rehealth_insurance_import_batch`](#rehealth-insurance-import-batch) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
+| 104 | [`rehealth_insurance_intervention`](#rehealth-insurance-intervention) | 保险干预参与表 | ReHealth 保险业务 | 保存主体加入健康干预计划的状态与反馈时间。 | 是（保险域） |
+| 105 | [`rehealth_insurance_intervention_action`](#rehealth-insurance-intervention-action) | 保险人工干预行动表 | ReHealth 保险业务 | 保存租户和负责人范围内的随访、任务与人工复核行动及完成结果。 | 是（保险域） |
+| 106 | [`rehealth_insurance_intervention_feedback`](#rehealth-insurance-intervention-feedback) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
+| 107 | [`rehealth_insurance_plan_binding`](#rehealth-insurance-plan-binding) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
+| 108 | [`rehealth_insurance_policy`](#rehealth-insurance-policy) | 保险保单表 | ReHealth 保险业务 | 保存租户内保单、产品、金额、期限和被保主体引用。 | 是（保险域） |
+| 109 | [`rehealth_insurance_rwe_report`](#rehealth-insurance-rwe-report) | 真实世界证据报告表 | ReHealth 保险业务 | 保存版本化 RWE 报告及审批证据。 | 是（保险域） |
+| 110 | [`rehealth_insurance_settlement_approval`](#rehealth-insurance-settlement-approval) | 保险结算审批记录表 | ReHealth 保险业务 | 保存结算包的审批动作、意见和请求幂等键。 | 是（保险域） |
+| 111 | [`rehealth_insurance_settlement_package`](#rehealth-insurance-settlement-package) | 保险结算包表 | ReHealth 保险业务 | 保存由研究和报告形成的版本化结算证据包。 | 是（保险域） |
+| 112 | [`rehealth_insurance_study`](#rehealth-insurance-study) | 保险研究定义表 | ReHealth 保险业务 | 保存真实世界研究人群、干预、结局规则和审批状态。 | 是（保险域） |
+| 113 | [`rehealth_insurance_study_job`](#rehealth-insurance-study-job) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
+| 114 | [`rehealth_insurance_study_member`](#rehealth-insurance-study-member) | 保险研究成员表 | ReHealth 保险业务 | 保存研究快照中的去标识主体、队列分组和结局值。 | 是（保险域） |
+| 115 | [`rehealth_insurance_study_result`](#rehealth-insurance-study-result) | 保险研究结果表 | ReHealth 保险业务 | 保存 PSM/真实世界研究估计、区间、平衡和成本结果。 | 是（保险域） |
+| 116 | [`rehealth_insurance_study_snapshot`](#rehealth-insurance-study-snapshot) | 保险研究快照表 | ReHealth 保险业务 | 保存研究人群不可变快照、来源水位和内容哈希。 | 是（保险域） |
+| 117 | [`rehealth_insurance_subject`](#rehealth-insurance-subject) | 保险业务主体表 | ReHealth 保险业务 | 保存租户隔离、去标识化的保险主体与 ReHealth 用户映射。 | 是（保险域） |
+| 118 | [`rehealth_insurance_subject_manager`](#rehealth-insurance-subject-manager) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
+| 119 | [`rehealth_insurance_tenant_profile`](#rehealth-insurance-tenant-profile) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
+| 120 | [`rehealth_intervention_contraindication`](#rehealth-intervention-contraindication) | 干预禁忌表 | ReHealth 核心业务 | 保存某次干预计划包含的有序禁忌与安全限制。 | 是 |
+| 121 | [`rehealth_intervention_feedback`](#rehealth-intervention-feedback) | 干预反馈表 | ReHealth 核心业务 | 保存用户对具体干预计划/行动的完成、跳过或不适用反馈。 | 是 |
+| 122 | [`rehealth_intervention_plan`](#rehealth-intervention-plan) | 健康干预计划表 | ReHealth 核心业务 | 保存基于权威画像、风险和设备行为上下文生成的结构化保守干预计划。 | 是 |
+| 123 | [`rehealth_model_request_log`](#rehealth-model-request-log) | 模型请求审计表 | ReHealth 审计日志 | 保存不含原始 PII/遥测的模型调用元数据、状态、耗时和错误码。 | 否（日志/支持） |
+| 124 | [`rehealth_patient_allergy`](#rehealth-patient-allergy) | 患者过敏史表 | ReHealth 核心业务 | 保存健康档案下的有序过敏条目。 | 是 |
+| 125 | [`rehealth_patient_diagnosis`](#rehealth-patient-diagnosis) | 患者诊断史表 | ReHealth 核心业务 | 保存健康档案下的有序诊断史条目。 | 是 |
+| 126 | [`rehealth_patient_medication`](#rehealth-patient-medication) | 患者用药史表 | ReHealth 核心业务 | 保存健康档案下的有序用药条目。 | 是 |
+| 127 | [`rehealth_patient_profile`](#rehealth-patient-profile) | 患者健康档案表 | ReHealth 核心业务 | 保存认证用户的类型化健康档案、BMI 和乐观锁版本。 | 是 |
+| 128 | [`rehealth_rdi_contribution`](#rehealth-rdi-contribution) | 待确认 | ReHealth 核心业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是 |
+| 129 | [`rehealth_rdi_daily_snapshot`](#rehealth-rdi-daily-snapshot) | 待确认 | ReHealth 核心业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是 |
+| 130 | [`rehealth_rhi_daily_snapshot`](#rehealth-rhi-daily-snapshot) | 云端 RHI 每日聚合快照表 | ReHealth 核心业务 | 保存认证用户从 App 上传的日级 RHI 分数、领域、特征与质量聚合快照；不保存原始遥测。 | 是 |
+| 131 | [`rehealth_rhi_manual_health_input`](#rehealth-rhi-manual-health-input) | 云端 RHI 手工输入表 | ReHealth 核心业务 | 保存认证用户 Room-first 手工健康输入的云端副本，并按 updated_at 合并。 | 是 |
+| 132 | [`rehealth_schema_migration`](#rehealth-schema-migration) | ReHealth 迁移版本表 | 迁移元数据 | 记录 ReHealth 自定义软件库迁移版本；不是业务数据。 | 否（迁移元数据） |
+| 133 | [`rehealth_telemetry_event_projection`](#rehealth-telemetry-event-projection) | 遥测事件运营投影表 | ReHealth 运营投影 | 保存 Kafka 遥测生命周期事件的隐私安全运营投影。 | 是 |
+| 134 | [`rehealth_telemetry_quality_case`](#rehealth-telemetry-quality-case) | 遥测质量工单表 | ReHealth 运营投影 | 保存由遥测质量事件派生的运营质量工单。 | 是 |
+| 135 | [`rehealth_website_record`](#rehealth-website-record) | 官网业务记录表 | ReHealth 核心业务 | 保存官网侧按租户隔离的结构化业务记录；具体记录类型由业务代码定义。 | 是 |
+| 136 | [`rep_demo_dxtj`](#rep-demo-dxtj) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 137 | [`rep_demo_employee`](#rep-demo-employee) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 138 | [`rep_demo_gongsi`](#rep-demo-gongsi) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 139 | [`rep_demo_jianpiao`](#rep-demo-jianpiao) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 140 | [`rep_demo_order_main`](#rep-demo-order-main) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 141 | [`rep_demo_order_product`](#rep-demo-order-product) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 142 | [`sys_announcement`](#sys-announcement) | 系统通告表 | Jeecg 系统 | 系统通告表 | 否 |
+| 143 | [`sys_announcement_send`](#sys-announcement-send) | 用户通告阅读标记表 | Jeecg 系统 | 用户通告阅读标记表 | 否 |
+| 144 | [`sys_category`](#sys-category) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 145 | [`sys_check_rule`](#sys-check-rule) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 146 | [`sys_comment`](#sys-comment) | 系统评论回复表 | Jeecg 系统 | 系统评论回复表 | 否 |
+| 147 | [`sys_data_log`](#sys-data-log) | 待确认 | Jeecg 日志 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 148 | [`sys_data_source`](#sys-data-source) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 149 | [`sys_depart`](#sys-depart) | 组织机构表 | Jeecg 用户权限 | 组织机构表 | 否 |
+| 150 | [`sys_depart_permission`](#sys-depart-permission) | 部门权限表 | Jeecg 用户权限 | 部门权限表 | 否 |
+| 151 | [`sys_depart_role`](#sys-depart-role) | 部门角色表 | Jeecg 用户权限 | 部门角色表 | 否 |
+| 152 | [`sys_depart_role_permission`](#sys-depart-role-permission) | 部门角色权限表 | Jeecg 用户权限 | 部门角色权限表 | 否 |
+| 153 | [`sys_depart_role_user`](#sys-depart-role-user) | 部门角色用户表 | Jeecg 用户权限 | 部门角色用户表 | 否 |
+| 154 | [`sys_dict`](#sys-dict) | 待确认 | Jeecg 字典 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 155 | [`sys_dict_item`](#sys-dict-item) | 待确认 | Jeecg 字典 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 156 | [`sys_files`](#sys-files) | 知识库-文档管理 | Jeecg 系统 | 知识库-文档管理 | 否 |
+| 157 | [`sys_fill_rule`](#sys-fill-rule) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 158 | [`sys_form_file`](#sys-form-file) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 159 | [`sys_gateway_route`](#sys-gateway-route) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 160 | [`sys_log`](#sys-log) | 系统日志表 | Jeecg 日志 | 系统日志表 | 否 |
+| 161 | [`sys_permission`](#sys-permission) | 菜单权限表 | Jeecg 用户权限 | 菜单权限表 | 是（平台基础） |
+| 162 | [`sys_permission_data_rule`](#sys-permission-data-rule) | 待确认 | Jeecg 用户权限 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 163 | [`sys_position`](#sys-position) | 职务级别 | Jeecg 用户权限 | 职务级别 | 否 |
+| 164 | [`sys_quartz_job`](#sys-quartz-job) | 待确认 | 调度 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 165 | [`sys_role`](#sys-role) | 角色表 | Jeecg 用户权限 | 角色表 | 是（平台基础） |
+| 166 | [`sys_role_index`](#sys-role-index) | 角色首页表 | Jeecg 用户权限 | 角色首页表 | 否 |
+| 167 | [`sys_role_permission`](#sys-role-permission) | 角色权限表 | Jeecg 用户权限 | 角色权限表 | 是（平台基础） |
+| 168 | [`sys_sms`](#sys-sms) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 169 | [`sys_sms_template`](#sys-sms-template) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 170 | [`sys_table_white_list`](#sys-table-white-list) | 系统表白名单 | Jeecg 系统 | 系统表白名单 | 否 |
+| 171 | [`sys_tenant`](#sys-tenant) | 多租户信息表 | Jeecg 用户权限 | 多租户信息表 | 是（平台基础） |
+| 172 | [`sys_tenant_pack`](#sys-tenant-pack) | 租户产品包 | Jeecg 用户权限 | 租户产品包 | 否 |
+| 173 | [`sys_tenant_pack_perms`](#sys-tenant-pack-perms) | 租户产品包和菜单关系表 | Jeecg 用户权限 | 租户产品包和菜单关系表 | 否 |
+| 174 | [`sys_tenant_pack_user`](#sys-tenant-pack-user) | 租户套餐人员表 | Jeecg 用户权限 | 租户套餐人员表 | 否 |
+| 175 | [`sys_third_account`](#sys-third-account) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 176 | [`sys_third_app_config`](#sys-third-app-config) | 租户第三方配置表 | Jeecg 系统 | 租户第三方配置表 | 否 |
+| 177 | [`sys_ugroup`](#sys-ugroup) | 用户组表 | Jeecg 用户权限 | 用户组表 | 否 |
+| 178 | [`sys_ugroup_user`](#sys-ugroup-user) | 用户组关系表 | Jeecg 用户权限 | 用户组关系表 | 否 |
+| 179 | [`sys_user`](#sys-user) | 用户表 | Jeecg 用户权限 | 用户表 | 是（平台基础） |
+| 180 | [`sys_user_dep_post`](#sys-user-dep-post) | 待确认 | Jeecg 用户权限 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 181 | [`sys_user_depart`](#sys-user-depart) | 待确认 | Jeecg 用户权限 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 182 | [`sys_user_position`](#sys-user-position) | 待确认 | Jeecg 用户权限 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 183 | [`sys_user_role`](#sys-user-role) | 用户角色表 | Jeecg 用户权限 | 用户角色表 | 是（平台基础） |
+| 184 | [`sys_user_tenant`](#sys-user-tenant) | 用户租户关系表 | Jeecg 用户权限 | 用户租户关系表 | 否 |
+| 185 | [`test_demo`](#test-demo) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 186 | [`test_enhance_select`](#test-enhance-select) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 187 | [`test_note`](#test-note) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 188 | [`test_online_link`](#test-online-link) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 189 | [`test_order_customer`](#test-order-customer) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 190 | [`test_order_main`](#test-order-main) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 191 | [`test_order_product`](#test-order-product) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 192 | [`test_person`](#test-person) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 193 | [`test_shoptype_tree`](#test-shoptype-tree) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
 
 ## 模块统计
 
@@ -210,7 +217,7 @@
 | OpenAPI | 4 |
 | ReHealth 保险业务 | 21 |
 | ReHealth 审计日志 | 1 |
-| ReHealth 核心业务 | 22 |
+| ReHealth 核心业务 | 29 |
 | ReHealth 运营投影 | 2 |
 | 上游订单示例 | 3 |
 | 旧 MySQL 硬件兼容 | 6 |
@@ -1549,7 +1556,7 @@ AI提示词表
 | 业务作用 | 保存规范化标量测量，是当前 TimescaleDB 权威遥测事实表。 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 54 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 62 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 否（迁移兼容） |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -4667,7 +4674,7 @@ Oss File
 | 业务作用 | 保存按租户和用户隔离的权威健康问答会话。 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 19 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 21 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是 |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -4890,7 +4897,7 @@ Oss File
 | 业务作用 | 保存拍照食物/OCR 的已验证结构化结果；不保存原始图片。 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 56 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 110 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是 |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -4937,7 +4944,305 @@ Oss File
 
 保存拍照食物/OCR 的已验证结构化结果；不保存原始图片。
 
-## 87. 表：`rehealth_cvd_feature_vector` CVD 特征向量表
+## 87. 表：`rehealth_care_plan` 机构干预计划主表
+
+### 基本信息
+
+| 项目 | 内容 |
+| --- | --- |
+| 表名 | `rehealth_care_plan` |
+| 中文名称 | 机构干预计划主表 |
+| 所属数据库 | `rehealth_software` |
+| 所属模块 | ReHealth 核心业务 |
+| 业务作用 | 保存按租户、机构类型和服务对象隔离的计划聚合、当前/草稿版本指针及乐观锁。 |
+| 主键 | `id` |
+| 存储引擎 | InnoDB |
+| 数据量级 | 当前本地实例约 0 行（InnoDB 统计估算，非生产容量） |
+| 是否核心表 | 是 |
+| 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
+
+### 字段
+
+| 序号 | 字段名 | 中文含义 | 类型 | 长度/精度 | 允许 NULL | 默认值 | 主键 | 自增 | 唯一 | 索引 | 公共字段 | 关联 | 枚举/约束 | 业务说明 |
+| ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `id` | Care plan primary key | `varchar(64)` | 64 | 否 | `无/NULL` | 是 | 否 | PRIMARY | PRIMARY | 是 | 否 | — | Care plan primary key |
+| 2 | `tenant_id` | Owning Jeecg tenant ID | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_current_revision、idx_care_plan_draft_revision、idx_care_plan_subject、idx_care_plan_user | 是 | 逻辑→sys_tenant.id | — | Owning Jeecg tenant ID |
+| 3 | `owner_type` | Plan owner type: insurance, medical, or personal | `varchar(32)` | 32 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_subject | 否 | 否 | Plan owner type: insurance, medical, or personal | Plan owner type: insurance, medical, or personal |
+| 4 | `owner_org_ref` | Owning organization reference; insurance currently uses tenant ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Owning organization reference; insurance currently uses tenant ID |
+| 5 | `subject_ref` | Tenant-scoped service subject reference | `char(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_subject | 否 | 否 | — | Tenant-scoped service subject reference |
+| 6 | `rehealth_user_id` | ReHealth APP user ID resolved from the trusted service relationship | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_user | 否 | 逻辑→sys_user.id | — | ReHealth APP user ID resolved from the trusted service relationship |
+| 7 | `source_plan_id` | Optional legacy or external plan identifier | `varchar(128)` | 128 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否/待确认 | — | Optional legacy or external plan identifier |
+| 8 | `status` | Plan lifecycle status: draft, active, or withdrawn | `varchar(32)` | 32 | 否 | `draft` | 否 | 否 | 否 | idx_care_plan_subject、idx_care_plan_user | 是 | 否 | Plan lifecycle status: draft, active, or withdrawn | Plan lifecycle status: draft, active, or withdrawn |
+| 9 | `current_revision_id` | Latest published revision ID; it may have a future effective time | `varchar(64)` | 64 | 是 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_current_revision | 否 | 逻辑→rehealth_care_plan_revision.id | — | Latest published revision ID; it may have a future effective time |
+| 10 | `draft_revision_id` | Single mutable draft revision ID | `varchar(64)` | 64 | 是 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_draft_revision | 否 | 逻辑→rehealth_care_plan_revision.id | — | Single mutable draft revision ID |
+| 11 | `lock_version` | Optimistic locking version for all plan mutations | `bigint` | 19,0 | 否 | `0` | 否 | 否 | 否 | 否 | 否 | 否 | — | Optimistic locking version for all plan mutations |
+| 12 | `created_by` | Authenticated creator user ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Authenticated creator user ID |
+| 13 | `created_at` | Creation time | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | — | Creation time |
+| 14 | `updated_by` | Authenticated last editor user ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Authenticated last editor user ID |
+| 15 | `updated_at` | Last update time | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_subject、idx_care_plan_user | 是 | 否 | — | Last update time |
+
+### 索引
+
+| 索引名称 | 字段 | 类型 | 作用 |
+| --- | --- | --- | --- |
+| `idx_care_plan_current_revision` | `tenant_id, current_revision_id` | 普通索引（联合） | 支持按索引字段组合查询；具体调用路径需结合 Mapper/Repository。 |
+| `idx_care_plan_draft_revision` | `tenant_id, draft_revision_id` | 普通索引（联合） | 支持按索引字段组合查询；具体调用路径需结合 Mapper/Repository。 |
+| `idx_care_plan_subject` | `tenant_id, owner_type, subject_ref, status, updated_at` | 普通索引（联合） | 支持按状态和时间扫描任务、日志或业务记录。 |
+| `idx_care_plan_user` | `tenant_id, rehealth_user_id, status, updated_at` | 普通索引（联合） | 支持按状态和时间扫描任务、日志或业务记录。 |
+| `PRIMARY` | `id` | 主键 | 保证记录唯一并支持主键定位。 |
+
+### 关联关系
+
+- `rehealth_care_plan.(tenant_id)` → `sys_tenant.(id)`：逻辑外键；租户隔离逻辑外键。
+- `rehealth_care_plan.(rehealth_user_id)` → `sys_user.(id)`：逻辑外键；认证用户逻辑外键；业务写入从 LoginUser 派生，不接受客户端指定所有者。
+- `rehealth_care_plan.(current_revision_id)` → `rehealth_care_plan_revision.(id)`：逻辑外键；当前最新已发布版本逻辑外键。
+- `rehealth_care_plan.(draft_revision_id)` → `rehealth_care_plan_revision.(id)`：逻辑外键；单一可变草稿版本逻辑外键。
+
+### 枚举与约束
+
+- `owner_type`：Plan owner type: insurance, medical, or personal。
+- `status`：Plan lifecycle status: draft, active, or withdrawn。
+
+### 业务说明
+
+保存按租户、机构类型和服务对象隔离的计划聚合、当前/草稿版本指针及乐观锁。
+
+## 88. 表：`rehealth_care_plan_audit_event` 机构干预计划审计表
+
+### 基本信息
+
+| 项目 | 内容 |
+| --- | --- |
+| 表名 | `rehealth_care_plan_audit_event` |
+| 中文名称 | 机构干预计划审计表 |
+| 所属数据库 | `rehealth_software` |
+| 所属模块 | ReHealth 核心业务 |
+| 业务作用 | 保存不含计划正文的版本生命周期操作、内容哈希和变更原因。 |
+| 主键 | `id` |
+| 存储引擎 | InnoDB |
+| 数据量级 | 当前本地实例约 0 行（InnoDB 统计估算，非生产容量） |
+| 是否核心表 | 是 |
+| 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
+
+### 字段
+
+| 序号 | 字段名 | 中文含义 | 类型 | 长度/精度 | 允许 NULL | 默认值 | 主键 | 自增 | 唯一 | 索引 | 公共字段 | 关联 | 枚举/约束 | 业务说明 |
+| ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `id` | Audit event primary key | `varchar(64)` | 64 | 否 | `无/NULL` | 是 | 否 | PRIMARY | PRIMARY | 是 | 否 | — | Audit event primary key |
+| 2 | `tenant_id` | Owning Jeecg tenant ID | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_audit_actor、idx_care_plan_audit_plan | 是 | 逻辑→sys_tenant.id | — | Owning Jeecg tenant ID |
+| 3 | `owner_type` | Plan owner type copied for audit filtering | `varchar(32)` | 32 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Plan owner type copied for audit filtering |
+| 4 | `actor_user_id` | Authenticated actor user ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_audit_actor | 否 | 否/待确认 | — | Authenticated actor user ID |
+| 5 | `action` | Version action such as create_draft, update_draft, clone_revision, publish, or withdraw | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Version action such as create_draft, update_draft, clone_revision, publish, or withdraw |
+| 6 | `plan_id` | Affected logical care plan ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_audit_plan | 否 | 逻辑→rehealth_care_plan.id | — | Affected logical care plan ID |
+| 7 | `revision_id` | Affected revision ID | `varchar(64)` | 64 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 逻辑→rehealth_care_plan_revision.id | — | Affected revision ID |
+| 8 | `before_hash` | Content hash before the action | `char(64)` | 64 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Content hash before the action |
+| 9 | `after_hash` | Content hash after the action | `char(64)` | 64 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Content hash after the action |
+| 10 | `reason` | Bounded institution-provided change or withdrawal reason | `varchar(1000)` | 1000 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Bounded institution-provided change or withdrawal reason |
+| 11 | `created_at` | Audit event creation time | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_audit_actor、idx_care_plan_audit_plan | 是 | 否 | — | Audit event creation time |
+
+### 索引
+
+| 索引名称 | 字段 | 类型 | 作用 |
+| --- | --- | --- | --- |
+| `idx_care_plan_audit_actor` | `tenant_id, actor_user_id, created_at` | 普通索引（联合） | 支持租户与用户作用域查询。 |
+| `idx_care_plan_audit_plan` | `tenant_id, plan_id, created_at` | 普通索引（联合） | 支持按业务作用域和时间范围查询或排序。 |
+| `PRIMARY` | `id` | 主键 | 保证记录唯一并支持主键定位。 |
+
+### 关联关系
+
+- `rehealth_care_plan_audit_event.(tenant_id)` → `sys_tenant.(id)`：逻辑外键；租户隔离逻辑外键。
+- `rehealth_care_plan_audit_event.(plan_id)` → `rehealth_care_plan.(id)`：逻辑外键；计划版本审计所属聚合逻辑外键。
+- `rehealth_care_plan_audit_event.(revision_id)` → `rehealth_care_plan_revision.(id)`：逻辑外键；计划版本审计目标版本逻辑外键。
+
+### 枚举与约束
+
+- 未发现数据库 CHECK 或可确认的代码枚举。
+
+### 业务说明
+
+保存不含计划正文的版本生命周期操作、内容哈希和变更原因。
+
+## 89. 表：`rehealth_care_plan_item` 机构干预计划项目表
+
+### 基本信息
+
+| 项目 | 内容 |
+| --- | --- |
+| 表名 | `rehealth_care_plan_item` |
+| 中文名称 | 机构干预计划项目表 |
+| 所属数据库 | `rehealth_software` |
+| 所属模块 | ReHealth 核心业务 |
+| 业务作用 | 保存绑定到具体版本的患者可见计划项目快照及稳定逻辑项目标识。 |
+| 主键 | `id` |
+| 存储引擎 | InnoDB |
+| 数据量级 | 当前本地实例约 0 行（InnoDB 统计估算，非生产容量） |
+| 是否核心表 | 是 |
+| 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
+
+### 字段
+
+| 序号 | 字段名 | 中文含义 | 类型 | 长度/精度 | 允许 NULL | 默认值 | 主键 | 自增 | 唯一 | 索引 | 公共字段 | 关联 | 枚举/约束 | 业务说明 |
+| ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `id` | Revision-specific plan item primary key | `varchar(64)` | 64 | 否 | `无/NULL` | 是 | 否 | PRIMARY | PRIMARY | 是 | 否 | — | Revision-specific plan item primary key |
+| 2 | `tenant_id` | Owning Jeecg tenant ID copied from the plan | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_item_logical、联合唯一:uk_care_plan_item_order | idx_care_plan_item_plan、uk_care_plan_item_logical、uk_care_plan_item_order | 是 | 逻辑→sys_tenant.id | — | Owning Jeecg tenant ID copied from the plan |
+| 3 | `plan_id` | Logical care plan ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_item_plan | 否 | 逻辑→rehealth_care_plan.id | — | Logical care plan ID |
+| 4 | `revision_id` | Revision containing this immutable item snapshot | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_item_logical、联合唯一:uk_care_plan_item_order | idx_care_plan_item_plan、uk_care_plan_item_logical、uk_care_plan_item_order | 否 | 逻辑→rehealth_care_plan_revision.id | — | Revision containing this immutable item snapshot |
+| 5 | `logical_item_id` | Stable item identity preserved when cloning a new revision | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_item_logical | uk_care_plan_item_logical | 否 | 否/待确认 | — | Stable item identity preserved when cloning a new revision |
+| 6 | `category` | Conservative intervention category such as exercise, nutrition, sleep, or follow_up | `varchar(32)` | 32 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | 具体枚举值待确认 | Conservative intervention category such as exercise, nutrition, sleep, or follow_up |
+| 7 | `title` | Patient-visible item title | `varchar(255)` | 255 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Patient-visible item title |
+| 8 | `instructions` | Patient-visible bounded execution instructions | `varchar(4000)` | 4000 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Patient-visible bounded execution instructions |
+| 9 | `schedule_json` | Structured schedule rule; expanded by a separate occurrence generator | `longtext` | 4294967295 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Structured schedule rule; expanded by a separate occurrence generator |
+| 10 | `scoring_weight` | Eligible adherence weight for each generated occurrence | `decimal(10,3)` | 10,3 | 否 | `1.000` | 否 | 否 | 否 | 否 | 否 | 否 | — | Eligible adherence weight for each generated occurrence |
+| 11 | `allow_not_applicable` | Whether the user may mark an occurrence not applicable | `tinyint(1)` | 3,0 | 否 | `1` | 否 | 否 | 否 | 否 | 否 | 否 | — | Whether the user may mark an occurrence not applicable |
+| 12 | `display_order` | Stable display order within this revision | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_item_order | uk_care_plan_item_order | 否 | 否 | — | Stable display order within this revision |
+| 13 | `created_at` | Item snapshot creation time | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | — | Item snapshot creation time |
+
+### 索引
+
+| 索引名称 | 字段 | 类型 | 作用 |
+| --- | --- | --- | --- |
+| `idx_care_plan_item_plan` | `tenant_id, plan_id, revision_id` | 普通索引（联合） | 支持按索引字段组合查询；具体调用路径需结合 Mapper/Repository。 |
+| `PRIMARY` | `id` | 主键 | 保证记录唯一并支持主键定位。 |
+| `uk_care_plan_item_logical` | `tenant_id, revision_id, logical_item_id` | 唯一索引（联合） | 保证字段组合唯一，并支持按该组合进行幂等或业务键查询。 |
+| `uk_care_plan_item_order` | `tenant_id, revision_id, display_order` | 唯一索引（联合） | 保证字段组合唯一，并支持按该组合进行幂等或业务键查询。 |
+
+### 关联关系
+
+- `rehealth_care_plan_item.(tenant_id)` → `sys_tenant.(id)`：逻辑外键；租户隔离逻辑外键。
+- `rehealth_care_plan_item.(plan_id)` → `rehealth_care_plan.(id)`：逻辑外键；计划项目所属聚合逻辑外键。
+- `rehealth_care_plan_item.(revision_id)` → `rehealth_care_plan_revision.(id)`：逻辑外键；计划项目所属不可变版本逻辑外键。
+
+### 枚举与约束
+
+- `category`：状态/类型类字段，完整枚举值待确认。
+
+### 业务说明
+
+保存绑定到具体版本的患者可见计划项目快照及稳定逻辑项目标识。
+
+## 90. 表：`rehealth_care_plan_occurrence` 机构干预任务实例表
+
+### 基本信息
+
+| 项目 | 内容 |
+| --- | --- |
+| 表名 | `rehealth_care_plan_occurrence` |
+| 中文名称 | 机构干预任务实例表 |
+| 所属数据库 | `rehealth_software` |
+| 所属模块 | ReHealth 核心业务 |
+| 业务作用 | 保存绑定计划版本和项目的到期任务实例，为后续真实依从性分母提供稳定标识。 |
+| 主键 | `id` |
+| 存储引擎 | InnoDB |
+| 数据量级 | 当前本地实例约 0 行（InnoDB 统计估算，非生产容量） |
+| 是否核心表 | 是 |
+| 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
+
+### 字段
+
+| 序号 | 字段名 | 中文含义 | 类型 | 长度/精度 | 允许 NULL | 默认值 | 主键 | 自增 | 唯一 | 索引 | 公共字段 | 关联 | 枚举/约束 | 业务说明 |
+| ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `id` | Scheduled task occurrence primary key used for feedback idempotency | `varchar(64)` | 64 | 否 | `无/NULL` | 是 | 否 | PRIMARY | PRIMARY | 是 | 否 | — | Scheduled task occurrence primary key used for feedback idempotency |
+| 2 | `tenant_id` | Owning Jeecg tenant ID copied from the plan | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_occurrence_due | idx_care_plan_occurrence_revision、idx_care_plan_occurrence_subject_due、uk_care_plan_occurrence_due | 是 | 逻辑→sys_tenant.id | — | Owning Jeecg tenant ID copied from the plan |
+| 3 | `plan_id` | Logical care plan ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 逻辑→rehealth_care_plan.id | — | Logical care plan ID |
+| 4 | `revision_id` | Published revision that generated this occurrence | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_occurrence_revision | 否 | 逻辑→rehealth_care_plan_revision.id | — | Published revision that generated this occurrence |
+| 5 | `plan_item_id` | Revision-specific item snapshot that generated this occurrence | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_occurrence_due | uk_care_plan_occurrence_due | 否 | 逻辑→rehealth_care_plan_item.id | — | Revision-specific item snapshot that generated this occurrence |
+| 6 | `logical_item_id` | Stable item identity across plan revisions | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否/待确认 | — | Stable item identity across plan revisions |
+| 7 | `subject_ref` | Tenant-scoped service subject reference | `char(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_occurrence_subject_due | 否 | 否 | — | Tenant-scoped service subject reference |
+| 8 | `scheduled_at` | Scheduled execution time in normalized server time | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_occurrence_due | idx_care_plan_occurrence_revision、uk_care_plan_occurrence_due | 否 | 否 | — | Scheduled execution time in normalized server time |
+| 9 | `due_at` | Due time used by adherence window calculation | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_occurrence_subject_due | 否 | 否 | — | Due time used by adherence window calculation |
+| 10 | `status` | Occurrence status: scheduled or cancelled; execution facts are stored separately | `varchar(32)` | 32 | 否 | `scheduled` | 否 | 否 | 否 | idx_care_plan_occurrence_revision、idx_care_plan_occurrence_subject_due | 是 | 否 | Occurrence status: scheduled or cancelled; execution facts are stored separately | Occurrence status: scheduled or cancelled; execution facts are stored separately |
+| 11 | `exclusion_reason` | Reason a cancelled occurrence is excluded from adherence | `varchar(128)` | 128 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Reason a cancelled occurrence is excluded from adherence |
+| 12 | `created_at` | Occurrence creation time | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | — | Occurrence creation time |
+| 13 | `updated_at` | Occurrence last update time | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | — | Occurrence last update time |
+
+### 索引
+
+| 索引名称 | 字段 | 类型 | 作用 |
+| --- | --- | --- | --- |
+| `idx_care_plan_occurrence_revision` | `tenant_id, revision_id, status, scheduled_at` | 普通索引（联合） | 支持按状态和时间扫描任务、日志或业务记录。 |
+| `idx_care_plan_occurrence_subject_due` | `tenant_id, subject_ref, status, due_at` | 普通索引（联合） | 支持按状态和时间扫描任务、日志或业务记录。 |
+| `PRIMARY` | `id` | 主键 | 保证记录唯一并支持主键定位。 |
+| `uk_care_plan_occurrence_due` | `tenant_id, plan_item_id, scheduled_at` | 唯一索引（联合） | 保证字段组合唯一，并支持按该组合进行幂等或业务键查询。 |
+
+### 关联关系
+
+- `rehealth_care_plan_occurrence.(tenant_id)` → `sys_tenant.(id)`：逻辑外键；租户隔离逻辑外键。
+- `rehealth_care_plan_occurrence.(plan_id)` → `rehealth_care_plan.(id)`：逻辑外键；任务实例所属计划逻辑外键。
+- `rehealth_care_plan_occurrence.(revision_id)` → `rehealth_care_plan_revision.(id)`：逻辑外键；任务实例生成版本逻辑外键。
+- `rehealth_care_plan_occurrence.(plan_item_id)` → `rehealth_care_plan_item.(id)`：逻辑外键；任务实例生成项目逻辑外键。
+
+### 枚举与约束
+
+- `status`：Occurrence status: scheduled or cancelled; execution facts are stored separately。
+
+### 业务说明
+
+保存绑定计划版本和项目的到期任务实例，为后续真实依从性分母提供稳定标识。
+
+## 91. 表：`rehealth_care_plan_revision` 机构干预计划版本表
+
+### 基本信息
+
+| 项目 | 内容 |
+| --- | --- |
+| 表名 | `rehealth_care_plan_revision` |
+| 中文名称 | 机构干预计划版本表 |
+| 所属数据库 | `rehealth_software` |
+| 所属模块 | ReHealth 核心业务 |
+| 业务作用 | 保存草稿、已发布和已撤回的计划版本；已发布内容不可原地覆盖。 |
+| 主键 | `id` |
+| 存储引擎 | InnoDB |
+| 数据量级 | 当前本地实例约 0 行（InnoDB 统计估算，非生产容量） |
+| 是否核心表 | 是 |
+| 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
+
+### 字段
+
+| 序号 | 字段名 | 中文含义 | 类型 | 长度/精度 | 允许 NULL | 默认值 | 主键 | 自增 | 唯一 | 索引 | 公共字段 | 关联 | 枚举/约束 | 业务说明 |
+| ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `id` | Revision primary key | `varchar(64)` | 64 | 否 | `无/NULL` | 是 | 否 | PRIMARY | PRIMARY | 是 | 否 | — | Revision primary key |
+| 2 | `tenant_id` | Owning Jeecg tenant ID copied from the plan | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_revision_no | idx_care_plan_revision_effective、idx_care_plan_revision_hash、uk_care_plan_revision_no | 是 | 逻辑→sys_tenant.id | — | Owning Jeecg tenant ID copied from the plan |
+| 3 | `plan_id` | Logical care plan ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_revision_no | idx_care_plan_revision_effective、uk_care_plan_revision_no | 否 | 逻辑→rehealth_care_plan.id | — | Logical care plan ID |
+| 4 | `revision_no` | Monotonically increasing revision number within the plan | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_revision_no | uk_care_plan_revision_no | 否 | 否 | — | Monotonically increasing revision number within the plan |
+| 5 | `status` | Revision status: draft, published, or withdrawn | `varchar(32)` | 32 | 否 | `draft` | 否 | 否 | 否 | idx_care_plan_revision_effective | 是 | 否 | Revision status: draft, published, or withdrawn | Revision status: draft, published, or withdrawn |
+| 6 | `title` | Patient-visible plan title | `varchar(255)` | 255 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Patient-visible plan title |
+| 7 | `summary` | Patient-visible bounded plan summary | `varchar(2000)` | 2000 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Patient-visible bounded plan summary |
+| 8 | `change_reason` | Institution-provided reason for this revision | `varchar(1000)` | 1000 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Institution-provided reason for this revision |
+| 9 | `content_hash` | SHA-256 of revision metadata and ordered items | `char(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_revision_hash | 否 | 否 | — | SHA-256 of revision metadata and ordered items |
+| 10 | `effective_from` | Inclusive effective time set on publication | `datetime(3)` | 不适用 | 是 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_revision_effective | 否 | 否 | — | Inclusive effective time set on publication |
+| 11 | `effective_to` | Exclusive effective time set by a newer revision or withdrawal | `datetime(3)` | 不适用 | 是 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_revision_effective | 否 | 否 | — | Exclusive effective time set by a newer revision or withdrawal |
+| 12 | `published_by` | Authenticated publisher user ID | `varchar(64)` | 64 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Authenticated publisher user ID |
+| 13 | `published_at` | Publication time | `datetime(3)` | 不适用 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Publication time |
+| 14 | `withdrawn_by` | Authenticated user that withdrew this revision | `varchar(64)` | 64 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Authenticated user that withdrew this revision |
+| 15 | `withdrawn_at` | Withdrawal time | `datetime(3)` | 不适用 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Withdrawal time |
+| 16 | `created_by` | Authenticated revision creator user ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Authenticated revision creator user ID |
+| 17 | `created_at` | Revision creation time | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | — | Revision creation time |
+| 18 | `updated_by` | Authenticated last draft editor user ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Authenticated last draft editor user ID |
+| 19 | `updated_at` | Revision last update time | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | — | Revision last update time |
+
+### 索引
+
+| 索引名称 | 字段 | 类型 | 作用 |
+| --- | --- | --- | --- |
+| `idx_care_plan_revision_effective` | `tenant_id, plan_id, status, effective_from, effective_to` | 普通索引（联合） | 支持按状态和时间扫描任务、日志或业务记录。 |
+| `idx_care_plan_revision_hash` | `tenant_id, content_hash` | 普通索引（联合） | 支持按索引字段组合查询；具体调用路径需结合 Mapper/Repository。 |
+| `PRIMARY` | `id` | 主键 | 保证记录唯一并支持主键定位。 |
+| `uk_care_plan_revision_no` | `tenant_id, plan_id, revision_no` | 唯一索引（联合） | 保证字段组合唯一，并支持按该组合进行幂等或业务键查询。 |
+
+### 关联关系
+
+- `rehealth_care_plan_revision.(tenant_id)` → `sys_tenant.(id)`：逻辑外键；租户隔离逻辑外键。
+- `rehealth_care_plan_revision.(plan_id)` → `rehealth_care_plan.(id)`：逻辑外键；计划版本所属聚合逻辑外键。
+
+### 枚举与约束
+
+- `status`：Revision status: draft, published, or withdrawn。
+
+### 业务说明
+
+保存草稿、已发布和已撤回的计划版本；已发布内容不可原地覆盖。
+
+## 92. 表：`rehealth_cvd_feature_vector` CVD 特征向量表
 
 ### 基本信息
 
@@ -4950,7 +5255,7 @@ Oss File
 | 业务作用 | 保存一次 CVD-16 评估使用的版本化特征向量和质量证据。 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 411 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 414 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是 |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -4987,7 +5292,7 @@ Oss File
 
 保存一次 CVD-16 评估使用的版本化特征向量和质量证据。
 
-## 88. 表：`rehealth_cvd_risk_result` CVD 风险结果表
+## 93. 表：`rehealth_cvd_risk_result` CVD 风险结果表
 
 ### 基本信息
 
@@ -5000,7 +5305,7 @@ Oss File
 | 业务作用 | 保存模型风险分数、等级、模型贡献、Factor16 贡献、警告和模型版本。 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 383 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 400 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是 |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -5055,7 +5360,7 @@ Oss File
 
 保存模型风险分数、等级、模型贡献、Factor16 贡献、警告和模型版本。
 
-## 89. 表：`rehealth_device_binding` 用户设备绑定表
+## 94. 表：`rehealth_device_binding` 用户设备绑定表
 
 ### 基本信息
 
@@ -5068,7 +5373,7 @@ Oss File
 | 业务作用 | 保存认证用户与产品、稳定设备身份及状态的绑定关系。 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 19 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 39 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是 |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -5109,7 +5414,7 @@ Oss File
 
 保存认证用户与产品、稳定设备身份及状态的绑定关系。
 
-## 90. 表：`rehealth_health_interview` 健康访谈主表
+## 95. 表：`rehealth_health_interview` 健康访谈主表
 
 ### 基本信息
 
@@ -5156,7 +5461,7 @@ Oss File
 
 保存认证用户每次结构化健康访谈的主记录和兼容 JSON 快照。
 
-## 91. 表：`rehealth_health_interview_answer` 健康访谈回答表
+## 96. 表：`rehealth_health_interview_answer` 健康访谈回答表
 
 ### 基本信息
 
@@ -5203,7 +5508,7 @@ Oss File
 
 保存访谈下的有序问答明细。
 
-## 92. 表：`rehealth_health_interview_baseline` 健康访谈基线表
+## 97. 表：`rehealth_health_interview_baseline` 健康访谈基线表
 
 ### 基本信息
 
@@ -5249,7 +5554,7 @@ Oss File
 
 保存访谈提取的有序健康基线指标。
 
-## 93. 表：`rehealth_health_interview_focus` 健康访谈关注项表
+## 98. 表：`rehealth_health_interview_focus` 健康访谈关注项表
 
 ### 基本信息
 
@@ -5294,7 +5599,7 @@ Oss File
 
 保存访谈识别出的重点健康关注项。
 
-## 94. 表：`rehealth_insurance_audit_event` 保险操作审计表
+## 99. 表：`rehealth_insurance_audit_event` 保险操作审计表
 
 ### 基本信息
 
@@ -5307,7 +5612,7 @@ Oss File
 | 业务作用 | 保存租户内保险资源操作的不可变审计事件和前后哈希。 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 59 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 140 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是（保险域） |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -5348,7 +5653,7 @@ Oss File
 
 保存租户内保险资源操作的不可变审计事件和前后哈希。
 
-## 95. 表：`rehealth_insurance_claim` 保险理赔表
+## 100. 表：`rehealth_insurance_claim` 保险理赔表
 
 ### 基本信息
 
@@ -5361,7 +5666,7 @@ Oss File
 | 业务作用 | 保存理赔事件、金额、状态和保障代码。 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 31 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 49 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是（保险域） |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -5416,7 +5721,7 @@ Oss File
 
 保存理赔事件、金额、状态和保障代码。
 
-## 96. 表：`rehealth_insurance_consent` 保险授权同意表
+## 101. 表：`rehealth_insurance_consent` 保险授权同意表
 
 ### 基本信息
 
@@ -5429,7 +5734,7 @@ Oss File
 | 业务作用 | 保存主体按类型和版本授予或撤销的授权及证据哈希。 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 30 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 48 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是（保险域） |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -5475,7 +5780,7 @@ Oss File
 
 保存主体按类型和版本授予或撤销的授权及证据哈希。
 
-## 97. 表：`rehealth_insurance_coverage` 保险保障责任表
+## 102. 表：`rehealth_insurance_coverage` 保险保障责任表
 
 ### 基本信息
 
@@ -5488,7 +5793,7 @@ Oss File
 | 业务作用 | 保存保单下的保障代码、限额、免赔额和有效期。 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 30 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 48 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是（保险域） |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -5536,7 +5841,7 @@ Oss File
 
 保存保单下的保障代码、限额、免赔额和有效期。
 
-## 98. 表：`rehealth_insurance_import_batch` 待确认
+## 103. 表：`rehealth_insurance_import_batch` 待确认
 
 ### 基本信息
 
@@ -5592,7 +5897,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 99. 表：`rehealth_insurance_intervention` 保险干预参与表
+## 104. 表：`rehealth_insurance_intervention` 保险干预参与表
 
 ### 基本信息
 
@@ -5605,7 +5910,7 @@ Oss File
 | 业务作用 | 保存主体加入健康干预计划的状态与反馈时间。 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 24 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 42 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是（保险域） |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -5652,7 +5957,7 @@ Oss File
 
 保存主体加入健康干预计划的状态与反馈时间。
 
-## 100. 表：`rehealth_insurance_intervention_action` 保险人工干预行动表
+## 105. 表：`rehealth_insurance_intervention_action` 保险人工干预行动表
 
 ### 基本信息
 
@@ -5665,7 +5970,7 @@ Oss File
 | 业务作用 | 保存租户和负责人范围内的随访、任务与人工复核行动及完成结果。 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 1 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 116 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是（保险域） |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -5712,7 +6017,7 @@ Oss File
 
 保存租户和负责人范围内的随访、任务与人工复核行动及完成结果。
 
-## 101. 表：`rehealth_insurance_intervention_feedback` 待确认
+## 106. 表：`rehealth_insurance_intervention_feedback` 待确认
 
 ### 基本信息
 
@@ -5725,7 +6030,7 @@ Oss File
 | 业务作用 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 18 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 108 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是（保险域） |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -5734,24 +6039,30 @@ Oss File
 | 序号 | 字段名 | 中文含义 | 类型 | 长度/精度 | 允许 NULL | 默认值 | 主键 | 自增 | 唯一 | 索引 | 公共字段 | 关联 | 枚举/约束 | 业务说明 |
 | ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | `id` | 主键 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 是 | 否 | PRIMARY | PRIMARY | 是 | 否 | — | 当前表记录的唯一标识；生成方式需结合列类型和写入代码判断。 |
-| 2 | `tenant_id` | 租户 ID | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_insurance_feedback_source | idx_insurance_feedback_binding、idx_insurance_feedback_subject、uk_insurance_feedback_source | 是 | 逻辑→sys_tenant.id | — | 用于多租户数据隔离；通常逻辑关联 sys_tenant.id。 |
-| 3 | `binding_id` | 待确认 | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_insurance_feedback_binding | 否 | 否/待确认 | — | 数据库 COMMENT、约束和扫描到的代码注释不足以确认该字段业务语义，待确认。 |
+| 2 | `tenant_id` | 租户 ID | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_insurance_feedback_source | idx_insurance_feedback_binding、idx_insurance_feedback_item_period、idx_insurance_feedback_subject、uk_insurance_feedback_source | 是 | 逻辑→sys_tenant.id | — | 用于多租户数据隔离；通常逻辑关联 sys_tenant.id。 |
+| 3 | `binding_id` | 待确认 | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_insurance_feedback_binding、idx_insurance_feedback_item_period | 否 | 否/待确认 | — | 数据库 COMMENT、约束和扫描到的代码注释不足以确认该字段业务语义，待确认。 |
 | 4 | `subject_ref` | 去标识保险主体引用 | `char(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_insurance_feedback_subject | 否 | 逻辑→rehealth_insurance_subject.subject_ref | — | 租户内稳定的去标识主体引用，不保存直接患者标识。 |
 | 5 | `intervention_id` | 干预行动 ID | `varchar(128)` | 128 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否/待确认 | — | 标识用户反馈所针对的具体干预行动。 |
-| 6 | `feedback_type` | 待确认 | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 数据库 COMMENT、约束和扫描到的代码注释不足以确认该字段业务语义，待确认。 |
-| 7 | `occurred_at` | 时间 | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | idx_insurance_feedback_binding、idx_insurance_feedback_subject | 否 | 否 | — | 该字段记录的具体业务事件时间待确认。 |
-| 8 | `completion_rate` | 待确认 | `decimal(8,6)` | 8,6 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 数据库 COMMENT、约束和扫描到的代码注释不足以确认该字段业务语义，待确认。 |
-| 9 | `adherence_score` | 待确认 | `decimal(8,6)` | 8,6 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 数据库 COMMENT、约束和扫描到的代码注释不足以确认该字段业务语义，待确认。 |
-| 10 | `outcome_summary_json` | JSON 快照 | `longtext` | 4294967295 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 保存结构化 JSON；具体对象语义需结合本表用途和版本字段确认。 |
-| 11 | `source_system` | 来源系统 | `varchar(64)` | 64 | 否 | `rehealth_app` | 否 | 否 | 联合唯一:uk_insurance_feedback_source | uk_insurance_feedback_source | 否 | 否 | — | 标识记录来自哪个受信业务系统。 |
-| 12 | `source_record_id` | 来源记录 ID | `varchar(128)` | 128 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_insurance_feedback_source | uk_insurance_feedback_source | 否 | 否/待确认 | — | 上游数据源中的稳定记录标识，通常参与幂等唯一约束。 |
-| 13 | `created_at` | 创建时间 | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | — | 记录首次创建时间。 |
+| 6 | `plan_item_id` | 待确认 | `varchar(128)` | 128 | 是 | `无/NULL` | 否 | 否 | 否 | idx_insurance_feedback_item_period | 否 | 否/待确认 | — | 数据库 COMMENT、约束和扫描到的代码注释不足以确认该字段业务语义，待确认。 |
+| 7 | `feedback_type` | 待确认 | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 数据库 COMMENT、约束和扫描到的代码注释不足以确认该字段业务语义，待确认。 |
+| 8 | `occurred_at` | 时间 | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | idx_insurance_feedback_binding、idx_insurance_feedback_item_period、idx_insurance_feedback_subject | 否 | 否 | — | 该字段记录的具体业务事件时间待确认。 |
+| 9 | `completion_rate` | 待确认 | `decimal(8,6)` | 8,6 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 数据库 COMMENT、约束和扫描到的代码注释不足以确认该字段业务语义，待确认。 |
+| 10 | `adherence_score` | 待确认 | `decimal(8,6)` | 8,6 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 数据库 COMMENT、约束和扫描到的代码注释不足以确认该字段业务语义，待确认。 |
+| 11 | `expected_count` | 数量 | `decimal(10,3)` | 10,3 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 当前表业务对象的计数值；具体计数口径待确认。 |
+| 12 | `completed_count` | 数量 | `decimal(10,3)` | 10,3 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 当前表业务对象的计数值；具体计数口径待确认。 |
+| 13 | `verification_type` | 待确认 | `varchar(32)` | 32 | 否 | `self_report` | 否 | 否 | 否 | 否 | 否 | 否 | — | 数据库 COMMENT、约束和扫描到的代码注释不足以确认该字段业务语义，待确认。 |
+| 14 | `calculation_version` | 版本 | `varchar(64)` | 64 | 否 | `legacy-client-score` | 否 | 否 | 否 | 否 | 否 | 否 | — | 保存对应对象、契约或算法版本；具体版本规则待确认。 |
+| 15 | `outcome_summary_json` | JSON 快照 | `longtext` | 4294967295 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 保存结构化 JSON；具体对象语义需结合本表用途和版本字段确认。 |
+| 16 | `source_system` | 来源系统 | `varchar(64)` | 64 | 否 | `rehealth_app` | 否 | 否 | 联合唯一:uk_insurance_feedback_source | uk_insurance_feedback_source | 否 | 否 | — | 标识记录来自哪个受信业务系统。 |
+| 17 | `source_record_id` | 来源记录 ID | `varchar(128)` | 128 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_insurance_feedback_source | uk_insurance_feedback_source | 否 | 否/待确认 | — | 上游数据源中的稳定记录标识，通常参与幂等唯一约束。 |
+| 18 | `created_at` | 创建时间 | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | — | 记录首次创建时间。 |
 
 ### 索引
 
 | 索引名称 | 字段 | 类型 | 作用 |
 | --- | --- | --- | --- |
 | `idx_insurance_feedback_binding` | `tenant_id, binding_id, occurred_at` | 普通索引（联合） | 支持按索引字段组合查询；具体调用路径需结合 Mapper/Repository。 |
+| `idx_insurance_feedback_item_period` | `tenant_id, binding_id, plan_item_id, occurred_at` | 普通索引（联合） | 支持按索引字段组合查询；具体调用路径需结合 Mapper/Repository。 |
 | `idx_insurance_feedback_subject` | `tenant_id, subject_ref, occurred_at` | 普通索引（联合） | 支持按索引字段组合查询；具体调用路径需结合 Mapper/Repository。 |
 | `PRIMARY` | `id` | 主键 | 保证记录唯一并支持主键定位。 |
 | `uk_insurance_feedback_source` | `tenant_id, source_system, source_record_id` | 唯一索引（联合） | 保证字段组合唯一，并支持按该组合进行幂等或业务键查询。 |
@@ -5769,7 +6080,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 102. 表：`rehealth_insurance_plan_binding` 待确认
+## 107. 表：`rehealth_insurance_plan_binding` 待确认
 
 ### 基本信息
 
@@ -5782,7 +6093,7 @@ Oss File
 | 业务作用 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 18 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 36 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是（保险域） |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -5827,7 +6138,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 103. 表：`rehealth_insurance_policy` 保险保单表
+## 108. 表：`rehealth_insurance_policy` 保险保单表
 
 ### 基本信息
 
@@ -5840,7 +6151,7 @@ Oss File
 | 业务作用 | 保存租户内保单、产品、金额、期限和被保主体引用。 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 31 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 49 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是（保险域） |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -5891,7 +6202,7 @@ Oss File
 
 保存租户内保单、产品、金额、期限和被保主体引用。
 
-## 104. 表：`rehealth_insurance_rwe_report` 真实世界证据报告表
+## 109. 表：`rehealth_insurance_rwe_report` 真实世界证据报告表
 
 ### 基本信息
 
@@ -5953,7 +6264,7 @@ Oss File
 
 保存版本化 RWE 报告及审批证据。
 
-## 105. 表：`rehealth_insurance_settlement_approval` 保险结算审批记录表
+## 110. 表：`rehealth_insurance_settlement_approval` 保险结算审批记录表
 
 ### 基本信息
 
@@ -6004,7 +6315,7 @@ Oss File
 
 保存结算包的审批动作、意见和请求幂等键。
 
-## 106. 表：`rehealth_insurance_settlement_package` 保险结算包表
+## 111. 表：`rehealth_insurance_settlement_package` 保险结算包表
 
 ### 基本信息
 
@@ -6067,7 +6378,7 @@ Oss File
 
 保存由研究和报告形成的版本化结算证据包。
 
-## 107. 表：`rehealth_insurance_study` 保险研究定义表
+## 112. 表：`rehealth_insurance_study` 保险研究定义表
 
 ### 基本信息
 
@@ -6127,7 +6438,7 @@ Oss File
 
 保存真实世界研究人群、干预、结局规则和审批状态。
 
-## 108. 表：`rehealth_insurance_study_job` 待确认
+## 113. 表：`rehealth_insurance_study_job` 待确认
 
 ### 基本信息
 
@@ -6185,7 +6496,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 109. 表：`rehealth_insurance_study_member` 保险研究成员表
+## 114. 表：`rehealth_insurance_study_member` 保险研究成员表
 
 ### 基本信息
 
@@ -6240,7 +6551,7 @@ Oss File
 
 保存研究快照中的去标识主体、队列分组和结局值。
 
-## 110. 表：`rehealth_insurance_study_result` 保险研究结果表
+## 115. 表：`rehealth_insurance_study_result` 保险研究结果表
 
 ### 基本信息
 
@@ -6300,7 +6611,7 @@ Oss File
 
 保存 PSM/真实世界研究估计、区间、平衡和成本结果。
 
-## 111. 表：`rehealth_insurance_study_snapshot` 保险研究快照表
+## 116. 表：`rehealth_insurance_study_snapshot` 保险研究快照表
 
 ### 基本信息
 
@@ -6313,7 +6624,7 @@ Oss File
 | 业务作用 | 保存研究人群不可变快照、来源水位和内容哈希。 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 3 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 2 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是（保险域） |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -6357,7 +6668,7 @@ Oss File
 
 保存研究人群不可变快照、来源水位和内容哈希。
 
-## 112. 表：`rehealth_insurance_subject` 保险业务主体表
+## 117. 表：`rehealth_insurance_subject` 保险业务主体表
 
 ### 基本信息
 
@@ -6370,7 +6681,7 @@ Oss File
 | 业务作用 | 保存租户隔离、去标识化的保险主体与 ReHealth 用户映射。 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 31 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 49 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是（保险域） |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -6417,7 +6728,7 @@ Oss File
 
 保存租户隔离、去标识化的保险主体与 ReHealth 用户映射。
 
-## 113. 表：`rehealth_insurance_subject_manager` 待确认
+## 118. 表：`rehealth_insurance_subject_manager` 待确认
 
 ### 基本信息
 
@@ -6430,7 +6741,7 @@ Oss File
 | 业务作用 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 60 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 132 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是（保险域） |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -6470,7 +6781,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 114. 表：`rehealth_insurance_tenant_profile` 待确认
+## 119. 表：`rehealth_insurance_tenant_profile` 待确认
 
 ### 基本信息
 
@@ -6525,7 +6836,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 115. 表：`rehealth_intervention_contraindication` 干预禁忌表
+## 120. 表：`rehealth_intervention_contraindication` 干预禁忌表
 
 ### 基本信息
 
@@ -6570,7 +6881,7 @@ Oss File
 
 保存某次干预计划包含的有序禁忌与安全限制。
 
-## 116. 表：`rehealth_intervention_feedback` 干预反馈表
+## 121. 表：`rehealth_intervention_feedback` 干预反馈表
 
 ### 基本信息
 
@@ -6583,7 +6894,7 @@ Oss File
 | 业务作用 | 保存用户对具体干预计划/行动的完成、跳过或不适用反馈。 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 21 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 82 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是 |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -6625,7 +6936,7 @@ Oss File
 
 保存用户对具体干预计划/行动的完成、跳过或不适用反馈。
 
-## 117. 表：`rehealth_intervention_plan` 健康干预计划表
+## 122. 表：`rehealth_intervention_plan` 健康干预计划表
 
 ### 基本信息
 
@@ -6638,7 +6949,7 @@ Oss File
 | 业务作用 | 保存基于权威画像、风险和设备行为上下文生成的结构化保守干预计划。 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 23 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 44 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是 |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -6684,7 +6995,7 @@ Oss File
 
 保存基于权威画像、风险和设备行为上下文生成的结构化保守干预计划。
 
-## 118. 表：`rehealth_model_request_log` 模型请求审计表
+## 123. 表：`rehealth_model_request_log` 模型请求审计表
 
 ### 基本信息
 
@@ -6734,7 +7045,7 @@ Oss File
 
 保存不含原始 PII/遥测的模型调用元数据、状态、耗时和错误码。
 
-## 119. 表：`rehealth_patient_allergy` 患者过敏史表
+## 124. 表：`rehealth_patient_allergy` 患者过敏史表
 
 ### 基本信息
 
@@ -6780,7 +7091,7 @@ Oss File
 
 保存健康档案下的有序过敏条目。
 
-## 120. 表：`rehealth_patient_diagnosis` 患者诊断史表
+## 125. 表：`rehealth_patient_diagnosis` 患者诊断史表
 
 ### 基本信息
 
@@ -6826,7 +7137,7 @@ Oss File
 
 保存健康档案下的有序诊断史条目。
 
-## 121. 表：`rehealth_patient_medication` 患者用药史表
+## 126. 表：`rehealth_patient_medication` 患者用药史表
 
 ### 基本信息
 
@@ -6872,7 +7183,7 @@ Oss File
 
 保存健康档案下的有序用药条目。
 
-## 122. 表：`rehealth_patient_profile` 患者健康档案表
+## 127. 表：`rehealth_patient_profile` 患者健康档案表
 
 ### 基本信息
 
@@ -6885,7 +7196,7 @@ Oss File
 | 业务作用 | 保存认证用户的类型化健康档案、BMI 和乐观锁版本。 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 27 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 52 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是 |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -6930,7 +7241,117 @@ Oss File
 
 保存认证用户的类型化健康档案、BMI 和乐观锁版本。
 
-## 123. 表：`rehealth_rhi_daily_snapshot` 云端 RHI 每日聚合快照表
+## 128. 表：`rehealth_rdi_contribution` 待确认
+
+### 基本信息
+
+| 项目 | 内容 |
+| --- | --- |
+| 表名 | `rehealth_rdi_contribution` |
+| 中文名称 | 待确认 |
+| 所属数据库 | `rehealth_software` |
+| 所属模块 | ReHealth 核心业务 |
+| 业务作用 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 |
+| 主键 | `id` |
+| 存储引擎 | InnoDB |
+| 数据量级 | 当前本地实例约 712 行（InnoDB 统计估算，非生产容量） |
+| 是否核心表 | 是 |
+| 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
+
+### 字段
+
+| 序号 | 字段名 | 中文含义 | 类型 | 长度/精度 | 允许 NULL | 默认值 | 主键 | 自增 | 唯一 | 索引 | 公共字段 | 关联 | 枚举/约束 | 业务说明 |
+| ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `id` | 主键 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 是 | 否 | PRIMARY | PRIMARY | 是 | 否 | — | 当前表记录的唯一标识；生成方式需结合列类型和写入代码判断。 |
+| 2 | `snapshot_id` | 快照记录 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_rdi_contribution_snapshot_factor | idx_rdi_contribution_snapshot_points、uk_rdi_contribution_snapshot_factor | 否 | 物理→rehealth_rdi_daily_snapshot.id | — | 逻辑关联本业务域的快照主记录。 |
+| 3 | `factor_code` | 因素编码 | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_rdi_contribution_snapshot_factor | uk_rdi_contribution_snapshot_factor | 否 | 否 | — | RDI 因素的稳定代码。 |
+| 4 | `domain_code` | 待确认 | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 数据库 COMMENT、约束和扫描到的代码注释不足以确认该字段业务语义，待确认。 |
+| 5 | `source_code` | 待确认 | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 数据库 COMMENT、约束和扫描到的代码注释不足以确认该字段业务语义，待确认。 |
+| 6 | `current_value` | 当前值 | `decimal(16,6)` | 16,6 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 当前因素或指标参与计算时使用的实际值。 |
+| 7 | `baseline_value` | 基线值 | `decimal(16,6)` | 16,6 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 用于与当前值比较的个人或研究基线值。 |
+| 8 | `unit` | 计量单位 | `varchar(32)` | 32 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 说明数值字段采用的计量单位，解释数值时必须同时读取。 |
+| 9 | `raw_points` | 原始贡献分 | `decimal(10,6)` | 10,6 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 乘入置信度等修正前的因素贡献分。 |
+| 10 | `confidence` | 置信度 | `decimal(8,6)` | 8,6 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 当前特征、因素、识别结果或计划的可信程度。 |
+| 11 | `final_points` | 最终贡献分 | `decimal(10,6)` | 10,6 | 否 | `无/NULL` | 否 | 否 | 否 | idx_rdi_contribution_snapshot_points | 否 | 否 | — | 考虑置信度和规则修正后实际使用的贡献分。 |
+| 12 | `source_factor_id` | 来源因素 ID | `varchar(255)` | 255 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否/待确认 | — | 关联产生当前贡献的稳定来源因素。 |
+| 13 | `algorithm_version` | 算法版本 | `varchar(128)` | 128 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 产生当前规则或算法结果的版本标识。 |
+| 14 | `created_at` | 创建时间 | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | — | 记录首次创建时间。 |
+
+### 索引
+
+| 索引名称 | 字段 | 类型 | 作用 |
+| --- | --- | --- | --- |
+| `idx_rdi_contribution_snapshot_points` | `snapshot_id, final_points` | 普通索引（联合） | 支持按索引字段组合查询；具体调用路径需结合 Mapper/Repository。 |
+| `PRIMARY` | `id` | 主键 | 保证记录唯一并支持主键定位。 |
+| `uk_rdi_contribution_snapshot_factor` | `snapshot_id, factor_code` | 唯一索引（联合） | 保证字段组合唯一，并支持按该组合进行幂等或业务键查询。 |
+
+### 关联关系
+
+- `rehealth_rdi_contribution.(snapshot_id)` → `rehealth_rdi_daily_snapshot.(id)`：物理外键；ON DELETE CASCADE。
+
+### 枚举与约束
+
+- 未发现数据库 CHECK 或可确认的代码枚举。
+
+### 业务说明
+
+数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
+
+## 129. 表：`rehealth_rdi_daily_snapshot` 待确认
+
+### 基本信息
+
+| 项目 | 内容 |
+| --- | --- |
+| 表名 | `rehealth_rdi_daily_snapshot` |
+| 中文名称 | 待确认 |
+| 所属数据库 | `rehealth_software` |
+| 所属模块 | ReHealth 核心业务 |
+| 业务作用 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 |
+| 主键 | `id` |
+| 存储引擎 | InnoDB |
+| 数据量级 | 当前本地实例约 239 行（InnoDB 统计估算，非生产容量） |
+| 是否核心表 | 是 |
+| 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
+
+### 字段
+
+| 序号 | 字段名 | 中文含义 | 类型 | 长度/精度 | 允许 NULL | 默认值 | 主键 | 自增 | 唯一 | 索引 | 公共字段 | 关联 | 枚举/约束 | 业务说明 |
+| ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `id` | 主键 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 是 | 否 | PRIMARY | PRIMARY | 是 | 否 | — | 当前表记录的唯一标识；生成方式需结合列类型和写入代码判断。 |
+| 2 | `user_id` | 用户 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_rdi_daily_user_date | idx_rdi_daily_user_updated、uk_rdi_daily_user_date | 是 | 逻辑→sys_user.id | — | 当前记录所属认证用户的内部标识，通常逻辑关联 sys_user.id。 |
+| 3 | `scored_on` | 评分日期 | `date` | 不适用 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_rdi_daily_user_date | idx_rdi_daily_user_updated、uk_rdi_daily_user_date | 否 | 否 | — | 评分所属本地自然日，使用 ISO-8601 日期。 |
+| 4 | `raw_score` | 原始分数 | `decimal(8,4)` | 8,4 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 平滑或展示转换前的当日算法分数。 |
+| 5 | `display_score` | 展示分数 | `decimal(8,4)` | 8,4 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 经过规定平滑后用于产品展示的分数。 |
+| 6 | `data_confidence` | 数据可信度 | `decimal(8,6)` | 8,6 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 算法对当前输入覆盖和质量的综合可信度。 |
+| 7 | `status` | 状态 | `varchar(32)` | 32 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | 具体枚举值待确认 | 状态字段；具体枚举优先以数据库 CHECK、字段注释或业务代码为准。 |
+| 8 | `is_mock` | 是否模拟数据 | `tinyint(1)` | 3,0 | 否 | `0` | 否 | 否 | 否 | 否 | 否 | 否 | — | 明确标识结果是否来自 Mock/合成路径；生产结果不得为真。 |
+| 9 | `algorithm_version` | 算法版本 | `varchar(128)` | 128 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 产生当前规则或算法结果的版本标识。 |
+| 10 | `calculation_source` | 计算来源 | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 标识当前 RHI 快照由哪个受控计算路径产生。 |
+| 11 | `created_at` | 创建时间 | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | — | 记录首次创建时间。 |
+| 12 | `updated_at` | 更新时间 | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | idx_rdi_daily_user_updated | 是 | 否 | — | 记录最后更新时间；部分表用于客户端与服务端新旧副本合并。 |
+
+### 索引
+
+| 索引名称 | 字段 | 类型 | 作用 |
+| --- | --- | --- | --- |
+| `idx_rdi_daily_user_updated` | `user_id, scored_on, updated_at` | 普通索引（联合） | 支持按业务作用域和时间范围查询或排序。 |
+| `PRIMARY` | `id` | 主键 | 保证记录唯一并支持主键定位。 |
+| `uk_rdi_daily_user_date` | `user_id, scored_on` | 唯一索引（联合） | 保证字段组合唯一，并支持按该组合进行幂等或业务键查询。 |
+
+### 关联关系
+
+- `rehealth_rdi_daily_snapshot.(user_id)` → `sys_user.(id)`：逻辑外键；认证用户逻辑外键；业务写入从 LoginUser 派生，不接受客户端指定所有者。
+
+### 枚举与约束
+
+- `status`：状态/类型类字段，完整枚举值待确认。
+
+### 业务说明
+
+数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
+
+## 130. 表：`rehealth_rhi_daily_snapshot` 云端 RHI 每日聚合快照表
 
 ### 基本信息
 
@@ -6943,7 +7364,7 @@ Oss File
 | 业务作用 | 保存认证用户从 App 上传的日级 RHI 分数、领域、特征与质量聚合快照；不保存原始遥测。 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 0 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 329 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是 |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -6990,7 +7411,7 @@ Oss File
 
 保存认证用户从 App 上传的日级 RHI 分数、领域、特征与质量聚合快照；不保存原始遥测。
 
-## 124. 表：`rehealth_rhi_manual_health_input` 云端 RHI 手工输入表
+## 131. 表：`rehealth_rhi_manual_health_input` 云端 RHI 手工输入表
 
 ### 基本信息
 
@@ -7051,7 +7472,7 @@ Oss File
 
 保存认证用户 Room-first 手工健康输入的云端副本，并按 updated_at 合并。
 
-## 125. 表：`rehealth_schema_migration` ReHealth 迁移版本表
+## 132. 表：`rehealth_schema_migration` ReHealth 迁移版本表
 
 ### 基本信息
 
@@ -7064,7 +7485,7 @@ Oss File
 | 业务作用 | 记录 ReHealth 自定义软件库迁移版本；不是业务数据。 |
 | 主键 | `version` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 19 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 23 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 否（迁移元数据） |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -7093,7 +7514,7 @@ Oss File
 
 记录 ReHealth 自定义软件库迁移版本；不是业务数据。
 
-## 126. 表：`rehealth_telemetry_event_projection` 遥测事件运营投影表
+## 133. 表：`rehealth_telemetry_event_projection` 遥测事件运营投影表
 
 ### 基本信息
 
@@ -7147,7 +7568,7 @@ Oss File
 
 保存 Kafka 遥测生命周期事件的隐私安全运营投影。
 
-## 127. 表：`rehealth_telemetry_quality_case` 遥测质量工单表
+## 134. 表：`rehealth_telemetry_quality_case` 遥测质量工单表
 
 ### 基本信息
 
@@ -7196,7 +7617,7 @@ Oss File
 
 保存由遥测质量事件派生的运营质量工单。
 
-## 128. 表：`rehealth_website_record` 官网业务记录表
+## 135. 表：`rehealth_website_record` 官网业务记录表
 
 ### 基本信息
 
@@ -7246,7 +7667,7 @@ Oss File
 
 保存官网侧按租户隔离的结构化业务记录；具体记录类型由业务代码定义。
 
-## 129. 表：`rep_demo_dxtj` 待确认
+## 136. 表：`rep_demo_dxtj` 待确认
 
 ### 基本信息
 
@@ -7296,7 +7717,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 130. 表：`rep_demo_employee` 待确认
+## 137. 表：`rep_demo_employee` 待确认
 
 ### 基本信息
 
@@ -7368,7 +7789,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 131. 表：`rep_demo_gongsi` 待确认
+## 138. 表：`rep_demo_gongsi` 待确认
 
 ### 基本信息
 
@@ -7415,7 +7836,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 132. 表：`rep_demo_jianpiao` 待确认
+## 139. 表：`rep_demo_jianpiao` 待确认
 
 ### 基本信息
 
@@ -7465,7 +7886,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 133. 表：`rep_demo_order_main` 待确认
+## 140. 表：`rep_demo_order_main` 待确认
 
 ### 基本信息
 
@@ -7514,7 +7935,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 134. 表：`rep_demo_order_product` 待确认
+## 141. 表：`rep_demo_order_product` 待确认
 
 ### 基本信息
 
@@ -7565,7 +7986,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 135. 表：`sys_announcement` 系统通告表
+## 142. 表：`sys_announcement` 系统通告表
 
 ### 基本信息
 
@@ -7653,7 +8074,7 @@ Oss File
 
 系统通告表
 
-## 136. 表：`sys_announcement_send` 用户通告阅读标记表
+## 143. 表：`sys_announcement_send` 用户通告阅读标记表
 
 ### 基本信息
 
@@ -7708,7 +8129,7 @@ Oss File
 
 用户通告阅读标记表
 
-## 137. 表：`sys_category` 待确认
+## 144. 表：`sys_category` 待确认
 
 ### 基本信息
 
@@ -7760,7 +8181,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 138. 表：`sys_check_rule` 待确认
+## 145. 表：`sys_check_rule` 待确认
 
 ### 基本信息
 
@@ -7810,7 +8231,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 139. 表：`sys_comment` 系统评论回复表
+## 146. 表：`sys_comment` 系统评论回复表
 
 ### 基本信息
 
@@ -7862,7 +8283,7 @@ Oss File
 
 系统评论回复表
 
-## 140. 表：`sys_data_log` 待确认
+## 147. 表：`sys_data_log` 待确认
 
 ### 基本信息
 
@@ -7914,7 +8335,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 141. 表：`sys_data_source` 待确认
+## 148. 表：`sys_data_source` 待确认
 
 ### 基本信息
 
@@ -7971,7 +8392,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 142. 表：`sys_depart` 组织机构表
+## 149. 表：`sys_depart` 组织机构表
 
 ### 基本信息
 
@@ -7984,7 +8405,7 @@ Oss File
 | 业务作用 | 组织机构表 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 65 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 71 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 否 |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -8045,7 +8466,7 @@ Oss File
 
 组织机构表
 
-## 143. 表：`sys_depart_permission` 部门权限表
+## 150. 表：`sys_depart_permission` 部门权限表
 
 ### 基本信息
 
@@ -8089,7 +8510,7 @@ Oss File
 
 部门权限表
 
-## 144. 表：`sys_depart_role` 部门角色表
+## 151. 表：`sys_depart_role` 部门角色表
 
 ### 基本信息
 
@@ -8138,7 +8559,7 @@ Oss File
 
 部门角色表
 
-## 145. 表：`sys_depart_role_permission` 部门角色权限表
+## 152. 表：`sys_depart_role_permission` 部门角色权限表
 
 ### 基本信息
 
@@ -8188,7 +8609,7 @@ Oss File
 
 部门角色权限表
 
-## 146. 表：`sys_depart_role_user` 部门角色用户表
+## 153. 表：`sys_depart_role_user` 部门角色用户表
 
 ### 基本信息
 
@@ -8233,7 +8654,7 @@ Oss File
 
 部门角色用户表
 
-## 147. 表：`sys_dict` 待确认
+## 154. 表：`sys_dict` 待确认
 
 ### 基本信息
 
@@ -8287,7 +8708,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 148. 表：`sys_dict_item` 待确认
+## 155. 表：`sys_dict_item` 待确认
 
 ### 基本信息
 
@@ -8343,7 +8764,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 149. 表：`sys_files` 知识库-文档管理
+## 156. 表：`sys_files` 知识库-文档管理
 
 ### 基本信息
 
@@ -8414,7 +8835,7 @@ Oss File
 
 知识库-文档管理
 
-## 150. 表：`sys_fill_rule` 待确认
+## 157. 表：`sys_fill_rule` 待确认
 
 ### 基本信息
 
@@ -8464,7 +8885,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 151. 表：`sys_form_file` 待确认
+## 158. 表：`sys_form_file` 待确认
 
 ### 基本信息
 
@@ -8513,7 +8934,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 152. 表：`sys_gateway_route` 待确认
+## 159. 表：`sys_gateway_route` 待确认
 
 ### 基本信息
 
@@ -8574,7 +8995,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 153. 表：`sys_log` 系统日志表
+## 160. 表：`sys_log` 系统日志表
 
 ### 基本信息
 
@@ -8587,7 +9008,7 @@ Oss File
 | 业务作用 | 系统日志表 |
 | 主键 | `id` |
 | 存储引擎 | MyISAM |
-| 数据量级 | 当前本地实例约 1207 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 1375 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 否 |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -8637,7 +9058,7 @@ Oss File
 
 系统日志表
 
-## 154. 表：`sys_permission` 菜单权限表
+## 161. 表：`sys_permission` 菜单权限表
 
 ### 基本信息
 
@@ -8650,7 +9071,7 @@ Oss File
 | 业务作用 | 菜单权限表 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 524 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 510 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是（平台基础） |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -8721,7 +9142,7 @@ Oss File
 
 菜单权限表
 
-## 155. 表：`sys_permission_data_rule` 待确认
+## 162. 表：`sys_permission_data_rule` 待确认
 
 ### 基本信息
 
@@ -8773,7 +9194,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 156. 表：`sys_position` 职务级别
+## 163. 表：`sys_position` 职务级别
 
 ### 基本信息
 
@@ -8825,7 +9246,7 @@ Oss File
 
 职务级别
 
-## 157. 表：`sys_quartz_job` 待确认
+## 164. 表：`sys_quartz_job` 待确认
 
 ### 基本信息
 
@@ -8876,7 +9297,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 158. 表：`sys_role` 角色表
+## 165. 表：`sys_role` 角色表
 
 ### 基本信息
 
@@ -8927,7 +9348,7 @@ Oss File
 
 角色表
 
-## 159. 表：`sys_role_index` 角色首页表
+## 166. 表：`sys_role_index` 角色首页表
 
 ### 基本信息
 
@@ -8985,7 +9406,7 @@ Oss File
 
 角色首页表
 
-## 160. 表：`sys_role_permission` 角色权限表
+## 167. 表：`sys_role_permission` 角色权限表
 
 ### 基本信息
 
@@ -8998,7 +9419,7 @@ Oss File
 | 业务作用 | 角色权限表 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 1449 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 1313 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是（平台基础） |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -9034,7 +9455,7 @@ Oss File
 
 角色权限表
 
-## 161. 表：`sys_sms` 待确认
+## 168. 表：`sys_sms` 待确认
 
 ### 基本信息
 
@@ -9094,7 +9515,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 162. 表：`sys_sms_template` 待确认
+## 169. 表：`sys_sms_template` 待确认
 
 ### 基本信息
 
@@ -9149,7 +9570,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 163. 表：`sys_table_white_list` 系统表白名单
+## 170. 表：`sys_table_white_list` 系统表白名单
 
 ### 基本信息
 
@@ -9198,7 +9619,7 @@ Oss File
 
 系统表白名单
 
-## 164. 表：`sys_tenant` 多租户信息表
+## 171. 表：`sys_tenant` 多租户信息表
 
 ### 基本信息
 
@@ -9211,7 +9632,7 @@ Oss File
 | 业务作用 | 多租户信息表 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 7 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 9 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是（平台基础） |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -9261,7 +9682,7 @@ Oss File
 
 多租户信息表
 
-## 165. 表：`sys_tenant_pack` 租户产品包
+## 172. 表：`sys_tenant_pack` 租户产品包
 
 ### 基本信息
 
@@ -9315,7 +9736,7 @@ Oss File
 
 租户产品包
 
-## 166. 表：`sys_tenant_pack_perms` 租户产品包和菜单关系表
+## 173. 表：`sys_tenant_pack_perms` 租户产品包和菜单关系表
 
 ### 基本信息
 
@@ -9328,7 +9749,7 @@ Oss File
 | 业务作用 | 租户产品包和菜单关系表 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 41 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 37 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 否 |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -9363,7 +9784,7 @@ Oss File
 
 租户产品包和菜单关系表
 
-## 167. 表：`sys_tenant_pack_user` 租户套餐人员表
+## 174. 表：`sys_tenant_pack_user` 租户套餐人员表
 
 ### 基本信息
 
@@ -9417,7 +9838,7 @@ Oss File
 
 租户套餐人员表
 
-## 168. 表：`sys_third_account` 待确认
+## 175. 表：`sys_third_account` 待确认
 
 ### 基本信息
 
@@ -9476,7 +9897,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 169. 表：`sys_third_app_config` 租户第三方配置表
+## 176. 表：`sys_third_app_config` 租户第三方配置表
 
 ### 基本信息
 
@@ -9528,7 +9949,7 @@ Oss File
 
 租户第三方配置表
 
-## 170. 表：`sys_ugroup` 用户组表
+## 177. 表：`sys_ugroup` 用户组表
 
 ### 基本信息
 
@@ -9577,7 +9998,7 @@ Oss File
 
 用户组表
 
-## 171. 表：`sys_ugroup_user` 用户组关系表
+## 178. 表：`sys_ugroup_user` 用户组关系表
 
 ### 基本信息
 
@@ -9625,7 +10046,7 @@ Oss File
 
 用户组关系表
 
-## 172. 表：`sys_user` 用户表
+## 179. 表：`sys_user` 用户表
 
 ### 基本信息
 
@@ -9638,7 +10059,7 @@ Oss File
 | 业务作用 | 用户表 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 24 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 88 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是（平台基础） |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -9713,7 +10134,7 @@ Oss File
 
 用户表
 
-## 173. 表：`sys_user_dep_post` 待确认
+## 180. 表：`sys_user_dep_post` 待确认
 
 ### 基本信息
 
@@ -9763,7 +10184,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 174. 表：`sys_user_depart` 待确认
+## 181. 表：`sys_user_depart` 待确认
 
 ### 基本信息
 
@@ -9776,7 +10197,7 @@ Oss File
 | 业务作用 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 |
 | 主键 | `ID` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 32 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 39 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 否 |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -9809,7 +10230,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 175. 表：`sys_user_position` 待确认
+## 182. 表：`sys_user_position` 待确认
 
 ### 基本信息
 
@@ -9859,7 +10280,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 176. 表：`sys_user_role` 用户角色表
+## 183. 表：`sys_user_role` 用户角色表
 
 ### 基本信息
 
@@ -9872,7 +10293,7 @@ Oss File
 | 业务作用 | 用户角色表 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 73 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 101 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 是（平台基础） |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -9907,7 +10328,7 @@ Oss File
 
 用户角色表
 
-## 177. 表：`sys_user_tenant` 用户租户关系表
+## 184. 表：`sys_user_tenant` 用户租户关系表
 
 ### 基本信息
 
@@ -9920,7 +10341,7 @@ Oss File
 | 业务作用 | 用户租户关系表 |
 | 主键 | `id` |
 | 存储引擎 | InnoDB |
-| 数据量级 | 当前本地实例约 49 行（InnoDB 统计估算，非生产容量） |
+| 数据量级 | 当前本地实例约 78 行（InnoDB 统计估算，非生产容量） |
 | 是否核心表 | 否 |
 | 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
 
@@ -9961,7 +10382,7 @@ Oss File
 
 用户租户关系表
 
-## 178. 表：`test_demo` 待确认
+## 185. 表：`test_demo` 待确认
 
 ### 基本信息
 
@@ -10020,7 +10441,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 179. 表：`test_enhance_select` 待确认
+## 186. 表：`test_enhance_select` 待确认
 
 ### 基本信息
 
@@ -10066,7 +10487,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 180. 表：`test_note` 待确认
+## 187. 表：`test_note` 待确认
 
 ### 基本信息
 
@@ -10122,7 +10543,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 181. 表：`test_online_link` 待确认
+## 188. 表：`test_online_link` 待确认
 
 ### 基本信息
 
@@ -10165,7 +10586,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 182. 表：`test_order_customer` 待确认
+## 189. 表：`test_order_customer` 待确认
 
 ### 基本信息
 
@@ -10217,7 +10638,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 183. 表：`test_order_main` 待确认
+## 190. 表：`test_order_main` 待确认
 
 ### 基本信息
 
@@ -10266,7 +10687,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 184. 表：`test_order_product` 待确认
+## 191. 表：`test_order_product` 待确认
 
 ### 基本信息
 
@@ -10317,7 +10738,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 185. 表：`test_person` 待确认
+## 192. 表：`test_person` 待确认
 
 ### 基本信息
 
@@ -10367,7 +10788,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 186. 表：`test_shoptype_tree` 待确认
+## 193. 表：`test_shoptype_tree` 待确认
 
 ### 基本信息
 

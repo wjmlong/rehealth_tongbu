@@ -90,7 +90,7 @@ JeecgBoot `rehealth:insurance:organization:*`、`member:*`、`role:assign` 和
 
 ### 2.2 干预改善工作台
 
-干预改善工作台复用上述负责人范围，不接受浏览器提供租户或用户范围，并只返回 `consent_status=granted` 的服务对象。所有保险后台角色可用 `rehealth:insurance:risk:view` 读取其负责 APP 用户的完整聚合业务数据；只有机构管理员、部门经理和运营员等被授予 `rehealth:insurance:intervention:manage` 的角色可以创建或更新人工行动。操作均写入现有保险审计事件。
+干预改善工作台复用上述负责人范围，不接受浏览器提供租户或用户范围，并只返回 `consent_status=granted` 的服务对象。人工行动继续使用 `rehealth:insurance:risk:view` / `rehealth:insurance:intervention:manage`；机构计划另拆分为 `rehealth:insurance:care-plan:view`、`rehealth:insurance:care-plan:manage` 和 `rehealth:insurance:care-plan:publish`，避免能够编辑草稿的账号自动获得发布或撤回权限。
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
@@ -100,8 +100,20 @@ JeecgBoot `rehealth:insurance:organization:*`、`member:*`、`role:assign` 和
 | `POST` | `/rehealth/insurance/v1/interventions/{subjectId}/actions` | 创建随访、任务或人工复核行动 |
 | `POST` | `/rehealth/insurance/v1/interventions/actions/batch` | 为 1–100 名负责范围内用户原子创建同一批激励行动；全部范围校验通过后才写入 |
 | `PUT` | `/rehealth/insurance/v1/intervention-actions/{actionId}` | 更新行动状态、负责人、期限和有界结果 |
+| `GET` | `/rehealth/insurance/v1/interventions/{subjectId}/care-plans` | 查询负责对象的机构计划、已发布版本和当前草稿 |
+| `POST` | `/rehealth/insurance/v1/interventions/{subjectId}/care-plans` | 创建版本 1 草稿；草稿内容允许修改 |
+| `GET` | `/rehealth/insurance/v1/care-plans/{planId}` | 查询单个计划及完整版本历史 |
+| `PUT` | `/rehealth/insurance/v1/care-plans/{planId}/draft` | 使用 `expected_lock_version` 原子替换草稿内容 |
+| `POST` | `/rehealth/insurance/v1/care-plans/{planId}/revisions` | 从最新已发布版本克隆一个新草稿，并保留稳定 `logical_item_id` |
+| `POST` | `/rehealth/insurance/v1/care-plans/{planId}/draft/discard` | 放弃草稿但保留版本与审计快照 |
+| `POST` | `/rehealth/insurance/v1/care-plans/{planId}/publish` | 冻结并发布草稿；可指定不早于当前时间的 `effective_at` |
+| `POST` | `/rehealth/insurance/v1/care-plans/{planId}/withdraw` | 撤回最新版本并排除其未来任务实例 |
 
-批量激励要求 `rehealth:insurance:intervention:manage`，使用批次请求 ID 派生逐行动幂等键；任一主体越权、无效或写入失败时整个事务回滚。APP 通用干预反馈会按同一用户和计划标识投影到其全部有效保险服务关系，并在每个租户/绑定内幂等保存。工作台只消费聚合后的 CVD 风险、RHI、RDI、计划和反馈，不返回原始遥测；CVD 风险、RHI 与 RDI 是三个独立指标，前端不得用风险分数推导 RDI。RDI Mock、过期或数据不足状态必须显式展示，且不参与现有 PIAS/风险工作流状态计算。只有真实、数据充分且方向一致的归因证据才会自动标记“已改善”；Mock 或证据不足时必须显示说明，不能把合成风险评分当作业务判断。
+机构计划采用 `draft -> published -> withdrawn` 版本状态。已发布版本的标题、说明、项目、时间规则和评分权重不可原地覆盖；修改时必须先克隆新版本。所有写操作使用计划级 `lock_version`，过期的 `expected_lock_version` 返回 `409`。发布新版本会为旧版本写入 `effective_to`，并把该时间之后尚未执行的旧任务实例标记为 `cancelled/superseded_by_revision`，使其不进入后续依从性分母。保险侧只允许生活方式、提醒、教育、监测和跟进类项目，不允许借此修改诊断、用药或治疗。
+
+批量激励要求 `rehealth:insurance:intervention:manage`，使用批次请求 ID 派生逐行动幂等键；任一主体越权、无效或写入失败时整个事务回滚。APP 通用反馈只保留在个人计划链路；保险反馈必须带具体 `bindingId + planItemId`，不会复制到其他机构。工作台只消费聚合后的 CVD 风险、RHI、RDI、计划和反馈，不返回原始遥测；CVD 风险、RHI 与 RDI 是三个独立指标，前端不得用风险分数推导 RDI。RDI Mock、过期或数据不足状态必须显式展示，且不参与现有 PIAS/风险工作流状态计算。只有真实、数据充分且方向一致的归因证据才会自动标记“已改善”；Mock 或证据不足时必须显示说明，不能把合成风险评分当作业务判断。
+
+当前版本化机构计划 API 与旧 `rehealth_insurance_plan_binding` 并行存在：本次先建立机构编辑、发布、任务版本身份和审计基础，尚未把发布动作自动绑定到 App，也尚未启用计划频率展开器。App 继续读取旧绑定，直到移动端活动计划聚合接口和兼容迁移完成。
 
 JeecgBoot 基础路径：`/jeecg-boot/rehealth/insurance/v1`。
 
@@ -169,6 +181,7 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 - `V20260814_2__create_insurance_intervention_actions.sql`：保险人工行动表、干预写权限、反馈计划标识扩容及最小角色授权。
 - `V20260814_3__create_rhi_daily_snapshot.sql`：认证 APP 用户的 RHI 每日聚合快照；不存原始遥测，并按用户/日期幂等更新。
 - `V20260814_4__create_rdi_daily_snapshot.sql`：认证 APP 用户的 RDI 每日聚合快照与结构化贡献项；不存原始遥测或自由文本证据，并按用户/日期幂等更新。
+- `V20260819_1__create_versioned_care_plans.sql`：通用机构计划、不可变发布版本、版本化项目、任务实例和审计表；增加保险计划查看、草稿编辑和发布权限。
 
 迁移均为向前兼容的非破坏性变更，不删除既有保险数据。完整逐表结构见 `backend/docs/REHEALTH_DB_SCHEMA.md`。
 

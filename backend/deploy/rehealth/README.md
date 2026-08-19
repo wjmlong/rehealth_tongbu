@@ -29,12 +29,13 @@ Do not interpret a static pass as a deployed-service health result.
 
 ## Local insurer workflow
 
-Apply the non-destructive MySQL migrations through `V20260814_4` before testing
+Apply the non-destructive MySQL migrations through `V20260819_1` before testing
 the insurer website. They add import/job/plan-feedback tables, workflow
 permissions, insurance organization settings, tenant-scoped department codes and
 local-admin acceptance grants, read-only organization/member settings, insurer
 intervention actions and aggregate RHI/RDI daily snapshots plus structured RDI
-contributions. Production must assign
+contributions. `V20260819_1` additionally creates the commented, versioned institution
+care-plan tables and separates plan view, draft edit and publish permissions. Production must assign
 `insurer_viewer`, `insurer_analyst`, `insurance_operator` or `insurer_auditor`
 explicitly and must not rely on the local admin grant.
 
@@ -316,6 +317,24 @@ updates existing fixture rows through its deterministic upserts. Internal
 `LOCAL_MULTI_INSURER_APP_QA`, `synthetic`, `is_mock`, and
 `clinicalUseAllowed=false` markers remain unchanged and continue to control QA
 isolation and safety behavior.
+
+After the APP-user seed and migration `V20260819_1` are available, populate the
+versioned institution care-plan tables with the same 36 insurer-subject
+relationships:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File `
+  backend/deploy/rehealth/scripts/seed-versioned-care-plan-test-data.ps1 `
+  -AnchorDate 2026-08-19
+```
+
+The repeatable `LOCAL_VERSIONED_CARE_PLAN_QA` seed writes 36 active plans and
+published revisions, 108 patient-visible plan items, 108 scheduled occurrences
+and 72 lifecycle audit events. Display titles and instructions use natural
+business wording; deterministic IDs and `source_plan_id` retain local fixture
+ownership. The wrapper refuses incompatible reserved-ID collisions and verifies
+the exact row counts plus Chinese comments on all five tables and all 71
+columns. Never run this local-only fixture against staging or production.
 
 To make every workbench status and risk distribution visible, the CVD fixture
 rows use `is_mock=0` together with `scorer_mode=local_qa_fixture`,

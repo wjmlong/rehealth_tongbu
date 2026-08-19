@@ -1,6 +1,6 @@
 # 数据库表结构说明文档
 
-> 最后生成：2026-08-14。
+> 最后生成：2026-08-19。
 > 结构基线来自当前运行中的本地开发数据库 catalog、Room v16 导出 schema、SQL 迁移和业务代码。
 > 本文档不包含账号、密码、业务数据明细、原始健康值或直接身份信息。
 
@@ -21,16 +21,16 @@ ReHealth 不是单库系统，而是三个相互隔离的关系型存储域：
 | 数据域 | 实际名称 | 类型与版本 | 基础表 | 视图 | 权威职责 |
 | --- | --- | --- | ---: | ---: | --- |
 | Android 本地库 | `rehealth-local.db` | SQLite / Room schema v16 | 22 | 0 | 本地遥测、离线队列、聊天、RHI/RDI、饮食 |
-| 软件业务库 | `rehealth_software`（逻辑名 `software_db`） | MySQL 8.4.6 | 186 | 0 | Jeecg 用户权限及 ReHealth 业务权威数据 |
+| 软件业务库 | `rehealth_software`（逻辑名 `software_db`） | MySQL 8.4.6 | 193 | 0 | Jeecg 用户权限及 ReHealth 业务权威数据 |
 | 硬件时序库 | `rehealth_hardware`（逻辑名 `hardware_db`） | PostgreSQL 17.5 + TimescaleDB 2.21.1 | 11 | 0 个业务普通视图 | 规范化硬件时序数据、Outbox 和对账 |
 
-总计 **219 张基础表**。其中 ReHealth 专属业务域表 **78 张**：Room 22 张、MySQL ReHealth 业务表 46 张、TimescaleDB 业务表 10 张。Kafka 是事件传递系统、Redis 是短期状态存储，均不计入关系表总数。
+总计 **226 张基础表**。其中 ReHealth 专属业务域表 **85 张**：Room 22 张、MySQL ReHealth 业务表 53 张、TimescaleDB 业务表 10 张。Kafka 是事件传递系统、Redis 是短期状态存储，均不计入关系表总数。
 
 明确可识别的特殊表类别：
 
 | 类别 | 数量 | 口径 |
 | --- | ---: | --- |
-| 核心/ReHealth 专属业务域表 | 78 | 含本地队列、质量、审计和保险域；排除迁移元数据 |
+| 核心/ReHealth 专属业务域表 | 85 | 含本地队列、质量、审计和保险域；排除迁移元数据 |
 | 字典表 | 4 | `sys_dict`、`sys_dict_item`、`jimu_dict`、`jimu_dict_item` |
 | 明确日志/审计表 | 8 | 本地归因、模型请求、保险审计、系统/数据/OpenAPI/报表导出日志、硬件质量事件 |
 | 明确中间/关系表 | 17 | 用户角色权限、租户/部门关系、访谈明细、RHI/RDI 明细、研究成员等 |
@@ -61,7 +61,7 @@ MySQL `flyway_schema_history` 当前存在 `3.9.2.0 all upgrade` 失败记录；
 | OpenAPI | 4 | 开放接口、授权、权限和调用日志 |
 | ReHealth 保险业务 | 21 | 保险主体、保单、理赔、RWE、结算与审计 |
 | ReHealth 审计日志 | 1 | 模型请求最小审计元数据 |
-| ReHealth 核心业务 | 22 | 档案、访谈、绑定、风险、干预、问答和行为 |
+| ReHealth 核心业务 | 29 | 档案、访谈、绑定、风险、干预、问答和行为 |
 | ReHealth 运营投影 | 2 | Kafka 生命周期和质量运营投影 |
 | 上游订单示例 | 3 | Jeecg 示例订单结构 |
 | 旧 MySQL 硬件兼容 | 6 | 权威切换前的硬件表，仅迁移兼容 |
@@ -89,7 +89,8 @@ MySQL `flyway_schema_history` 当前存在 `3.9.2.0 all upgrade` 失败记录；
 | 硬件接入 | `hardware_upload_batch` 及遥测事实表 | 以批次事务写入 TimescaleDB 并返回 durable write 语义 |
 | 可靠事件 | `hardware_outbox`、`hardware_reconciliation` | 可靠发布 Kafka 生命周期事件并处理对账 |
 | CVD 风险 | `rehealth_cvd_feature_vector`、`rehealth_cvd_risk_result` | 保存版本化 CVD-16 输入、模型输出和解释证据 |
-| 干预闭环 | `rehealth_intervention_plan`、contraindication、feedback | 保存保守干预计划、安全限制和用户反馈 |
+| 个人干预闭环 | `rehealth_intervention_plan`、contraindication、feedback | 保存模型/个人计划、安全限制和用户反馈 |
+| 机构计划版本 | `rehealth_care_plan`、revision、item、occurrence、audit | 保存机构计划草稿、不可变发布版本、稳定项目身份、到期任务实例及操作审计 |
 | 健康问答 | `rehealth_ai_conversation`、`rehealth_ai_message` | 服务端权威完整聊天历史；Room 保存本地副本 |
 | RHI/RDI | Room `rhi_*`、`rdi_*`；MySQL `rehealth_rhi_manual_health_input` | 保存本地透明评分、证据及手工健康输入云端副本 |
 | 饮食/行为 | Room `diet_records`、Timescale `hardware_diet_record`、MySQL `rehealth_behavior_record` | 连接手工/拍照行为、本地队列、硬件域事实和结构化业务记录 |
@@ -112,6 +113,7 @@ Room v16 没有声明 SQLite FOREIGN KEY，关系由复合主键、唯一索引�
 - Room `owner_user_id/user_id` → 当前认证用户；`device_id` → 服务端设备绑定。
 - Room RHI/RDI 子表通过 `index_id/snapshot_id` 逻辑关联日快照主表。
 - 保险 14 表使用 `tenant_id + subject_ref/policy_id/study_id/snapshot_id/package_id` 维护逻辑关系，当前没有数据库 FOREIGN KEY。
+- 机构计划通过 `plan_id + revision_id + plan_item_id` 绑定版本和任务实例；`logical_item_id` 只用于跨版本追踪同一业务项目，不能替代版本内项目主键。
 
 ## 6. ER 关系图
 

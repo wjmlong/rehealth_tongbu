@@ -135,6 +135,11 @@ TABLE_INFO: dict[str, tuple[str, str]] = {
     "rehealth_intervention_plan": ("健康干预计划表", "保存基于权威画像、风险和设备行为上下文生成的结构化保守干预计划。"),
     "rehealth_intervention_contraindication": ("干预禁忌表", "保存某次干预计划包含的有序禁忌与安全限制。"),
     "rehealth_intervention_feedback": ("干预反馈表", "保存用户对具体干预计划/行动的完成、跳过或不适用反馈。"),
+    "rehealth_care_plan": ("机构干预计划主表", "保存按租户、机构类型和服务对象隔离的计划聚合、当前/草稿版本指针及乐观锁。"),
+    "rehealth_care_plan_revision": ("机构干预计划版本表", "保存草稿、已发布和已撤回的计划版本；已发布内容不可原地覆盖。"),
+    "rehealth_care_plan_item": ("机构干预计划项目表", "保存绑定到具体版本的患者可见计划项目快照及稳定逻辑项目标识。"),
+    "rehealth_care_plan_occurrence": ("机构干预任务实例表", "保存绑定计划版本和项目的到期任务实例，为后续真实依从性分母提供稳定标识。"),
+    "rehealth_care_plan_audit_event": ("机构干预计划审计表", "保存不含计划正文的版本生命周期操作、内容哈希和变更原因。"),
     "rehealth_attribution_event": ("归因请求事件表", "保存提交给 PIAS 的个体归因请求元数据和版本化输入快照。"),
     "rehealth_attribution_result": ("个体归因结果表", "保存 PIAS 个体归因结果及模型证据快照。"),
     "rehealth_model_request_log": ("模型请求审计表", "保存不含原始 PII/遥测的模型调用元数据、状态、耗时和错误码。"),
@@ -584,6 +589,16 @@ LOGICAL_RELATIONS: dict[tuple[str, str], tuple[str, str, str]] = {
     ("rehealth_insurance_rwe_report", "study_id"): ("rehealth_insurance_study", "id", "保险域逻辑外键，数据库未声明 FOREIGN KEY"),
     ("rehealth_insurance_settlement_package", "study_id"): ("rehealth_insurance_study", "id", "保险域逻辑外键，数据库未声明 FOREIGN KEY"),
     ("rehealth_insurance_settlement_approval", "package_id"): ("rehealth_insurance_settlement_package", "id", "保险域逻辑外键，数据库未声明 FOREIGN KEY"),
+    ("rehealth_care_plan", "current_revision_id"): ("rehealth_care_plan_revision", "id", "当前最新已发布版本逻辑外键"),
+    ("rehealth_care_plan", "draft_revision_id"): ("rehealth_care_plan_revision", "id", "单一可变草稿版本逻辑外键"),
+    ("rehealth_care_plan_revision", "plan_id"): ("rehealth_care_plan", "id", "计划版本所属聚合逻辑外键"),
+    ("rehealth_care_plan_item", "plan_id"): ("rehealth_care_plan", "id", "计划项目所属聚合逻辑外键"),
+    ("rehealth_care_plan_item", "revision_id"): ("rehealth_care_plan_revision", "id", "计划项目所属不可变版本逻辑外键"),
+    ("rehealth_care_plan_occurrence", "plan_id"): ("rehealth_care_plan", "id", "任务实例所属计划逻辑外键"),
+    ("rehealth_care_plan_occurrence", "revision_id"): ("rehealth_care_plan_revision", "id", "任务实例生成版本逻辑外键"),
+    ("rehealth_care_plan_occurrence", "plan_item_id"): ("rehealth_care_plan_item", "id", "任务实例生成项目逻辑外键"),
+    ("rehealth_care_plan_audit_event", "plan_id"): ("rehealth_care_plan", "id", "计划版本审计所属聚合逻辑外键"),
+    ("rehealth_care_plan_audit_event", "revision_id"): ("rehealth_care_plan_revision", "id", "计划版本审计目标版本逻辑外键"),
 }
 
 
