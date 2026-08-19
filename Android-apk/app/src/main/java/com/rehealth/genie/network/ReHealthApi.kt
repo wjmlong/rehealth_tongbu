@@ -39,6 +39,8 @@ import com.rehealth.genie.network.dto.BehaviorRecordDto
 import com.rehealth.genie.network.dto.InsurancePlanBindRequestDto
 import com.rehealth.genie.network.dto.InsurancePlanBindingDto
 import com.rehealth.genie.network.dto.InsurancePlanFeedbackRequestDto
+import com.rehealth.genie.network.dto.InstitutionCarePlanDto
+import com.rehealth.genie.network.dto.InstitutionCarePlanFeedbackRequestDto
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Response
@@ -146,6 +148,15 @@ interface ReHealthApi {
     suspend fun submitInsurancePlanFeedback(
         @Path("bindingId") bindingId: String,
         @Body request: InsurancePlanFeedbackRequestDto,
+    ): Response<JeecgResult<Map<String, Any>>>
+
+    @GET("rehealth/mobile/insurance/care-plans/current")
+    suspend fun getCurrentInstitutionCarePlans(): Response<JeecgResult<List<InstitutionCarePlanDto>>>
+
+    @POST("rehealth/mobile/insurance/care-plan-occurrences/{occurrenceId}/feedback")
+    suspend fun submitInstitutionCarePlanFeedback(
+        @Path("occurrenceId") occurrenceId: String,
+        @Body request: InstitutionCarePlanFeedbackRequestDto,
     ): Response<JeecgResult<Map<String, Any>>>
 
     @POST("rehealth/mobile/measurements/batch")

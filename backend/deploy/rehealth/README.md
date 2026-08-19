@@ -29,13 +29,15 @@ Do not interpret a static pass as a deployed-service health result.
 
 ## Local insurer workflow
 
-Apply the non-destructive MySQL migrations through `V20260819_1` before testing
+Apply the non-destructive MySQL migrations through `V20260819_2` before testing
 the insurer website. They add import/job/plan-feedback tables, workflow
 permissions, insurance organization settings, tenant-scoped department codes and
 local-admin acceptance grants, read-only organization/member settings, insurer
 intervention actions and aggregate RHI/RDI daily snapshots plus structured RDI
-contributions. `V20260819_1` additionally creates the commented, versioned institution
-care-plan tables and separates plan view, draft edit and publish permissions. Production must assign
+contributions. `V20260819_1` creates the commented, versioned institution care-plan
+tables and separates plan view, draft edit and publish permissions; `V20260819_2`
+adds immutable occurrence execution facts used by the App's rolling 28-day adherence.
+Production must assign
 `insurer_viewer`, `insurer_analyst`, `insurance_operator` or `insurer_auditor`
 explicitly and must not rely on the local admin grant.
 
@@ -318,7 +320,7 @@ updates existing fixture rows through its deterministic upserts. Internal
 `clinicalUseAllowed=false` markers remain unchanged and continue to control QA
 isolation and safety behavior.
 
-After the APP-user seed and migration `V20260819_1` are available, populate the
+After the APP-user seed and migrations through `V20260819_2` are available, populate the
 versioned institution care-plan tables with the same 36 insurer-subject
 relationships:
 

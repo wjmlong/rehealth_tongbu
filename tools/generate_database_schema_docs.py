@@ -26,7 +26,7 @@ ROOM_SCHEMA = (
     / "app"
     / "schemas"
     / "com.rehealth.genie.data.AppDatabase"
-    / "16.json"
+    / "19.json"
 )
 MYSQL_CONTAINER = "rehealth-software-db-1"
 POSTGRES_CONTAINER = "rehealth-hardware-db-1"
@@ -139,6 +139,7 @@ TABLE_INFO: dict[str, tuple[str, str]] = {
     "rehealth_care_plan_revision": ("机构干预计划版本表", "保存草稿、已发布和已撤回的计划版本；已发布内容不可原地覆盖。"),
     "rehealth_care_plan_item": ("机构干预计划项目表", "保存绑定到具体版本的患者可见计划项目快照及稳定逻辑项目标识。"),
     "rehealth_care_plan_occurrence": ("机构干预任务实例表", "保存绑定计划版本和项目的到期任务实例，为后续真实依从性分母提供稳定标识。"),
+    "rehealth_care_plan_execution": ("机构干预执行事实表", "保存对具体任务实例的完成、部分完成、跳过或不适用评分，作为滚动 28 日依从性分子。"),
     "rehealth_care_plan_audit_event": ("机构干预计划审计表", "保存不含计划正文的版本生命周期操作、内容哈希和变更原因。"),
     "rehealth_attribution_event": ("归因请求事件表", "保存提交给 PIAS 的个体归因请求元数据和版本化输入快照。"),
     "rehealth_attribution_result": ("个体归因结果表", "保存 PIAS 个体归因结果及模型证据快照。"),
@@ -597,6 +598,10 @@ LOGICAL_RELATIONS: dict[tuple[str, str], tuple[str, str, str]] = {
     ("rehealth_care_plan_occurrence", "plan_id"): ("rehealth_care_plan", "id", "任务实例所属计划逻辑外键"),
     ("rehealth_care_plan_occurrence", "revision_id"): ("rehealth_care_plan_revision", "id", "任务实例生成版本逻辑外键"),
     ("rehealth_care_plan_occurrence", "plan_item_id"): ("rehealth_care_plan_item", "id", "任务实例生成项目逻辑外键"),
+    ("rehealth_care_plan_execution", "occurrence_id"): ("rehealth_care_plan_occurrence", "id", "执行评分所属任务实例逻辑外键"),
+    ("rehealth_care_plan_execution", "plan_id"): ("rehealth_care_plan", "id", "执行评分所属计划逻辑外键"),
+    ("rehealth_care_plan_execution", "revision_id"): ("rehealth_care_plan_revision", "id", "执行评分所属版本逻辑外键"),
+    ("rehealth_care_plan_execution", "plan_item_id"): ("rehealth_care_plan_item", "id", "执行评分所属版本项目逻辑外键"),
     ("rehealth_care_plan_audit_event", "plan_id"): ("rehealth_care_plan", "id", "计划版本审计所属聚合逻辑外键"),
     ("rehealth_care_plan_audit_event", "revision_id"): ("rehealth_care_plan_revision", "id", "计划版本审计目标版本逻辑外键"),
 }
@@ -939,7 +944,7 @@ def room_metadata() -> tuple[list[Table], dict[str, str]]:
             purpose=purpose,
             engine="SQLite / Room",
             row_count=None,
-            row_count_note="未知（当前无已连接 Android 设备；结构来自 Room v16 导出 schema）",
+            row_count_note="未知（当前无已连接 Android 设备；结构来自 Room v19 导出 schema）",
             core=core_flag(name, "room"),
             evidence="Room 导出 schema 16.json；Entity/DAO；显式迁移 1→16",
         )
@@ -1420,18 +1425,18 @@ def render_master(
     module_counts: dict[str, int] = defaultdict(int)
     for table in room_tables + mysql_tables + pg_tables:
         module_counts[table.module] += 1
-    failed_flyway = "MySQL `flyway_schema_history` 当前存在 `3.9.2.0 all upgrade` 失败记录；ReHealth 自定义迁移已到 `software-V20260812.3`。"
+    failed_flyway = "MySQL `flyway_schema_history` 当前存在 `3.9.2.0 all upgrade` 失败记录；ReHealth 自定义迁移已到 `software-V20260819.2`。"
     return f"""# 数据库表结构说明文档
 
 > 最后生成：{date.today().isoformat()}。
-> 结构基线来自当前运行中的本地开发数据库 catalog、Room v16 导出 schema、SQL 迁移和业务代码。
+> 结构基线来自当前运行中的本地开发数据库 catalog、Room v19 导出 schema、SQL 迁移和业务代码。
 > 本文档不包含账号、密码、业务数据明细、原始健康值或直接身份信息。
 
 ## 1. 文档说明
 
 本文档是 ReHealth 数据库结构的交付与维护入口。逐表字段和索引明细拆分为三个附录：
 
-- [Android Room v16 逐表结构](database/ROOM_SCHEMA_V16.md)
+- [Android Room v19 逐表结构](database/ROOM_SCHEMA_V19.md)
 - [MySQL software_db 逐表结构](database/SOFTWARE_DB_TABLES.md)
 - [TimescaleDB hardware_db 逐表结构](database/HARDWARE_DB_TABLES.md)
 
@@ -1471,7 +1476,7 @@ ReHealth 不是单库系统，而是三个相互隔离的关系型存储域：
         for module, count in sorted(module_counts.items())
     ) + f"""
 
-完整 211 表清单及逐字段说明见三个逐表附录。MySQL 中还保留 6 张旧 `hardware_*` 兼容表；当前硬件遥测权威写入已经属于 Device Service/TimescaleDB，旧表只能作为迁移来源或兼容遗留，不能形成双写权威。
+完整 {total} 表清单及逐字段说明见三个逐表附录。MySQL 中还保留 6 张旧 `hardware_*` 兼容表；当前硬件遥测权威写入已经属于 Device Service/TimescaleDB，旧表只能作为迁移来源或兼容遗留，不能形成双写权威。
 
 ## 4. 核心业务表
 
@@ -1487,6 +1492,7 @@ ReHealth 不是单库系统，而是三个相互隔离的关系型存储域：
 | 可靠事件 | `hardware_outbox`、`hardware_reconciliation` | 可靠发布 Kafka 生命周期事件并处理对账 |
 | CVD 风险 | `rehealth_cvd_feature_vector`、`rehealth_cvd_risk_result` | 保存版本化 CVD-16 输入、模型输出和解释证据 |
 | 干预闭环 | `rehealth_intervention_plan`、contraindication、feedback | 保存保守干预计划、安全限制和用户反馈 |
+| 机构计划 | `rehealth_care_plan`、revision、item、occurrence、execution、audit | 保存机构计划不可变版本、到期任务分母、执行事实和审计证据 |
 | 健康问答 | `rehealth_ai_conversation`、`rehealth_ai_message` | 服务端权威完整聊天历史；Room 保存本地副本 |
 | RHI/RDI | Room `rhi_*`、`rdi_*`；MySQL `rehealth_rhi_manual_health_input` | 保存本地透明评分、证据及手工健康输入云端副本 |
 | 饮食/行为 | Room `diet_records`、Timescale `hardware_diet_record`、MySQL `rehealth_behavior_record` | 连接手工/拍照行为、本地队列、硬件域事实和结构化业务记录 |
@@ -1500,7 +1506,7 @@ MySQL ReHealth 业务域已确认 11 组物理关系：档案到诊断/用药/�
 
 TimescaleDB 已确认 8 组物理外键，均由 `hardware_upload_batch.id` 指向测量、睡眠、活动、饮食、信号元数据、质量事件、Outbox 和对账。`hardware_reconciliation.upload_batch_id` 另有唯一约束，因此批次与对账为一对一；其余主要为一对多。
 
-Room v16 没有声明 SQLite FOREIGN KEY，关系由复合主键、唯一索引、DAO `@Transaction` 和 Repository 写入顺序维护。
+Room v19 没有声明 SQLite FOREIGN KEY，关系由复合主键、唯一索引、DAO `@Transaction` 和 Repository 写入顺序维护。
 
 ### 5.2 逻辑外键
 
@@ -1509,6 +1515,7 @@ Room v16 没有声明 SQLite FOREIGN KEY，关系由复合主键、唯一索引�
 - Room `owner_user_id/user_id` → 当前认证用户；`device_id` → 服务端设备绑定。
 - Room RHI/RDI 子表通过 `index_id/snapshot_id` 逻辑关联日快照主表。
 - 保险 14 表使用 `tenant_id + subject_ref/policy_id/study_id/snapshot_id/package_id` 维护逻辑关系，当前没有数据库 FOREIGN KEY。
+- 机构计划通过 `plan_id + revision_id + plan_item_id + occurrence_id` 绑定版本、任务和执行事实；`logical_item_id` 只用于跨版本追踪同一业务项目。
 
 ## 6. ER 关系图
 
@@ -1619,7 +1626,7 @@ MySQL 大量 `status/type/source` 字段没有 CHECK，且部分依赖 Jeecg 字
 
 - MySQL 当前有 448 个不同索引，其中 241 个唯一/主键索引；存在大量 Jeecg 平台元数据索引。
 - TimescaleDB public schema 当前有 40 个索引、22 个唯一索引和 8 个物理外键。
-- Room v16 使用字符串主键、复合主键和用户/时间联合索引；没有自增主键和物理外键。
+- Room v19 使用字符串主键、复合主键和用户/时间联合索引；没有自增主键和物理外键。
 - Timescale Hypertable 主键包含分区时间列，例如 `hardware_measurement(id, observed_at)`。
 - Timescale 来源唯一键同时包含租户、用户、设备、时间、记录类型和来源记录 ID，用于批次重试幂等。
 
@@ -1634,7 +1641,7 @@ MySQL 大量 `status/type/source` 字段没有 CHECK，且部分依赖 Jeecg 字
 
 - Room Entity 与表逐一映射，精确列名来自 `Android-apk/app/schemas/com.rehealth.genie.data.AppDatabase/16.json`；各附录字段行即数据库列映射，字段使用 `@ColumnInfo` 时由导出 schema 解析最终列名。
 - 代表性 Room 映射：`RingMeasurementEntity` → `ring_measurements`（`metricType` → `metric_type`、`measuredAt` → `measured_at`）；`UploadQueueEntity` → `sync_upload_queue`；`RdiDailySnapshotEntity` → `rdi_daily_snapshots`；`RhiDailyIndexEntity` → `rhi_daily_health_index`；`DietRecordEntity` → `diet_records`。
-- `cvd_risk_cache` 虽有 `@Entity` 与 DAO，但未注册进 `AppDatabase.entities`，不是 Room v16 实际表。
+- `cvd_risk_cache` 虽有 `@Entity` 与 DAO，但未注册进 `AppDatabase.entities`，不是 Room v19 实际表。
 - `health_records`、`attribution_logs` 已注册，但当前 `AppDatabase` 不暴露对应 DAO，属于待清理或待接线骨架。
 - ReHealth MySQL 核心业务主要由 `JdbcSoftwareDbReHealthBusinessRepository`、`JdbcHealthAgentConversationRepository`、`JdbcBehaviorRecordRepository` 和保险 JDBC Repository 显式 SQL 映射；保险域另有 `InsurancePolicyEntity` → `rehealth_insurance_policy`、`InsuranceClaimEntity` → `rehealth_insurance_claim` 等 MyBatis-Plus 映射，主键使用 `IdType.INPUT`。
 - Jeecg 平台表主要通过 MyBatis-Plus `@TableName/@TableId/@TableLogic` 与 Mapper/XML 映射；例如 `SysUser` 按默认驼峰规则映射 `sys_user`，`id` 使用 `ASSIGN_ID`，`delFlag` → `del_flag` 且带 `@TableLogic`。
@@ -1744,9 +1751,9 @@ def main() -> None:
     docs_dir = root / "backend" / "docs"
     appendix_dir = docs_dir / "database"
     write_file(
-        appendix_dir / "ROOM_SCHEMA_V16.md",
+        appendix_dir / "ROOM_SCHEMA_V19.md",
         render_appendix(
-            "Android Room v16 数据库逐表结构",
+            "Android Room v19 数据库逐表结构",
             "结构来自 Room 导出的 `16.json`，共 22 张实际注册表；当前无已连接 Android 设备，因此数据量记为未知。",
             room_tables,
         ),

@@ -3,7 +3,7 @@
 > 本文件由 `tools/generate_database_schema_docs.py` 根据只读结构元数据生成。
 > 不包含数据库账号、密码、业务行内容或原始健康数据。
 
-结构来自运行中的 `rehealth_software`（MySQL 8.4.6）information_schema，共 193 张基础表。InnoDB 行数为当前本地实例估算。
+结构来自运行中的 `rehealth_software`（MySQL 8.4.6）information_schema，共 194 张基础表。InnoDB 行数为当前本地实例估算。
 
 ## 表清单
 
@@ -97,111 +97,112 @@
 | 86 | [`rehealth_behavior_record`](#rehealth-behavior-record) | 结构化行为记录表 | ReHealth 核心业务 | 保存拍照食物/OCR 的已验证结构化结果；不保存原始图片。 | 是 |
 | 87 | [`rehealth_care_plan`](#rehealth-care-plan) | 机构干预计划主表 | ReHealth 核心业务 | 保存按租户、机构类型和服务对象隔离的计划聚合、当前/草稿版本指针及乐观锁。 | 是 |
 | 88 | [`rehealth_care_plan_audit_event`](#rehealth-care-plan-audit-event) | 机构干预计划审计表 | ReHealth 核心业务 | 保存不含计划正文的版本生命周期操作、内容哈希和变更原因。 | 是 |
-| 89 | [`rehealth_care_plan_item`](#rehealth-care-plan-item) | 机构干预计划项目表 | ReHealth 核心业务 | 保存绑定到具体版本的患者可见计划项目快照及稳定逻辑项目标识。 | 是 |
-| 90 | [`rehealth_care_plan_occurrence`](#rehealth-care-plan-occurrence) | 机构干预任务实例表 | ReHealth 核心业务 | 保存绑定计划版本和项目的到期任务实例，为后续真实依从性分母提供稳定标识。 | 是 |
-| 91 | [`rehealth_care_plan_revision`](#rehealth-care-plan-revision) | 机构干预计划版本表 | ReHealth 核心业务 | 保存草稿、已发布和已撤回的计划版本；已发布内容不可原地覆盖。 | 是 |
-| 92 | [`rehealth_cvd_feature_vector`](#rehealth-cvd-feature-vector) | CVD 特征向量表 | ReHealth 核心业务 | 保存一次 CVD-16 评估使用的版本化特征向量和质量证据。 | 是 |
-| 93 | [`rehealth_cvd_risk_result`](#rehealth-cvd-risk-result) | CVD 风险结果表 | ReHealth 核心业务 | 保存模型风险分数、等级、模型贡献、Factor16 贡献、警告和模型版本。 | 是 |
-| 94 | [`rehealth_device_binding`](#rehealth-device-binding) | 用户设备绑定表 | ReHealth 核心业务 | 保存认证用户与产品、稳定设备身份及状态的绑定关系。 | 是 |
-| 95 | [`rehealth_health_interview`](#rehealth-health-interview) | 健康访谈主表 | ReHealth 核心业务 | 保存认证用户每次结构化健康访谈的主记录和兼容 JSON 快照。 | 是 |
-| 96 | [`rehealth_health_interview_answer`](#rehealth-health-interview-answer) | 健康访谈回答表 | ReHealth 核心业务 | 保存访谈下的有序问答明细。 | 是 |
-| 97 | [`rehealth_health_interview_baseline`](#rehealth-health-interview-baseline) | 健康访谈基线表 | ReHealth 核心业务 | 保存访谈提取的有序健康基线指标。 | 是 |
-| 98 | [`rehealth_health_interview_focus`](#rehealth-health-interview-focus) | 健康访谈关注项表 | ReHealth 核心业务 | 保存访谈识别出的重点健康关注项。 | 是 |
-| 99 | [`rehealth_insurance_audit_event`](#rehealth-insurance-audit-event) | 保险操作审计表 | ReHealth 保险业务 | 保存租户内保险资源操作的不可变审计事件和前后哈希。 | 是（保险域） |
-| 100 | [`rehealth_insurance_claim`](#rehealth-insurance-claim) | 保险理赔表 | ReHealth 保险业务 | 保存理赔事件、金额、状态和保障代码。 | 是（保险域） |
-| 101 | [`rehealth_insurance_consent`](#rehealth-insurance-consent) | 保险授权同意表 | ReHealth 保险业务 | 保存主体按类型和版本授予或撤销的授权及证据哈希。 | 是（保险域） |
-| 102 | [`rehealth_insurance_coverage`](#rehealth-insurance-coverage) | 保险保障责任表 | ReHealth 保险业务 | 保存保单下的保障代码、限额、免赔额和有效期。 | 是（保险域） |
-| 103 | [`rehealth_insurance_import_batch`](#rehealth-insurance-import-batch) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
-| 104 | [`rehealth_insurance_intervention`](#rehealth-insurance-intervention) | 保险干预参与表 | ReHealth 保险业务 | 保存主体加入健康干预计划的状态与反馈时间。 | 是（保险域） |
-| 105 | [`rehealth_insurance_intervention_action`](#rehealth-insurance-intervention-action) | 保险人工干预行动表 | ReHealth 保险业务 | 保存租户和负责人范围内的随访、任务与人工复核行动及完成结果。 | 是（保险域） |
-| 106 | [`rehealth_insurance_intervention_feedback`](#rehealth-insurance-intervention-feedback) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
-| 107 | [`rehealth_insurance_plan_binding`](#rehealth-insurance-plan-binding) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
-| 108 | [`rehealth_insurance_policy`](#rehealth-insurance-policy) | 保险保单表 | ReHealth 保险业务 | 保存租户内保单、产品、金额、期限和被保主体引用。 | 是（保险域） |
-| 109 | [`rehealth_insurance_rwe_report`](#rehealth-insurance-rwe-report) | 真实世界证据报告表 | ReHealth 保险业务 | 保存版本化 RWE 报告及审批证据。 | 是（保险域） |
-| 110 | [`rehealth_insurance_settlement_approval`](#rehealth-insurance-settlement-approval) | 保险结算审批记录表 | ReHealth 保险业务 | 保存结算包的审批动作、意见和请求幂等键。 | 是（保险域） |
-| 111 | [`rehealth_insurance_settlement_package`](#rehealth-insurance-settlement-package) | 保险结算包表 | ReHealth 保险业务 | 保存由研究和报告形成的版本化结算证据包。 | 是（保险域） |
-| 112 | [`rehealth_insurance_study`](#rehealth-insurance-study) | 保险研究定义表 | ReHealth 保险业务 | 保存真实世界研究人群、干预、结局规则和审批状态。 | 是（保险域） |
-| 113 | [`rehealth_insurance_study_job`](#rehealth-insurance-study-job) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
-| 114 | [`rehealth_insurance_study_member`](#rehealth-insurance-study-member) | 保险研究成员表 | ReHealth 保险业务 | 保存研究快照中的去标识主体、队列分组和结局值。 | 是（保险域） |
-| 115 | [`rehealth_insurance_study_result`](#rehealth-insurance-study-result) | 保险研究结果表 | ReHealth 保险业务 | 保存 PSM/真实世界研究估计、区间、平衡和成本结果。 | 是（保险域） |
-| 116 | [`rehealth_insurance_study_snapshot`](#rehealth-insurance-study-snapshot) | 保险研究快照表 | ReHealth 保险业务 | 保存研究人群不可变快照、来源水位和内容哈希。 | 是（保险域） |
-| 117 | [`rehealth_insurance_subject`](#rehealth-insurance-subject) | 保险业务主体表 | ReHealth 保险业务 | 保存租户隔离、去标识化的保险主体与 ReHealth 用户映射。 | 是（保险域） |
-| 118 | [`rehealth_insurance_subject_manager`](#rehealth-insurance-subject-manager) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
-| 119 | [`rehealth_insurance_tenant_profile`](#rehealth-insurance-tenant-profile) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
-| 120 | [`rehealth_intervention_contraindication`](#rehealth-intervention-contraindication) | 干预禁忌表 | ReHealth 核心业务 | 保存某次干预计划包含的有序禁忌与安全限制。 | 是 |
-| 121 | [`rehealth_intervention_feedback`](#rehealth-intervention-feedback) | 干预反馈表 | ReHealth 核心业务 | 保存用户对具体干预计划/行动的完成、跳过或不适用反馈。 | 是 |
-| 122 | [`rehealth_intervention_plan`](#rehealth-intervention-plan) | 健康干预计划表 | ReHealth 核心业务 | 保存基于权威画像、风险和设备行为上下文生成的结构化保守干预计划。 | 是 |
-| 123 | [`rehealth_model_request_log`](#rehealth-model-request-log) | 模型请求审计表 | ReHealth 审计日志 | 保存不含原始 PII/遥测的模型调用元数据、状态、耗时和错误码。 | 否（日志/支持） |
-| 124 | [`rehealth_patient_allergy`](#rehealth-patient-allergy) | 患者过敏史表 | ReHealth 核心业务 | 保存健康档案下的有序过敏条目。 | 是 |
-| 125 | [`rehealth_patient_diagnosis`](#rehealth-patient-diagnosis) | 患者诊断史表 | ReHealth 核心业务 | 保存健康档案下的有序诊断史条目。 | 是 |
-| 126 | [`rehealth_patient_medication`](#rehealth-patient-medication) | 患者用药史表 | ReHealth 核心业务 | 保存健康档案下的有序用药条目。 | 是 |
-| 127 | [`rehealth_patient_profile`](#rehealth-patient-profile) | 患者健康档案表 | ReHealth 核心业务 | 保存认证用户的类型化健康档案、BMI 和乐观锁版本。 | 是 |
-| 128 | [`rehealth_rdi_contribution`](#rehealth-rdi-contribution) | 待确认 | ReHealth 核心业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是 |
-| 129 | [`rehealth_rdi_daily_snapshot`](#rehealth-rdi-daily-snapshot) | 待确认 | ReHealth 核心业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是 |
-| 130 | [`rehealth_rhi_daily_snapshot`](#rehealth-rhi-daily-snapshot) | 云端 RHI 每日聚合快照表 | ReHealth 核心业务 | 保存认证用户从 App 上传的日级 RHI 分数、领域、特征与质量聚合快照；不保存原始遥测。 | 是 |
-| 131 | [`rehealth_rhi_manual_health_input`](#rehealth-rhi-manual-health-input) | 云端 RHI 手工输入表 | ReHealth 核心业务 | 保存认证用户 Room-first 手工健康输入的云端副本，并按 updated_at 合并。 | 是 |
-| 132 | [`rehealth_schema_migration`](#rehealth-schema-migration) | ReHealth 迁移版本表 | 迁移元数据 | 记录 ReHealth 自定义软件库迁移版本；不是业务数据。 | 否（迁移元数据） |
-| 133 | [`rehealth_telemetry_event_projection`](#rehealth-telemetry-event-projection) | 遥测事件运营投影表 | ReHealth 运营投影 | 保存 Kafka 遥测生命周期事件的隐私安全运营投影。 | 是 |
-| 134 | [`rehealth_telemetry_quality_case`](#rehealth-telemetry-quality-case) | 遥测质量工单表 | ReHealth 运营投影 | 保存由遥测质量事件派生的运营质量工单。 | 是 |
-| 135 | [`rehealth_website_record`](#rehealth-website-record) | 官网业务记录表 | ReHealth 核心业务 | 保存官网侧按租户隔离的结构化业务记录；具体记录类型由业务代码定义。 | 是 |
-| 136 | [`rep_demo_dxtj`](#rep-demo-dxtj) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 137 | [`rep_demo_employee`](#rep-demo-employee) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 138 | [`rep_demo_gongsi`](#rep-demo-gongsi) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 139 | [`rep_demo_jianpiao`](#rep-demo-jianpiao) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 140 | [`rep_demo_order_main`](#rep-demo-order-main) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 141 | [`rep_demo_order_product`](#rep-demo-order-product) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 142 | [`sys_announcement`](#sys-announcement) | 系统通告表 | Jeecg 系统 | 系统通告表 | 否 |
-| 143 | [`sys_announcement_send`](#sys-announcement-send) | 用户通告阅读标记表 | Jeecg 系统 | 用户通告阅读标记表 | 否 |
-| 144 | [`sys_category`](#sys-category) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 145 | [`sys_check_rule`](#sys-check-rule) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 146 | [`sys_comment`](#sys-comment) | 系统评论回复表 | Jeecg 系统 | 系统评论回复表 | 否 |
-| 147 | [`sys_data_log`](#sys-data-log) | 待确认 | Jeecg 日志 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 148 | [`sys_data_source`](#sys-data-source) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 149 | [`sys_depart`](#sys-depart) | 组织机构表 | Jeecg 用户权限 | 组织机构表 | 否 |
-| 150 | [`sys_depart_permission`](#sys-depart-permission) | 部门权限表 | Jeecg 用户权限 | 部门权限表 | 否 |
-| 151 | [`sys_depart_role`](#sys-depart-role) | 部门角色表 | Jeecg 用户权限 | 部门角色表 | 否 |
-| 152 | [`sys_depart_role_permission`](#sys-depart-role-permission) | 部门角色权限表 | Jeecg 用户权限 | 部门角色权限表 | 否 |
-| 153 | [`sys_depart_role_user`](#sys-depart-role-user) | 部门角色用户表 | Jeecg 用户权限 | 部门角色用户表 | 否 |
-| 154 | [`sys_dict`](#sys-dict) | 待确认 | Jeecg 字典 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 155 | [`sys_dict_item`](#sys-dict-item) | 待确认 | Jeecg 字典 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 156 | [`sys_files`](#sys-files) | 知识库-文档管理 | Jeecg 系统 | 知识库-文档管理 | 否 |
-| 157 | [`sys_fill_rule`](#sys-fill-rule) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 158 | [`sys_form_file`](#sys-form-file) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 159 | [`sys_gateway_route`](#sys-gateway-route) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 160 | [`sys_log`](#sys-log) | 系统日志表 | Jeecg 日志 | 系统日志表 | 否 |
-| 161 | [`sys_permission`](#sys-permission) | 菜单权限表 | Jeecg 用户权限 | 菜单权限表 | 是（平台基础） |
-| 162 | [`sys_permission_data_rule`](#sys-permission-data-rule) | 待确认 | Jeecg 用户权限 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 163 | [`sys_position`](#sys-position) | 职务级别 | Jeecg 用户权限 | 职务级别 | 否 |
-| 164 | [`sys_quartz_job`](#sys-quartz-job) | 待确认 | 调度 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 165 | [`sys_role`](#sys-role) | 角色表 | Jeecg 用户权限 | 角色表 | 是（平台基础） |
-| 166 | [`sys_role_index`](#sys-role-index) | 角色首页表 | Jeecg 用户权限 | 角色首页表 | 否 |
-| 167 | [`sys_role_permission`](#sys-role-permission) | 角色权限表 | Jeecg 用户权限 | 角色权限表 | 是（平台基础） |
-| 168 | [`sys_sms`](#sys-sms) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 169 | [`sys_sms_template`](#sys-sms-template) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 170 | [`sys_table_white_list`](#sys-table-white-list) | 系统表白名单 | Jeecg 系统 | 系统表白名单 | 否 |
-| 171 | [`sys_tenant`](#sys-tenant) | 多租户信息表 | Jeecg 用户权限 | 多租户信息表 | 是（平台基础） |
-| 172 | [`sys_tenant_pack`](#sys-tenant-pack) | 租户产品包 | Jeecg 用户权限 | 租户产品包 | 否 |
-| 173 | [`sys_tenant_pack_perms`](#sys-tenant-pack-perms) | 租户产品包和菜单关系表 | Jeecg 用户权限 | 租户产品包和菜单关系表 | 否 |
-| 174 | [`sys_tenant_pack_user`](#sys-tenant-pack-user) | 租户套餐人员表 | Jeecg 用户权限 | 租户套餐人员表 | 否 |
-| 175 | [`sys_third_account`](#sys-third-account) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 176 | [`sys_third_app_config`](#sys-third-app-config) | 租户第三方配置表 | Jeecg 系统 | 租户第三方配置表 | 否 |
-| 177 | [`sys_ugroup`](#sys-ugroup) | 用户组表 | Jeecg 用户权限 | 用户组表 | 否 |
-| 178 | [`sys_ugroup_user`](#sys-ugroup-user) | 用户组关系表 | Jeecg 用户权限 | 用户组关系表 | 否 |
-| 179 | [`sys_user`](#sys-user) | 用户表 | Jeecg 用户权限 | 用户表 | 是（平台基础） |
-| 180 | [`sys_user_dep_post`](#sys-user-dep-post) | 待确认 | Jeecg 用户权限 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 181 | [`sys_user_depart`](#sys-user-depart) | 待确认 | Jeecg 用户权限 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 182 | [`sys_user_position`](#sys-user-position) | 待确认 | Jeecg 用户权限 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 183 | [`sys_user_role`](#sys-user-role) | 用户角色表 | Jeecg 用户权限 | 用户角色表 | 是（平台基础） |
-| 184 | [`sys_user_tenant`](#sys-user-tenant) | 用户租户关系表 | Jeecg 用户权限 | 用户租户关系表 | 否 |
-| 185 | [`test_demo`](#test-demo) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 186 | [`test_enhance_select`](#test-enhance-select) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 187 | [`test_note`](#test-note) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 188 | [`test_online_link`](#test-online-link) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 189 | [`test_order_customer`](#test-order-customer) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 190 | [`test_order_main`](#test-order-main) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 191 | [`test_order_product`](#test-order-product) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 192 | [`test_person`](#test-person) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
-| 193 | [`test_shoptype_tree`](#test-shoptype-tree) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 89 | [`rehealth_care_plan_execution`](#rehealth-care-plan-execution) | 机构干预执行事实表 | ReHealth 核心业务 | 保存对具体任务实例的完成、部分完成、跳过或不适用评分，作为滚动 28 日依从性分子。 | 是 |
+| 90 | [`rehealth_care_plan_item`](#rehealth-care-plan-item) | 机构干预计划项目表 | ReHealth 核心业务 | 保存绑定到具体版本的患者可见计划项目快照及稳定逻辑项目标识。 | 是 |
+| 91 | [`rehealth_care_plan_occurrence`](#rehealth-care-plan-occurrence) | 机构干预任务实例表 | ReHealth 核心业务 | 保存绑定计划版本和项目的到期任务实例，为后续真实依从性分母提供稳定标识。 | 是 |
+| 92 | [`rehealth_care_plan_revision`](#rehealth-care-plan-revision) | 机构干预计划版本表 | ReHealth 核心业务 | 保存草稿、已发布和已撤回的计划版本；已发布内容不可原地覆盖。 | 是 |
+| 93 | [`rehealth_cvd_feature_vector`](#rehealth-cvd-feature-vector) | CVD 特征向量表 | ReHealth 核心业务 | 保存一次 CVD-16 评估使用的版本化特征向量和质量证据。 | 是 |
+| 94 | [`rehealth_cvd_risk_result`](#rehealth-cvd-risk-result) | CVD 风险结果表 | ReHealth 核心业务 | 保存模型风险分数、等级、模型贡献、Factor16 贡献、警告和模型版本。 | 是 |
+| 95 | [`rehealth_device_binding`](#rehealth-device-binding) | 用户设备绑定表 | ReHealth 核心业务 | 保存认证用户与产品、稳定设备身份及状态的绑定关系。 | 是 |
+| 96 | [`rehealth_health_interview`](#rehealth-health-interview) | 健康访谈主表 | ReHealth 核心业务 | 保存认证用户每次结构化健康访谈的主记录和兼容 JSON 快照。 | 是 |
+| 97 | [`rehealth_health_interview_answer`](#rehealth-health-interview-answer) | 健康访谈回答表 | ReHealth 核心业务 | 保存访谈下的有序问答明细。 | 是 |
+| 98 | [`rehealth_health_interview_baseline`](#rehealth-health-interview-baseline) | 健康访谈基线表 | ReHealth 核心业务 | 保存访谈提取的有序健康基线指标。 | 是 |
+| 99 | [`rehealth_health_interview_focus`](#rehealth-health-interview-focus) | 健康访谈关注项表 | ReHealth 核心业务 | 保存访谈识别出的重点健康关注项。 | 是 |
+| 100 | [`rehealth_insurance_audit_event`](#rehealth-insurance-audit-event) | 保险操作审计表 | ReHealth 保险业务 | 保存租户内保险资源操作的不可变审计事件和前后哈希。 | 是（保险域） |
+| 101 | [`rehealth_insurance_claim`](#rehealth-insurance-claim) | 保险理赔表 | ReHealth 保险业务 | 保存理赔事件、金额、状态和保障代码。 | 是（保险域） |
+| 102 | [`rehealth_insurance_consent`](#rehealth-insurance-consent) | 保险授权同意表 | ReHealth 保险业务 | 保存主体按类型和版本授予或撤销的授权及证据哈希。 | 是（保险域） |
+| 103 | [`rehealth_insurance_coverage`](#rehealth-insurance-coverage) | 保险保障责任表 | ReHealth 保险业务 | 保存保单下的保障代码、限额、免赔额和有效期。 | 是（保险域） |
+| 104 | [`rehealth_insurance_import_batch`](#rehealth-insurance-import-batch) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
+| 105 | [`rehealth_insurance_intervention`](#rehealth-insurance-intervention) | 保险干预参与表 | ReHealth 保险业务 | 保存主体加入健康干预计划的状态与反馈时间。 | 是（保险域） |
+| 106 | [`rehealth_insurance_intervention_action`](#rehealth-insurance-intervention-action) | 保险人工干预行动表 | ReHealth 保险业务 | 保存租户和负责人范围内的随访、任务与人工复核行动及完成结果。 | 是（保险域） |
+| 107 | [`rehealth_insurance_intervention_feedback`](#rehealth-insurance-intervention-feedback) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
+| 108 | [`rehealth_insurance_plan_binding`](#rehealth-insurance-plan-binding) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
+| 109 | [`rehealth_insurance_policy`](#rehealth-insurance-policy) | 保险保单表 | ReHealth 保险业务 | 保存租户内保单、产品、金额、期限和被保主体引用。 | 是（保险域） |
+| 110 | [`rehealth_insurance_rwe_report`](#rehealth-insurance-rwe-report) | 真实世界证据报告表 | ReHealth 保险业务 | 保存版本化 RWE 报告及审批证据。 | 是（保险域） |
+| 111 | [`rehealth_insurance_settlement_approval`](#rehealth-insurance-settlement-approval) | 保险结算审批记录表 | ReHealth 保险业务 | 保存结算包的审批动作、意见和请求幂等键。 | 是（保险域） |
+| 112 | [`rehealth_insurance_settlement_package`](#rehealth-insurance-settlement-package) | 保险结算包表 | ReHealth 保险业务 | 保存由研究和报告形成的版本化结算证据包。 | 是（保险域） |
+| 113 | [`rehealth_insurance_study`](#rehealth-insurance-study) | 保险研究定义表 | ReHealth 保险业务 | 保存真实世界研究人群、干预、结局规则和审批状态。 | 是（保险域） |
+| 114 | [`rehealth_insurance_study_job`](#rehealth-insurance-study-job) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
+| 115 | [`rehealth_insurance_study_member`](#rehealth-insurance-study-member) | 保险研究成员表 | ReHealth 保险业务 | 保存研究快照中的去标识主体、队列分组和结局值。 | 是（保险域） |
+| 116 | [`rehealth_insurance_study_result`](#rehealth-insurance-study-result) | 保险研究结果表 | ReHealth 保险业务 | 保存 PSM/真实世界研究估计、区间、平衡和成本结果。 | 是（保险域） |
+| 117 | [`rehealth_insurance_study_snapshot`](#rehealth-insurance-study-snapshot) | 保险研究快照表 | ReHealth 保险业务 | 保存研究人群不可变快照、来源水位和内容哈希。 | 是（保险域） |
+| 118 | [`rehealth_insurance_subject`](#rehealth-insurance-subject) | 保险业务主体表 | ReHealth 保险业务 | 保存租户隔离、去标识化的保险主体与 ReHealth 用户映射。 | 是（保险域） |
+| 119 | [`rehealth_insurance_subject_manager`](#rehealth-insurance-subject-manager) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
+| 120 | [`rehealth_insurance_tenant_profile`](#rehealth-insurance-tenant-profile) | 待确认 | ReHealth 保险业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是（保险域） |
+| 121 | [`rehealth_intervention_contraindication`](#rehealth-intervention-contraindication) | 干预禁忌表 | ReHealth 核心业务 | 保存某次干预计划包含的有序禁忌与安全限制。 | 是 |
+| 122 | [`rehealth_intervention_feedback`](#rehealth-intervention-feedback) | 干预反馈表 | ReHealth 核心业务 | 保存用户对具体干预计划/行动的完成、跳过或不适用反馈。 | 是 |
+| 123 | [`rehealth_intervention_plan`](#rehealth-intervention-plan) | 健康干预计划表 | ReHealth 核心业务 | 保存基于权威画像、风险和设备行为上下文生成的结构化保守干预计划。 | 是 |
+| 124 | [`rehealth_model_request_log`](#rehealth-model-request-log) | 模型请求审计表 | ReHealth 审计日志 | 保存不含原始 PII/遥测的模型调用元数据、状态、耗时和错误码。 | 否（日志/支持） |
+| 125 | [`rehealth_patient_allergy`](#rehealth-patient-allergy) | 患者过敏史表 | ReHealth 核心业务 | 保存健康档案下的有序过敏条目。 | 是 |
+| 126 | [`rehealth_patient_diagnosis`](#rehealth-patient-diagnosis) | 患者诊断史表 | ReHealth 核心业务 | 保存健康档案下的有序诊断史条目。 | 是 |
+| 127 | [`rehealth_patient_medication`](#rehealth-patient-medication) | 患者用药史表 | ReHealth 核心业务 | 保存健康档案下的有序用药条目。 | 是 |
+| 128 | [`rehealth_patient_profile`](#rehealth-patient-profile) | 患者健康档案表 | ReHealth 核心业务 | 保存认证用户的类型化健康档案、BMI 和乐观锁版本。 | 是 |
+| 129 | [`rehealth_rdi_contribution`](#rehealth-rdi-contribution) | 待确认 | ReHealth 核心业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是 |
+| 130 | [`rehealth_rdi_daily_snapshot`](#rehealth-rdi-daily-snapshot) | 待确认 | ReHealth 核心业务 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 是 |
+| 131 | [`rehealth_rhi_daily_snapshot`](#rehealth-rhi-daily-snapshot) | 云端 RHI 每日聚合快照表 | ReHealth 核心业务 | 保存认证用户从 App 上传的日级 RHI 分数、领域、特征与质量聚合快照；不保存原始遥测。 | 是 |
+| 132 | [`rehealth_rhi_manual_health_input`](#rehealth-rhi-manual-health-input) | 云端 RHI 手工输入表 | ReHealth 核心业务 | 保存认证用户 Room-first 手工健康输入的云端副本，并按 updated_at 合并。 | 是 |
+| 133 | [`rehealth_schema_migration`](#rehealth-schema-migration) | ReHealth 迁移版本表 | 迁移元数据 | 记录 ReHealth 自定义软件库迁移版本；不是业务数据。 | 否（迁移元数据） |
+| 134 | [`rehealth_telemetry_event_projection`](#rehealth-telemetry-event-projection) | 遥测事件运营投影表 | ReHealth 运营投影 | 保存 Kafka 遥测生命周期事件的隐私安全运营投影。 | 是 |
+| 135 | [`rehealth_telemetry_quality_case`](#rehealth-telemetry-quality-case) | 遥测质量工单表 | ReHealth 运营投影 | 保存由遥测质量事件派生的运营质量工单。 | 是 |
+| 136 | [`rehealth_website_record`](#rehealth-website-record) | 官网业务记录表 | ReHealth 核心业务 | 保存官网侧按租户隔离的结构化业务记录；具体记录类型由业务代码定义。 | 是 |
+| 137 | [`rep_demo_dxtj`](#rep-demo-dxtj) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 138 | [`rep_demo_employee`](#rep-demo-employee) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 139 | [`rep_demo_gongsi`](#rep-demo-gongsi) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 140 | [`rep_demo_jianpiao`](#rep-demo-jianpiao) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 141 | [`rep_demo_order_main`](#rep-demo-order-main) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 142 | [`rep_demo_order_product`](#rep-demo-order-product) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 143 | [`sys_announcement`](#sys-announcement) | 系统通告表 | Jeecg 系统 | 系统通告表 | 否 |
+| 144 | [`sys_announcement_send`](#sys-announcement-send) | 用户通告阅读标记表 | Jeecg 系统 | 用户通告阅读标记表 | 否 |
+| 145 | [`sys_category`](#sys-category) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 146 | [`sys_check_rule`](#sys-check-rule) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 147 | [`sys_comment`](#sys-comment) | 系统评论回复表 | Jeecg 系统 | 系统评论回复表 | 否 |
+| 148 | [`sys_data_log`](#sys-data-log) | 待确认 | Jeecg 日志 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 149 | [`sys_data_source`](#sys-data-source) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 150 | [`sys_depart`](#sys-depart) | 组织机构表 | Jeecg 用户权限 | 组织机构表 | 否 |
+| 151 | [`sys_depart_permission`](#sys-depart-permission) | 部门权限表 | Jeecg 用户权限 | 部门权限表 | 否 |
+| 152 | [`sys_depart_role`](#sys-depart-role) | 部门角色表 | Jeecg 用户权限 | 部门角色表 | 否 |
+| 153 | [`sys_depart_role_permission`](#sys-depart-role-permission) | 部门角色权限表 | Jeecg 用户权限 | 部门角色权限表 | 否 |
+| 154 | [`sys_depart_role_user`](#sys-depart-role-user) | 部门角色用户表 | Jeecg 用户权限 | 部门角色用户表 | 否 |
+| 155 | [`sys_dict`](#sys-dict) | 待确认 | Jeecg 字典 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 156 | [`sys_dict_item`](#sys-dict-item) | 待确认 | Jeecg 字典 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 157 | [`sys_files`](#sys-files) | 知识库-文档管理 | Jeecg 系统 | 知识库-文档管理 | 否 |
+| 158 | [`sys_fill_rule`](#sys-fill-rule) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 159 | [`sys_form_file`](#sys-form-file) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 160 | [`sys_gateway_route`](#sys-gateway-route) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 161 | [`sys_log`](#sys-log) | 系统日志表 | Jeecg 日志 | 系统日志表 | 否 |
+| 162 | [`sys_permission`](#sys-permission) | 菜单权限表 | Jeecg 用户权限 | 菜单权限表 | 是（平台基础） |
+| 163 | [`sys_permission_data_rule`](#sys-permission-data-rule) | 待确认 | Jeecg 用户权限 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 164 | [`sys_position`](#sys-position) | 职务级别 | Jeecg 用户权限 | 职务级别 | 否 |
+| 165 | [`sys_quartz_job`](#sys-quartz-job) | 待确认 | 调度 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 166 | [`sys_role`](#sys-role) | 角色表 | Jeecg 用户权限 | 角色表 | 是（平台基础） |
+| 167 | [`sys_role_index`](#sys-role-index) | 角色首页表 | Jeecg 用户权限 | 角色首页表 | 否 |
+| 168 | [`sys_role_permission`](#sys-role-permission) | 角色权限表 | Jeecg 用户权限 | 角色权限表 | 是（平台基础） |
+| 169 | [`sys_sms`](#sys-sms) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 170 | [`sys_sms_template`](#sys-sms-template) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 171 | [`sys_table_white_list`](#sys-table-white-list) | 系统表白名单 | Jeecg 系统 | 系统表白名单 | 否 |
+| 172 | [`sys_tenant`](#sys-tenant) | 多租户信息表 | Jeecg 用户权限 | 多租户信息表 | 是（平台基础） |
+| 173 | [`sys_tenant_pack`](#sys-tenant-pack) | 租户产品包 | Jeecg 用户权限 | 租户产品包 | 否 |
+| 174 | [`sys_tenant_pack_perms`](#sys-tenant-pack-perms) | 租户产品包和菜单关系表 | Jeecg 用户权限 | 租户产品包和菜单关系表 | 否 |
+| 175 | [`sys_tenant_pack_user`](#sys-tenant-pack-user) | 租户套餐人员表 | Jeecg 用户权限 | 租户套餐人员表 | 否 |
+| 176 | [`sys_third_account`](#sys-third-account) | 待确认 | Jeecg 系统 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 177 | [`sys_third_app_config`](#sys-third-app-config) | 租户第三方配置表 | Jeecg 系统 | 租户第三方配置表 | 否 |
+| 178 | [`sys_ugroup`](#sys-ugroup) | 用户组表 | Jeecg 用户权限 | 用户组表 | 否 |
+| 179 | [`sys_ugroup_user`](#sys-ugroup-user) | 用户组关系表 | Jeecg 用户权限 | 用户组关系表 | 否 |
+| 180 | [`sys_user`](#sys-user) | 用户表 | Jeecg 用户权限 | 用户表 | 是（平台基础） |
+| 181 | [`sys_user_dep_post`](#sys-user-dep-post) | 待确认 | Jeecg 用户权限 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 182 | [`sys_user_depart`](#sys-user-depart) | 待确认 | Jeecg 用户权限 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 183 | [`sys_user_position`](#sys-user-position) | 待确认 | Jeecg 用户权限 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 184 | [`sys_user_role`](#sys-user-role) | 用户角色表 | Jeecg 用户权限 | 用户角色表 | 是（平台基础） |
+| 185 | [`sys_user_tenant`](#sys-user-tenant) | 用户租户关系表 | Jeecg 用户权限 | 用户租户关系表 | 否 |
+| 186 | [`test_demo`](#test-demo) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 187 | [`test_enhance_select`](#test-enhance-select) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 188 | [`test_note`](#test-note) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 189 | [`test_online_link`](#test-online-link) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 190 | [`test_order_customer`](#test-order-customer) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 191 | [`test_order_main`](#test-order-main) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 192 | [`test_order_product`](#test-order-product) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 193 | [`test_person`](#test-person) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
+| 194 | [`test_shoptype_tree`](#test-shoptype-tree) | 待确认 | 演示/测试 | 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。 | 否 |
 
 ## 模块统计
 
@@ -217,7 +218,7 @@
 | OpenAPI | 4 |
 | ReHealth 保险业务 | 21 |
 | ReHealth 审计日志 | 1 |
-| ReHealth 核心业务 | 29 |
+| ReHealth 核心业务 | 30 |
 | ReHealth 运营投影 | 2 |
 | 上游订单示例 | 3 |
 | 旧 MySQL 硬件兼容 | 6 |
@@ -5062,7 +5063,73 @@ Oss File
 
 保存不含计划正文的版本生命周期操作、内容哈希和变更原因。
 
-## 89. 表：`rehealth_care_plan_item` 机构干预计划项目表
+## 89. 表：`rehealth_care_plan_execution` 机构干预执行事实表
+
+### 基本信息
+
+| 项目 | 内容 |
+| --- | --- |
+| 表名 | `rehealth_care_plan_execution` |
+| 中文名称 | 机构干预执行事实表 |
+| 所属数据库 | `rehealth_software` |
+| 所属模块 | ReHealth 核心业务 |
+| 业务作用 | 保存对具体任务实例的完成、部分完成、跳过或不适用评分，作为滚动 28 日依从性分子。 |
+| 主键 | `id` |
+| 存储引擎 | InnoDB |
+| 数据量级 | 当前本地实例约 0 行（InnoDB 统计估算，非生产容量） |
+| 是否核心表 | 是 |
+| 结构依据 | 运行中 MySQL information_schema；表/字段 COMMENT；ReHealth SQL 与 Repository |
+
+### 字段
+
+| 序号 | 字段名 | 中文含义 | 类型 | 长度/精度 | 允许 NULL | 默认值 | 主键 | 自增 | 唯一 | 索引 | 公共字段 | 关联 | 枚举/约束 | 业务说明 |
+| ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `id` | 计划任务执行事实主键 | `varchar(64)` | 64 | 否 | `无/NULL` | 是 | 否 | PRIMARY | PRIMARY | 是 | 否 | — | 计划任务执行事实主键 |
+| 2 | `tenant_id` | 从任务实例复制的所属 Jeecg 租户 ID | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_execution_source | idx_care_plan_execution_occurrence、idx_care_plan_execution_plan_time、idx_care_plan_execution_subject_time、uk_care_plan_execution_source | 是 | 逻辑→sys_tenant.id | — | 从任务实例复制的所属 Jeecg 租户 ID |
+| 3 | `occurrence_id` | 被评分的计划任务实例 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_execution_occurrence | 否 | 逻辑→rehealth_care_plan_occurrence.id | — | 被评分的计划任务实例 ID |
+| 4 | `plan_id` | 执行时所属关怀计划 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_execution_plan_time | 否 | 逻辑→rehealth_care_plan.id | — | 执行时所属关怀计划 ID |
+| 5 | `revision_id` | 执行时所属已发布版本 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 逻辑→rehealth_care_plan_revision.id | — | 执行时所属已发布版本 ID |
+| 6 | `plan_item_id` | 执行时所属版本内计划项目 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 逻辑→rehealth_care_plan_item.id | — | 执行时所属版本内计划项目 ID |
+| 7 | `logical_item_id` | 跨版本保持稳定的逻辑项目 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否/待确认 | — | 跨版本保持稳定的逻辑项目 ID |
+| 8 | `subject_ref` | 租户范围内的服务对象引用 | `char(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_execution_subject_time | 否 | 否 | — | 租户范围内的服务对象引用 |
+| 9 | `feedback_type` | 执行评分：completed、partially_completed、skipped 或 not_applicable | `varchar(32)` | 32 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | 执行评分：completed、partially_completed、skipped 或 not_applicable | 执行评分：completed、partially_completed、skipped 或 not_applicable |
+| 10 | `score_value` | 依从性计分值：1、0.5、0；不适用为 NULL | `decimal(5,4)` | 5,4 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | 依从性计分值：1、0.5、0；不适用为 NULL | 依从性计分值：1、0.5、0；不适用为 NULL |
+| 11 | `verification_type` | 执行事实核验方式：用户自报、设备核验或人员确认 | `varchar(32)` | 32 | 否 | `self_report` | 否 | 否 | 否 | 否 | 否 | 否 | 执行事实核验方式：用户自报、设备核验或人员确认 | 执行事实核验方式：用户自报、设备核验或人员确认 |
+| 12 | `note` | 用户可选的有界执行备注，不保存原始健康遥测 | `varchar(1000)` | 1000 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 用户可选的有界执行备注，不保存原始健康遥测 |
+| 13 | `occurred_at` | 用户执行或提交评分的业务时间 | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_execution_occurrence、idx_care_plan_execution_plan_time、idx_care_plan_execution_subject_time | 否 | 否 | — | 用户执行或提交评分的业务时间 |
+| 14 | `source_system` | 执行事实来源系统 | `varchar(64)` | 64 | 否 | `rehealth_app` | 否 | 否 | 联合唯一:uk_care_plan_execution_source | uk_care_plan_execution_source | 否 | 否 | — | 执行事实来源系统 |
+| 15 | `source_record_id` | 来源系统内的幂等记录 ID | `varchar(128)` | 128 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_execution_source | uk_care_plan_execution_source | 否 | 否/待确认 | — | 来源系统内的幂等记录 ID |
+| 16 | `created_at` | 执行事实写入服务端的时间 | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | — | 执行事实写入服务端的时间 |
+
+### 索引
+
+| 索引名称 | 字段 | 类型 | 作用 |
+| --- | --- | --- | --- |
+| `idx_care_plan_execution_occurrence` | `tenant_id, occurrence_id, occurred_at` | 普通索引（联合） | 支持按索引字段组合查询；具体调用路径需结合 Mapper/Repository。 |
+| `idx_care_plan_execution_plan_time` | `tenant_id, plan_id, occurred_at` | 普通索引（联合） | 支持按索引字段组合查询；具体调用路径需结合 Mapper/Repository。 |
+| `idx_care_plan_execution_subject_time` | `tenant_id, subject_ref, occurred_at` | 普通索引（联合） | 支持按索引字段组合查询；具体调用路径需结合 Mapper/Repository。 |
+| `PRIMARY` | `id` | 主键 | 保证记录唯一并支持主键定位。 |
+| `uk_care_plan_execution_source` | `tenant_id, source_system, source_record_id` | 唯一索引（联合） | 保证字段组合唯一，并支持按该组合进行幂等或业务键查询。 |
+
+### 关联关系
+
+- `rehealth_care_plan_execution.(tenant_id)` → `sys_tenant.(id)`：逻辑外键；租户隔离逻辑外键。
+- `rehealth_care_plan_execution.(occurrence_id)` → `rehealth_care_plan_occurrence.(id)`：逻辑外键；执行评分所属任务实例逻辑外键。
+- `rehealth_care_plan_execution.(plan_id)` → `rehealth_care_plan.(id)`：逻辑外键；执行评分所属计划逻辑外键。
+- `rehealth_care_plan_execution.(revision_id)` → `rehealth_care_plan_revision.(id)`：逻辑外键；执行评分所属版本逻辑外键。
+- `rehealth_care_plan_execution.(plan_item_id)` → `rehealth_care_plan_item.(id)`：逻辑外键；执行评分所属版本项目逻辑外键。
+
+### 枚举与约束
+
+- `feedback_type`：执行评分：completed、partially_completed、skipped 或 not_applicable。
+- `score_value`：依从性计分值：1、0.5、0；不适用为 NULL。
+- `verification_type`：执行事实核验方式：用户自报、设备核验或人员确认。
+
+### 业务说明
+
+保存对具体任务实例的完成、部分完成、跳过或不适用评分，作为滚动 28 日依从性分子。
+
+## 90. 表：`rehealth_care_plan_item` 机构干预计划项目表
 
 ### 基本信息
 
@@ -5120,7 +5187,7 @@ Oss File
 
 保存绑定到具体版本的患者可见计划项目快照及稳定逻辑项目标识。
 
-## 90. 表：`rehealth_care_plan_occurrence` 机构干预任务实例表
+## 91. 表：`rehealth_care_plan_occurrence` 机构干预任务实例表
 
 ### 基本信息
 
@@ -5179,7 +5246,7 @@ Oss File
 
 保存绑定计划版本和项目的到期任务实例，为后续真实依从性分母提供稳定标识。
 
-## 91. 表：`rehealth_care_plan_revision` 机构干预计划版本表
+## 92. 表：`rehealth_care_plan_revision` 机构干预计划版本表
 
 ### 基本信息
 
@@ -5242,7 +5309,7 @@ Oss File
 
 保存草稿、已发布和已撤回的计划版本；已发布内容不可原地覆盖。
 
-## 92. 表：`rehealth_cvd_feature_vector` CVD 特征向量表
+## 93. 表：`rehealth_cvd_feature_vector` CVD 特征向量表
 
 ### 基本信息
 
@@ -5292,7 +5359,7 @@ Oss File
 
 保存一次 CVD-16 评估使用的版本化特征向量和质量证据。
 
-## 93. 表：`rehealth_cvd_risk_result` CVD 风险结果表
+## 94. 表：`rehealth_cvd_risk_result` CVD 风险结果表
 
 ### 基本信息
 
@@ -5360,7 +5427,7 @@ Oss File
 
 保存模型风险分数、等级、模型贡献、Factor16 贡献、警告和模型版本。
 
-## 94. 表：`rehealth_device_binding` 用户设备绑定表
+## 95. 表：`rehealth_device_binding` 用户设备绑定表
 
 ### 基本信息
 
@@ -5414,7 +5481,7 @@ Oss File
 
 保存认证用户与产品、稳定设备身份及状态的绑定关系。
 
-## 95. 表：`rehealth_health_interview` 健康访谈主表
+## 96. 表：`rehealth_health_interview` 健康访谈主表
 
 ### 基本信息
 
@@ -5461,7 +5528,7 @@ Oss File
 
 保存认证用户每次结构化健康访谈的主记录和兼容 JSON 快照。
 
-## 96. 表：`rehealth_health_interview_answer` 健康访谈回答表
+## 97. 表：`rehealth_health_interview_answer` 健康访谈回答表
 
 ### 基本信息
 
@@ -5508,7 +5575,7 @@ Oss File
 
 保存访谈下的有序问答明细。
 
-## 97. 表：`rehealth_health_interview_baseline` 健康访谈基线表
+## 98. 表：`rehealth_health_interview_baseline` 健康访谈基线表
 
 ### 基本信息
 
@@ -5554,7 +5621,7 @@ Oss File
 
 保存访谈提取的有序健康基线指标。
 
-## 98. 表：`rehealth_health_interview_focus` 健康访谈关注项表
+## 99. 表：`rehealth_health_interview_focus` 健康访谈关注项表
 
 ### 基本信息
 
@@ -5599,7 +5666,7 @@ Oss File
 
 保存访谈识别出的重点健康关注项。
 
-## 99. 表：`rehealth_insurance_audit_event` 保险操作审计表
+## 100. 表：`rehealth_insurance_audit_event` 保险操作审计表
 
 ### 基本信息
 
@@ -5653,7 +5720,7 @@ Oss File
 
 保存租户内保险资源操作的不可变审计事件和前后哈希。
 
-## 100. 表：`rehealth_insurance_claim` 保险理赔表
+## 101. 表：`rehealth_insurance_claim` 保险理赔表
 
 ### 基本信息
 
@@ -5721,7 +5788,7 @@ Oss File
 
 保存理赔事件、金额、状态和保障代码。
 
-## 101. 表：`rehealth_insurance_consent` 保险授权同意表
+## 102. 表：`rehealth_insurance_consent` 保险授权同意表
 
 ### 基本信息
 
@@ -5780,7 +5847,7 @@ Oss File
 
 保存主体按类型和版本授予或撤销的授权及证据哈希。
 
-## 102. 表：`rehealth_insurance_coverage` 保险保障责任表
+## 103. 表：`rehealth_insurance_coverage` 保险保障责任表
 
 ### 基本信息
 
@@ -5841,7 +5908,7 @@ Oss File
 
 保存保单下的保障代码、限额、免赔额和有效期。
 
-## 103. 表：`rehealth_insurance_import_batch` 待确认
+## 104. 表：`rehealth_insurance_import_batch` 待确认
 
 ### 基本信息
 
@@ -5897,7 +5964,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 104. 表：`rehealth_insurance_intervention` 保险干预参与表
+## 105. 表：`rehealth_insurance_intervention` 保险干预参与表
 
 ### 基本信息
 
@@ -5957,7 +6024,7 @@ Oss File
 
 保存主体加入健康干预计划的状态与反馈时间。
 
-## 105. 表：`rehealth_insurance_intervention_action` 保险人工干预行动表
+## 106. 表：`rehealth_insurance_intervention_action` 保险人工干预行动表
 
 ### 基本信息
 
@@ -6017,7 +6084,7 @@ Oss File
 
 保存租户和负责人范围内的随访、任务与人工复核行动及完成结果。
 
-## 106. 表：`rehealth_insurance_intervention_feedback` 待确认
+## 107. 表：`rehealth_insurance_intervention_feedback` 待确认
 
 ### 基本信息
 
@@ -6080,7 +6147,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 107. 表：`rehealth_insurance_plan_binding` 待确认
+## 108. 表：`rehealth_insurance_plan_binding` 待确认
 
 ### 基本信息
 
@@ -6138,7 +6205,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 108. 表：`rehealth_insurance_policy` 保险保单表
+## 109. 表：`rehealth_insurance_policy` 保险保单表
 
 ### 基本信息
 
@@ -6202,7 +6269,7 @@ Oss File
 
 保存租户内保单、产品、金额、期限和被保主体引用。
 
-## 109. 表：`rehealth_insurance_rwe_report` 真实世界证据报告表
+## 110. 表：`rehealth_insurance_rwe_report` 真实世界证据报告表
 
 ### 基本信息
 
@@ -6264,7 +6331,7 @@ Oss File
 
 保存版本化 RWE 报告及审批证据。
 
-## 110. 表：`rehealth_insurance_settlement_approval` 保险结算审批记录表
+## 111. 表：`rehealth_insurance_settlement_approval` 保险结算审批记录表
 
 ### 基本信息
 
@@ -6315,7 +6382,7 @@ Oss File
 
 保存结算包的审批动作、意见和请求幂等键。
 
-## 111. 表：`rehealth_insurance_settlement_package` 保险结算包表
+## 112. 表：`rehealth_insurance_settlement_package` 保险结算包表
 
 ### 基本信息
 
@@ -6378,7 +6445,7 @@ Oss File
 
 保存由研究和报告形成的版本化结算证据包。
 
-## 112. 表：`rehealth_insurance_study` 保险研究定义表
+## 113. 表：`rehealth_insurance_study` 保险研究定义表
 
 ### 基本信息
 
@@ -6438,7 +6505,7 @@ Oss File
 
 保存真实世界研究人群、干预、结局规则和审批状态。
 
-## 113. 表：`rehealth_insurance_study_job` 待确认
+## 114. 表：`rehealth_insurance_study_job` 待确认
 
 ### 基本信息
 
@@ -6496,7 +6563,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 114. 表：`rehealth_insurance_study_member` 保险研究成员表
+## 115. 表：`rehealth_insurance_study_member` 保险研究成员表
 
 ### 基本信息
 
@@ -6551,7 +6618,7 @@ Oss File
 
 保存研究快照中的去标识主体、队列分组和结局值。
 
-## 115. 表：`rehealth_insurance_study_result` 保险研究结果表
+## 116. 表：`rehealth_insurance_study_result` 保险研究结果表
 
 ### 基本信息
 
@@ -6611,7 +6678,7 @@ Oss File
 
 保存 PSM/真实世界研究估计、区间、平衡和成本结果。
 
-## 116. 表：`rehealth_insurance_study_snapshot` 保险研究快照表
+## 117. 表：`rehealth_insurance_study_snapshot` 保险研究快照表
 
 ### 基本信息
 
@@ -6668,7 +6735,7 @@ Oss File
 
 保存研究人群不可变快照、来源水位和内容哈希。
 
-## 117. 表：`rehealth_insurance_subject` 保险业务主体表
+## 118. 表：`rehealth_insurance_subject` 保险业务主体表
 
 ### 基本信息
 
@@ -6728,7 +6795,7 @@ Oss File
 
 保存租户隔离、去标识化的保险主体与 ReHealth 用户映射。
 
-## 118. 表：`rehealth_insurance_subject_manager` 待确认
+## 119. 表：`rehealth_insurance_subject_manager` 待确认
 
 ### 基本信息
 
@@ -6781,7 +6848,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 119. 表：`rehealth_insurance_tenant_profile` 待确认
+## 120. 表：`rehealth_insurance_tenant_profile` 待确认
 
 ### 基本信息
 
@@ -6836,7 +6903,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 120. 表：`rehealth_intervention_contraindication` 干预禁忌表
+## 121. 表：`rehealth_intervention_contraindication` 干预禁忌表
 
 ### 基本信息
 
@@ -6881,7 +6948,7 @@ Oss File
 
 保存某次干预计划包含的有序禁忌与安全限制。
 
-## 121. 表：`rehealth_intervention_feedback` 干预反馈表
+## 122. 表：`rehealth_intervention_feedback` 干预反馈表
 
 ### 基本信息
 
@@ -6936,7 +7003,7 @@ Oss File
 
 保存用户对具体干预计划/行动的完成、跳过或不适用反馈。
 
-## 122. 表：`rehealth_intervention_plan` 健康干预计划表
+## 123. 表：`rehealth_intervention_plan` 健康干预计划表
 
 ### 基本信息
 
@@ -6995,7 +7062,7 @@ Oss File
 
 保存基于权威画像、风险和设备行为上下文生成的结构化保守干预计划。
 
-## 123. 表：`rehealth_model_request_log` 模型请求审计表
+## 124. 表：`rehealth_model_request_log` 模型请求审计表
 
 ### 基本信息
 
@@ -7045,7 +7112,7 @@ Oss File
 
 保存不含原始 PII/遥测的模型调用元数据、状态、耗时和错误码。
 
-## 124. 表：`rehealth_patient_allergy` 患者过敏史表
+## 125. 表：`rehealth_patient_allergy` 患者过敏史表
 
 ### 基本信息
 
@@ -7091,7 +7158,7 @@ Oss File
 
 保存健康档案下的有序过敏条目。
 
-## 125. 表：`rehealth_patient_diagnosis` 患者诊断史表
+## 126. 表：`rehealth_patient_diagnosis` 患者诊断史表
 
 ### 基本信息
 
@@ -7137,7 +7204,7 @@ Oss File
 
 保存健康档案下的有序诊断史条目。
 
-## 126. 表：`rehealth_patient_medication` 患者用药史表
+## 127. 表：`rehealth_patient_medication` 患者用药史表
 
 ### 基本信息
 
@@ -7183,7 +7250,7 @@ Oss File
 
 保存健康档案下的有序用药条目。
 
-## 127. 表：`rehealth_patient_profile` 患者健康档案表
+## 128. 表：`rehealth_patient_profile` 患者健康档案表
 
 ### 基本信息
 
@@ -7241,7 +7308,7 @@ Oss File
 
 保存认证用户的类型化健康档案、BMI 和乐观锁版本。
 
-## 128. 表：`rehealth_rdi_contribution` 待确认
+## 129. 表：`rehealth_rdi_contribution` 待确认
 
 ### 基本信息
 
@@ -7297,7 +7364,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 129. 表：`rehealth_rdi_daily_snapshot` 待确认
+## 130. 表：`rehealth_rdi_daily_snapshot` 待确认
 
 ### 基本信息
 
@@ -7351,7 +7418,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 130. 表：`rehealth_rhi_daily_snapshot` 云端 RHI 每日聚合快照表
+## 131. 表：`rehealth_rhi_daily_snapshot` 云端 RHI 每日聚合快照表
 
 ### 基本信息
 
@@ -7411,7 +7478,7 @@ Oss File
 
 保存认证用户从 App 上传的日级 RHI 分数、领域、特征与质量聚合快照；不保存原始遥测。
 
-## 131. 表：`rehealth_rhi_manual_health_input` 云端 RHI 手工输入表
+## 132. 表：`rehealth_rhi_manual_health_input` 云端 RHI 手工输入表
 
 ### 基本信息
 
@@ -7472,7 +7539,7 @@ Oss File
 
 保存认证用户 Room-first 手工健康输入的云端副本，并按 updated_at 合并。
 
-## 132. 表：`rehealth_schema_migration` ReHealth 迁移版本表
+## 133. 表：`rehealth_schema_migration` ReHealth 迁移版本表
 
 ### 基本信息
 
@@ -7514,7 +7581,7 @@ Oss File
 
 记录 ReHealth 自定义软件库迁移版本；不是业务数据。
 
-## 133. 表：`rehealth_telemetry_event_projection` 遥测事件运营投影表
+## 134. 表：`rehealth_telemetry_event_projection` 遥测事件运营投影表
 
 ### 基本信息
 
@@ -7568,7 +7635,7 @@ Oss File
 
 保存 Kafka 遥测生命周期事件的隐私安全运营投影。
 
-## 134. 表：`rehealth_telemetry_quality_case` 遥测质量工单表
+## 135. 表：`rehealth_telemetry_quality_case` 遥测质量工单表
 
 ### 基本信息
 
@@ -7617,7 +7684,7 @@ Oss File
 
 保存由遥测质量事件派生的运营质量工单。
 
-## 135. 表：`rehealth_website_record` 官网业务记录表
+## 136. 表：`rehealth_website_record` 官网业务记录表
 
 ### 基本信息
 
@@ -7667,7 +7734,7 @@ Oss File
 
 保存官网侧按租户隔离的结构化业务记录；具体记录类型由业务代码定义。
 
-## 136. 表：`rep_demo_dxtj` 待确认
+## 137. 表：`rep_demo_dxtj` 待确认
 
 ### 基本信息
 
@@ -7717,7 +7784,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 137. 表：`rep_demo_employee` 待确认
+## 138. 表：`rep_demo_employee` 待确认
 
 ### 基本信息
 
@@ -7789,7 +7856,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 138. 表：`rep_demo_gongsi` 待确认
+## 139. 表：`rep_demo_gongsi` 待确认
 
 ### 基本信息
 
@@ -7836,7 +7903,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 139. 表：`rep_demo_jianpiao` 待确认
+## 140. 表：`rep_demo_jianpiao` 待确认
 
 ### 基本信息
 
@@ -7886,7 +7953,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 140. 表：`rep_demo_order_main` 待确认
+## 141. 表：`rep_demo_order_main` 待确认
 
 ### 基本信息
 
@@ -7935,7 +8002,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 141. 表：`rep_demo_order_product` 待确认
+## 142. 表：`rep_demo_order_product` 待确认
 
 ### 基本信息
 
@@ -7986,7 +8053,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 142. 表：`sys_announcement` 系统通告表
+## 143. 表：`sys_announcement` 系统通告表
 
 ### 基本信息
 
@@ -8074,7 +8141,7 @@ Oss File
 
 系统通告表
 
-## 143. 表：`sys_announcement_send` 用户通告阅读标记表
+## 144. 表：`sys_announcement_send` 用户通告阅读标记表
 
 ### 基本信息
 
@@ -8129,7 +8196,7 @@ Oss File
 
 用户通告阅读标记表
 
-## 144. 表：`sys_category` 待确认
+## 145. 表：`sys_category` 待确认
 
 ### 基本信息
 
@@ -8181,7 +8248,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 145. 表：`sys_check_rule` 待确认
+## 146. 表：`sys_check_rule` 待确认
 
 ### 基本信息
 
@@ -8231,7 +8298,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 146. 表：`sys_comment` 系统评论回复表
+## 147. 表：`sys_comment` 系统评论回复表
 
 ### 基本信息
 
@@ -8283,7 +8350,7 @@ Oss File
 
 系统评论回复表
 
-## 147. 表：`sys_data_log` 待确认
+## 148. 表：`sys_data_log` 待确认
 
 ### 基本信息
 
@@ -8335,7 +8402,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 148. 表：`sys_data_source` 待确认
+## 149. 表：`sys_data_source` 待确认
 
 ### 基本信息
 
@@ -8392,7 +8459,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 149. 表：`sys_depart` 组织机构表
+## 150. 表：`sys_depart` 组织机构表
 
 ### 基本信息
 
@@ -8466,7 +8533,7 @@ Oss File
 
 组织机构表
 
-## 150. 表：`sys_depart_permission` 部门权限表
+## 151. 表：`sys_depart_permission` 部门权限表
 
 ### 基本信息
 
@@ -8510,7 +8577,7 @@ Oss File
 
 部门权限表
 
-## 151. 表：`sys_depart_role` 部门角色表
+## 152. 表：`sys_depart_role` 部门角色表
 
 ### 基本信息
 
@@ -8559,7 +8626,7 @@ Oss File
 
 部门角色表
 
-## 152. 表：`sys_depart_role_permission` 部门角色权限表
+## 153. 表：`sys_depart_role_permission` 部门角色权限表
 
 ### 基本信息
 
@@ -8609,7 +8676,7 @@ Oss File
 
 部门角色权限表
 
-## 153. 表：`sys_depart_role_user` 部门角色用户表
+## 154. 表：`sys_depart_role_user` 部门角色用户表
 
 ### 基本信息
 
@@ -8654,7 +8721,7 @@ Oss File
 
 部门角色用户表
 
-## 154. 表：`sys_dict` 待确认
+## 155. 表：`sys_dict` 待确认
 
 ### 基本信息
 
@@ -8708,7 +8775,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 155. 表：`sys_dict_item` 待确认
+## 156. 表：`sys_dict_item` 待确认
 
 ### 基本信息
 
@@ -8764,7 +8831,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 156. 表：`sys_files` 知识库-文档管理
+## 157. 表：`sys_files` 知识库-文档管理
 
 ### 基本信息
 
@@ -8835,7 +8902,7 @@ Oss File
 
 知识库-文档管理
 
-## 157. 表：`sys_fill_rule` 待确认
+## 158. 表：`sys_fill_rule` 待确认
 
 ### 基本信息
 
@@ -8885,7 +8952,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 158. 表：`sys_form_file` 待确认
+## 159. 表：`sys_form_file` 待确认
 
 ### 基本信息
 
@@ -8934,7 +9001,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 159. 表：`sys_gateway_route` 待确认
+## 160. 表：`sys_gateway_route` 待确认
 
 ### 基本信息
 
@@ -8995,7 +9062,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 160. 表：`sys_log` 系统日志表
+## 161. 表：`sys_log` 系统日志表
 
 ### 基本信息
 
@@ -9058,7 +9125,7 @@ Oss File
 
 系统日志表
 
-## 161. 表：`sys_permission` 菜单权限表
+## 162. 表：`sys_permission` 菜单权限表
 
 ### 基本信息
 
@@ -9142,7 +9209,7 @@ Oss File
 
 菜单权限表
 
-## 162. 表：`sys_permission_data_rule` 待确认
+## 163. 表：`sys_permission_data_rule` 待确认
 
 ### 基本信息
 
@@ -9194,7 +9261,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 163. 表：`sys_position` 职务级别
+## 164. 表：`sys_position` 职务级别
 
 ### 基本信息
 
@@ -9246,7 +9313,7 @@ Oss File
 
 职务级别
 
-## 164. 表：`sys_quartz_job` 待确认
+## 165. 表：`sys_quartz_job` 待确认
 
 ### 基本信息
 
@@ -9297,7 +9364,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 165. 表：`sys_role` 角色表
+## 166. 表：`sys_role` 角色表
 
 ### 基本信息
 
@@ -9348,7 +9415,7 @@ Oss File
 
 角色表
 
-## 166. 表：`sys_role_index` 角色首页表
+## 167. 表：`sys_role_index` 角色首页表
 
 ### 基本信息
 
@@ -9406,7 +9473,7 @@ Oss File
 
 角色首页表
 
-## 167. 表：`sys_role_permission` 角色权限表
+## 168. 表：`sys_role_permission` 角色权限表
 
 ### 基本信息
 
@@ -9455,7 +9522,7 @@ Oss File
 
 角色权限表
 
-## 168. 表：`sys_sms` 待确认
+## 169. 表：`sys_sms` 待确认
 
 ### 基本信息
 
@@ -9515,7 +9582,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 169. 表：`sys_sms_template` 待确认
+## 170. 表：`sys_sms_template` 待确认
 
 ### 基本信息
 
@@ -9570,7 +9637,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 170. 表：`sys_table_white_list` 系统表白名单
+## 171. 表：`sys_table_white_list` 系统表白名单
 
 ### 基本信息
 
@@ -9619,7 +9686,7 @@ Oss File
 
 系统表白名单
 
-## 171. 表：`sys_tenant` 多租户信息表
+## 172. 表：`sys_tenant` 多租户信息表
 
 ### 基本信息
 
@@ -9682,7 +9749,7 @@ Oss File
 
 多租户信息表
 
-## 172. 表：`sys_tenant_pack` 租户产品包
+## 173. 表：`sys_tenant_pack` 租户产品包
 
 ### 基本信息
 
@@ -9736,7 +9803,7 @@ Oss File
 
 租户产品包
 
-## 173. 表：`sys_tenant_pack_perms` 租户产品包和菜单关系表
+## 174. 表：`sys_tenant_pack_perms` 租户产品包和菜单关系表
 
 ### 基本信息
 
@@ -9784,7 +9851,7 @@ Oss File
 
 租户产品包和菜单关系表
 
-## 174. 表：`sys_tenant_pack_user` 租户套餐人员表
+## 175. 表：`sys_tenant_pack_user` 租户套餐人员表
 
 ### 基本信息
 
@@ -9838,7 +9905,7 @@ Oss File
 
 租户套餐人员表
 
-## 175. 表：`sys_third_account` 待确认
+## 176. 表：`sys_third_account` 待确认
 
 ### 基本信息
 
@@ -9897,7 +9964,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 176. 表：`sys_third_app_config` 租户第三方配置表
+## 177. 表：`sys_third_app_config` 租户第三方配置表
 
 ### 基本信息
 
@@ -9949,7 +10016,7 @@ Oss File
 
 租户第三方配置表
 
-## 177. 表：`sys_ugroup` 用户组表
+## 178. 表：`sys_ugroup` 用户组表
 
 ### 基本信息
 
@@ -9998,7 +10065,7 @@ Oss File
 
 用户组表
 
-## 178. 表：`sys_ugroup_user` 用户组关系表
+## 179. 表：`sys_ugroup_user` 用户组关系表
 
 ### 基本信息
 
@@ -10046,7 +10113,7 @@ Oss File
 
 用户组关系表
 
-## 179. 表：`sys_user` 用户表
+## 180. 表：`sys_user` 用户表
 
 ### 基本信息
 
@@ -10134,7 +10201,7 @@ Oss File
 
 用户表
 
-## 180. 表：`sys_user_dep_post` 待确认
+## 181. 表：`sys_user_dep_post` 待确认
 
 ### 基本信息
 
@@ -10184,7 +10251,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 181. 表：`sys_user_depart` 待确认
+## 182. 表：`sys_user_depart` 待确认
 
 ### 基本信息
 
@@ -10230,7 +10297,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 182. 表：`sys_user_position` 待确认
+## 183. 表：`sys_user_position` 待确认
 
 ### 基本信息
 
@@ -10280,7 +10347,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 183. 表：`sys_user_role` 用户角色表
+## 184. 表：`sys_user_role` 用户角色表
 
 ### 基本信息
 
@@ -10328,7 +10395,7 @@ Oss File
 
 用户角色表
 
-## 184. 表：`sys_user_tenant` 用户租户关系表
+## 185. 表：`sys_user_tenant` 用户租户关系表
 
 ### 基本信息
 
@@ -10382,7 +10449,7 @@ Oss File
 
 用户租户关系表
 
-## 185. 表：`test_demo` 待确认
+## 186. 表：`test_demo` 待确认
 
 ### 基本信息
 
@@ -10441,7 +10508,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 186. 表：`test_enhance_select` 待确认
+## 187. 表：`test_enhance_select` 待确认
 
 ### 基本信息
 
@@ -10487,7 +10554,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 187. 表：`test_note` 待确认
+## 188. 表：`test_note` 待确认
 
 ### 基本信息
 
@@ -10543,7 +10610,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 188. 表：`test_online_link` 待确认
+## 189. 表：`test_online_link` 待确认
 
 ### 基本信息
 
@@ -10586,7 +10653,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 189. 表：`test_order_customer` 待确认
+## 190. 表：`test_order_customer` 待确认
 
 ### 基本信息
 
@@ -10638,7 +10705,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 190. 表：`test_order_main` 待确认
+## 191. 表：`test_order_main` 待确认
 
 ### 基本信息
 
@@ -10687,7 +10754,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 191. 表：`test_order_product` 待确认
+## 192. 表：`test_order_product` 待确认
 
 ### 基本信息
 
@@ -10738,7 +10805,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 192. 表：`test_person` 待确认
+## 193. 表：`test_person` 待确认
 
 ### 基本信息
 
@@ -10788,7 +10855,7 @@ Oss File
 
 数据库表/字段注释及本轮扫描到的业务证据不足，具体业务作用待确认。
 
-## 193. 表：`test_shoptype_tree` 待确认
+## 194. 表：`test_shoptype_tree` 待确认
 
 ### 基本信息
 

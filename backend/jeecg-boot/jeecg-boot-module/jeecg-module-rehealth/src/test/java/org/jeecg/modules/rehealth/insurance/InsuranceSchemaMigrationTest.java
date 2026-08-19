@@ -258,6 +258,18 @@ class InsuranceSchemaMigrationTest {
     }
 
     @Test
+    void carePlanExecutionMigrationStoresScoredFactsWithoutRawTelemetry() throws Exception {
+        String sql = read("db/software/mysql/V20260819_2__create_care_plan_execution_facts.sql");
+        assertEveryTableAndColumnHasAComment(sql, "rehealth_care_plan_execution");
+        assertTrue(sql.contains("occurrence_id VARCHAR(64) NOT NULL"));
+        assertTrue(sql.contains("score_value DECIMAL(5,4) NULL"));
+        assertTrue(sql.contains("uk_care_plan_execution_source"));
+        assertTrue(sql.contains("software-V20260819.2"));
+        assertFalse(sql.toLowerCase().contains("raw_ppg"));
+        assertFalse(sql.toLowerCase().contains("raw_rri"));
+    }
+
+    @Test
     void versionedCarePlanTestDataIsCoLocatedOutsideTheFlywayDirectoryAndIsRepeatable() throws Exception {
         String sql = read("db/testdata/software/mysql/seed-versioned-care-plan-test-data.sql");
 

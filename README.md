@@ -26,7 +26,7 @@ ReHealth 是面向可穿戴设备和健康干预场景的软硬件一体化系�
 
 云米 S8/S9/GS20/GS17/A67/K9L 使用独立云端拉取链路：App 以 IMEI 绑定，JeecgBoot
 持有厂商凭据并先将心率、血氧、血压持久化到硬件库，再返回 App 写入 Room。首次绑定
-回填最多 31 天，后续增量同步；Room v15 隔离测量，Room v16 将相同的登录用户/设备归属扩展到睡眠、活动和信号/ECG，Room v17 增加按登录用户隔离的 PIAS 展示缓存，Room v18 将保险干预反馈队列按登录用户、保险租户、计划绑定和计划项隔离；旧的无归属行保留但不向其他账号展示。
+回填最多 31 天，后续增量同步；Room v15 隔离测量，Room v16 将相同的登录用户/设备归属扩展到睡眠、活动和信号/ECG，Room v17 增加按登录用户隔离的 PIAS 展示缓存，Room v18 将保险干预反馈队列按登录用户、保险租户、计划绑定和计划项隔离，Room v19 再为版本化机构计划反馈增加稳定 `occurrence_id`；旧的无归属行保留但不向其他账号展示。
 
 Android 按 `productCode` 选择单一有效 Provider，Release 只注册 HBand 和 Viomi Cloud；
 MRD/RWFit 仅保留在 Debug 工程测试目录。HBand 已完成
@@ -235,8 +235,10 @@ Android Room
 
 机构修改计划使用独立的版本化核心：草稿可编辑，发布后内容冻结；再次修改必须从最新发布版本
 克隆新草稿，并用 `expected_lock_version` 防止并发覆盖。新版本按 `effective_at` 生效，旧版本在该
-时间后的未执行任务实例会取消并排除。当前该核心先提供保险机构 API、权限和审计，仍与既有
-App `insurance_plan_binding` 兼容并行；移动端活动计划聚合和任务频率展开尚未切换。
+时间后的未执行任务实例会取消并排除。App 归因页的“个性化干预计划”优先展示当前有效机构计划、
+机构和版本，并把 `daily`、`weekly`、`once` 规则展开为稳定任务实例；28 日依从性以已到期任务为
+分母，以完成 100%、部分完成 50%、跳过 0%、不适用排除计算。旧 `insurance_plan_binding` 仅作为
+既有保险计划兼容链路保留，不替代版本化机构计划。
 
 饮食记录自 `telemetry-v2` 起作为 `dietRecords` 随本地持久化后的上传批次进入
 TimescaleDB `hardware_diet_record`。干预生成忽略客户端提交的画像/风险上下文，
@@ -347,7 +349,7 @@ unknown 记录计入临床风险。
 | Android RHI 每日聚合快照 | Room + MySQL `rehealth_rhi_daily_snapshot` | 本地计算和持久化后认证上传；按用户/日期幂等，不存原始遥测，供授权管理端趋势展示 |
 | Android 手工饮食记录 | Room v11 | 先本地持久化，再通过 durable queue 以 `telemetry-v2 dietRecords` 上传；显式 10→11 迁移保留既有健康数据 |
 | Android PIAS 展示缓存 | Room v17 | 按登录用户保存最新响应 JSON、模型版本与 `is_mock`；Mock 行只允许显式全量 Mock Debug 读取，不是云端权威归因结果 |
-| Android 保险干预反馈队列 | Room v18 + MySQL `rehealth_insurance_intervention_feedback` | 按登录用户、租户、绑定和计划项隔离；服务端依据 `completed_count / expected_count` 计算依从性，官网按近 28 日加权汇总；不把通用反馈自动复制给所有机构 |
+| Android 机构干预反馈队列 | Room v19 + MySQL `rehealth_insurance_intervention_feedback` / `rehealth_care_plan_execution` | 旧绑定反馈按登录用户、租户、绑定和计划项隔离；版本化机构计划另按稳定 `occurrence_id` 幂等上传，服务端以 28 日到期任务为分母计算权威依从性；不把通用反馈自动复制给所有机构 |
 | 规范化硬件时序数据 | TimescaleDB | Device Service 独占写入和读取 |
 | 用户、档案、绑定、风险、干预、反馈、健康问答历史 | MySQL `software_db` | JeecgBoot 业务权威；聊天按用户+租户隔离 |
 | 遥测持久化/质量事件 | Kafka | 事件通知，不存原始健康值 |

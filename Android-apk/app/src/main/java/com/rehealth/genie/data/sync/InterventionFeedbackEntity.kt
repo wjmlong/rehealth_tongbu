@@ -20,6 +20,7 @@ data class InterventionFeedbackEntity(
     @ColumnInfo(name = "binding_id") val bindingId: String? = null,
     @ColumnInfo(name = "tenant_id") val tenantId: Int? = null,
     @ColumnInfo(name = "plan_item_id") val planItemId: String? = null,
+    @ColumnInfo(name = "occurrence_id") val occurrenceId: String? = null,
     @ColumnInfo(name = "status") val status: String,
     @ColumnInfo(name = "note") val note: String? = null,
     @ColumnInfo(name = "expected_count") val expectedCount: Double? = null,

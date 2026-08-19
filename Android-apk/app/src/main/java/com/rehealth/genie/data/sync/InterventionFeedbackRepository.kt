@@ -4,6 +4,7 @@ import com.rehealth.genie.network.ApiResult
 import com.rehealth.genie.network.AuthenticatedApiClient
 import com.rehealth.genie.network.dto.InterventionFeedbackRequest
 import com.rehealth.genie.network.dto.InsurancePlanFeedbackRequestDto
+import com.rehealth.genie.network.dto.InstitutionCarePlanFeedbackRequestDto
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import java.text.SimpleDateFormat
@@ -36,6 +37,7 @@ class InterventionFeedbackRepository(
         bindingId: String? = null,
         tenantId: Int? = null,
         planItemId: String? = null,
+        occurrenceId: String? = null,
         expectedCount: Double? = null,
         completedCount: Double? = null,
         verificationType: String = "self_report",
@@ -51,6 +53,7 @@ class InterventionFeedbackRepository(
             bindingId = bindingId,
             tenantId = tenantId,
             planItemId = planItemId,
+            occurrenceId = occurrenceId,
             status = status,
             note = note,
             expectedCount = expectedCount,
@@ -72,6 +75,9 @@ class InterventionFeedbackRepository(
     suspend fun uploadFeedback(feedback: InterventionFeedbackEntity): InterventionFeedbackEntity? {
         if (feedback.ownerUserId != userIdProvider()) {
             return feedback.copy(uploadStatus = "failed", lastError = "feedback_owner_mismatch")
+        }
+        if (feedback.occurrenceId != null) {
+            return uploadInstitutionCarePlanFeedback(feedback)
         }
         if (feedback.bindingId != null && feedback.planItemId != null) {
             return uploadInsuranceFeedback(feedback)
@@ -132,6 +138,31 @@ class InterventionFeedbackRepository(
             outcomeSummary = feedback.note?.let { mapOf("note" to it) }.orEmpty(),
         )
         return when (val result = apiClient.submitInsurancePlanFeedback(feedback.bindingId!!, request)) {
+            is ApiResult.Success -> feedback.copy(uploadStatus = "done", lastError = null)
+            is ApiResult.Unauthorized -> null
+            is ApiResult.Forbidden -> feedback.copy(uploadStatus = "failed", lastError = "Forbidden: ${result.message}")
+            is ApiResult.InvalidRequest,
+            is ApiResult.InvalidResponse -> feedback.copy(uploadStatus = "failed", lastError = result.toString())
+            is ApiResult.NetworkError,
+            is ApiResult.ServiceUnavailable -> feedback.nextBackoff(error = result.toString())
+        }
+    }
+
+    private suspend fun uploadInstitutionCarePlanFeedback(
+        feedback: InterventionFeedbackEntity,
+    ): InterventionFeedbackEntity? {
+        val occurrenceId = feedback.occurrenceId ?: return feedback.copy(
+            uploadStatus = "failed",
+            lastError = "occurrence_id_missing",
+        )
+        val request = InstitutionCarePlanFeedbackRequestDto(
+            feedbackType = feedback.status,
+            occurredAt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(feedback.checkedAt)),
+            sourceRecordId = feedback.id,
+            verificationType = feedback.verificationType,
+            note = feedback.note,
+        )
+        return when (val result = apiClient.submitInstitutionCarePlanFeedback(occurrenceId, request)) {
             is ApiResult.Success -> feedback.copy(uploadStatus = "done", lastError = null)
             is ApiResult.Unauthorized -> null
             is ApiResult.Forbidden -> feedback.copy(uploadStatus = "failed", lastError = "Forbidden: ${result.message}")

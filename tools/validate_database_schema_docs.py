@@ -18,7 +18,7 @@ from generate_database_schema_docs import (
 
 DOCS = ROOT / "backend" / "docs"
 APPENDICES = {
-    DOCS / "database" / "ROOM_SCHEMA_V16.md": room_metadata,
+    DOCS / "database" / "ROOM_SCHEMA_V19.md": room_metadata,
     DOCS / "database" / "SOFTWARE_DB_TABLES.md": mysql_metadata,
     DOCS / "database" / "HARDWARE_DB_TABLES.md": postgres_metadata,
 }
@@ -119,7 +119,7 @@ def validate_master(total_tables: int) -> None:
     if f"总计 **{total_tables} 张基础表**" not in markdown:
         fail(f"master document does not state total table count {total_tables}")
     for relative in (
-        "database/ROOM_SCHEMA_V16.md",
+        "database/ROOM_SCHEMA_V19.md",
         "database/SOFTWARE_DB_TABLES.md",
         "database/HARDWARE_DB_TABLES.md",
     ):

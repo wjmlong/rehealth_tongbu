@@ -77,4 +77,37 @@ class InterventionFeedbackMigrationTest {
 
         context.deleteDatabase(databaseName)
     }
+
+    @Test
+    @Throws(IOException::class)
+    fun migration18To19_addsVersionedOccurrenceIdentity() {
+        helper.createDatabase(databaseName, 18).close()
+
+        helper.runMigrationsAndValidate(
+            databaseName,
+            19,
+            true,
+            AppDatabase.Migration18To19,
+        ).use { database ->
+            database.execSQL(
+                """
+                INSERT INTO intervention_feedback_queue (
+                    id, owner_user_id, intervention_id, occurrence_id, status,
+                    checked_at, created_at, upload_status, upload_attempts, next_retry_at
+                ) VALUES (
+                    'occurrence-feedback-1', 'user-1', 'plan-1', 'occurrence-1', 'completed',
+                    1, 1, 'pending', 0, 1
+                )
+                """.trimIndent(),
+            )
+            database.query(
+                "SELECT occurrence_id FROM intervention_feedback_queue WHERE id='occurrence-feedback-1'",
+            ).use { cursor ->
+                cursor.moveToFirst()
+                assertEquals("occurrence-1", cursor.getString(0))
+            }
+        }
+
+        context.deleteDatabase(databaseName)
+    }
 }

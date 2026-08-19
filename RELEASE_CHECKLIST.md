@@ -115,9 +115,11 @@
 - [ ] 保险风险列表的渠道/年龄筛选在 JeecgBoot 数据库分页和总数查询中生效，并按当前租户及负责人关系隔离；筛选选项、列表与 CSV 导出范围一致。
 - [ ] 保险批量激励限制为 1–100 人，完整范围校验后单事务写入并生成审计；越权对象导致整批回滚，只读保险角色返回 403。
 - [ ] `software-V20260819.1` 已创建机构计划、版本、项目、任务实例和审计表，所有新表/字段 COMMENT、索引、迁移标记及 `care-plan:view/manage/publish` 最小权限在目标 MySQL 验证通过。
+- [ ] `software-V20260819.2` 已创建带完整 COMMENT 的 `rehealth_care_plan_execution`，任务实例、来源幂等键、验证类型与计分值约束在目标 MySQL 验证通过。
 - [ ] 机构计划发布后不可原地覆盖；克隆新版本保留 `logical_item_id`，旧 `expected_lock_version` 返回 409，新版本生效后旧版本未来任务被取消并排除，放弃草稿/撤回均保留审计证据。
 - [ ] 保险计划接口拒绝诊断、用药和治疗类项目；运营员不具备发布权限，查看员/分析员/审计员不能编辑，跨租户和非负责对象访问失败关闭。
-- [ ] 在 App 活动计划聚合、任务频率展开和 `occurrence_id` 反馈接通前，产品文案不得把版本化任务表描述成已上线的完整 28 日到期任务依从性。
+- [ ] App 当前计划聚合仅返回已授权的生效机构版本；`daily/weekly/once` 展开、版本边界、稳定 `occurrence_id` 和滚动 28 日到期任务分母通过边界测试。
+- [ ] Android Room 18→19 无损迁移、归因页机构/版本/今日任务展示、四类反馈离线重试与服务端幂等通过；未知频率不生成虚构任务。
 - [ ] OpenAPI/DTO characterization 门禁通过且检查数大于零。
 - [ ] software_db 与 TimescaleDB migrations 在目标版本数据库验证。
 - [ ] TimescaleDB V4 `hardware_diet_record` 为 hypertable，`telemetry-v2` 混合批次的饮食计数、幂等、同事务回滚、7 日压缩和配置化保留策略验证通过。

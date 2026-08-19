@@ -12,6 +12,8 @@ import com.rehealth.genie.network.dto.InterventionPlanDto
 import com.rehealth.genie.network.dto.InsurancePlanBindRequestDto
 import com.rehealth.genie.network.dto.InsurancePlanBindingDto
 import com.rehealth.genie.network.dto.InsurancePlanFeedbackRequestDto
+import com.rehealth.genie.network.dto.InstitutionCarePlanDto
+import com.rehealth.genie.network.dto.InstitutionCarePlanFeedbackRequestDto
 import com.rehealth.genie.network.dto.IndividualAttributionRequestDto
 import com.rehealth.genie.network.dto.IndividualAttributionResponseDto
 import com.rehealth.genie.network.dto.MobileConfigResponse
@@ -184,6 +186,15 @@ suspend fun uploadRhiSnapshot(
         request: InsurancePlanFeedbackRequestDto,
     ): RemotePhmOutcome<Map<String, Any>> =
         unwrap { api.submitInsurancePlanFeedback(bindingId, request) }
+
+    suspend fun getCurrentInstitutionCarePlans(): RemotePhmOutcome<List<InstitutionCarePlanDto>> =
+        unwrap { api.getCurrentInstitutionCarePlans() }
+
+    suspend fun submitInstitutionCarePlanFeedback(
+        occurrenceId: String,
+        request: InstitutionCarePlanFeedbackRequestDto,
+    ): RemotePhmOutcome<Map<String, Any>> =
+        unwrap { api.submitInstitutionCarePlanFeedback(occurrenceId, request) }
 
     suspend fun uploadMeasurements(
         request: TelemetryBatchRequestDto,

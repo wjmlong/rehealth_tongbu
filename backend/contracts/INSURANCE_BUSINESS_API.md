@@ -113,7 +113,7 @@ JeecgBoot `rehealth:insurance:organization:*`、`member:*`、`role:assign` 和
 
 批量激励要求 `rehealth:insurance:intervention:manage`，使用批次请求 ID 派生逐行动幂等键；任一主体越权、无效或写入失败时整个事务回滚。APP 通用反馈只保留在个人计划链路；保险反馈必须带具体 `bindingId + planItemId`，不会复制到其他机构。工作台只消费聚合后的 CVD 风险、RHI、RDI、计划和反馈，不返回原始遥测；CVD 风险、RHI 与 RDI 是三个独立指标，前端不得用风险分数推导 RDI。RDI Mock、过期或数据不足状态必须显式展示，且不参与现有 PIAS/风险工作流状态计算。只有真实、数据充分且方向一致的归因证据才会自动标记“已改善”；Mock 或证据不足时必须显示说明，不能把合成风险评分当作业务判断。
 
-当前版本化机构计划 API 与旧 `rehealth_insurance_plan_binding` 并行存在：本次先建立机构编辑、发布、任务版本身份和审计基础，尚未把发布动作自动绑定到 App，也尚未启用计划频率展开器。App 继续读取旧绑定，直到移动端活动计划聚合接口和兼容迁移完成。
+版本化机构计划 API 与旧 `rehealth_insurance_plan_binding` 并行存在。App 已通过独立聚合接口读取当前生效版本，并在请求时将 `daily`、`weekly`、`once` 规则展开为稳定任务实例；旧绑定仅保留兼容，不会因机构发布动作被自动改写。
 
 JeecgBoot 基础路径：`/jeecg-boot/rehealth/insurance/v1`。
 
@@ -163,12 +163,14 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 | `POST` | `/rehealth/mobile/insurance/plans/bind` | 当前登录用户按租户、有效保单和授权版本绑定保险计划 |
 | `GET` | `/rehealth/mobile/insurance/plans/current` | 查询当前有效计划 |
 | `POST` | `/rehealth/mobile/insurance/plans/{bindingId}/feedback` | 幂等回传完成率、依从性和有界结果摘要 |
+| `GET` | `/rehealth/mobile/insurance/care-plans/current` | 查询当前登录用户各机构的生效发布版本、今日任务及权威 28 日依从性 |
+| `POST` | `/rehealth/mobile/insurance/care-plan-occurrences/{occurrenceId}/feedback` | 按稳定任务实例幂等提交完成、部分完成、跳过或不适用执行事实 |
 
 绑定必须同时满足：当前用户存在保险投保人映射、保单有效、租户匹配、授权记录有效。App 不向保险官网发送原始健康测量；保险侧只消费按授权范围生成的聚合风险改善、干预执行和理赔结果。
 
 计划绑定、当前计划查询和干预反馈还会实时检查 `sys_user_tenant`、用户账号及保险租户均处于启用状态。撤销租户成员关系或停用租户后，即使旧的投保人映射、计划绑定或 App 登录令牌仍存在，也必须拒绝继续访问；读取计划关联的保单和授权记录必须同时包含 `tenant_id`，不能使用裸主键跨租户读取。
 
-当前 Android 已提供类型化网络 DTO 和认证客户端调用，但计划绑定 UI、用户撤回授权入口、离线反馈队列和产品级验收仍是下一阶段工作。
+版本化计划依从性采用滚动 28 个自然日：窗口内已经到期的有效任务进入分母；当天已反馈任务即使尚未到期也进入统计。项目 `scoring_weight` 同时作用于分子、分母，完成计 1、部分完成计 0.5、跳过计 0，不适用排除。无有效分母时返回空分数，不显示 0%。Android 已接入类型化 DTO、Room v19 离线队列和归因页展示；计划绑定 UI、用户撤回授权入口和真机产品验收仍待完成。
 
 ## 7. 数据库迁移
 
@@ -182,6 +184,7 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 - `V20260814_3__create_rhi_daily_snapshot.sql`：认证 APP 用户的 RHI 每日聚合快照；不存原始遥测，并按用户/日期幂等更新。
 - `V20260814_4__create_rdi_daily_snapshot.sql`：认证 APP 用户的 RDI 每日聚合快照与结构化贡献项；不存原始遥测或自由文本证据，并按用户/日期幂等更新。
 - `V20260819_1__create_versioned_care_plans.sql`：通用机构计划、不可变发布版本、版本化项目、任务实例和审计表；增加保险计划查看、草稿编辑和发布权限。
+- `V20260819_2__create_care_plan_execution_facts.sql`：按任务实例保存不可变执行事实、计分值、验证类型和幂等来源；所有表和字段均带注释。
 
 迁移均为向前兼容的非破坏性变更，不删除既有保险数据。完整逐表结构见 `backend/docs/REHEALTH_DB_SCHEMA.md`。
 

@@ -8,6 +8,7 @@ import com.rehealth.genie.network.dto.InterventionFeedbackRequest
 import com.rehealth.genie.network.dto.InterventionGenerateRequestDto
 import com.rehealth.genie.network.dto.InsurancePlanBindRequestDto
 import com.rehealth.genie.network.dto.InsurancePlanFeedbackRequestDto
+import com.rehealth.genie.network.dto.InstitutionCarePlanFeedbackRequestDto
 import com.rehealth.genie.network.dto.HealthInterviewAnswerDto
 import com.rehealth.genie.network.dto.HealthInterviewSubmitRequestDto
 import com.rehealth.genie.network.dto.RhiManualHealthInputDto
@@ -163,6 +164,45 @@ class ReHealthMobileApiRouteContractTest {
             ),
         )
         assertRequest("/jeecg-boot/rehealth/mobile/insurance/plans/binding-1/feedback", "POST")
+    }
+
+    @Test
+    fun `reads versioned institution plans and scores a concrete occurrence`() = runTest {
+        server.start()
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"success":true,"code":200,"result":[{"tenantId":1000,"organizationName":"健康险机构","planId":"plan-1","revisionId":"revision-2","revisionNo":2,"title":"活力计划","effectiveFrom":"2026-08-19T00:00:00","adherence28d":{"windowDays":28,"scorePercent":75.0,"expectedCount":8,"scoredCount":7,"excludedCount":1,"calculationVersion":"care-plan-occurrence-adherence-28d-v1"},"items":[]}]}""",
+            ),
+        )
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"success":true,"code":200,"result":{"executionId":"execution-1","status":"accepted"}}""",
+            ),
+        )
+        val api = ReHealthMobileApi(
+            baseUrl = server.url("/jeecg-boot/").toString(),
+            httpClient = OkHttpClient(),
+            apiToken = "synthetic-test-token",
+        )
+
+        val plans = assertIs<RemotePhmOutcome.Success<*>>(api.getCurrentInstitutionCarePlans()).data as List<*>
+        assertEquals(1, plans.size)
+        assertRequest("/jeecg-boot/rehealth/mobile/insurance/care-plans/current", "GET")
+
+        assertIs<RemotePhmOutcome.Success<*>>(
+            api.submitInstitutionCarePlanFeedback(
+                "occurrence-1",
+                InstitutionCarePlanFeedbackRequestDto(
+                    feedbackType = "completed",
+                    occurredAt = "2026-08-19 10:00:00",
+                    sourceRecordId = "feedback-1",
+                ),
+            ),
+        )
+        assertRequest(
+            "/jeecg-boot/rehealth/mobile/insurance/care-plan-occurrences/occurrence-1/feedback",
+            "POST",
+        )
     }
 
     @Test

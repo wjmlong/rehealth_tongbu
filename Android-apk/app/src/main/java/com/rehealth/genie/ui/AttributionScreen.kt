@@ -71,6 +71,8 @@ import com.rehealth.genie.data.profileAvatarStorageKey
 import com.rehealth.genie.network.PatientProfilePayload
 import com.rehealth.genie.network.dto.BehaviorRecordDto
 import com.rehealth.genie.network.dto.InsurancePlanBindingDto
+import com.rehealth.genie.network.dto.InstitutionCarePlanDto
+import com.rehealth.genie.network.dto.InstitutionCarePlanItemDto
 import com.rehealth.genie.phm.AttributionHistoryPoint
 import com.rehealth.genie.rdi.RdiPeriodImpact
 import com.rehealth.genie.rdi.RdiPeriodImpactFactor
@@ -286,6 +288,7 @@ fun AttributionScreen(
             )
             rdiViewModel.refresh(selectedPeriod.days.toInt(), rdiScenarioInterventions)
             behaviorViewModel.refreshToday()
+            feedbackViewModel.refreshInstitutionCarePlans()
         },
         rdiPeriodImpact = rdiPeriodSummary?.impact?.takeIf {
             it.periodDays == selectedPeriod.days.toInt()
@@ -293,6 +296,7 @@ fun AttributionScreen(
         behaviorRecords = behaviorState.records,
         feedbackState = feedbackState,
         onSubmitFeedback = feedbackViewModel::submitInstitutionFeedback,
+        onSubmitInstitutionCarePlanFeedback = feedbackViewModel::submitInstitutionCarePlanFeedback,
     )
 }
 
@@ -313,6 +317,7 @@ private fun AttributionContent(
     behaviorRecords: List<BehaviorRecordDto>,
     feedbackState: FeedbackUiState,
     onSubmitFeedback: (InsurancePlanBindingDto, String, String, String?) -> Unit,
+    onSubmitInstitutionCarePlanFeedback: (InstitutionCarePlanDto, InstitutionCarePlanItemDto, String, String?) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(Palette.Page).statusBarsPadding(),
@@ -375,6 +380,7 @@ private fun AttributionContent(
                 onGenerate = onGenerateIntervention,
                 feedbackState = feedbackState,
                 onSubmitFeedback = onSubmitFeedback,
+                onSubmitInstitutionCarePlanFeedback = onSubmitInstitutionCarePlanFeedback,
             )
         }
         item {
@@ -1115,8 +1121,10 @@ private fun AttributionPlanCard(
     onGenerate: () -> Unit,
     feedbackState: FeedbackUiState,
     onSubmitFeedback: (InsurancePlanBindingDto, String, String, String?) -> Unit,
+    onSubmitInstitutionCarePlanFeedback: (InstitutionCarePlanDto, InstitutionCarePlanItemDto, String, String?) -> Unit,
 ) {
-    var expanded by remember(interventions) { mutableStateOf(interventions.isNotEmpty()) }
+    val hasPlan = interventions.isNotEmpty() || feedbackState.institutionCarePlans.isNotEmpty()
+    var expanded by remember(interventions, feedbackState.institutionCarePlans) { mutableStateOf(hasPlan) }
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(Dimensions.PlanCardRadius),
@@ -1135,19 +1143,36 @@ private fun AttributionPlanCard(
                     )
                 }
                 Text(
-                    interventionPlanStateLabel(interventions.isNotEmpty(), expanded),
+                    interventionPlanStateLabel(hasPlan, expanded),
                     color = Palette.Accent,
                     style = Type.PlanState,
                 )
             }
 
-            if (interventions.isEmpty()) {
+            if (feedbackState.isLoadingCarePlans && feedbackState.institutionCarePlans.isEmpty()) {
+                AttributionCompactMessage("正在读取机构制定的当前计划…")
+            } else if (!hasPlan) {
                 AttributionCompactMessage("暂无可展示的服务端干预计划；本地启发式建议不会显示为真实计划。")
             } else if (expanded) {
                 Column(
                     modifier = Modifier.padding(top = Dimensions.PlanItemsTop),
                     verticalArrangement = Arrangement.spacedBy(Dimensions.PlanItemGap),
                 ) {
+                    feedbackState.institutionCarePlans.forEach { plan ->
+                        AttributionInstitutionCarePlan(
+                            plan = plan,
+                            feedbackEnabled = !feedbackState.isSubmitting,
+                            onSubmitFeedback = onSubmitInstitutionCarePlanFeedback,
+                        )
+                    }
+                    if (feedbackState.institutionCarePlans.isNotEmpty() && interventions.isNotEmpty()) {
+                        Text(
+                            "个人健康建议",
+                            color = Palette.TextSecondary,
+                            style = Type.Detail,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
                     interventions.forEachIndexed { index, intervention ->
                         AttributionInterventionRow(
                             number = index + 1,
@@ -1160,7 +1185,7 @@ private fun AttributionPlanCard(
                 }
             }
 
-            if (interventions.isNotEmpty()) {
+            if (hasPlan) {
                 Button(
                     onClick = { expanded = !expanded },
                     modifier = Modifier.fillMaxWidth().padding(top = Dimensions.PlanButtonTop)
@@ -1222,6 +1247,140 @@ private fun AttributionPlanCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AttributionInstitutionCarePlan(
+    plan: InstitutionCarePlanDto,
+    feedbackEnabled: Boolean,
+    onSubmitFeedback: (InstitutionCarePlanDto, InstitutionCarePlanItemDto, String, String?) -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(Dimensions.ContentRadius))
+            .background(Palette.AccentSoft).padding(Dimensions.MessagePadding),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.Top) {
+            Column(Modifier.weight(1f)) {
+                Text(plan.title, color = Palette.TextPrimary, style = Type.PlanItemTitle)
+                Text(
+                    "${plan.organizationName ?: "健康管理机构"} · 版本 ${plan.revisionNo}",
+                    color = Palette.TextSecondary,
+                    style = Type.Detail,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+            Text(
+                institutionAdherenceText(plan.adherence28d.scorePercent),
+                color = Palette.Accent,
+                style = Type.Detail,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.End,
+            )
+        }
+        plan.adherence28d.scorePercent?.takeIf { it.isFinite() && it in 0.0..100.0 }?.let { score ->
+            LinearProgressIndicator(
+                progress = { (score / 100.0).toFloat() },
+                modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
+                color = Palette.Accent,
+                trackColor = Palette.Border,
+            )
+            Text(
+                "近 28 日：应评分 ${plan.adherence28d.expectedCount} 项，已反馈 ${plan.adherence28d.scoredCount} 项" +
+                    if (plan.adherence28d.excludedCount > 0) "，不适用排除 ${plan.adherence28d.excludedCount} 项" else "",
+                color = Palette.TextSecondary,
+                style = Type.Micro,
+            )
+        }
+        plan.summary?.takeIf(String::isNotBlank)?.let { summary ->
+            Text(summary, color = Palette.TextSecondary, style = Type.PlanItemBody)
+        }
+        plan.items.forEachIndexed { index, item ->
+            AttributionInstitutionCarePlanItem(
+                number = index + 1,
+                plan = plan,
+                item = item,
+                feedbackEnabled = feedbackEnabled,
+                onSubmitFeedback = onSubmitFeedback,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AttributionInstitutionCarePlanItem(
+    number: Int,
+    plan: InstitutionCarePlanDto,
+    item: InstitutionCarePlanItemDto,
+    feedbackEnabled: Boolean,
+    onSubmitFeedback: (InstitutionCarePlanDto, InstitutionCarePlanItemDto, String, String?) -> Unit,
+) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+        Box(
+            Modifier.size(Dimensions.InterventionRankSize).clip(CircleShape).background(Palette.Surface),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(number.toString().padStart(2, '0'), color = Palette.Accent, style = Type.PlanRank)
+        }
+        Column(Modifier.weight(1f).padding(start = Dimensions.InterventionContentGap)) {
+            Text(item.title, color = Palette.TextPrimary, style = Type.PlanItemTitle)
+            item.instructions?.takeIf(String::isNotBlank)?.let { instructions ->
+                Text(
+                    instructions,
+                    color = Palette.TextSecondary,
+                    style = Type.PlanItemBody,
+                    modifier = Modifier.padding(top = Dimensions.InterventionSupportingTop),
+                )
+            }
+            val occurrence = item.todayOccurrence
+            Text(
+                institutionTaskStatusLabel(item),
+                color = if (occurrence != null) Palette.Accent else Palette.TextSecondary,
+                style = Type.Detail,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            if (occurrence != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    PlanFeedbackButton("完成", feedbackEnabled) {
+                        onSubmitFeedback(plan, item, "completed", null)
+                    }
+                    PlanFeedbackButton("部分完成", feedbackEnabled) {
+                        onSubmitFeedback(plan, item, "partially_completed", null)
+                    }
+                    PlanFeedbackButton("稍后", feedbackEnabled) {
+                        onSubmitFeedback(plan, item, "skipped", null)
+                    }
+                    if (item.allowNotApplicable) {
+                        PlanFeedbackButton("不适用", feedbackEnabled) {
+                            onSubmitFeedback(plan, item, "not_applicable", null)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+internal fun institutionAdherenceText(scorePercent: Double?): String =
+    scorePercent?.takeIf { it.isFinite() && it in 0.0..100.0 }
+        ?.let { String.format(Locale.US, "28 日依从性 %.1f%%", it) }
+        ?: "28 日依从性积累中"
+
+internal fun institutionTaskStatusLabel(item: InstitutionCarePlanItemDto): String {
+    val occurrence = item.todayOccurrence
+    if (occurrence == null) {
+        return if (item.scheduleSupported) "今日无需执行" else "频率规则暂不支持评分"
+    }
+    return when (occurrence.feedbackType) {
+        "completed" -> "今日任务 · 已完成（100 分）"
+        "partially_completed" -> "今日任务 · 部分完成（50 分）"
+        "skipped" -> "今日任务 · 稍后完成（0 分）"
+        "not_applicable" -> "今日任务 · 不适用（不计入依从性）"
+        else -> "今日任务 · 待反馈"
     }
 }
 
