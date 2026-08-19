@@ -4965,21 +4965,21 @@ Oss File
 
 | 序号 | 字段名 | 中文含义 | 类型 | 长度/精度 | 允许 NULL | 默认值 | 主键 | 自增 | 唯一 | 索引 | 公共字段 | 关联 | 枚举/约束 | 业务说明 |
 | ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | `id` | Care plan primary key | `varchar(64)` | 64 | 否 | `无/NULL` | 是 | 否 | PRIMARY | PRIMARY | 是 | 否 | — | Care plan primary key |
-| 2 | `tenant_id` | Owning Jeecg tenant ID | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_current_revision、idx_care_plan_draft_revision、idx_care_plan_subject、idx_care_plan_user | 是 | 逻辑→sys_tenant.id | — | Owning Jeecg tenant ID |
-| 3 | `owner_type` | Plan owner type: insurance, medical, or personal | `varchar(32)` | 32 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_subject | 否 | 否 | Plan owner type: insurance, medical, or personal | Plan owner type: insurance, medical, or personal |
-| 4 | `owner_org_ref` | Owning organization reference; insurance currently uses tenant ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Owning organization reference; insurance currently uses tenant ID |
-| 5 | `subject_ref` | Tenant-scoped service subject reference | `char(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_subject | 否 | 否 | — | Tenant-scoped service subject reference |
-| 6 | `rehealth_user_id` | ReHealth APP user ID resolved from the trusted service relationship | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_user | 否 | 逻辑→sys_user.id | — | ReHealth APP user ID resolved from the trusted service relationship |
-| 7 | `source_plan_id` | Optional legacy or external plan identifier | `varchar(128)` | 128 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否/待确认 | — | Optional legacy or external plan identifier |
-| 8 | `status` | Plan lifecycle status: draft, active, or withdrawn | `varchar(32)` | 32 | 否 | `draft` | 否 | 否 | 否 | idx_care_plan_subject、idx_care_plan_user | 是 | 否 | Plan lifecycle status: draft, active, or withdrawn | Plan lifecycle status: draft, active, or withdrawn |
-| 9 | `current_revision_id` | Latest published revision ID; it may have a future effective time | `varchar(64)` | 64 | 是 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_current_revision | 否 | 逻辑→rehealth_care_plan_revision.id | — | Latest published revision ID; it may have a future effective time |
-| 10 | `draft_revision_id` | Single mutable draft revision ID | `varchar(64)` | 64 | 是 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_draft_revision | 否 | 逻辑→rehealth_care_plan_revision.id | — | Single mutable draft revision ID |
-| 11 | `lock_version` | Optimistic locking version for all plan mutations | `bigint` | 19,0 | 否 | `0` | 否 | 否 | 否 | 否 | 否 | 否 | — | Optimistic locking version for all plan mutations |
-| 12 | `created_by` | Authenticated creator user ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Authenticated creator user ID |
-| 13 | `created_at` | Creation time | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | — | Creation time |
-| 14 | `updated_by` | Authenticated last editor user ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Authenticated last editor user ID |
-| 15 | `updated_at` | Last update time | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_subject、idx_care_plan_user | 是 | 否 | — | Last update time |
+| 1 | `id` | 关怀计划主键 | `varchar(64)` | 64 | 否 | `无/NULL` | 是 | 否 | PRIMARY | PRIMARY | 是 | 否 | — | 关怀计划主键 |
+| 2 | `tenant_id` | 所属 Jeecg 租户 ID | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_current_revision、idx_care_plan_draft_revision、idx_care_plan_subject、idx_care_plan_user | 是 | 逻辑→sys_tenant.id | — | 所属 Jeecg 租户 ID |
+| 3 | `owner_type` | 计划所属机构类型：保险、医疗或个人 | `varchar(32)` | 32 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_subject | 否 | 否 | 计划所属机构类型：保险、医疗或个人 | 计划所属机构类型：保险、医疗或个人 |
+| 4 | `owner_org_ref` | 所属机构引用；保险机构当前使用租户 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 所属机构引用；保险机构当前使用租户 ID |
+| 5 | `subject_ref` | 租户范围内的服务对象引用 | `char(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_subject | 否 | 否 | — | 租户范围内的服务对象引用 |
+| 6 | `rehealth_user_id` | 由可信服务关系解析的 ReHealth APP 用户 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_user | 否 | 逻辑→sys_user.id | — | 由可信服务关系解析的 ReHealth APP 用户 ID |
+| 7 | `source_plan_id` | 可选的历史计划或外部计划标识 | `varchar(128)` | 128 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否/待确认 | — | 可选的历史计划或外部计划标识 |
+| 8 | `status` | 计划生命周期状态：草稿、生效或已撤回 | `varchar(32)` | 32 | 否 | `draft` | 否 | 否 | 否 | idx_care_plan_subject、idx_care_plan_user | 是 | 否 | 计划生命周期状态：草稿、生效或已撤回 | 计划生命周期状态：草稿、生效或已撤回 |
+| 9 | `current_revision_id` | 最新发布版本 ID；该版本可在未来时间生效 | `varchar(64)` | 64 | 是 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_current_revision | 否 | 逻辑→rehealth_care_plan_revision.id | — | 最新发布版本 ID；该版本可在未来时间生效 |
+| 10 | `draft_revision_id` | 当前唯一可编辑的草稿版本 ID | `varchar(64)` | 64 | 是 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_draft_revision | 否 | 逻辑→rehealth_care_plan_revision.id | — | 当前唯一可编辑的草稿版本 ID |
+| 11 | `lock_version` | 计划全部变更使用的乐观锁版本号 | `bigint` | 19,0 | 否 | `0` | 否 | 否 | 否 | 否 | 否 | 否 | — | 计划全部变更使用的乐观锁版本号 |
+| 12 | `created_by` | 创建计划的认证用户 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 创建计划的认证用户 ID |
+| 13 | `created_at` | 计划创建时间 | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | — | 计划创建时间 |
+| 14 | `updated_by` | 最后更新计划的认证用户 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 最后更新计划的认证用户 ID |
+| 15 | `updated_at` | 计划最后更新时间 | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_subject、idx_care_plan_user | 是 | 否 | — | 计划最后更新时间 |
 
 ### 索引
 
@@ -5000,8 +5000,8 @@ Oss File
 
 ### 枚举与约束
 
-- `owner_type`：Plan owner type: insurance, medical, or personal。
-- `status`：Plan lifecycle status: draft, active, or withdrawn。
+- `owner_type`：计划所属机构类型：保险、医疗或个人。
+- `status`：计划生命周期状态：草稿、生效或已撤回。
 
 ### 业务说明
 
@@ -5028,17 +5028,17 @@ Oss File
 
 | 序号 | 字段名 | 中文含义 | 类型 | 长度/精度 | 允许 NULL | 默认值 | 主键 | 自增 | 唯一 | 索引 | 公共字段 | 关联 | 枚举/约束 | 业务说明 |
 | ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | `id` | Audit event primary key | `varchar(64)` | 64 | 否 | `无/NULL` | 是 | 否 | PRIMARY | PRIMARY | 是 | 否 | — | Audit event primary key |
-| 2 | `tenant_id` | Owning Jeecg tenant ID | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_audit_actor、idx_care_plan_audit_plan | 是 | 逻辑→sys_tenant.id | — | Owning Jeecg tenant ID |
-| 3 | `owner_type` | Plan owner type copied for audit filtering | `varchar(32)` | 32 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Plan owner type copied for audit filtering |
-| 4 | `actor_user_id` | Authenticated actor user ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_audit_actor | 否 | 否/待确认 | — | Authenticated actor user ID |
-| 5 | `action` | Version action such as create_draft, update_draft, clone_revision, publish, or withdraw | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Version action such as create_draft, update_draft, clone_revision, publish, or withdraw |
-| 6 | `plan_id` | Affected logical care plan ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_audit_plan | 否 | 逻辑→rehealth_care_plan.id | — | Affected logical care plan ID |
-| 7 | `revision_id` | Affected revision ID | `varchar(64)` | 64 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 逻辑→rehealth_care_plan_revision.id | — | Affected revision ID |
-| 8 | `before_hash` | Content hash before the action | `char(64)` | 64 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Content hash before the action |
-| 9 | `after_hash` | Content hash after the action | `char(64)` | 64 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Content hash after the action |
-| 10 | `reason` | Bounded institution-provided change or withdrawal reason | `varchar(1000)` | 1000 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Bounded institution-provided change or withdrawal reason |
-| 11 | `created_at` | Audit event creation time | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_audit_actor、idx_care_plan_audit_plan | 是 | 否 | — | Audit event creation time |
+| 1 | `id` | 计划审计事件主键 | `varchar(64)` | 64 | 否 | `无/NULL` | 是 | 否 | PRIMARY | PRIMARY | 是 | 否 | — | 计划审计事件主键 |
+| 2 | `tenant_id` | 所属 Jeecg 租户 ID | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_audit_actor、idx_care_plan_audit_plan | 是 | 逻辑→sys_tenant.id | — | 所属 Jeecg 租户 ID |
+| 3 | `owner_type` | 用于审计筛选的计划所属机构类型 | `varchar(32)` | 32 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 用于审计筛选的计划所属机构类型 |
+| 4 | `actor_user_id` | 执行操作的认证用户 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_audit_actor | 否 | 否/待确认 | — | 执行操作的认证用户 ID |
+| 5 | `action` | 版本操作，例如创建草稿、更新草稿、克隆版本、发布或撤回 | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 版本操作，例如创建草稿、更新草稿、克隆版本、发布或撤回 |
+| 6 | `plan_id` | 受影响的关怀计划 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_audit_plan | 否 | 逻辑→rehealth_care_plan.id | — | 受影响的关怀计划 ID |
+| 7 | `revision_id` | 受影响的计划版本 ID | `varchar(64)` | 64 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 逻辑→rehealth_care_plan_revision.id | — | 受影响的计划版本 ID |
+| 8 | `before_hash` | 操作前的计划内容摘要 | `char(64)` | 64 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 操作前的计划内容摘要 |
+| 9 | `after_hash` | 操作后的计划内容摘要 | `char(64)` | 64 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 操作后的计划内容摘要 |
+| 10 | `reason` | 长度受限的机构变更或撤回原因 | `varchar(1000)` | 1000 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 长度受限的机构变更或撤回原因 |
+| 11 | `created_at` | 审计事件创建时间 | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_audit_actor、idx_care_plan_audit_plan | 是 | 否 | — | 审计事件创建时间 |
 
 ### 索引
 
@@ -5083,19 +5083,19 @@ Oss File
 
 | 序号 | 字段名 | 中文含义 | 类型 | 长度/精度 | 允许 NULL | 默认值 | 主键 | 自增 | 唯一 | 索引 | 公共字段 | 关联 | 枚举/约束 | 业务说明 |
 | ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | `id` | Revision-specific plan item primary key | `varchar(64)` | 64 | 否 | `无/NULL` | 是 | 否 | PRIMARY | PRIMARY | 是 | 否 | — | Revision-specific plan item primary key |
-| 2 | `tenant_id` | Owning Jeecg tenant ID copied from the plan | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_item_logical、联合唯一:uk_care_plan_item_order | idx_care_plan_item_plan、uk_care_plan_item_logical、uk_care_plan_item_order | 是 | 逻辑→sys_tenant.id | — | Owning Jeecg tenant ID copied from the plan |
-| 3 | `plan_id` | Logical care plan ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_item_plan | 否 | 逻辑→rehealth_care_plan.id | — | Logical care plan ID |
-| 4 | `revision_id` | Revision containing this immutable item snapshot | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_item_logical、联合唯一:uk_care_plan_item_order | idx_care_plan_item_plan、uk_care_plan_item_logical、uk_care_plan_item_order | 否 | 逻辑→rehealth_care_plan_revision.id | — | Revision containing this immutable item snapshot |
-| 5 | `logical_item_id` | Stable item identity preserved when cloning a new revision | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_item_logical | uk_care_plan_item_logical | 否 | 否/待确认 | — | Stable item identity preserved when cloning a new revision |
-| 6 | `category` | Conservative intervention category such as exercise, nutrition, sleep, or follow_up | `varchar(32)` | 32 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | 具体枚举值待确认 | Conservative intervention category such as exercise, nutrition, sleep, or follow_up |
-| 7 | `title` | Patient-visible item title | `varchar(255)` | 255 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Patient-visible item title |
-| 8 | `instructions` | Patient-visible bounded execution instructions | `varchar(4000)` | 4000 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Patient-visible bounded execution instructions |
-| 9 | `schedule_json` | Structured schedule rule; expanded by a separate occurrence generator | `longtext` | 4294967295 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Structured schedule rule; expanded by a separate occurrence generator |
-| 10 | `scoring_weight` | Eligible adherence weight for each generated occurrence | `decimal(10,3)` | 10,3 | 否 | `1.000` | 否 | 否 | 否 | 否 | 否 | 否 | — | Eligible adherence weight for each generated occurrence |
-| 11 | `allow_not_applicable` | Whether the user may mark an occurrence not applicable | `tinyint(1)` | 3,0 | 否 | `1` | 否 | 否 | 否 | 否 | 否 | 否 | — | Whether the user may mark an occurrence not applicable |
-| 12 | `display_order` | Stable display order within this revision | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_item_order | uk_care_plan_item_order | 否 | 否 | — | Stable display order within this revision |
-| 13 | `created_at` | Item snapshot creation time | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | — | Item snapshot creation time |
+| 1 | `id` | 版本内计划项目主键 | `varchar(64)` | 64 | 否 | `无/NULL` | 是 | 否 | PRIMARY | PRIMARY | 是 | 否 | — | 版本内计划项目主键 |
+| 2 | `tenant_id` | 从计划主表复制的所属 Jeecg 租户 ID | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_item_logical、联合唯一:uk_care_plan_item_order | idx_care_plan_item_plan、uk_care_plan_item_logical、uk_care_plan_item_order | 是 | 逻辑→sys_tenant.id | — | 从计划主表复制的所属 Jeecg 租户 ID |
+| 3 | `plan_id` | 所属关怀计划 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_item_plan | 否 | 逻辑→rehealth_care_plan.id | — | 所属关怀计划 ID |
+| 4 | `revision_id` | 包含该不可变项目快照的计划版本 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_item_logical、联合唯一:uk_care_plan_item_order | idx_care_plan_item_plan、uk_care_plan_item_logical、uk_care_plan_item_order | 否 | 逻辑→rehealth_care_plan_revision.id | — | 包含该不可变项目快照的计划版本 ID |
+| 5 | `logical_item_id` | 克隆新版本时保持不变的逻辑项目 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_item_logical | uk_care_plan_item_logical | 否 | 否/待确认 | — | 克隆新版本时保持不变的逻辑项目 ID |
+| 6 | `category` | 保守干预分类，例如运动、营养、睡眠或随访 | `varchar(32)` | 32 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | 具体枚举值待确认 | 保守干预分类，例如运动、营养、睡眠或随访 |
+| 7 | `title` | 用户可见的计划项目标题 | `varchar(255)` | 255 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 用户可见的计划项目标题 |
+| 8 | `instructions` | 长度受限的用户可见执行说明 | `varchar(4000)` | 4000 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 长度受限的用户可见执行说明 |
+| 9 | `schedule_json` | 结构化计划规则，由独立任务实例生成器展开 | `longtext` | 4294967295 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 结构化计划规则，由独立任务实例生成器展开 |
+| 10 | `scoring_weight` | 每个已生成任务实例的依从性计分权重 | `decimal(10,3)` | 10,3 | 否 | `1.000` | 否 | 否 | 否 | 否 | 否 | 否 | — | 每个已生成任务实例的依从性计分权重 |
+| 11 | `allow_not_applicable` | 用户是否可以将任务标记为不适用 | `tinyint(1)` | 3,0 | 否 | `1` | 否 | 否 | 否 | 否 | 否 | 否 | — | 用户是否可以将任务标记为不适用 |
+| 12 | `display_order` | 当前版本内稳定的展示顺序 | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_item_order | uk_care_plan_item_order | 否 | 否 | — | 当前版本内稳定的展示顺序 |
+| 13 | `created_at` | 计划项目快照创建时间 | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | — | 计划项目快照创建时间 |
 
 ### 索引
 
@@ -5141,19 +5141,19 @@ Oss File
 
 | 序号 | 字段名 | 中文含义 | 类型 | 长度/精度 | 允许 NULL | 默认值 | 主键 | 自增 | 唯一 | 索引 | 公共字段 | 关联 | 枚举/约束 | 业务说明 |
 | ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | `id` | Scheduled task occurrence primary key used for feedback idempotency | `varchar(64)` | 64 | 否 | `无/NULL` | 是 | 否 | PRIMARY | PRIMARY | 是 | 否 | — | Scheduled task occurrence primary key used for feedback idempotency |
-| 2 | `tenant_id` | Owning Jeecg tenant ID copied from the plan | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_occurrence_due | idx_care_plan_occurrence_revision、idx_care_plan_occurrence_subject_due、uk_care_plan_occurrence_due | 是 | 逻辑→sys_tenant.id | — | Owning Jeecg tenant ID copied from the plan |
-| 3 | `plan_id` | Logical care plan ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 逻辑→rehealth_care_plan.id | — | Logical care plan ID |
-| 4 | `revision_id` | Published revision that generated this occurrence | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_occurrence_revision | 否 | 逻辑→rehealth_care_plan_revision.id | — | Published revision that generated this occurrence |
-| 5 | `plan_item_id` | Revision-specific item snapshot that generated this occurrence | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_occurrence_due | uk_care_plan_occurrence_due | 否 | 逻辑→rehealth_care_plan_item.id | — | Revision-specific item snapshot that generated this occurrence |
-| 6 | `logical_item_id` | Stable item identity across plan revisions | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否/待确认 | — | Stable item identity across plan revisions |
-| 7 | `subject_ref` | Tenant-scoped service subject reference | `char(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_occurrence_subject_due | 否 | 否 | — | Tenant-scoped service subject reference |
-| 8 | `scheduled_at` | Scheduled execution time in normalized server time | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_occurrence_due | idx_care_plan_occurrence_revision、uk_care_plan_occurrence_due | 否 | 否 | — | Scheduled execution time in normalized server time |
-| 9 | `due_at` | Due time used by adherence window calculation | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_occurrence_subject_due | 否 | 否 | — | Due time used by adherence window calculation |
-| 10 | `status` | Occurrence status: scheduled or cancelled; execution facts are stored separately | `varchar(32)` | 32 | 否 | `scheduled` | 否 | 否 | 否 | idx_care_plan_occurrence_revision、idx_care_plan_occurrence_subject_due | 是 | 否 | Occurrence status: scheduled or cancelled; execution facts are stored separately | Occurrence status: scheduled or cancelled; execution facts are stored separately |
-| 11 | `exclusion_reason` | Reason a cancelled occurrence is excluded from adherence | `varchar(128)` | 128 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Reason a cancelled occurrence is excluded from adherence |
-| 12 | `created_at` | Occurrence creation time | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | — | Occurrence creation time |
-| 13 | `updated_at` | Occurrence last update time | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | — | Occurrence last update time |
+| 1 | `id` | 用于反馈幂等的计划任务实例主键 | `varchar(64)` | 64 | 否 | `无/NULL` | 是 | 否 | PRIMARY | PRIMARY | 是 | 否 | — | 用于反馈幂等的计划任务实例主键 |
+| 2 | `tenant_id` | 从计划主表复制的所属 Jeecg 租户 ID | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_occurrence_due | idx_care_plan_occurrence_revision、idx_care_plan_occurrence_subject_due、uk_care_plan_occurrence_due | 是 | 逻辑→sys_tenant.id | — | 从计划主表复制的所属 Jeecg 租户 ID |
+| 3 | `plan_id` | 所属关怀计划 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 逻辑→rehealth_care_plan.id | — | 所属关怀计划 ID |
+| 4 | `revision_id` | 生成该任务实例的已发布版本 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_occurrence_revision | 否 | 逻辑→rehealth_care_plan_revision.id | — | 生成该任务实例的已发布版本 ID |
+| 5 | `plan_item_id` | 生成该任务实例的版本内计划项目 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_occurrence_due | uk_care_plan_occurrence_due | 否 | 逻辑→rehealth_care_plan_item.id | — | 生成该任务实例的版本内计划项目 ID |
+| 6 | `logical_item_id` | 跨计划版本保持稳定的逻辑项目 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否/待确认 | — | 跨计划版本保持稳定的逻辑项目 ID |
+| 7 | `subject_ref` | 租户范围内的服务对象引用 | `char(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_occurrence_subject_due | 否 | 否 | — | 租户范围内的服务对象引用 |
+| 8 | `scheduled_at` | 按统一服务端时间记录的计划执行时间 | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_occurrence_due | idx_care_plan_occurrence_revision、uk_care_plan_occurrence_due | 否 | 否 | — | 按统一服务端时间记录的计划执行时间 |
+| 9 | `due_at` | 用于计算依从性时间窗口的截止时间 | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_occurrence_subject_due | 否 | 否 | — | 用于计算依从性时间窗口的截止时间 |
+| 10 | `status` | 任务实例状态：待执行或已取消；执行事实单独存储 | `varchar(32)` | 32 | 否 | `scheduled` | 否 | 否 | 否 | idx_care_plan_occurrence_revision、idx_care_plan_occurrence_subject_due | 是 | 否 | 任务实例状态：待执行或已取消；执行事实单独存储 | 任务实例状态：待执行或已取消；执行事实单独存储 |
+| 11 | `exclusion_reason` | 已取消任务不计入依从性的原因 | `varchar(128)` | 128 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 已取消任务不计入依从性的原因 |
+| 12 | `created_at` | 任务实例创建时间 | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | — | 任务实例创建时间 |
+| 13 | `updated_at` | 任务实例最后更新时间 | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | — | 任务实例最后更新时间 |
 
 ### 索引
 
@@ -5173,7 +5173,7 @@ Oss File
 
 ### 枚举与约束
 
-- `status`：Occurrence status: scheduled or cancelled; execution facts are stored separately。
+- `status`：任务实例状态：待执行或已取消；执行事实单独存储。
 
 ### 业务说明
 
@@ -5200,25 +5200,25 @@ Oss File
 
 | 序号 | 字段名 | 中文含义 | 类型 | 长度/精度 | 允许 NULL | 默认值 | 主键 | 自增 | 唯一 | 索引 | 公共字段 | 关联 | 枚举/约束 | 业务说明 |
 | ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | `id` | Revision primary key | `varchar(64)` | 64 | 否 | `无/NULL` | 是 | 否 | PRIMARY | PRIMARY | 是 | 否 | — | Revision primary key |
-| 2 | `tenant_id` | Owning Jeecg tenant ID copied from the plan | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_revision_no | idx_care_plan_revision_effective、idx_care_plan_revision_hash、uk_care_plan_revision_no | 是 | 逻辑→sys_tenant.id | — | Owning Jeecg tenant ID copied from the plan |
-| 3 | `plan_id` | Logical care plan ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_revision_no | idx_care_plan_revision_effective、uk_care_plan_revision_no | 否 | 逻辑→rehealth_care_plan.id | — | Logical care plan ID |
-| 4 | `revision_no` | Monotonically increasing revision number within the plan | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_revision_no | uk_care_plan_revision_no | 否 | 否 | — | Monotonically increasing revision number within the plan |
-| 5 | `status` | Revision status: draft, published, or withdrawn | `varchar(32)` | 32 | 否 | `draft` | 否 | 否 | 否 | idx_care_plan_revision_effective | 是 | 否 | Revision status: draft, published, or withdrawn | Revision status: draft, published, or withdrawn |
-| 6 | `title` | Patient-visible plan title | `varchar(255)` | 255 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Patient-visible plan title |
-| 7 | `summary` | Patient-visible bounded plan summary | `varchar(2000)` | 2000 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Patient-visible bounded plan summary |
-| 8 | `change_reason` | Institution-provided reason for this revision | `varchar(1000)` | 1000 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Institution-provided reason for this revision |
-| 9 | `content_hash` | SHA-256 of revision metadata and ordered items | `char(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_revision_hash | 否 | 否 | — | SHA-256 of revision metadata and ordered items |
-| 10 | `effective_from` | Inclusive effective time set on publication | `datetime(3)` | 不适用 | 是 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_revision_effective | 否 | 否 | — | Inclusive effective time set on publication |
-| 11 | `effective_to` | Exclusive effective time set by a newer revision or withdrawal | `datetime(3)` | 不适用 | 是 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_revision_effective | 否 | 否 | — | Exclusive effective time set by a newer revision or withdrawal |
-| 12 | `published_by` | Authenticated publisher user ID | `varchar(64)` | 64 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Authenticated publisher user ID |
-| 13 | `published_at` | Publication time | `datetime(3)` | 不适用 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Publication time |
-| 14 | `withdrawn_by` | Authenticated user that withdrew this revision | `varchar(64)` | 64 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Authenticated user that withdrew this revision |
-| 15 | `withdrawn_at` | Withdrawal time | `datetime(3)` | 不适用 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Withdrawal time |
-| 16 | `created_by` | Authenticated revision creator user ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Authenticated revision creator user ID |
-| 17 | `created_at` | Revision creation time | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | — | Revision creation time |
-| 18 | `updated_by` | Authenticated last draft editor user ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | Authenticated last draft editor user ID |
-| 19 | `updated_at` | Revision last update time | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | — | Revision last update time |
+| 1 | `id` | 计划版本主键 | `varchar(64)` | 64 | 否 | `无/NULL` | 是 | 否 | PRIMARY | PRIMARY | 是 | 否 | — | 计划版本主键 |
+| 2 | `tenant_id` | 从计划主表复制的所属 Jeecg 租户 ID | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_revision_no | idx_care_plan_revision_effective、idx_care_plan_revision_hash、uk_care_plan_revision_no | 是 | 逻辑→sys_tenant.id | — | 从计划主表复制的所属 Jeecg 租户 ID |
+| 3 | `plan_id` | 所属关怀计划 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_revision_no | idx_care_plan_revision_effective、uk_care_plan_revision_no | 否 | 逻辑→rehealth_care_plan.id | — | 所属关怀计划 ID |
+| 4 | `revision_no` | 计划内单调递增的版本序号 | `int` | 10,0 | 否 | `无/NULL` | 否 | 否 | 联合唯一:uk_care_plan_revision_no | uk_care_plan_revision_no | 否 | 否 | — | 计划内单调递增的版本序号 |
+| 5 | `status` | 版本状态：草稿、已发布或已撤回 | `varchar(32)` | 32 | 否 | `draft` | 否 | 否 | 否 | idx_care_plan_revision_effective | 是 | 否 | 版本状态：草稿、已发布或已撤回 | 版本状态：草稿、已发布或已撤回 |
+| 6 | `title` | 用户可见的计划标题 | `varchar(255)` | 255 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 用户可见的计划标题 |
+| 7 | `summary` | 长度受限的用户可见计划摘要 | `varchar(2000)` | 2000 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 长度受限的用户可见计划摘要 |
+| 8 | `change_reason` | 机构填写的本次版本变更原因 | `varchar(1000)` | 1000 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 机构填写的本次版本变更原因 |
+| 9 | `content_hash` | 版本元数据及有序计划项目的 SHA-256 摘要 | `char(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_revision_hash | 否 | 否 | — | 版本元数据及有序计划项目的 SHA-256 摘要 |
+| 10 | `effective_from` | 发布时设置的版本生效时间，包含该时间点 | `datetime(3)` | 不适用 | 是 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_revision_effective | 否 | 否 | — | 发布时设置的版本生效时间，包含该时间点 |
+| 11 | `effective_to` | 由新版本或撤回设置的失效时间，不包含该时间点 | `datetime(3)` | 不适用 | 是 | `无/NULL` | 否 | 否 | 否 | idx_care_plan_revision_effective | 否 | 否 | — | 由新版本或撤回设置的失效时间，不包含该时间点 |
+| 12 | `published_by` | 发布版本的认证用户 ID | `varchar(64)` | 64 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 发布版本的认证用户 ID |
+| 13 | `published_at` | 版本发布时间 | `datetime(3)` | 不适用 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 版本发布时间 |
+| 14 | `withdrawn_by` | 撤回版本的认证用户 ID | `varchar(64)` | 64 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 撤回版本的认证用户 ID |
+| 15 | `withdrawn_at` | 版本撤回时间 | `datetime(3)` | 不适用 | 是 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 版本撤回时间 |
+| 16 | `created_by` | 创建版本的认证用户 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 创建版本的认证用户 ID |
+| 17 | `created_at` | 版本创建时间 | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | — | 版本创建时间 |
+| 18 | `updated_by` | 最后编辑草稿的认证用户 ID | `varchar(64)` | 64 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 否 | 否 | — | 最后编辑草稿的认证用户 ID |
+| 19 | `updated_at` | 版本最后更新时间 | `datetime(3)` | 不适用 | 否 | `无/NULL` | 否 | 否 | 否 | 否 | 是 | 否 | — | 版本最后更新时间 |
 
 ### 索引
 
@@ -5236,7 +5236,7 @@ Oss File
 
 ### 枚举与约束
 
-- `status`：Revision status: draft, published, or withdrawn。
+- `status`：版本状态：草稿、已发布或已撤回。
 
 ### 业务说明
 
