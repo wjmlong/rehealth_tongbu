@@ -40,6 +40,7 @@ Thumbs.db
 /.local-runtime/
 /config/
 backend/jeecg-boot/jeecg-module-system/jeecg-system-start/config/
+backend/jeecg-boot/jeecg-server-cloud/jeecg-system-cloud-start/config/
 backend/jeecg-boot/jeecg-module-system/jeecg-system-start/src/main/resources/application-local.yml
 *.backup
 *.disabled

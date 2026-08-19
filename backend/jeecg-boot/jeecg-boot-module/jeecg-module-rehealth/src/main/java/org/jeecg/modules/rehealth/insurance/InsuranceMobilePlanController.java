@@ -27,9 +27,14 @@ import java.util.function.Supplier;
 @ConditionalOnProperty(name = "rehealth.software-db.enabled", havingValue = "true")
 public class InsuranceMobilePlanController {
     private final InsuranceMobilePlanService service;
+    private final InsuranceMobileCarePlanService carePlanService;
 
-    public InsuranceMobilePlanController(InsuranceMobilePlanService service) {
+    public InsuranceMobilePlanController(
+            InsuranceMobilePlanService service,
+            InsuranceMobileCarePlanService carePlanService
+    ) {
         this.service = service;
+        this.carePlanService = carePlanService;
     }
 
     @PostMapping("/plans/bind")
@@ -61,6 +66,21 @@ public class InsuranceMobilePlanController {
             @RequestBody InsuranceMobilePlanRequest.Feedback request
     ) {
         return respond(() -> service.feedback(currentUserId(), bindingId, request));
+    }
+
+    @GetMapping("/care-plans/current")
+    @Operation(summary = "List current institution-authored care plans, today's tasks, and rolling 28-day adherence")
+    public ResponseEntity<Result<List<InsuranceMobileCarePlanResponse.Plan>>> currentCarePlans() {
+        return respond(() -> carePlanService.current(currentUserId()));
+    }
+
+    @PostMapping("/care-plan-occurrences/{occurrenceId}/feedback")
+    @Operation(summary = "Idempotently score a versioned care-plan occurrence")
+    public ResponseEntity<Result<Map<String, Object>>> occurrenceFeedback(
+            @PathVariable String occurrenceId,
+            @RequestBody InsuranceMobilePlanRequest.OccurrenceFeedback request
+    ) {
+        return respond(() -> carePlanService.feedback(currentUserId(), occurrenceId, request));
     }
 
     private String currentUserId() {

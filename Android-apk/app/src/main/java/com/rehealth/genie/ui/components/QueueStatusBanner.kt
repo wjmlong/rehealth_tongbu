@@ -21,6 +21,7 @@ import com.rehealth.genie.data.sync.QueueState
  *
  * States:
  * - Active + uploading: "Syncing N feedback..." (blue)
+ * - Active + terminal failure: show a retry-required error instead of an endless sync state
  * - Paused: "Session expired, tap to login" (yellow, clickable)
  * - Active + no pending: Hidden
  */
@@ -28,6 +29,7 @@ import com.rehealth.genie.data.sync.QueueState
 fun QueueStatusBanner(
     queueState: QueueState,
     pendingCount: Int,
+    failedCount: Int,
     onLoginClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -54,7 +56,7 @@ fun QueueStatusBanner(
                         color = MaterialTheme.colorScheme.onErrorContainer,
                     )
                     Text(
-                        text = "点击重新登录以同步 $pendingCount 条反馈",
+                        text = "点击重新登录以同步 ${pendingCount + failedCount} 条反馈",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
                     )
@@ -62,7 +64,28 @@ fun QueueStatusBanner(
             }
         }
         QueueState.Active -> {
-            if (pendingCount > 0) {
+            if (failedCount > 0) {
+                Row(
+                    modifier = modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.errorContainer)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CloudOff,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                    Text(
+                        text = "$failedCount 条反馈同步失败，请检查登录和网络后重新提交" +
+                            if (pendingCount > 0) "；另有 $pendingCount 条等待同步" else "",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                }
+            } else if (pendingCount > 0) {
                 Row(
                     modifier = modifier
                         .fillMaxWidth()

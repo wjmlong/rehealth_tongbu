@@ -33,20 +33,20 @@ INSERT INTO tmp_miqa_app_user (
     profile_no, username, realname, password_hash, phone, email, sex, gender,
     age, height_cm, weight_kg, bmi, risk_base
 ) VALUES
-    (1,  'local_app_9101_01', '张明远（测试）', '1c8b16ac552e6afbdf0373b1b0f4e86cf50be5a6147a4979', '00092000001', 'mingyuan.zhang@app.qa.invalid', 1, 'male',   44, 175.00, 70.10, 22.89, 0.260000),
-    (2,  'local_app_9101_02', '李慧敏（测试）', '1c8b16ac552e6afbdf0373b1b0f4e86c6977237059d17f4b', '00092000002', 'huimin.li@app.qa.invalid', 2, 'female', 49, 163.00, 61.20, 23.03, 0.350000),
-    (3,  'local_app_9101_03', '王建国（测试）', '1c8b16ac552e6afbdf0373b1b0f4e86cb37a058454ba5dfc', '00092000003', 'jianguo.wang@app.qa.invalid', 1, 'male',   54, 172.00, 78.40, 26.50, 0.480000),
-    (4,  'local_app_9101_04', '陈玉兰（测试）', '1c8b16ac552e6afbdf0373b1b0f4e86ce5dc1f0b0f86675d', '00092000004', 'yulan.chen@app.qa.invalid', 2, 'female', 59, 160.00, 71.00, 27.73, 0.700000),
-    (5,  'local_app_9102_01', '刘志强（测试）', '1c8b16ac552e6afb172c2f8c31ad5b828d2bd45da9912a9b', '00092000005', 'zhiqiang.liu@app.qa.invalid', 1, 'male',   42, 176.00, 68.30, 22.05, 0.230000),
-    (6,  'local_app_9102_02', '周婉婷（测试）', '1c8b16ac552e6afb172c2f8c31ad5b824563e9e55a9d952a', '00092000006', 'wanting.zhou@app.qa.invalid', 2, 'female', 47, 164.00, 64.70, 24.06, 0.330000),
-    (7,  'local_app_9102_03', '赵国庆（测试）', '1c8b16ac552e6afb172c2f8c31ad5b829ef8c9b6a63f3755', '00092000007', 'guoqing.zhao@app.qa.invalid', 1, 'male',   55, 171.00, 78.90, 26.98, 0.520000),
-    (8,  'local_app_9102_04', '孙晓梅（测试）', '1c8b16ac552e6afb172c2f8c31ad5b8241d66a504bcaeb62', '00092000008', 'xiaomei.sun@app.qa.invalid', 2, 'female', 62, 160.00, 74.60, 29.14, 0.720000),
-    (9,  'local_app_9103_01', '吴志远（测试）', '1c8b16ac552e6afbabb9b09bda7b8fe85ecc547f487663f0', '00092000009', 'zhiyuan.wu@app.qa.invalid', 1, 'male',   45, 176.00, 71.60, 23.11, 0.280000),
-    (10, 'local_app_9103_02', '郑丽华（测试）', '1c8b16ac552e6afbabb9b09bda7b8fe8a43c32a4e082f84a', '00092000010', 'lihua.zheng@app.qa.invalid', 2, 'female', 50, 164.00, 63.50, 23.61, 0.390000),
-    (11, 'local_app_9103_03', '胡建新（测试）', '1c8b16ac552e6afbabb9b09bda7b8fe8899a1524a55b1110', '00092000011', 'jianxin.hu@app.qa.invalid', 1, 'male',   57, 173.00, 81.20, 27.13, 0.580000),
-    (12, 'local_app_9103_04', '林秀珍（测试）', '1c8b16ac552e6afbabb9b09bda7b8fe86471d82a6d9bf4d9', '00092000012', 'xiuzhen.lin@app.qa.invalid', 2, 'female', 64, 159.00, 75.20, 29.75, 0.760000),
-    (13, 'local_app_shared_01', '何俊杰（测试）', '1c8b16ac552e6afb4efaae7ea43c0964991df824007b1fde', '00092000013', 'junjie.he@app.qa.invalid', 1, 'male',   50, 175.00, 68.60, 22.40, 0.310000),
-    (14, 'local_app_shared_02', '高雅琴（测试）', '1c8b16ac552e6afb4efaae7ea43c09642902a24009a903e4', '00092000014', 'yaqin.gao@app.qa.invalid', 2, 'female', 53, 162.00, 66.80, 25.45, 0.460000);
+    (1,  'local_app_9101_01', '张明远', '1c8b16ac552e6afbdf0373b1b0f4e86cf50be5a6147a4979', '00092000001', 'mingyuan.zhang@app.qa.invalid', 1, 'male',   44, 175.00, 70.10, 22.89, 0.260000),
+    (2,  'local_app_9101_02', '李慧敏', '1c8b16ac552e6afbdf0373b1b0f4e86c6977237059d17f4b', '00092000002', 'huimin.li@app.qa.invalid', 2, 'female', 49, 163.00, 61.20, 23.03, 0.350000),
+    (3,  'local_app_9101_03', '王建国', '1c8b16ac552e6afbdf0373b1b0f4e86cb37a058454ba5dfc', '00092000003', 'jianguo.wang@app.qa.invalid', 1, 'male',   54, 172.00, 78.40, 26.50, 0.480000),
+    (4,  'local_app_9101_04', '陈玉兰', '1c8b16ac552e6afbdf0373b1b0f4e86ce5dc1f0b0f86675d', '00092000004', 'yulan.chen@app.qa.invalid', 2, 'female', 59, 160.00, 71.00, 27.73, 0.700000),
+    (5,  'local_app_9102_01', '刘志强', '1c8b16ac552e6afb172c2f8c31ad5b828d2bd45da9912a9b', '00092000005', 'zhiqiang.liu@app.qa.invalid', 1, 'male',   42, 176.00, 68.30, 22.05, 0.230000),
+    (6,  'local_app_9102_02', '周婉婷', '1c8b16ac552e6afb172c2f8c31ad5b824563e9e55a9d952a', '00092000006', 'wanting.zhou@app.qa.invalid', 2, 'female', 47, 164.00, 64.70, 24.06, 0.330000),
+    (7,  'local_app_9102_03', '赵国庆', '1c8b16ac552e6afb172c2f8c31ad5b829ef8c9b6a63f3755', '00092000007', 'guoqing.zhao@app.qa.invalid', 1, 'male',   55, 171.00, 78.90, 26.98, 0.520000),
+    (8,  'local_app_9102_04', '孙晓梅', '1c8b16ac552e6afb172c2f8c31ad5b8241d66a504bcaeb62', '00092000008', 'xiaomei.sun@app.qa.invalid', 2, 'female', 62, 160.00, 74.60, 29.14, 0.720000),
+    (9,  'local_app_9103_01', '吴志远', '1c8b16ac552e6afbabb9b09bda7b8fe85ecc547f487663f0', '00092000009', 'zhiyuan.wu@app.qa.invalid', 1, 'male',   45, 176.00, 71.60, 23.11, 0.280000),
+    (10, 'local_app_9103_02', '郑丽华', '1c8b16ac552e6afbabb9b09bda7b8fe8a43c32a4e082f84a', '00092000010', 'lihua.zheng@app.qa.invalid', 2, 'female', 50, 164.00, 63.50, 23.61, 0.390000),
+    (11, 'local_app_9103_03', '胡建新', '1c8b16ac552e6afbabb9b09bda7b8fe8899a1524a55b1110', '00092000011', 'jianxin.hu@app.qa.invalid', 1, 'male',   57, 173.00, 81.20, 27.13, 0.580000),
+    (12, 'local_app_9103_04', '林秀珍', '1c8b16ac552e6afbabb9b09bda7b8fe86471d82a6d9bf4d9', '00092000012', 'xiuzhen.lin@app.qa.invalid', 2, 'female', 64, 159.00, 75.20, 29.75, 0.760000),
+    (13, 'local_app_shared_01', '何俊杰', '1c8b16ac552e6afb4efaae7ea43c0964991df824007b1fde', '00092000013', 'junjie.he@app.qa.invalid', 1, 'male',   50, 175.00, 68.60, 22.40, 0.310000),
+    (14, 'local_app_shared_02', '高雅琴', '1c8b16ac552e6afb4efaae7ea43c09642902a24009a903e4', '00092000014', 'yaqin.gao@app.qa.invalid', 2, 'female', 53, 162.00, 66.80, 25.45, 0.460000);
 
 DROP TEMPORARY TABLE IF EXISTS tmp_miqa_app_relationship;
 CREATE TEMPORARY TABLE tmp_miqa_app_relationship (
@@ -146,7 +146,7 @@ SELECT
     LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_APP_QA:user:', username))),
     username, realname, password_hash, 'LQA26081',
     DATE_SUB(@anchor_date, INTERVAL age YEAR), sex, email, phone,
-    1, 0, 0, CONCAT('MIQA-APP-', LPAD(profile_no, 3, '0')),
+    1, 0, 0, CONCAT('APP-', LPAD(profile_no, 6, '0')),
     @seed_actor, @seed_time, @seed_actor, @seed_time, 1, 0,
     920000 + profile_no, '0'
 FROM tmp_miqa_app_user
@@ -154,6 +154,7 @@ ON DUPLICATE KEY UPDATE
     realname = VALUES(realname), password = VALUES(password), salt = VALUES(salt),
     birthday = VALUES(birthday), sex = VALUES(sex), email = VALUES(email),
     phone = VALUES(phone), status = 1, del_flag = 0,
+    work_no = VALUES(work_no),
     update_by = VALUES(update_by), update_time = VALUES(update_time),
     login_tenant_id = 0, sort = VALUES(sort), iz_hide_contact = '0';
 
@@ -251,8 +252,8 @@ INSERT INTO rehealth_device_binding (
 SELECT
     LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:device-binding:', username), 256)),
     LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_APP_QA:user:', username))),
-    CONCAT('miqa-device-', username), '睿禾全链路合成戒指', 'ReHealth QA',
-    'RH-QA-50M', 'RH-QA-50M', 'qa-1.0',
+    CONCAT('miqa-device-', username), '睿禾智能健康戒指', 'ReHealth',
+    'RH-RING-50M', 'RH-RING-50M', '1.0.0',
     LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:device-address:', username), 256)),
     'BOUND', @seed_time, @seed_time
 FROM tmp_miqa_app_user
@@ -273,7 +274,7 @@ SELECT
     JSON_ARRAY(
         JSON_OBJECT('topic', 'goal', 'content', '希望改善睡眠、活动和心血管风险趋势'),
         JSON_OBJECT('topic', 'routine', 'content', '每日佩戴设备并完成健康管理任务'),
-        JSON_OBJECT('topic', 'safety', 'content', '测试数据，无真实诊断或用药信息')
+        JSON_OBJECT('topic', 'safety', 'content', '暂无明确诊断或用药信息')
     ),
     JSON_ARRAY(
         JSON_OBJECT('label', '年龄', 'value', age),
@@ -294,7 +295,7 @@ FROM tmp_miqa_app_user app
 CROSS JOIN (
     SELECT 1 sort_order, 'goal' question_id, 'goal' topic, '改善睡眠、活动和心血管风险趋势' content
     UNION ALL SELECT 2, 'routine', 'routine', '每日佩戴设备并完成健康管理任务'
-    UNION ALL SELECT 3, 'safety', 'safety', '仅使用合成测试数据，不包含真实诊断'
+    UNION ALL SELECT 3, 'safety', 'safety', '暂无明确诊断或用药信息'
 ) item
 WHERE 1 = 1
 ON DUPLICATE KEY UPDATE content = VALUES(content), topic = VALUES(topic);
@@ -304,7 +305,7 @@ SELECT
     LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:interview-baseline:', app.username, ':', item.sort_order), 256)),
     LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:interview:', app.username), 256)),
     item.label,
-    CASE item.sort_order WHEN 1 THEN CAST(app.age AS CHAR) WHEN 2 THEN CAST(app.bmi AS CHAR) ELSE '完整合成基线' END,
+    CASE item.sort_order WHEN 1 THEN CAST(app.age AS CHAR) WHEN 2 THEN CAST(app.bmi AS CHAR) ELSE '档案信息完整' END,
     item.sort_order
 FROM tmp_miqa_app_user app
 CROSS JOIN (
@@ -339,12 +340,12 @@ SELECT
     DATE_SUB(@seed_time, INTERVAL item.item_no DAY), @seed_time
 FROM tmp_miqa_app_relationship rel
 CROSS JOIN (
-    SELECT 1 item_no, 'FOOD' category, '合成早餐记录' title, '全谷物、鸡蛋和水果' summary,
+    SELECT 1 item_no, 'FOOD' category, '早餐记录' title, '全谷物、鸡蛋和水果' summary,
            460.00 calories, 24.00 protein, 58.00 carbs, 16.00 fat
     UNION ALL
-    SELECT 2, 'ACTIVITY', '合成步行记录', '完成中等强度步行', NULL, NULL, NULL, NULL
+    SELECT 2, 'ACTIVITY', '步行记录', '完成中等强度步行', NULL, NULL, NULL, NULL
     UNION ALL
-    SELECT 3, 'OTHER', '合成健康任务', '完成保险健康管理随访任务', NULL, NULL, NULL, NULL
+    SELECT 3, 'OTHER', '健康管理任务', '完成保险健康管理随访任务', NULL, NULL, NULL, NULL
 ) item
 WHERE 1 = 1
 ON DUPLICATE KEY UPDATE
@@ -432,8 +433,8 @@ SELECT
     END,
     JSON_OBJECT('profile', 0.38, 'vitals', 0.30, 'lifestyle', 0.18, 'labs', 0.14),
     JSON_OBJECT('measured', 1.0), JSON_OBJECT('supported', 1.0),
-    JSON_ARRAY(), JSON_ARRAY('SYNTHETIC LOCAL QA - NOT FOR CLINICAL OR INSURANCE DECISIONS'),
-    'Android Debug 全链路公式衍生的本地合成风险，仅用于权限和界面测试。',
+    JSON_ARRAY(), JSON_ARRAY('风险结果仅供健康管理参考，不用于临床或保险决策'),
+    '基于近期健康档案与设备趋势生成的心血管风险评估结果。',
     JSON_OBJECT(
         'sourceSystem', 'LOCAL_MULTI_INSURER_APP_QA', 'isMock', FALSE,
         'clinicalUseAllowed', FALSE, 'syntheticLocalQa', TRUE,
@@ -514,7 +515,7 @@ SELECT
     30, 14, 14, 1, risk_base,
     CASE WHEN risk_base >= 0.70 THEN 'high' WHEN risk_base >= 0.40 THEN 'medium' ELSE 'low' END,
     'improving', -0.035, -0.058, 0.82,
-    '合成归因结果，仅用于验证 PIAS 数据展示和保险员工权限。',
+    '归因结果用于健康管理趋势参考，不作为诊断、核保或理赔结论。',
     JSON_OBJECT('sourceSystem', 'LOCAL_MULTI_INSURER_APP_QA', 'historyDays', 30),
     JSON_OBJECT(
         'status', 'ready', 'isMock', IF(profile_no IN (2, 6, 10), FALSE, TRUE),
@@ -549,9 +550,9 @@ SELECT
         WHEN 2 THEN '固定就寝时间，每周完成四次有氧活动并复盘睡眠效率。'
         ELSE '连续记录空腹血糖、体重与腰围，完成代谢风险复核。'
     END,
-    '依据完整合成档案、设备趋势和 CVD-16 合成结果生成。',
-    '仅验证计划、反馈和负责人查询链路。', 0.80,
-    '合成测试计划，不构成医疗建议，不替代医生诊疗。',
+    '依据健康档案、设备趋势和 CVD-16 风险结果生成。',
+    '结合近期健康指标、计划执行情况和负责人随访记录持续评估。', 0.80,
+    '本计划仅用于健康管理参考，不构成医疗建议，不替代医生诊疗。',
     DATE_SUB(@seed_time, INTERVAL 14 DAY),
     JSON_OBJECT(
         'sourceSystem', 'LOCAL_MULTI_INSURER_APP_QA', 'isMock', TRUE, 'clinicalUseAllowed', FALSE,
@@ -714,8 +715,8 @@ INSERT INTO rehealth_insurance_policy (
 )
 SELECT
     LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:policy:', rel.tenant_id, ':', rel.username), 256)),
-    rel.tenant_id, CONCAT('MIQA-', rel.tenant_id, '-POL-', LPAD(rel.member_no, 4, '0')),
-    CASE MOD(rel.member_no - 1, 4) WHEN 0 THEN 'QA-GROUP-MED' WHEN 1 THEN 'QA-LONG-MED' WHEN 2 THEN 'QA-CI-PLUS' ELSE 'QA-CVD-CARE' END,
+    rel.tenant_id, CONCAT('RH-', rel.tenant_id, '-POL-', LPAD(rel.member_no, 4, '0')),
+    CASE MOD(rel.member_no - 1, 4) WHEN 0 THEN 'GROUP-MED' WHEN 1 THEN 'LONG-MED' WHEN 2 THEN 'CI-PLUS' ELSE 'CVD-CARE' END,
     CASE MOD(rel.member_no - 1, 4) WHEN 0 THEN '悦享健康团体医疗保障计划' WHEN 1 THEN '安心守护长期医疗保障计划' WHEN 2 THEN '康护无忧重大疾病保障计划' ELSE '臻享心脑血管专项保障计划' END,
     CASE MOD(rel.member_no - 1, 4) WHEN 0 THEN 'group_medical' WHEN 1 THEN 'long_term_medical' WHEN 2 THEN 'critical_illness' ELSE 'cvd_management' END,
     LOWER(SHA2(CONCAT(rel.tenant_id, ':', LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_APP_QA:user:', rel.username)))), 256)),
@@ -731,7 +732,7 @@ SELECT
     DATE_SUB(@seed_time, INTERVAL 180 DAY), @seed_time
 FROM tmp_miqa_app_relationship rel
 ON DUPLICATE KEY UPDATE
-    product_code = VALUES(product_code), product_name = VALUES(product_name),
+    policy_no = VALUES(policy_no), product_code = VALUES(product_code), product_name = VALUES(product_name),
     insured_subject_ref = VALUES(insured_subject_ref), coverage_amount = VALUES(coverage_amount),
     premium_amount = VALUES(premium_amount), effective_on = VALUES(effective_on),
     expires_on = VALUES(expires_on), status = 'active',
@@ -757,6 +758,7 @@ SELECT
 FROM tmp_miqa_app_relationship rel
 ON DUPLICATE KEY UPDATE
     policy_id = VALUES(policy_id), subject_ref = VALUES(subject_ref),
+    coverage_code = VALUES(coverage_code), coverage_name = VALUES(coverage_name),
     limit_amount = VALUES(limit_amount), status = 'active',
     metadata_json = VALUES(metadata_json), updated_at = VALUES(updated_at);
 
@@ -771,7 +773,7 @@ SELECT
     LOWER(SHA2(CONCAT(rel.tenant_id, ':', LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_APP_QA:user:', rel.username)))), 256)),
     'insurance_health_management', 'local-miqa-v1', 'granted',
     DATE_SUB(@seed_time, INTERVAL 180 DAY), NULL,
-    CONCAT('MIQA-CONSENT-', rel.tenant_id, '-', rel.member_no),
+    CONCAT('RH-CONSENT-', rel.tenant_id, '-', LPAD(rel.member_no, 4, '0')),
     LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:consent-evidence:', rel.tenant_id, ':', rel.username), 256)),
     'LOCAL_MULTI_INSURER_APP_QA', CONCAT('consent-', rel.tenant_id, '-', rel.member_no),
     JSON_OBJECT('synthetic', TRUE, 'scope', 'assigned-staff-full-business-data'),
@@ -937,7 +939,7 @@ SELECT
     END,
     JSON_OBJECT(
         'synthetic', TRUE, 'clinicalUseAllowed', FALSE,
-        'result', IF(rel.member_no IN (3, 9, 10) AND item.action_no IN (1, 2), '待执行', '已完成本地验收记录')
+        'result', IF(rel.member_no IN (3, 9, 10) AND item.action_no IN (1, 2), '待执行', '已完成随访记录')
     ),
     assignee.id,
     CONCAT('miqa-workbench-', rel.tenant_id, '-', LPAD(rel.member_no, 2, '0'), '-', item.action_no),
@@ -950,7 +952,7 @@ JOIN sys_user assignee
  AND assignee.status = 1 AND assignee.del_flag = 0
 CROSS JOIN (
     SELECT 1 action_no, 'followup' action_type, '首次健康管理随访' title,
-           '核对计划理解情况和当前执行困难；仅作合成本地界面验收。' content, 1 due_days
+           '核对计划理解情况和当前执行困难，记录后续跟进重点。' content, 1 due_days
     UNION ALL
     SELECT 2, 'reminder', '计划执行提醒',
            '提醒完成运动、睡眠和血压记录；不构成医疗建议。', 3
@@ -989,7 +991,7 @@ INSERT INTO rehealth_insurance_claim (
 )
 SELECT
     LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:claim:', rel.tenant_id, ':', rel.username), 256)),
-    rel.tenant_id, CONCAT('MIQA-', rel.tenant_id, '-CLAIM-', LPAD(rel.member_no, 4, '0')),
+    rel.tenant_id, CONCAT('RH-', rel.tenant_id, '-CLAIM-', LPAD(rel.member_no, 4, '0')),
     LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:policy:', rel.tenant_id, ':', rel.username), 256)),
     LOWER(SHA2(CONCAT(rel.tenant_id, ':', LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_APP_QA:user:', rel.username)))), 256)),
     IF(rel.member_no % 2 = 0, 'outpatient', 'health_management'),
@@ -1003,7 +1005,7 @@ SELECT
     DATE_SUB(@seed_time, INTERVAL (rel.member_no * 8) DAY), @seed_time
 FROM tmp_miqa_app_relationship rel
 ON DUPLICATE KEY UPDATE
-    policy_id = VALUES(policy_id), subject_ref = VALUES(subject_ref),
+    claim_no = VALUES(claim_no), policy_id = VALUES(policy_id), subject_ref = VALUES(subject_ref),
     event_on = VALUES(event_on), submitted_at = VALUES(submitted_at),
     decided_at = VALUES(decided_at), status = 'paid',
     billed_amount = VALUES(billed_amount), approved_amount = VALUES(approved_amount),

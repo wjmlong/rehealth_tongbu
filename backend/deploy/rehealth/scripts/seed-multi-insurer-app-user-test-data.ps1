@@ -78,11 +78,14 @@ FROM sys_user
 WHERE username = '$escapedActor' AND status = 1 AND del_flag = 0;
 
 SELECT COUNT(*)
-FROM sys_tenant
-WHERE id IN (9101, 9102, 9103)
-  AND name LIKE '[LOCAL QA]%'
-  AND status = 1
-  AND del_flag = 0;
+FROM sys_tenant tenant
+JOIN rehealth_insurance_tenant_profile profile
+  ON profile.tenant_id = tenant.id
+ AND profile.id = LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_QA:profile:', tenant.id)))
+WHERE tenant.id IN (9101, 9102, 9103)
+  AND tenant.status = 1
+  AND tenant.del_flag = 0
+  AND JSON_UNQUOTE(JSON_EXTRACT(profile.notification_config_json, '$.source')) = 'LOCAL_MULTI_INSURER_QA';
 
 SELECT COUNT(*)
 FROM sys_user

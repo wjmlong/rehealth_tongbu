@@ -18,9 +18,9 @@ CREATE TEMPORARY TABLE tmp_local_insurer_tenants (
 INSERT INTO tmp_local_insurer_tenants
     (tenant_id, tenant_code, organization_name, license_no, company_address)
 VALUES
-    (9101, 'MIQA01', '[LOCAL QA] 睿安健康保险', 'LOCAL-QA-INS-9101', '合成测试地址·上海'),
-    (9102, 'MIQA02', '[LOCAL QA] 康泰人寿保险', 'LOCAL-QA-INS-9102', '合成测试地址·北京'),
-    (9103, 'MIQA03', '[LOCAL QA] 华宁财产保险', 'LOCAL-QA-INS-9103', '合成测试地址·深圳');
+    (9101, 'RHAI', '睿安健康保险', 'RH-INS-9101', '上海市浦东新区健康路88号'),
+    (9102, 'KTLI', '康泰人寿保险', 'RH-INS-9102', '北京市朝阳区安康路66号'),
+    (9103, 'HNPI', '华宁财产保险', 'RH-INS-9103', '深圳市福田区康宁路99号');
 
 DROP TEMPORARY TABLE IF EXISTS tmp_local_insurer_departments;
 CREATE TEMPORARY TABLE tmp_local_insurer_departments (
@@ -197,7 +197,7 @@ INSERT INTO sys_depart (
 SELECT LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_QA:department:', tenant_id, ':', department_key))),
        CASE WHEN parent_key IS NULL THEN NULL ELSE LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_QA:department:', tenant_id, ':', parent_key))) END,
        department_name, department_order, org_category, org_type,
-       CONCAT('MIQA', tenant_id, department_key),
+       CONCAT('RH', tenant_id, department_key),
        'LOCAL_MULTI_INSURER_QA synthetic organization data', '1', '0',
        @seed_actor, @seed_time, @seed_actor, @seed_time, tenant_id,
        CASE WHEN department_key IN ('HEALTH', 'RISK') THEN 1 ELSE 0 END
@@ -234,7 +234,7 @@ INSERT INTO sys_user (
 SELECT LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_QA:user:', username))),
        username, MAX(realname), MAX(password_hash), 'LQA26081', MAX(sex),
        MAX(email), MAX(phone), NULL, 1, 0, 0,
-       CONCAT('MIQA-', REPLACE(username, 'local_ins_', '')),
+       CONCAT('INS-', REPLACE(username, 'local_ins_', '')),
        @seed_actor, @seed_time, @seed_actor, @seed_time, 1,
        MIN(tenant_id), MAX(sort_order), '0'
 FROM tmp_local_insurer_people

@@ -158,6 +158,17 @@ class AuthenticatedApiClient(
         mobileApi.submitInsurancePlanFeedback(bindingId, request)
     }
 
+    suspend fun getCurrentInstitutionCarePlans(): ApiResult<List<InstitutionCarePlanDto>> = executeWithAuth {
+        mobileApi.getCurrentInstitutionCarePlans()
+    }
+
+    suspend fun submitInstitutionCarePlanFeedback(
+        occurrenceId: String,
+        request: InstitutionCarePlanFeedbackRequestDto,
+    ): ApiResult<Map<String, Any>> = executeWithAuth {
+        mobileApi.submitInstitutionCarePlanFeedback(occurrenceId, request)
+    }
+
     override suspend fun uploadMeasurements(
         request: TelemetryBatchRequestDto,
     ): ApiResult<TelemetryBatchResponseDto> = executeWithAuth {

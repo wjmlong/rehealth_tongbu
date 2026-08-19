@@ -44,7 +44,19 @@ public class DisabledInsuranceRiskController {
             @RequestParam(value = "pageNo", defaultValue = "1") int pageNo,
             @RequestParam(value = "pageSize", defaultValue = "20") int pageSize,
             @RequestParam(value = "keyword", required = false) String keyword,
-            @RequestParam(value = "riskLevel", required = false) String riskLevel
+            @RequestParam(value = "riskLevel", required = false) String riskLevel,
+            @RequestParam(value = "channel", required = false) String channel,
+            @RequestParam(value = "minAge", required = false) Integer minAge,
+            @RequestParam(value = "maxAge", required = false) Integer maxAge
+    ) {
+        return unavailable();
+    }
+
+    @GetMapping("/insureds/filter-options")
+    @RequiresPermissions(VIEW_PERMISSION)
+    @Operation(summary = "Get tenant-scoped channel and age filter options")
+    public ResponseEntity<Result<InsuranceRiskResponse.InsuredFilterOptions>> filterOptions(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId
     ) {
         return unavailable();
     }

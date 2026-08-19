@@ -82,7 +82,7 @@ data class AttributionLogEntity(
         DietRecordEntity::class,
         PiasAttributionCacheEntity::class,
     ],
-    version = 18,
+    version = 19,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -100,6 +100,17 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun piasAttributionCacheDao(): PiasAttributionCacheDao
 
     companion object {
+        /** Adds the server-issued versioned task identity used by institution care-plan feedback. */
+        val Migration18To19 = object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE intervention_feedback_queue ADD COLUMN occurrence_id TEXT")
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_intervention_feedback_queue_occurrence_id " +
+                        "ON intervention_feedback_queue(occurrence_id)",
+                )
+            }
+        }
+
         /** Adds authenticated institution-plan scope and execution facts to the durable feedback queue. */
         val Migration17To18 = object : Migration(17, 18) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -762,6 +773,7 @@ abstract class AppDatabase : RoomDatabase() {
                     Migration15To16,
                     Migration16To17,
                     Migration17To18,
+                    Migration18To19,
                 )
                 .build()
     }

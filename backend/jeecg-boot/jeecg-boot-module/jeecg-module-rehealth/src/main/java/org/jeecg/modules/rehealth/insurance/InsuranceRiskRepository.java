@@ -18,6 +18,17 @@ public interface InsuranceRiskRepository {
         return subjects(tenantId, pageNo, pageSize, keyword, riskLevel);
     }
 
+    default SubjectPage subjects(
+            int tenantId, String managerUserId, int pageNo, int pageSize, String keyword, String riskLevel,
+            String channel, Integer minAge, Integer maxAge
+    ) {
+        return subjects(tenantId, managerUserId, pageNo, pageSize, keyword, riskLevel);
+    }
+
+    default FilterOptions filterOptions(int tenantId, String managerUserId) {
+        return new FilterOptions(List.of(), null, null);
+    }
+
     Optional<SubjectSnapshot> subject(int tenantId, String subjectId);
 
     default Optional<SubjectSnapshot> subject(int tenantId, String managerUserId, String subjectId) {
@@ -61,6 +72,9 @@ public interface InsuranceRiskRepository {
     }
 
     record SubjectPage(long total, List<SubjectSnapshot> records) {
+    }
+
+    record FilterOptions(List<String> channels, Integer minAge, Integer maxAge) {
     }
 
     record SubjectSnapshot(

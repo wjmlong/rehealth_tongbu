@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -63,6 +64,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -112,6 +114,13 @@ internal val DATA_PERIOD_OPTIONS = listOf(
 
 internal fun dataRhiPeriodDays(dataPeriodDays: Int): Int =
     if (dataPeriodDays == 0) 1 else dataPeriodDays
+
+internal fun dataDeviceNoticeText(cloudMode: Boolean): String =
+    if (cloudMode) {
+        "当前为云米云端手表历史数据。血压、血氧等结果仅用于健康管理参考，不能替代医疗诊断。"
+    } else {
+        "血糖、血液成分和身体成分等为设备估算；血压、血氧、ECG 等设备数据仅供健康参考，不能替代医疗诊断。"
+    }
 
 @Composable
 internal fun DataScreen(
@@ -228,7 +237,7 @@ internal fun DataScreen(
             val canMeasure = RingMetricType.HRV in state.manuallyMeasurableMetrics
             add(RingMetricUi(RingMetricType.HRV, "HRV", hrvText, "ms", periodLabel, Icons.Outlined.Timeline, Color(0xFF00A6A6), manualMeasure = canMeasure, showAction = canMeasure))
         }
-        if (!cloudMode) add(RingMetricUi(RingMetricType.BLOOD_GLUCOSE, "血糖", decimalMeasurement(RingMetricType.BLOOD_GLUCOSE), measurementUnit(RingMetricType.BLOOD_GLUCOSE, "设备单位"), capabilityStatus(RingMetricType.BLOOD_GLUCOSE, "设备估算，仅供健康参考"), Icons.Outlined.DataUsage, Color(0xFFE06B57), manualMeasure = RingMetricType.BLOOD_GLUCOSE in state.manuallyMeasurableMetrics, showAction = true))
+        if (!cloudMode) add(RingMetricUi(RingMetricType.BLOOD_GLUCOSE, "血糖", decimalMeasurement(RingMetricType.BLOOD_GLUCOSE), measurementUnit(RingMetricType.BLOOD_GLUCOSE, "设备单位"), capabilityStatus(RingMetricType.BLOOD_GLUCOSE, periodLabel), Icons.Outlined.DataUsage, Color(0xFFE06B57), manualMeasure = RingMetricType.BLOOD_GLUCOSE in state.manuallyMeasurableMetrics, showAction = true))
         if (!cloudMode && stressRecord != null) {
             val canMeasure = RingMetricType.STRESS in state.manuallyMeasurableMetrics
             add(RingMetricUi(RingMetricType.STRESS, "压力", measurement(RingMetricType.STRESS), "分", periodLabel, Icons.Outlined.Timeline, Color(0xFF7B61B8), manualMeasure = canMeasure, showAction = canMeasure))
@@ -246,7 +255,7 @@ internal fun DataScreen(
         RingMetricType.LDL_CHOLESTEROL,
     )
     val bloodComponentMetrics = listOf(
-        RingMetricUi(RingMetricType.BLOOD_COMPONENT, "血液成分", "${bloodComponentTypes.count(state.measurements::containsKey)}/5", "项", capabilityStatus(RingMetricType.BLOOD_COMPONENT, "设备估算，仅供健康参考"), Icons.Outlined.DataUsage, Color(0xFFC35B90), manualMeasure = RingMetricType.BLOOD_COMPONENT in state.manuallyMeasurableMetrics, showAction = true),
+        RingMetricUi(RingMetricType.BLOOD_COMPONENT, "血液成分", "${bloodComponentTypes.count(state.measurements::containsKey)}/5", "项", capabilityStatus(RingMetricType.BLOOD_COMPONENT, periodLabel), Icons.Outlined.DataUsage, Color(0xFFC35B90), manualMeasure = RingMetricType.BLOOD_COMPONENT in state.manuallyMeasurableMetrics, showAction = true),
         RingMetricUi(RingMetricType.URIC_ACID, "尿酸", decimalMeasurement(RingMetricType.URIC_ACID), measurementUnit(RingMetricType.URIC_ACID, "设备单位"), periodLabel, Icons.Outlined.DataUsage, Color(0xFFC35B90)),
         RingMetricUi(RingMetricType.TOTAL_CHOLESTEROL, "总胆固醇", decimalMeasurement(RingMetricType.TOTAL_CHOLESTEROL), measurementUnit(RingMetricType.TOTAL_CHOLESTEROL, "设备单位"), periodLabel, Icons.Outlined.DataUsage, Color(0xFFC35B90)),
         RingMetricUi(RingMetricType.TRIGLYCERIDES, "甘油三酯", decimalMeasurement(RingMetricType.TRIGLYCERIDES), measurementUnit(RingMetricType.TRIGLYCERIDES, "设备单位"), periodLabel, Icons.Outlined.DataUsage, Color(0xFFC35B90)),
@@ -270,7 +279,7 @@ internal fun DataScreen(
         RingMetricType.BASAL_METABOLIC_RATE,
     )
     val bodyComponentMetrics = listOf(
-        RingMetricUi(RingMetricType.BODY_COMPOSITION, "身体成分", "${bodyComponentTypes.count(state.measurements::containsKey)}/14", "项", capabilityStatus(RingMetricType.BODY_COMPOSITION, "设备估算，仅供健康参考"), Icons.Outlined.Assessment, Color(0xFF6A72D8), manualMeasure = RingMetricType.BODY_COMPOSITION in state.manuallyMeasurableMetrics, showAction = true),
+        RingMetricUi(RingMetricType.BODY_COMPOSITION, "身体成分", "${bodyComponentTypes.count(state.measurements::containsKey)}/14", "项", capabilityStatus(RingMetricType.BODY_COMPOSITION, periodLabel), Icons.Outlined.Assessment, Color(0xFF6A72D8), manualMeasure = RingMetricType.BODY_COMPOSITION in state.manuallyMeasurableMetrics, showAction = true),
         RingMetricUi(RingMetricType.BMI, "BMI", decimalMeasurement(RingMetricType.BMI), "kg/m²", periodLabel, Icons.Outlined.Assessment, Color(0xFF6A72D8)),
         RingMetricUi(RingMetricType.BODY_FAT_PERCENT, "体脂率", decimalMeasurement(RingMetricType.BODY_FAT_PERCENT), "%", periodLabel, Icons.Outlined.Assessment, Color(0xFF6A72D8)),
         RingMetricUi(RingMetricType.FAT_MASS, "脂肪量", decimalMeasurement(RingMetricType.FAT_MASS), "kg", periodLabel, Icons.Outlined.Assessment, Color(0xFF6A72D8)),
@@ -351,6 +360,9 @@ internal fun DataScreen(
                 )
                 SmartRingOverviewCard(state, Modifier.weight(1f))
             }
+        }
+        item {
+            DeviceDataNoticeCard(cloudMode)
         }
         item {
             DashboardSectionHeader(Icons.Outlined.FavoriteBorder, "生命体征")
@@ -470,37 +482,6 @@ internal fun DataScreen(
         if (!cloudMode) item {
             MetricGrid(dailyMetrics)
         }
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
-                    .background(Brush.horizontalGradient(listOf(Color(0xFFF4FFFB), Color(0xFFE3F9F2))))
-                    .border(1.dp, Color(0xFFCDEBE2), RoundedCornerShape(18.dp))
-                    .padding(horizontal = 14.dp, vertical = 11.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier.size(36.dp).clip(CircleShape).background(Color.White),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(Icons.Outlined.Shield, null, tint = Mint, modifier = Modifier.size(22.dp))
-                }
-                Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
-                    Text("健康洞察 · AI 提醒", color = Mint, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    Text(
-                        if (cloudMode) {
-                            "当前为云米云端手表历史数据。血压、血氧等结果仅用于健康管理参考，不能替代医疗诊断。"
-                        } else {
-                            "当前为智能戒指采集数据。血压、血氧等结果仅用于健康管理参考。"
-                        },
-                        color = Muted,
-                        fontSize = 9.sp,
-                        lineHeight = 13.sp,
-                        modifier = Modifier.padding(top = 3.dp),
-                    )
-                }
-                Icon(Icons.Outlined.ChevronRight, null, tint = Mint, modifier = Modifier.size(20.dp))
-            }
-        }
     }
 
     if (showBloodGlucoseCalibration) {
@@ -530,6 +511,34 @@ internal fun DataScreen(
                 onMeasure(metricType)
             },
         )
+    }
+}
+
+@Composable
+private fun DeviceDataNoticeCard(cloudMode: Boolean) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+            .background(Brush.horizontalGradient(listOf(Color(0xFFF4FFFB), Color(0xFFE3F9F2))))
+            .border(1.dp, Color(0xFFCDEBE2), RoundedCornerShape(18.dp))
+            .padding(horizontal = 14.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier.size(36.dp).clip(CircleShape).background(Color.White),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Outlined.Shield, null, tint = Mint, modifier = Modifier.size(22.dp))
+        }
+        Column(Modifier.weight(1f).padding(start = 10.dp)) {
+            Text("设备数据提醒", color = Mint, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                dataDeviceNoticeText(cloudMode),
+                color = Muted,
+                fontSize = 9.sp,
+                lineHeight = 13.sp,
+                modifier = Modifier.padding(top = 3.dp),
+            )
+        }
     }
 }
 
@@ -1032,11 +1041,19 @@ private fun DashboardMetricCard(
         Spacer(Modifier.weight(1f))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(6.dp).clip(CircleShape).background(Mint))
-            Text(metric.status, color = Muted, fontSize = 8.sp, modifier = Modifier.padding(start = 5.dp))
+            Text(
+                metric.status,
+                color = Muted,
+                fontSize = 8.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f).padding(start = 5.dp),
+            )
             if (metric.showAction) {
-                Spacer(Modifier.weight(1f))
                 Box(
-                    modifier = Modifier.clip(RoundedCornerShape(999.dp))
+                    modifier = Modifier.padding(start = 4.dp)
+                        .widthIn(min = 52.dp)
+                        .clip(RoundedCornerShape(999.dp))
                         .background(if (metric.manualMeasure) MintSoft else Color(0xFFF0F2F2))
                         .border(1.dp, if (metric.manualMeasure) Mint.copy(alpha = 0.22f) else Line, RoundedCornerShape(999.dp))
                         .clickable(enabled = metric.manualMeasure && measureEnabled && !measuring, onClick = startMeasure)
@@ -1052,6 +1069,7 @@ private fun DashboardMetricCard(
                         color = if (metric.manualMeasure) Mint else Muted,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
                     )
                 }
             }

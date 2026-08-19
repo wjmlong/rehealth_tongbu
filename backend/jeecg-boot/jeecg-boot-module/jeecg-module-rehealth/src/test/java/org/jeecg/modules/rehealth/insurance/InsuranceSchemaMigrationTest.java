@@ -15,6 +15,34 @@ class InsuranceSchemaMigrationTest {
         return new ClassPathResource(resource).getContentAsString(StandardCharsets.UTF_8);
     }
 
+    private static void assertEveryTableAndColumnHasAComment(String sql, String table) {
+        String createPrefix = "CREATE TABLE IF NOT EXISTS " + table + " (";
+        int createAt = sql.indexOf(createPrefix);
+        assertTrue(createAt >= 0, table);
+
+        int bodyAt = createAt + createPrefix.length();
+        int bodyEnd = sql.indexOf(") ENGINE=", bodyAt);
+        assertTrue(bodyEnd > bodyAt, table + " table body");
+        for (String rawLine : sql.substring(bodyAt, bodyEnd).lines().toList()) {
+            String line = rawLine.trim();
+            if (line.isEmpty()
+                    || line.startsWith("PRIMARY KEY")
+                    || line.startsWith("UNIQUE KEY")
+                    || line.startsWith("KEY ")
+                    || line.startsWith("CONSTRAINT ")) {
+                continue;
+            }
+            assertTrue(line.contains(" COMMENT '"), table + " column comment: " + line);
+            assertTrue(line.matches(".*[\\u4E00-\\u9FFF].*"), table + " Chinese column comment: " + line);
+        }
+
+        int statementEnd = sql.indexOf(';', bodyEnd);
+        assertTrue(statementEnd > bodyEnd, table + " statement end");
+        String tableOptions = sql.substring(bodyEnd, statementEnd);
+        assertTrue(tableOptions.contains(" COMMENT='"), table + " table comment");
+        assertTrue(tableOptions.matches("(?s).*[\\u4E00-\\u9FFF].*"), table + " Chinese table comment");
+    }
+
     @Test
     void businessSchemaIsTenantScopedAndDoesNotPersistRawTelemetry() throws Exception {
         String sql = read("db/software/mysql/V20260812_2__create_insurance_business_schema.sql");
@@ -203,5 +231,63 @@ class InsuranceSchemaMigrationTest {
         assertFalse(sql.toLowerCase().contains("raw_ppg"));
         assertFalse(sql.toLowerCase().contains("raw_rri"));
         assertTrue(sql.contains("software-V20260814.4"));
+    }
+
+    @Test
+    void versionedCarePlanMigrationFreezesPublishedContentAndBindsTaskOccurrences() throws Exception {
+        String sql = read("db/software/mysql/V20260819_1__create_versioned_care_plans.sql");
+        for (String table : List.of(
+                "rehealth_care_plan",
+                "rehealth_care_plan_revision",
+                "rehealth_care_plan_item",
+                "rehealth_care_plan_occurrence",
+                "rehealth_care_plan_audit_event"
+        )) {
+            assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS " + table), table);
+            assertEveryTableAndColumnHasAComment(sql, table);
+        }
+        assertTrue(sql.contains("lock_version BIGINT NOT NULL"));
+        assertTrue(sql.contains("revision_id VARCHAR(64) NOT NULL"));
+        assertTrue(sql.contains("logical_item_id VARCHAR(64) NOT NULL"));
+        assertTrue(sql.contains("COMMENT='发布后内容不可变的机构关怀计划版本表'"));
+        assertTrue(sql.contains("rehealth:insurance:care-plan:manage"));
+        assertTrue(sql.contains("rehealth:insurance:care-plan:publish"));
+        assertTrue(sql.contains("software-V20260819.1"));
+        assertFalse(sql.toLowerCase().contains("raw_ppg"));
+        assertFalse(sql.toLowerCase().contains("raw_rri"));
+    }
+
+    @Test
+    void carePlanExecutionMigrationStoresScoredFactsWithoutRawTelemetry() throws Exception {
+        String sql = read("db/software/mysql/V20260819_2__create_care_plan_execution_facts.sql");
+        assertEveryTableAndColumnHasAComment(sql, "rehealth_care_plan_execution");
+        assertTrue(sql.contains("occurrence_id VARCHAR(64) NOT NULL"));
+        assertTrue(sql.contains("score_value DECIMAL(5,4) NULL"));
+        assertTrue(sql.contains("uk_care_plan_execution_source"));
+        assertTrue(sql.contains("software-V20260819.2"));
+        assertFalse(sql.toLowerCase().contains("raw_ppg"));
+        assertFalse(sql.toLowerCase().contains("raw_rri"));
+    }
+
+    @Test
+    void versionedCarePlanTestDataIsCoLocatedOutsideTheFlywayDirectoryAndIsRepeatable() throws Exception {
+        String sql = read("db/testdata/software/mysql/seed-versioned-care-plan-test-data.sql");
+
+        for (String table : List.of(
+                "rehealth_care_plan",
+                "rehealth_care_plan_revision",
+                "rehealth_care_plan_item",
+                "rehealth_care_plan_occurrence",
+                "rehealth_care_plan_audit_event"
+        )) {
+            assertTrue(sql.contains("INSERT INTO " + table), table);
+        }
+        assertTrue(sql.contains("LOCAL_VERSIONED_CARE_PLAN_QA"));
+        assertTrue(sql.contains("ON DUPLICATE KEY UPDATE"));
+        assertTrue(sql.contains("'心血管健康管理计划'"));
+        assertTrue(sql.contains("'生活方式改善计划'"));
+        assertFalse(sql.contains("'测试计划'"));
+        assertFalse(sql.toLowerCase().contains("raw_ppg"));
+        assertFalse(sql.toLowerCase().contains("raw_rri"));
     }
 }

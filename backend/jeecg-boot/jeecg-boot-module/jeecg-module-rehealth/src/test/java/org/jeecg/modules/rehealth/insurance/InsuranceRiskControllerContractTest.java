@@ -59,10 +59,14 @@ class InsuranceRiskControllerContractTest {
     @Test
     void everyEndpointRequiresTheDedicatedInsurancePermission() throws Exception {
         assertEndpoint("dashboard", String.class);
-        assertEndpoint("insureds", String.class, int.class, int.class, String.class, String.class);
+        assertEndpoint("insureds", String.class, int.class, int.class, String.class, String.class,
+                String.class, Integer.class, Integer.class);
+        assertEndpoint("filterOptions", String.class);
         assertEndpoint("insured", String.class, String.class);
         assertDisabledEndpoint("dashboard", String.class);
-        assertDisabledEndpoint("insureds", String.class, int.class, int.class, String.class, String.class);
+        assertDisabledEndpoint("insureds", String.class, int.class, int.class, String.class, String.class,
+                String.class, Integer.class, Integer.class);
+        assertDisabledEndpoint("filterOptions", String.class);
         assertDisabledEndpoint("insured", String.class, String.class);
     }
 

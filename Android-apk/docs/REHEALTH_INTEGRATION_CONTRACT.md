@@ -246,12 +246,24 @@ The seeded Debug preview is persisted before display. Ordinary Debug and Release
 must ignore cached mock rows; this cache never replaces the server-side attribution authority.
 Room v18 extends `intervention_feedback_queue` with authenticated owner, insurance
 tenant, insurance binding, stable plan-item ID, expected/completed counts, and
-verification type. Every pending/latest/count read is owner-scoped. Institution
-feedback is uploaded only to
-`POST /rehealth/mobile/insurance/plans/{bindingId}/feedback`; generic intervention
-feedback remains on `/interventions/{id}/feedback` and is never fanned out to every
-institution serving the user. The server revalidates the active subject, tenant,
-policy, consent, and binding before deriving adherence from completed/expected facts.
+verification type. Room v19 adds nullable `occurrence_id` for versioned institution
+care-plan tasks while preserving existing rows. Every pending/latest/count read is
+owner-scoped. Legacy binding feedback is uploaded only to
+`POST /rehealth/mobile/insurance/plans/{bindingId}/feedback`; versioned task feedback
+uses `/rehealth/mobile/insurance/care-plan-occurrences/{occurrenceId}/feedback`.
+The plan UI observes the exact owner-scoped queue row after a local-first submission:
+`done` is shown as synced, transient `retry` remains queued with bounded backoff, and
+permanent rejection or ten exhausted attempts becomes `dead_letter`. A dead-letter row
+is shown as a failure rather than an endless syncing banner. Legacy `failed` rows remain
+retryable for compatibility. A new submission for the same occurrence marks an older
+dead-letter row `superseded`, so a resolved attempt no longer leaves a stale error banner.
+No Room schema migration is required for these status values.
+Generic intervention feedback remains on `/interventions/{id}/feedback` and is never
+fanned out to every institution serving the user. The attribution plan card reads
+`GET /rehealth/mobile/insurance/care-plans/current`, displays institution and revision,
+and uses the server's rolling 28-day due-task adherence. Completed is 100%, partial
+50%, skipped 0%, and not-applicable is excluded. The server revalidates the active
+subject, tenant, policy/consent relationship, plan revision, and occurrence ownership.
 No other screen may generate this fixture. `quality.rawSignalExcluded=true`
 declares that raw PPG/RRI samples are absent and is valid control metadata; actual
 raw payload keys and signal chunks remain rejected while raw upload is disabled.

@@ -65,9 +65,15 @@ WHERE role_code IN (
 );
 
 SELECT COUNT(*)
-FROM sys_tenant
-WHERE id IN (9101, 9102, 9103)
-  AND name NOT LIKE '[LOCAL QA]%';
+FROM sys_tenant tenant
+WHERE tenant.id IN (9101, 9102, 9103)
+  AND NOT EXISTS (
+      SELECT 1
+      FROM rehealth_insurance_tenant_profile profile
+      WHERE profile.tenant_id = tenant.id
+        AND profile.id = LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_QA:profile:', tenant.id)))
+        AND JSON_UNQUOTE(JSON_EXTRACT(profile.notification_config_json, '$.source')) = 'LOCAL_MULTI_INSURER_QA'
+  );
 
 SELECT COUNT(*)
 FROM sys_user
@@ -115,9 +121,12 @@ Invoke-SoftwareDbSql -Sql ($runtimePrefix + [Environment]::NewLine + $seedSql)
 
 $verificationSql = @"
 SELECT 'tenants', COUNT(*)
-FROM sys_tenant
-WHERE id IN (9101, 9102, 9103)
-  AND name LIKE '[LOCAL QA]%';
+FROM sys_tenant tenant
+JOIN rehealth_insurance_tenant_profile profile
+  ON profile.tenant_id = tenant.id
+ AND profile.id = LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_QA:profile:', tenant.id)))
+WHERE tenant.id IN (9101, 9102, 9103)
+  AND JSON_UNQUOTE(JSON_EXTRACT(profile.notification_config_json, '$.source')) = 'LOCAL_MULTI_INSURER_QA';
 
 SELECT 'unique_users', COUNT(*)
 FROM sys_user

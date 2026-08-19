@@ -95,6 +95,19 @@ public class InsuranceInterventionWorkbenchController {
         });
     }
 
+    @PostMapping("/interventions/actions/batch")
+    @RequiresPermissions(MANAGE_PERMISSION)
+    @Operation(summary = "Create audited actions for up to 100 assigned insurance subjects atomically")
+    public ResponseEntity<Result<InsuranceInterventionWorkbenchResponse.BatchActions>> createActions(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantHeader,
+            @RequestBody InsuranceInterventionWorkbenchRequest.BatchCreateAction request
+    ) {
+        return respond(() -> {
+            Context context = context(tenantHeader);
+            return service.createActions(context.tenantId(), context.user().getId(), context.user().getId(), request);
+        });
+    }
+
     @PutMapping("/intervention-actions/{actionId}")
     @RequiresPermissions(MANAGE_PERMISSION)
     @Operation(summary = "Update an audited action within the current employee's responsibility scope")

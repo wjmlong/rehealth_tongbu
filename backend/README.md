@@ -1,4 +1,4 @@
-中文 | [English](./README.en-US.md) | [日本語](./README.ja-JP.md)
+中文 | [English](./README.en-US.md)
 
 JeecgBoot AI低代码平台
 ===============

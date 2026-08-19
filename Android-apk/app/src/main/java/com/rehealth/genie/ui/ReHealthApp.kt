@@ -217,6 +217,10 @@ private fun MainShell(
     val queueState by application.syncRepository.queueState.collectAsState()
     val pendingFeedback by application.interventionFeedbackRepository.observePendingFeedback()
         .collectAsState(initial = emptyList())
+    val syncingFeedbackCount = pendingFeedback.count {
+        it.uploadStatus == "pending" || it.uploadStatus == "retry" || it.uploadStatus == "failed"
+    }
+    val failedFeedbackCount = pendingFeedback.count { it.uploadStatus == "dead_letter" }
     var showDeviceBinding by remember { mutableStateOf(false) }
     var showInterview by remember { mutableStateOf(false) }
     val simulationScope = rememberCoroutineScope()
@@ -303,7 +307,8 @@ private fun MainShell(
                 // D3: queue status banner (sync progress / session expired)
                 QueueStatusBanner(
                     queueState = queueState,
-                    pendingCount = pendingFeedback.size,
+                    pendingCount = syncingFeedbackCount,
+                    failedCount = failedFeedbackCount,
                     onLoginClick = onGoToLogin,
                 )
                 Box(Modifier.weight(1f).fillMaxWidth()) {

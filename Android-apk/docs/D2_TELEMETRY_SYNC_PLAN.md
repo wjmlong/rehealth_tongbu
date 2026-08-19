@@ -25,6 +25,10 @@ Status: implemented software path; updated 2026-08-05.
 - Successful manual/automatic sync creates a durable `telemetry_batch` queue item.
 - WorkManager uploads through the authenticated Jeecg mobile client.
 - `401` pauses the queue for re-login; transient failures retry the same batch.
+- Institution care-plan feedback observes its exact owner-scoped Room queue row after submission.
+  Successful upload changes the plan message to “已同步”; transient failures use bounded backoff,
+  while permanent rejection or ten exhausted attempts becomes `dead_letter` and is displayed as
+  a failure instead of remaining indefinitely in “正在同步”.
 - A batch is complete only after backend confirms durable hardware-db persistence.
 - Raw signal bytes and entity `rawPayload` fields are excluded.
 - Device addresses are SHA-256 hashed before cloud binding/upload.
@@ -87,6 +91,7 @@ Status: implemented software path; updated 2026-08-05.
 - DTO/route contract tests with MockWebServer.
 - Room-to-telemetry mapping tests, including stable batch identity and raw-data exclusion.
 - Queue retry, durable acknowledgement, malformed payload, and 401 policy tests.
+- Intervention-feedback tests cover synced/retrying/dead-letter presentation and retry exhaustion.
 - Diet repository tests cover local-first save, structured batch mapping and
   single enqueue after a delayed device binding; migration 10→11 has an
   instrumentation migration test.

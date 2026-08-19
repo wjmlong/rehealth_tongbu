@@ -118,6 +118,15 @@ public final class InsuranceRiskResponse {
     }
 
     @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record InsuredFilterOptions(
+            @JsonProperty("scope_mode") String scopeMode,
+            List<String> channels,
+            @JsonProperty("min_age") Integer minAge,
+            @JsonProperty("max_age") Integer maxAge
+    ) {
+    }
+
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     public record InsuredDetail(
             @JsonProperty("scope_mode") String scopeMode,
             Subject subject

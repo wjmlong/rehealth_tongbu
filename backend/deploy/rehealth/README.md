@@ -29,12 +29,15 @@ Do not interpret a static pass as a deployed-service health result.
 
 ## Local insurer workflow
 
-Apply the non-destructive MySQL migrations through `V20260814_4` before testing
+Apply the non-destructive MySQL migrations through `V20260819_2` before testing
 the insurer website. They add import/job/plan-feedback tables, workflow
 permissions, insurance organization settings, tenant-scoped department codes and
 local-admin acceptance grants, read-only organization/member settings, insurer
 intervention actions and aggregate RHI/RDI daily snapshots plus structured RDI
-contributions. Production must assign
+contributions. `V20260819_1` creates the commented, versioned institution care-plan
+tables and separates plan view, draft edit and publish permissions; `V20260819_2`
+adds immutable occurrence execution facts used by the App's rolling 28-day adherence.
+Production must assign
 `insurer_viewer`, `insurer_analyst`, `insurance_operator` or `insurer_auditor`
 explicitly and must not rely on the local admin grant.
 
@@ -161,12 +164,18 @@ the response never silently reports telemetry as absent. Requests to
 `/rehealth/admin/v1/patients/**` also require `X-Access-Token`, `X-Tenant-Id`,
 an active membership of that tenant, and `rehealth:admin:patient:view`. The
 Device Service internal health URL requires `tenantId` and scopes every query by
-both tenant and user. Because current profile and CVD tables do not carry a tenant
+both tenant and user. Patient list/detail queries require an existing
+`rehealth_patient_profile`, so institution employee accounts without a patient
+profile are not returned as patients. Because current profile and CVD tables do not carry a tenant
 column, the admin API fails closed and excludes a user who has another active
 tenant membership. Detail reads are bounded to one operator-membership lookup,
 one target aggregation query, and one Device Service summary request. Synthetic,
 mock, demo, sample, `LOCAL_TEST_SEED`, and `ring_sim` provenance is returned as a
-summary flag and suppresses `latestRisk` in detail responses;
+summary flag. A synthetic detail may include risk, RHI/RDI, structured Factor16,
+and the latest intervention summary only when each returned result is explicitly
+Mock; clients must label it as a test preview, exclude it from clinical aggregates,
+and not present it as medical advice. Provenance/result mismatches are
+suppressed;
 raw telemetry rows and the internal credential are never logged or returned.
 The list deliberately avoids an N+1 Device Service fan-out, so every row returns
 `provenanceStatus=unknown`; website/BFF charts and counters must not include an
@@ -174,8 +183,8 @@ The list deliberately avoids an N+1 Device Service fan-out, so every row returns
 `verified_real` only when its non-empty provenance set contains exclusively
 registered real sources (`hband_wearable`, `hband_cloud_restore`, `viomi_cloud`,
 `mrd_ring`, `mrd-sdk`, or `rwfit`). Empty, mixed-unregistered, or unknown sources
-remain `unknown` and suppress `latestRisk`; synthetic sources are `synthetic` and
-also suppress `latestRisk`.
+remain `unknown` and suppress risk and index results. Synthetic sources are
+`synthetic` and follow the explicit Mock preview rule above.
 
 Flyway migration `V3.9.2_1__rehealth_admin_patient_permission.sql` creates the
 assignable `rehealth:admin:patient:view` permission idempotently and grants it to
@@ -259,6 +268,12 @@ actor is also linked to each insurer's root organization so its department is no
 blank in tenant-scoped user management. The seed verifies that every seed-owned
 tenant membership resolves to an active department in the same tenant.
 
+Organization names, staff names, addresses, and other normal business display
+fields intentionally use production-like wording without visible `测试`, `合成`,
+or `[LOCAL QA]` suffixes. Synthetic ownership is still enforced through stable
+usernames and IDs, reserved contact values, `source_system`, fixture metadata,
+and the local-only seed guards; presentation wording is not a provenance check.
+
 To extend those three organizations with complete APP-user service fixtures, run:
 
 ```powershell
@@ -298,12 +313,60 @@ the script is idempotent and verifies exact counts. The data is synthetic,
 non-clinical and local-only; do not use it for medical, underwriting, claim or
 settlement decisions.
 
+APP-user names, device labels, business records, plan copy, and study titles use
+the same natural presentation style as ordinary records. Re-running the seed
+updates existing fixture rows through its deterministic upserts. Internal
+`LOCAL_MULTI_INSURER_APP_QA`, `synthetic`, `is_mock`, and
+`clinicalUseAllowed=false` markers remain unchanged and continue to control QA
+isolation and safety behavior.
+
+After the APP-user seed and migrations through `V20260819_2` are available, populate the
+versioned institution care-plan tables with the same 36 insurer-subject
+relationships:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File `
+  backend/deploy/rehealth/scripts/seed-versioned-care-plan-test-data.ps1 `
+  -AnchorDate 2026-08-19
+```
+
+The repeatable `LOCAL_VERSIONED_CARE_PLAN_QA` seed writes 36 active plans and
+published revisions, 108 patient-visible plan items, 108 scheduled occurrences
+and 72 lifecycle audit events. Display titles and instructions use natural
+business wording; deterministic IDs and `source_plan_id` retain local fixture
+ownership. The wrapper refuses incompatible reserved-ID collisions and verifies
+the exact row counts plus Chinese comments on all five tables and all 71
+columns. The canonical insert SQL is colocated with the module at
+`jeecg-module-rehealth/src/main/resources/db/testdata/software/mysql/`; the
+deploy directory only contains the guarded runner. Never run this local-only
+fixture against staging or production.
+
 To make every workbench status and risk distribution visible, the CVD fixture
 rows use `is_mock=0` together with `scorer_mode=local_qa_fixture`,
-`artifact_name=LOCAL_MULTI_INSURER_APP_QA_NOT_A_MODEL`, `[合成]` display names,
-and `clinicalUseAllowed=false`. Only the three explicit improvement-cohort APP
+`artifact_name=LOCAL_MULTI_INSURER_APP_QA_NOT_A_MODEL`, natural business display
+fields, and `clinicalUseAllowed=false`. Only the three explicit improvement-cohort APP
 accounts use a non-Mock attribution row. This exception exists solely for local
 UI/permission acceptance and must never be copied to staging or production.
+
+### Local medical workspace test data
+
+To populate the medical workspace with two isolated institutions, four staff
+logins, 24 fictional App patients, Mock risk/intervention chains, RHI/RDI
+snapshots, and 30-day device histories, run with the local MySQL and
+TimescaleDB containers already started:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File `
+  backend/deploy/rehealth/scripts/seed-medical-workspace-test-data.ps1 `
+  -AnchorDate 2026-08-18
+```
+
+The seed is repeatable and verifies exact software and hardware row counts.
+All rows use the narrow `LOCAL_MEDICAL_TEST_SEED` marker, all model outputs are
+explicitly Mock/non-clinical, and the command refuses reserved-ID or account
+collisions. Remove only this cohort with the same command plus `-Cleanup`.
+Accounts, data topology, known patient-list behavior, safety rules, and exact
+counts are documented in [MEDICAL_TEST_DATA.md](MEDICAL_TEST_DATA.md).
 
 Health chat now supports two server-side engines behind the unchanged mobile API:
 

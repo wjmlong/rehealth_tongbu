@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "ReHealth tenant administration API",
-    "version": "1.0.2",
+    "version": "1.0.4",
     "description": "Read-only tenant-scoped patient aggregation for the website administration console."
   },
   "servers": [{"url": "/jeecg-boot"}],
@@ -10,7 +10,7 @@
   "paths": {
     "/rehealth/admin/v1/patients": {
       "get": {
-        "description": "Requires rehealth:admin:patient:view. Returns only active members of the authenticated operator's validated tenant. Because profile and risk tables have no tenant column, users with another active tenant membership are excluded fail-closed. The list never calls Device Service, so every row has provenanceStatus=unknown; consumers MUST NOT include unknown rows in clinical risk statistics.",
+        "description": "Requires rehealth:admin:patient:view. Returns only active members of the authenticated operator's validated tenant who have a patient profile; institution employee accounts without a patient profile are excluded. Because profile and risk tables have no tenant column, users with another active tenant membership are excluded fail-closed. The list never calls Device Service, so every row has provenanceStatus=unknown; consumers MUST NOT include unknown rows in clinical risk statistics.",
         "parameters": [
           {"name": "pageNo", "in": "query", "schema": {"type": "integer", "minimum": 1, "default": 1}},
           {"name": "pageSize", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 20}},
@@ -26,7 +26,7 @@
     },
     "/rehealth/admin/v1/patients/{patientId}": {
       "get": {
-        "description": "Requires rehealth:admin:patient:view. Verifies exclusive active target membership before one tenant-scoped Device Service read. Synthetic markers set provenanceStatus=synthetic and suppress latestRisk. Only a non-empty allow-listed real provenance set is verified_real; empty, mixed, or unknown sources stay unknown and also suppress latestRisk.",
+        "description": "Requires rehealth:admin:patient:view. Verifies a patient profile and exclusive active target membership before one tenant-scoped Device Service read. A non-empty allow-listed real provenance set is verified_real and may expose non-Mock risk/RHI/RDI and latest intervention data. Synthetic provenance may expose risk, RHI/RDI, Factor16 and the latest intervention only when the corresponding records are explicitly Mock; consumers must label these values as test previews, exclude them from clinical statistics, and not present them as medical advice. Empty, mixed, unknown, or provenance/result mismatches stay fail-closed.",
         "parameters": [
           {"name": "patientId", "in": "path", "required": true, "schema": {"type": "string"}}
         ],
@@ -61,11 +61,14 @@
           "status": {"type": ["integer", "null"]},
           "createTime": {"type": ["string", "null"], "format": "date-time"},
           "profile": {"type": ["object", "null"]},
-          "latestRisk": {"type": ["object", "null"]},
+          "latestRisk": {"$ref": "#/components/schemas/RiskSummary"},
+          "latestRhi": {"$ref": "#/components/schemas/RhiSummary"},
+          "latestRdi": {"$ref": "#/components/schemas/RdiSummary"},
+          "latestIntervention": {"$ref": "#/components/schemas/InterventionSummary"},
           "provenanceStatus": {
             "type": "string",
             "enum": ["unknown", "verified_real", "synthetic"],
-            "description": "List rows are unknown. Detail is verified_real only for a non-empty allow-listed real source set; empty or unrecognized source sets remain unknown. Only verified_real may be counted as clinical risk."
+            "description": "List rows are unknown. Detail is verified_real only for a non-empty allow-listed real source set, synthetic for explicit test sources, and unknown otherwise. Only verified_real non-Mock values may be counted as clinical risk."
           },
           "telemetry": {
             "type": ["object", "null"],
@@ -74,6 +77,59 @@
               "isSynthetic": {"type": "boolean"}
             }
           }
+        }
+      },
+      "RiskSummary": {
+        "type": ["object", "null"],
+        "properties": {
+          "score": {"type": ["number", "null"]},
+          "level": {"type": ["string", "null"]},
+          "modelVersion": {"type": ["string", "null"]},
+          "evaluatedAt": {"type": ["string", "null"], "format": "date-time"},
+          "isMock": {"type": ["boolean", "null"]},
+          "factorContributions": {
+            "type": ["array", "null"],
+            "items": {"type": "object"},
+            "description": "Structured Factor16 explanation items stored with this risk result."
+          }
+        }
+      },
+      "RhiSummary": {
+        "type": ["object", "null"],
+        "properties": {
+          "displayScore": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+          "dataConfidence": {"type": ["number", "null"]},
+          "status": {"type": ["string", "null"]},
+          "scoredOn": {"type": ["string", "null"], "format": "date"},
+          "algorithmVersion": {"type": ["string", "null"]},
+          "calculationSource": {"type": ["string", "null"]},
+          "isMock": {"type": ["boolean", "null"]}
+        }
+      },
+      "RdiSummary": {
+        "type": ["object", "null"],
+        "properties": {
+          "displayScore": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+          "dataConfidence": {"type": ["number", "null"]},
+          "status": {"type": ["string", "null"]},
+          "scoredOn": {"type": ["string", "null"], "format": "date"},
+          "algorithmVersion": {"type": ["string", "null"]},
+          "calculationSource": {"type": ["string", "null"]},
+          "isMock": {"type": ["boolean", "null"]}
+        }
+      },
+      "InterventionSummary": {
+        "type": ["object", "null"],
+        "description": "Read-only latest intervention summary. Synthetic provenance requires isMock=true and must be labeled as a test preview, not medical advice.",
+        "properties": {
+          "priorityIntervention": {"type": ["string", "null"]},
+          "rationale": {"type": ["string", "null"]},
+          "expectedImpact": {"type": ["string", "null"]},
+          "confidence": {"type": ["number", "null"]},
+          "modelVersion": {"type": ["string", "null"]},
+          "generatedAt": {"type": ["string", "null"], "format": "date-time"},
+          "isMock": {"type": ["boolean", "null"]},
+          "medicalDisclaimer": {"type": ["string", "null"]}
         }
       }
     }

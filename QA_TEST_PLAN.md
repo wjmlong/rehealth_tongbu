@@ -57,6 +57,27 @@ python backend/qa/rehealth_stack_gate.py topology --compose backend/deploy/rehea
 git diff --check
 ```
 
+## 保险风险分层 QA
+
+1. 使用两个保险租户及机构管理员、部门经理、运营员、查看员账号，确认风险列表、筛选选项、导出和批量激励都只覆盖当前账号的 `rehealth_insurance_subject_manager` 负责关系。
+2. 分别组合风险等级、渠道、年龄段和关键词，核对列表记录、总数、分页及导出 CSV 完全一致；切换租户后渠道选项不得残留上一租户数据。
+3. 导出超过 10000 条时必须拒绝并提示缩小范围；姓名或渠道以 `= + - @` 开头时，CSV 不得被电子表格解释为公式。
+4. 选择 1、100、101 人验证批量上限；其中任一对象无效、跨租户或不在当前负责人范围时，不得写入任何行动。
+5. 机构管理员、部门经理和运营员可创建激励行动并看到审计记录；查看员、分析员和审计员的批量按钮不可用，直接请求接口返回 403。
+
+## 保险机构计划版本 QA
+
+1. 在同一租户、同一负责对象下创建草稿并多次编辑，确认只有草稿内容变化，`lock_version` 每次加一；使用旧 `expected_lock_version` 返回 409 且不产生部分写入。
+2. 发布版本 1 后直接调用草稿更新必须返回 409；从版本 1 克隆版本 2 草稿时，版本号递增且同一业务项目保留 `logical_item_id`，版本内 `item_id` 必须不同。
+3. 发布版本 2 时确认版本 1 的 `effective_to` 等于版本 2 的 `effective_from`；旧版本在该时间之后的 `scheduled` 任务变为 `cancelled/superseded_by_revision`，不删除历史版本或历史任务。
+4. 放弃草稿和撤回发布版本都要求原因并写 `rehealth_care_plan_audit_event`；审计只保存操作者、动作、内容哈希和原因，不复制计划正文或健康数据。
+5. 查看员、分析员和审计员只能使用 `care-plan:view`；运营员可编辑草稿但不能发布；机构管理员和部门经理可发布/撤回。跨租户、未负责或授权已撤销的对象均返回 403/404。
+6. 保险计划提交 `medication`、`diagnosis` 或 `treatment` 类项目必须拒绝；生活方式、提醒、教育、监测和跟进类项目可保存。
+7. 机构发布不自动修改旧 App `insurance_plan_binding`；App 归因页通过版本化计划聚合接口读取生效版本，旧绑定与新版任务反馈必须互不串线。
+8. 分别用 `daily`、`weekly`、`once` 规则核对滚动 28 日任务展开、版本生效边界和稳定 `occurrence_id`；未知规则只显示不支持，不得虚构任务。
+9. 在归因页核对机构、版本、今日任务和 28 日依从性；完成计 100%、部分完成 50%、跳过计 0、不适用排除，缺失的已到期任务计 0，无有效分母显示暂无数据。
+10. 断网提交四类反馈后确认 Room v19 保留 `occurrence_id` 并显示待同步；恢复网络后以本地反馈 ID 幂等上传，同一请求重试不得重复计分，跨用户、跨租户和撤销授权必须拒绝。
+
 ## Manual Android QA
 
 1. Android install/onboarding
@@ -210,6 +231,10 @@ git diff --check
      midnight and ends today; verify today's duration equals valid stage totals (or elapsed time
      only when stages are absent). Verify 7/30-day risk and health index use only confirmed daily
      results and show their valid-day count.
+   - Confirm the device-data notice appears before the metric sections and centrally states which
+     values are device estimates plus the medical disclaimer. Start blood glucose, blood component,
+     and body composition measurements; while the action reads “测量中”, the action and footer status
+     must remain on one line without changing the card height or clipping the action label.
    - For HBand HRV/stress/MET, verify capability flags alone never reveal a card. A card appears
      only after Room contains a valid real-Provider value: HRV/MET `> 0`, stress `1..100`.
      History-only HRV/stress cards have no measure action; MET never has a real-time action.

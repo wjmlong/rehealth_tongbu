@@ -35,4 +35,13 @@ public final class InsuranceMobilePlanRequest {
             Map<String, Object> outcomeSummary
     ) {
     }
+
+    public record OccurrenceFeedback(
+            String feedbackType,
+            LocalDateTime occurredAt,
+            String sourceRecordId,
+            String verificationType,
+            String note
+    ) {
+    }
 }

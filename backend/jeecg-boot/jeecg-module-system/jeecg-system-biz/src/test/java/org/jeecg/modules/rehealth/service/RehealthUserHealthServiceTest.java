@@ -13,9 +13,10 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -33,6 +34,11 @@ class RehealthUserHealthServiceTest {
     void latestRiskWindowUsesMySqlSafeAlias() {
         assertTrue(RehealthUserHealthService.BASE_SELECT.contains(") AS risk_row_num"));
         assertTrue(RehealthUserHealthService.BASE_SELECT.contains("WHERE risk_row_num = 1"));
+        assertTrue(RehealthUserHealthService.BASE_SELECT.contains("COALESCE(is_mock, 1) ASC"));
+        assertTrue(RehealthUserHealthService.BASE_SELECT.contains("factor_contribution_json"));
+        assertTrue(RehealthUserHealthService.BASE_SELECT.contains("JOIN rehealth_patient_profile p"));
+        assertTrue(RehealthUserHealthService.BASE_SELECT.contains("priority_intervention"));
+        assertTrue(RehealthUserHealthService.BASE_SELECT.contains("intervention_row_num = 1"));
         assertFalse(RehealthUserHealthService.BASE_SELECT.contains(") AS row_number"));
     }
 
@@ -68,6 +74,20 @@ class RehealthUserHealthServiceTest {
         assertNull(patient.getLatestRisk());
         assertEquals("synthetic", patient.getProvenanceStatus());
 
+        RehealthUserHealthVO syntheticPreview = new RehealthUserHealthVO();
+        RehealthUserHealthVO.RiskSummary mockRisk = new RehealthUserHealthVO.RiskSummary();
+        mockRisk.setIsMock(true);
+        syntheticPreview.setLatestRisk(mockRisk);
+        RehealthUserHealthVO.InterventionSummary mockIntervention =
+                new RehealthUserHealthVO.InterventionSummary();
+        mockIntervention.setIsMock(true);
+        syntheticPreview.setLatestIntervention(mockIntervention);
+        RehealthUserHealthService.attachTelemetry(syntheticPreview, telemetry);
+        assertNotNull(syntheticPreview.getLatestRisk());
+        assertTrue(syntheticPreview.getLatestRisk().getIsMock());
+        assertNotNull(syntheticPreview.getLatestIntervention());
+        assertTrue(syntheticPreview.getLatestIntervention().getIsMock());
+
         RehealthUserHealthVO markerPatient = new RehealthUserHealthVO();
         markerPatient.setLatestRisk(new RehealthUserHealthVO.RiskSummary());
         RehealthUserHealthService.attachTelemetry(
@@ -79,8 +99,25 @@ class RehealthUserHealthServiceTest {
         realTelemetry.put("provenance", List.of("hband_wearable"));
         realTelemetry.put("isSynthetic", false);
         RehealthUserHealthVO realPatient = new RehealthUserHealthVO();
+        RehealthUserHealthVO.RiskSummary realRisk = new RehealthUserHealthVO.RiskSummary();
+        realRisk.setIsMock(false);
+        realPatient.setLatestRisk(realRisk);
+        RehealthUserHealthVO.InterventionSummary realIntervention =
+                new RehealthUserHealthVO.InterventionSummary();
+        realIntervention.setIsMock(false);
+        realPatient.setLatestIntervention(realIntervention);
         RehealthUserHealthService.attachTelemetry(realPatient, realTelemetry);
         assertEquals("verified_real", realPatient.getProvenanceStatus());
+        assertNotNull(realPatient.getLatestRisk());
+        assertNotNull(realPatient.getLatestIntervention());
+
+        RehealthUserHealthVO mismatchedPlan = new RehealthUserHealthVO();
+        RehealthUserHealthVO.InterventionSummary unmarkedPlan =
+                new RehealthUserHealthVO.InterventionSummary();
+        unmarkedPlan.setIsMock(false);
+        mismatchedPlan.setLatestIntervention(unmarkedPlan);
+        RehealthUserHealthService.attachTelemetry(mismatchedPlan, telemetry);
+        assertNull(mismatchedPlan.getLatestIntervention());
 
         for (JSONObject unverified : List.of(
                 new JSONObject(),
@@ -93,6 +130,17 @@ class RehealthUserHealthServiceTest {
             assertEquals("unknown", unknownPatient.getProvenanceStatus());
             assertNull(unknownPatient.getLatestRisk());
         }
+    }
+
+    @Test
+    void dailyPreviewMustMatchVerifiedOrSyntheticProvenance() {
+        assertTrue(RehealthUserHealthService.previewMatchesProvenance("synthetic", true));
+        assertTrue(RehealthUserHealthService.previewMatchesProvenance("verified_real", false));
+        assertFalse(RehealthUserHealthService.previewMatchesProvenance("synthetic", false));
+        assertFalse(RehealthUserHealthService.previewMatchesProvenance("verified_real", true));
+        assertFalse(RehealthUserHealthService.previewMatchesProvenance("unknown", true));
+        assertTrue(RehealthUserHealthService.isSyntheticSource("LOCAL_MEDICAL_TEST_SEED"));
+        assertFalse(RehealthUserHealthService.isSyntheticSource("android_rhi_v2"));
     }
 
     private static JSONObject telemetry(boolean synthetic, List<String> provenance) {
