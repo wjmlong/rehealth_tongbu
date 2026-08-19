@@ -334,7 +334,10 @@ and 72 lifecycle audit events. Display titles and instructions use natural
 business wording; deterministic IDs and `source_plan_id` retain local fixture
 ownership. The wrapper refuses incompatible reserved-ID collisions and verifies
 the exact row counts plus Chinese comments on all five tables and all 71
-columns. Never run this local-only fixture against staging or production.
+columns. The canonical insert SQL is colocated with the module at
+`jeecg-module-rehealth/src/main/resources/db/testdata/software/mysql/`; the
+deploy directory only contains the guarded runner. Never run this local-only
+fixture against staging or production.
 
 To make every workbench status and risk distribution visible, the CVD fixture
 rows use `is_mock=0` together with `scorer_mode=local_qa_fixture`,

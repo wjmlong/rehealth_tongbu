@@ -1,6 +1,8 @@
 -- LOCAL_VERSIONED_CARE_PLAN_QA
 --
 -- Repeatable local-only fixtures for the versioned institution care-plan schema.
+-- This file is intentionally outside db/software/mysql so Flyway never executes
+-- local fixtures automatically. It is loaded only by the guarded deploy runner.
 -- Prerequisite: seed-multi-insurer-app-user-test-data.ps1 has created the 36
 -- LOCAL_MULTI_INSURER_APP_QA insurer-subject relationships for tenants 9101-9103.
 -- The PowerShell wrapper performs schema, ownership and collision checks first.

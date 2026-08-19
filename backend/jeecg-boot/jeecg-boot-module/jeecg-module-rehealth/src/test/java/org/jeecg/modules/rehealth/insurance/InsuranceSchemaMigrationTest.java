@@ -256,4 +256,26 @@ class InsuranceSchemaMigrationTest {
         assertFalse(sql.toLowerCase().contains("raw_ppg"));
         assertFalse(sql.toLowerCase().contains("raw_rri"));
     }
+
+    @Test
+    void versionedCarePlanTestDataIsCoLocatedOutsideTheFlywayDirectoryAndIsRepeatable() throws Exception {
+        String sql = read("db/testdata/software/mysql/seed-versioned-care-plan-test-data.sql");
+
+        for (String table : List.of(
+                "rehealth_care_plan",
+                "rehealth_care_plan_revision",
+                "rehealth_care_plan_item",
+                "rehealth_care_plan_occurrence",
+                "rehealth_care_plan_audit_event"
+        )) {
+            assertTrue(sql.contains("INSERT INTO " + table), table);
+        }
+        assertTrue(sql.contains("LOCAL_VERSIONED_CARE_PLAN_QA"));
+        assertTrue(sql.contains("ON DUPLICATE KEY UPDATE"));
+        assertTrue(sql.contains("'心血管健康管理计划'"));
+        assertTrue(sql.contains("'生活方式改善计划'"));
+        assertFalse(sql.contains("'测试计划'"));
+        assertFalse(sql.toLowerCase().contains("raw_ppg"));
+        assertFalse(sql.toLowerCase().contains("raw_rri"));
+    }
 }

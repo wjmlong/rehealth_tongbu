@@ -16,8 +16,9 @@ if ($SoftwareContainer -notmatch '^[A-Za-z0-9_.-]+$') {
 }
 
 $deployRoot = Split-Path -Parent $PSScriptRoot
+$backendRoot = Split-Path -Parent (Split-Path -Parent $deployRoot)
 $softwarePasswordPath = Join-Path $deployRoot 'secrets\software_db_password'
-$sqlPath = Join-Path $PSScriptRoot 'seed-versioned-care-plan-test-data.sql'
+$sqlPath = Join-Path $backendRoot 'jeecg-boot\jeecg-boot-module\jeecg-module-rehealth\src\main\resources\db\testdata\software\mysql\seed-versioned-care-plan-test-data.sql'
 foreach ($requiredPath in @($softwarePasswordPath, $sqlPath)) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required local seed dependency is missing: $requiredPath"
