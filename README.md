@@ -452,7 +452,8 @@ python backend/qa/rehealth_stack_gate.py topology `
 | `backend/contracts/INSURANCE_BUSINESS_API.md` | 保险数据导入、PSM、RWE、结算和 App 授权契约 | 保险 API、状态机、角色权限、隐私或幂等语义变化时 |
 | `backend/contracts/INSURANCE_STAFF_APP_USER_MATCHING_ANALYSIS.md` | 保险员工、平台 APP 用户、多机构服务、后台角色、现有表复用和负责人匹配的持续分析 | 机构员工权限、APP 领域服务关系、后台角色、负责人范围、多机构服务或相关产品决策变化时 |
 | `backend/docs/保险干预依从性完整链路.md` | 保险计划反馈从 APP 本地队列、服务端计分到工作台 28 天聚合的完整链路、当前口径和演进计划 | 反馈类型、依从性公式、统计窗口、任务分母、多源证据、多机构复用或展示语义变化时 |
-| `backend/docs/REHEALTH_DB_SCHEMA.md` | Room、MySQL 与 TimescaleDB 数据库结构总览及 215 张表逐表附录入口 | Room/MySQL/TimescaleDB Schema、索引、关系或字段语义变化时 |
+| `backend/docs/REHEALTH_DB_SCHEMA.md` | Room、MySQL 与 TimescaleDB 数据库结构总览及 228 张基础表逐表附录入口 | Room/MySQL/TimescaleDB Schema、索引、关系或字段语义变化时 |
+| `sql/README.md` | 多数据库当前结构快照、中文注释、基础数据、测试数据与执行顺序 | 统一 SQL 资产、初始化边界或空库验证方式变化时 |
 | `backend/deploy/rehealth/README.md` | 部署拓扑和运行方式 | 服务、端口、环境变量、secret、容器变化时 |
 | `model-service/docs/API_CONTRACT.md` | 模型服务接口 | 模型请求/响应、版本或就绪语义变化时 |
 | `rehealth-algorithms/docs/RHI_V2_ALGORITHM_PLAN.md` | RHI v2 双轨模型、32 维协议、迁移与验证门禁 | RHI 字段、评分、证据或上线阶段变化时 |
