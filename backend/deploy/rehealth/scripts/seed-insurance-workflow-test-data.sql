@@ -56,14 +56,14 @@ INSERT INTO sys_depart (
     update_time, tenant_id, iz_leaf
 )
 VALUES
-    ('iqdep000000000000000000000001', NULL, '本地保险测试公司', 1, '1', '1',
-     'A01', '1', '0', @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'),
+    ('iqdep000000000000000000000001', NULL, '安和健康保险', 1, '1', '1',
+     'AH01', '1', '0', @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'),
      @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'), @seed_tenant_id, 0),
     ('iqdep000000000000000000000002', 'iqdep000000000000000000000001', '健康险一部', 1, '2', '2',
-     'A01A01', '1', '0', @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'),
+     'AH0101', '1', '0', @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'),
      @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'), @seed_tenant_id, 1),
     ('iqdep000000000000000000000003', 'iqdep000000000000000000000001', '健康险二部', 2, '2', '2',
-     'A01A02', '1', '0', @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'),
+     'AH0102', '1', '0', @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'),
      @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'), @seed_tenant_id, 1)
 ON DUPLICATE KEY UPDATE
     parent_id = VALUES(parent_id),
@@ -82,9 +82,9 @@ INSERT INTO sys_user (
     login_tenant_id, sort
 )
 VALUES
-    ('iqmgr000000000000000000000001', 'local_insurance_manager_01', '保险测试经理一', @manager_password_01, 'QA260813', 1, 1, 0,
+    ('iqmgr000000000000000000000001', 'local_insurance_manager_01', '陈立峰', @manager_password_01, 'QA260813', 1, 1, 0,
      @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'), @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'), 1, @seed_tenant_id, 8001),
-    ('iqmgr000000000000000000000002', 'local_insurance_manager_02', '保险测试经理二', @manager_password_02, 'QA260813', 2, 1, 0,
+    ('iqmgr000000000000000000000002', 'local_insurance_manager_02', '林雅雯', @manager_password_02, 'QA260813', 2, 1, 0,
      @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'), @seed_actor_id, TIMESTAMP('2026-08-13 09:00:00'), 1, @seed_tenant_id, 8002)
 ON DUPLICATE KEY UPDATE
     realname = VALUES(realname),
@@ -143,7 +143,7 @@ INSERT INTO sys_user (
 SELECT
     CONCAT('iq', LPAD(member_no, 30, '0')),
     CONCAT('local_insurance_qa_', LPAD(member_no, 2, '0')),
-    CONCAT('合成测试成员', LPAD(member_no, 2, '0')),
+    ELT(member_no, '张明远', '李慧敏', '王建国', '陈玉兰', '刘志强', '周婉婷', '赵国庆', '孙晓梅', '吴志远', '郑丽华', '胡建新', '林秀珍'),
     NULL,
     NULL,
     CASE WHEN gender = 'male' THEN 1 ELSE 2 END,
@@ -194,7 +194,7 @@ INSERT INTO rehealth_patient_profile (
 SELECT
     CONCAT('ip', LPAD(member_no, 30, '0')),
     CONCAT('iq', LPAD(member_no, 30, '0')),
-    CONCAT('合成测试成员', LPAD(member_no, 2, '0')),
+    ELT(member_no, '张明远', '李慧敏', '王建国', '陈玉兰', '刘志强', '周婉婷', '赵国庆', '孙晓梅', '吴志远', '郑丽华', '胡建新', '林秀珍'),
     gender,
     age,
     height_cm,
@@ -285,8 +285,8 @@ SELECT
         'factors', JSON_ARRAY('synthetic age', 'synthetic BMI')
     ),
     JSON_ARRAY(),
-    JSON_ARRAY('LOCAL QA FIXTURE - NON-CLINICAL - DO NOT USE FOR DECISIONS'),
-    '本地保险工作流合成测试结果，不可用于医疗、核保、理赔或结算决策。',
+    JSON_ARRAY('风险结果仅供健康管理参考，不用于临床或保险决策'),
+    '风险评估结果仅供健康管理参考，不用于诊断、核保、理赔或结算决策。',
     JSON_OBJECT(
         'fixture', true,
         'sourceSystem', 'LOCAL_INSURANCE_QA',
@@ -378,9 +378,9 @@ INSERT INTO rehealth_insurance_policy (
 SELECT
     CONCAT('iy', LPAD(member_no, 30, '0')),
     @seed_tenant_id,
-    CONCAT('LOCAL-QA-POLICY-', LPAD(member_no, 4, '0')),
-    'LOCAL-QA-CVD',
-    '本地合成心血管健康管理计划',
+    CONCAT('AH-2025-CVD-', LPAD(member_no, 4, '0')),
+    'AH-CVD-MGMT',
+    '心血管健康管理计划',
     'health_management',
     SHA2(CONCAT(@seed_tenant_id, ':', CONCAT('iq', LPAD(member_no, 30, '0'))), 256),
     SHA2(CONCAT(@seed_tenant_id, ':', CONCAT('iq', LPAD(member_no, 30, '0'))), 256),
@@ -398,6 +398,7 @@ SELECT
     TIMESTAMP('2026-08-13 09:00:00')
 FROM tmp_local_insurance_qa_cohort
 ON DUPLICATE KEY UPDATE
+    policy_no = VALUES(policy_no),
     product_code = VALUES(product_code),
     product_name = VALUES(product_name),
     policy_type = VALUES(policy_type),
@@ -421,7 +422,7 @@ SELECT
     CONCAT('iy', LPAD(member_no, 30, '0')),
     SHA2(CONCAT(@seed_tenant_id, ':', CONCAT('iq', LPAD(member_no, 30, '0'))), 256),
     'CVD-MGMT',
-    '心血管健康管理测试保障',
+    '心血管健康管理保障',
     200000.00,
     500.00,
     DATE('2025-01-01'),
@@ -436,6 +437,8 @@ FROM tmp_local_insurance_qa_cohort
 ON DUPLICATE KEY UPDATE
     policy_id = VALUES(policy_id),
     subject_ref = VALUES(subject_ref),
+    coverage_code = VALUES(coverage_code),
+    coverage_name = VALUES(coverage_name),
     limit_amount = VALUES(limit_amount),
     status = VALUES(status),
     metadata_json = VALUES(metadata_json),
@@ -455,7 +458,7 @@ SELECT
     'granted',
     TIMESTAMP('2025-01-01 09:00:00'),
     NULL,
-    CONCAT('LOCAL-QA-CONSENT-', LPAD(member_no, 2, '0')),
+    CONCAT('AH-CONSENT-', LPAD(member_no, 4, '0')),
     SHA2(CONCAT('LOCAL_INSURANCE_QA_CONSENT:', member_no), 256),
     'LOCAL_INSURANCE_QA',
     CONCAT('consent-', LPAD(member_no, 2, '0')),
@@ -488,11 +491,11 @@ SELECT
     'local_qa_fixture',
     1,
     'LOCAL_INSURANCE_QA_NOT_A_MODEL',
-    '合成本地测试：每周完成经授权的健康管理任务',
-    '仅用于验证保险干预关联与 PSM 分组。',
-    '仅验证流程，不代表健康改善或临床获益。',
+    '每周完成经授权的健康管理任务',
+    '结合近期健康指标与计划执行情况进行持续管理。',
+    '持续完成计划有助于改善可干预健康行为。',
     0.50,
-    '合成测试计划，不构成医疗建议，不替代医生诊疗。',
+    '本计划仅用于健康管理参考，不构成医疗建议，不替代医生诊疗。',
     DATE_ADD(TIMESTAMP('2026-01-05 09:00:00'), INTERVAL member_no MINUTE),
     JSON_OBJECT(
         'fixture', true,
@@ -561,7 +564,7 @@ INSERT INTO rehealth_insurance_claim (
 SELECT
     CONCAT('il', LPAD(member_no, 30, '0')),
     @seed_tenant_id,
-    CONCAT('LOCAL-QA-CLAIM-', LPAD(member_no, 4, '0')),
+    CONCAT('AH-CLAIM-', LPAD(member_no, 4, '0')),
     CONCAT('iy', LPAD(member_no, 30, '0')),
     SHA2(CONCAT(@seed_tenant_id, ':', CONCAT('iq', LPAD(member_no, 30, '0'))), 256),
     CASE WHEN member_no % 3 = 0 THEN 'outpatient' WHEN member_no % 3 = 1 THEN 'inpatient' ELSE 'chronic' END,
@@ -586,6 +589,7 @@ SELECT
     TIMESTAMP('2026-08-13 09:00:00')
 FROM tmp_local_insurance_qa_cohort
 ON DUPLICATE KEY UPDATE
+    claim_no = VALUES(claim_no),
     policy_id = VALUES(policy_id),
     subject_ref = VALUES(subject_ref),
     claim_type = VALUES(claim_type),
@@ -608,8 +612,8 @@ INSERT INTO rehealth_insurance_study (
 VALUES (
     'local-insurance-qa-study-2026',
     @seed_tenant_id,
-    'LOCAL-QA-PSM-2026',
-    '本地保险 PSM 工作流合成验收研究',
+    'AH-CVD-RWE-2026',
+    '心血管健康管理项目效果评估研究',
     DATE('2026-01-01'),
     DATE('2026-08-13'),
     JSON_OBJECT(
@@ -624,7 +628,7 @@ VALUES (
     ),
     JSON_OBJECT(
         'metric', 'paid claim amount in CNY',
-        'warning', 'synthetic local QA values only'
+        'warning', 'observational estimate; actuarial review required'
     ),
     'psm',
     'draft',
@@ -636,7 +640,17 @@ VALUES (
     TIMESTAMP('2026-08-13 09:00:00')
 )
 ON DUPLICATE KEY UPDATE
-    id = VALUES(id);
+    study_no = VALUES(study_no),
+    title = VALUES(title),
+    period_start = VALUES(period_start),
+    period_end = VALUES(period_end),
+    population_rule_json = VALUES(population_rule_json),
+    intervention_rule_json = VALUES(intervention_rule_json),
+    outcome_rule_json = VALUES(outcome_rule_json),
+    methodology = VALUES(methodology),
+    status = VALUES(status),
+    model_version = VALUES(model_version),
+    updated_at = VALUES(updated_at);
 
 COMMIT;
 

@@ -144,12 +144,12 @@ WHERE s.tenant_id = $TenantId
 SELECT 'draft_study', COUNT(*)
 FROM rehealth_insurance_study
 WHERE tenant_id = $TenantId
-  AND study_no = 'LOCAL-QA-PSM-2026';
+  AND study_no = 'AH-CVD-RWE-2026';
 
 SELECT 'departments', COUNT(*)
 FROM sys_depart
 WHERE tenant_id = $TenantId
-  AND org_code IN ('LOCALQA01', 'LOCALQA02');
+  AND org_code IN ('AH0101', 'AH0102');
 
 SELECT 'managers', COUNT(*)
 FROM sys_user

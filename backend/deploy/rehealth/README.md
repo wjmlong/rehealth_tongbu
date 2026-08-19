@@ -265,6 +265,12 @@ actor is also linked to each insurer's root organization so its department is no
 blank in tenant-scoped user management. The seed verifies that every seed-owned
 tenant membership resolves to an active department in the same tenant.
 
+Organization names, staff names, addresses, and other normal business display
+fields intentionally use production-like wording without visible `测试`, `合成`,
+or `[LOCAL QA]` suffixes. Synthetic ownership is still enforced through stable
+usernames and IDs, reserved contact values, `source_system`, fixture metadata,
+and the local-only seed guards; presentation wording is not a provenance check.
+
 To extend those three organizations with complete APP-user service fixtures, run:
 
 ```powershell
@@ -304,10 +310,17 @@ the script is idempotent and verifies exact counts. The data is synthetic,
 non-clinical and local-only; do not use it for medical, underwriting, claim or
 settlement decisions.
 
+APP-user names, device labels, business records, plan copy, and study titles use
+the same natural presentation style as ordinary records. Re-running the seed
+updates existing fixture rows through its deterministic upserts. Internal
+`LOCAL_MULTI_INSURER_APP_QA`, `synthetic`, `is_mock`, and
+`clinicalUseAllowed=false` markers remain unchanged and continue to control QA
+isolation and safety behavior.
+
 To make every workbench status and risk distribution visible, the CVD fixture
 rows use `is_mock=0` together with `scorer_mode=local_qa_fixture`,
-`artifact_name=LOCAL_MULTI_INSURER_APP_QA_NOT_A_MODEL`, `[合成]` display names,
-and `clinicalUseAllowed=false`. Only the three explicit improvement-cohort APP
+`artifact_name=LOCAL_MULTI_INSURER_APP_QA_NOT_A_MODEL`, natural business display
+fields, and `clinicalUseAllowed=false`. Only the three explicit improvement-cohort APP
 accounts use a non-Mock attribution row. This exception exists solely for local
 UI/permission acceptance and must never be copied to staging or production.
 
