@@ -25,6 +25,7 @@ class InterventionFeedbackRepository(
     private val dao: InterventionFeedbackDao,
     private val apiClient: AuthenticatedApiClient,
     private val userIdProvider: () -> String?,
+    private val nowProvider: () -> Long = System::currentTimeMillis,
 ) {
 
     /**
@@ -45,7 +46,10 @@ class InterventionFeedbackRepository(
         val ownerUserId = userIdProvider()?.takeIf(String::isNotBlank)
             ?: error("登录后才能提交干预反馈")
         val feedbackId = UUID.randomUUID().toString()
-        val now = System.currentTimeMillis()
+        val now = nowProvider()
+        if (occurrenceId != null) {
+            dao.supersedeDeadLetters(ownerUserId, occurrenceId)
+        }
         val feedback = InterventionFeedbackEntity(
             id = feedbackId,
             ownerUserId = ownerUserId,
@@ -74,7 +78,7 @@ class InterventionFeedbackRepository(
      */
     suspend fun uploadFeedback(feedback: InterventionFeedbackEntity): InterventionFeedbackEntity? {
         if (feedback.ownerUserId != userIdProvider()) {
-            return feedback.copy(uploadStatus = "failed", lastError = "feedback_owner_mismatch")
+            return feedback.toDeadLetter("feedback_owner_mismatch")
         }
         if (feedback.occurrenceId != null) {
             return uploadInstitutionCarePlanFeedback(feedback)
@@ -103,12 +107,12 @@ class InterventionFeedbackRepository(
             }
             is ApiResult.Forbidden -> {
                 // Intervention doesn't belong to this user, mark as failed
-                feedback.copy(uploadStatus = "failed", lastError = "Forbidden: ${result.message}")
+                feedback.toDeadLetter("feedback_forbidden")
             }
             is ApiResult.InvalidRequest,
             is ApiResult.InvalidResponse -> {
                 // Permanent failure
-                feedback.copy(uploadStatus = "failed", lastError = result.toString())
+                feedback.toDeadLetter("feedback_invalid")
             }
             is ApiResult.NetworkError,
             is ApiResult.ServiceUnavailable -> {
@@ -128,10 +132,7 @@ class InterventionFeedbackRepository(
             adherenceScore = null,
             sourceRecordId = feedback.id,
             interventionId = feedback.interventionId,
-            planItemId = feedback.planItemId ?: return feedback.copy(
-                uploadStatus = "failed",
-                lastError = "plan_item_id_missing",
-            ),
+            planItemId = feedback.planItemId ?: return feedback.toDeadLetter("plan_item_id_missing"),
             expectedCount = feedback.expectedCount ?: 1.0,
             completedCount = feedback.completedCount,
             verificationType = feedback.verificationType,
@@ -140,9 +141,9 @@ class InterventionFeedbackRepository(
         return when (val result = apiClient.submitInsurancePlanFeedback(feedback.bindingId!!, request)) {
             is ApiResult.Success -> feedback.copy(uploadStatus = "done", lastError = null)
             is ApiResult.Unauthorized -> null
-            is ApiResult.Forbidden -> feedback.copy(uploadStatus = "failed", lastError = "Forbidden: ${result.message}")
+            is ApiResult.Forbidden -> feedback.toDeadLetter("insurance_feedback_forbidden")
             is ApiResult.InvalidRequest,
-            is ApiResult.InvalidResponse -> feedback.copy(uploadStatus = "failed", lastError = result.toString())
+            is ApiResult.InvalidResponse -> feedback.toDeadLetter("insurance_feedback_invalid")
             is ApiResult.NetworkError,
             is ApiResult.ServiceUnavailable -> feedback.nextBackoff(error = result.toString())
         }
@@ -151,10 +152,8 @@ class InterventionFeedbackRepository(
     private suspend fun uploadInstitutionCarePlanFeedback(
         feedback: InterventionFeedbackEntity,
     ): InterventionFeedbackEntity? {
-        val occurrenceId = feedback.occurrenceId ?: return feedback.copy(
-            uploadStatus = "failed",
-            lastError = "occurrence_id_missing",
-        )
+        val occurrenceId = feedback.occurrenceId
+            ?: return feedback.toDeadLetter("occurrence_id_missing")
         val request = InstitutionCarePlanFeedbackRequestDto(
             feedbackType = feedback.status,
             occurredAt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(feedback.checkedAt)),
@@ -165,9 +164,9 @@ class InterventionFeedbackRepository(
         return when (val result = apiClient.submitInstitutionCarePlanFeedback(occurrenceId, request)) {
             is ApiResult.Success -> feedback.copy(uploadStatus = "done", lastError = null)
             is ApiResult.Unauthorized -> null
-            is ApiResult.Forbidden -> feedback.copy(uploadStatus = "failed", lastError = "Forbidden: ${result.message}")
+            is ApiResult.Forbidden -> feedback.toDeadLetter("care_plan_feedback_forbidden")
             is ApiResult.InvalidRequest,
-            is ApiResult.InvalidResponse -> feedback.copy(uploadStatus = "failed", lastError = result.toString())
+            is ApiResult.InvalidResponse -> feedback.toDeadLetter("care_plan_feedback_invalid")
             is ApiResult.NetworkError,
             is ApiResult.ServiceUnavailable -> feedback.nextBackoff(error = result.toString())
         }
@@ -181,21 +180,48 @@ class InterventionFeedbackRepository(
     fun observePendingFeedback(): Flow<List<InterventionFeedbackEntity>> =
         userIdProvider()?.takeIf(String::isNotBlank)?.let(dao::observePendingFeedback) ?: flowOf(emptyList())
 
+    fun observeFeedback(feedbackId: String): Flow<InterventionFeedbackEntity?> =
+        userIdProvider()?.takeIf(String::isNotBlank)
+            ?.let { dao.observeFeedback(it, feedbackId) }
+            ?: flowOf(null)
+
     suspend fun getLatestForIntervention(interventionId: String): InterventionFeedbackEntity? =
         userIdProvider()?.takeIf(String::isNotBlank)?.let { dao.getLatestForIntervention(it, interventionId) }
 
-    suspend fun pruneDone() = dao.pruneDone(System.currentTimeMillis() - 7 * 86_400_000L)
+    suspend fun pruneDone() = dao.pruneDone(nowProvider() - 7 * 86_400_000L)
 
     suspend fun countPending(): Int =
         userIdProvider()?.takeIf(String::isNotBlank)?.let { dao.countPending(it) } ?: 0
 
     private fun InterventionFeedbackEntity.nextBackoff(error: String?): InterventionFeedbackEntity {
-        val delayMs = (30_000L * (1 shl uploadAttempts.coerceAtMost(6)))
+        return nextFeedbackRetry(error = error, now = nowProvider())
+    }
+
+    private fun InterventionFeedbackEntity.toDeadLetter(error: String): InterventionFeedbackEntity = copy(
+        uploadStatus = "dead_letter",
+        lastError = error,
+    )
+}
+
+internal const val MAX_FEEDBACK_UPLOAD_ATTEMPTS = 10
+
+internal fun InterventionFeedbackEntity.nextFeedbackRetry(
+    error: String?,
+    now: Long,
+): InterventionFeedbackEntity {
+    val attempts = uploadAttempts + 1
+    if (attempts >= MAX_FEEDBACK_UPLOAD_ATTEMPTS) {
         return copy(
-            uploadStatus = "failed",
-            uploadAttempts = uploadAttempts + 1,
+            uploadStatus = "dead_letter",
+            uploadAttempts = attempts,
             lastError = error,
-            nextRetryAt = System.currentTimeMillis() + delayMs,
         )
     }
+    val delayMs = 30_000L * (1 shl uploadAttempts.coerceAtMost(6))
+    return copy(
+        uploadStatus = "retry",
+        uploadAttempts = attempts,
+        lastError = error,
+        nextRetryAt = now + delayMs,
+    )
 }

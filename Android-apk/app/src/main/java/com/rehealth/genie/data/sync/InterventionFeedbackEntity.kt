@@ -28,7 +28,8 @@ data class InterventionFeedbackEntity(
     @ColumnInfo(name = "verification_type") val verificationType: String = "self_report",
     @ColumnInfo(name = "checked_at") val checkedAt: Long,
     @ColumnInfo(name = "created_at") val createdAt: Long,
-    @ColumnInfo(name = "upload_status") val uploadStatus: String = "pending", // pending | uploading | done | failed
+    // pending | retry | done | dead_letter | superseded; legacy failed rows remain retryable.
+    @ColumnInfo(name = "upload_status") val uploadStatus: String = "pending",
     @ColumnInfo(name = "upload_attempts") val uploadAttempts: Int = 0,
     @ColumnInfo(name = "last_error") val lastError: String? = null,
     @ColumnInfo(name = "next_retry_at") val nextRetryAt: Long = 0,

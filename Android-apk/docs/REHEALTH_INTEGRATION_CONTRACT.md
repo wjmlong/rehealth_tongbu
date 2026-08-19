@@ -251,6 +251,13 @@ care-plan tasks while preserving existing rows. Every pending/latest/count read 
 owner-scoped. Legacy binding feedback is uploaded only to
 `POST /rehealth/mobile/insurance/plans/{bindingId}/feedback`; versioned task feedback
 uses `/rehealth/mobile/insurance/care-plan-occurrences/{occurrenceId}/feedback`.
+The plan UI observes the exact owner-scoped queue row after a local-first submission:
+`done` is shown as synced, transient `retry` remains queued with bounded backoff, and
+permanent rejection or ten exhausted attempts becomes `dead_letter`. A dead-letter row
+is shown as a failure rather than an endless syncing banner. Legacy `failed` rows remain
+retryable for compatibility. A new submission for the same occurrence marks an older
+dead-letter row `superseded`, so a resolved attempt no longer leaves a stale error banner.
+No Room schema migration is required for these status values.
 Generic intervention feedback remains on `/interventions/{id}/feedback` and is never
 fanned out to every institution serving the user. The attribution plan card reads
 `GET /rehealth/mobile/insurance/care-plans/current`, displays institution and revision,

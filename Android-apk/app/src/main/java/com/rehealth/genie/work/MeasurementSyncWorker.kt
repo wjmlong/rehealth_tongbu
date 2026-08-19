@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit
  * 5. Prune old completed items
  *
  * On 401 detection:
- * - Queue is paused by InterventionFeedbackRepository
+ * - Worker pauses the shared queue through SyncRepository
  * - Worker exits early
  * - Resumes after user re-login
  */
@@ -42,6 +42,7 @@ class MeasurementSyncWorker(
 
         // Check if we can upload
         if (!syncRepo.canUpload()) {
+            syncRepo.pauseQueue()
             Log.w(TAG, "Queue paused or unauthorized, skipping sync")
             return@withContext Result.success()
         }
@@ -76,6 +77,7 @@ class MeasurementSyncWorker(
                 if (updatedItem == null) {
                     // 401 detected, queue paused
                     Log.w(TAG, "401 detected, queue paused, stopping worker")
+                    syncRepo.pauseQueue()
                     pausedDueToAuth = true
                     break
                 }
@@ -86,13 +88,10 @@ class MeasurementSyncWorker(
                     "done" -> {
                         uploadedCount++
                     }
-                    "failed" -> {
-                        if (updatedItem.uploadAttempts >= MAX_ATTEMPTS) {
-                            failedCount++
-                            Log.e(TAG, "feedback upload exhausted retry policy")
-                        } else {
-                            Log.w(TAG, "feedback upload scheduled for retry")
-                        }
+                    "retry", "failed" -> Log.w(TAG, "feedback upload scheduled for retry")
+                    "dead_letter" -> {
+                        failedCount++
+                        Log.e(TAG, "feedback upload reached a terminal failure")
                     }
                 }
             }
@@ -112,8 +111,6 @@ class MeasurementSyncWorker(
     companion object {
         private const val TAG = "MeasurementSyncWorker"
         private const val WORK_NAME = "measurement_sync"
-        private const val MAX_ATTEMPTS = 10
-
         /**
          * Schedule periodic sync worker. Called after login or app startup.
          */

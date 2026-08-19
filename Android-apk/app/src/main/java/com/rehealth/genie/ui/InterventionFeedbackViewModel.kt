@@ -13,6 +13,10 @@ import com.rehealth.genie.work.MeasurementSyncWorker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChangedBy
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 data class FeedbackUiState(
@@ -37,6 +41,7 @@ class InterventionFeedbackViewModel(private val context: Context) : ViewModel() 
     private val feedbackRepo = app.interventionFeedbackRepository
     private val _uiState = MutableStateFlow(FeedbackUiState())
     val uiState: StateFlow<FeedbackUiState> = _uiState.asStateFlow()
+    private var feedbackSyncJob: Job? = null
 
     init {
         refreshActiveBindings()
@@ -175,7 +180,6 @@ class InterventionFeedbackViewModel(private val context: Context) : ViewModel() 
                     expectedCount = if (status == "not_applicable") null else 1.0,
                     completedCount = completedCount,
                 )
-                MeasurementSyncWorker.triggerImmediate(context)
                 _uiState.value = _uiState.value.copy(
                     isSubmitting = false,
                     institutionCarePlans = _uiState.value.institutionCarePlans.map { existingPlan ->
@@ -190,11 +194,43 @@ class InterventionFeedbackViewModel(private val context: Context) : ViewModel() 
                     message = "${plan.organizationName ?: "机构"}：${getSuccessMessage(status)}，正在同步",
                     lastSubmittedId = feedbackId,
                 )
+                trackInstitutionFeedbackSync(
+                    feedbackId = feedbackId,
+                    organizationName = plan.organizationName ?: "机构",
+                    status = status,
+                )
+                MeasurementSyncWorker.triggerImmediate(context)
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isSubmitting = false,
                     message = "反馈保存失败: ${e.message}",
                 )
+            }
+        }
+    }
+
+    private fun trackInstitutionFeedbackSync(
+        feedbackId: String,
+        organizationName: String,
+        status: String,
+    ) {
+        feedbackSyncJob?.cancel()
+        feedbackSyncJob = viewModelScope.launch {
+            val terminal = feedbackRepo.observeFeedback(feedbackId)
+                .filterNotNull()
+                .distinctUntilChangedBy { it.uploadStatus to it.uploadAttempts }
+                .first { feedback ->
+                    _uiState.value = _uiState.value.copy(
+                        message = institutionFeedbackSyncMessage(
+                            organizationName = organizationName,
+                            status = status,
+                            uploadStatus = feedback.uploadStatus,
+                        ),
+                    )
+                    feedback.uploadStatus == "done" || feedback.uploadStatus == "dead_letter"
+                }
+            if (terminal.uploadStatus == "done" || terminal.uploadStatus == "dead_letter") {
+                refreshInstitutionCarePlans()
             }
         }
     }
@@ -214,5 +250,25 @@ class InterventionFeedbackViewModel(private val context: Context) : ViewModel() 
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             return InterventionFeedbackViewModel(context) as T
         }
+    }
+}
+
+internal fun institutionFeedbackSyncMessage(
+    organizationName: String,
+    status: String,
+    uploadStatus: String,
+): String {
+    val recorded = when (status) {
+        "completed" -> "完成状态已记录"
+        "partially_completed" -> "部分完成状态已记录"
+        "skipped" -> "稍后完成状态已记录"
+        "not_applicable" -> "不适用状态已记录"
+        else -> "反馈已记录"
+    }
+    return when (uploadStatus) {
+        "done" -> "$organizationName：$recorded，已同步"
+        "retry", "failed" -> "$organizationName：$recorded，网络恢复后将自动重试"
+        "dead_letter" -> "$organizationName：反馈已保存在本机，但同步失败，请检查登录状态后重试"
+        else -> "$organizationName：$recorded，正在同步"
     }
 }
