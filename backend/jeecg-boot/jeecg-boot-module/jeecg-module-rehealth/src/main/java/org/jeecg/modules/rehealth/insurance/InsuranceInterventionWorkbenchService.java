@@ -3,6 +3,7 @@ package org.jeecg.modules.rehealth.insurance;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DuplicateKeyException;
@@ -425,11 +426,96 @@ public class InsuranceInterventionWorkbenchService {
                 tenantId, identity.subjectRef()).stream().findFirst().orElse(null);
         if (action != null) return action;
         InsuranceInterventionWorkbenchResponse.Plan currentPlan = plan(tenantId, identity);
-        if (currentPlan == null || currentPlan.summary() == null || currentPlan.summary().isBlank()) return null;
-        return new CurrentIntervention(currentPlan.summary(), null);
+        if (currentPlan == null) return null;
+        JsonNode firstItem = currentPlan.items() == null || currentPlan.items().isEmpty()
+                ? null : currentPlan.items().get(0);
+        String itemTitle = firstItem == null ? null : text(firstItem, "title");
+        String dueAt = firstItem == null ? null : text(firstItem, "due_at");
+        String summary = itemTitle;
+        if (summary == null || summary.isBlank()) summary = currentPlan.title();
+        if (summary == null || summary.isBlank()) summary = currentPlan.summary();
+        return summary == null || summary.isBlank() ? null : new CurrentIntervention(summary, dueAt);
     }
 
     private InsuranceInterventionWorkbenchResponse.Plan plan(int tenantId, Identity identity) {
+        InsuranceInterventionWorkbenchResponse.Plan institution = institutionPlan(
+                tenantId, identity.subjectRef(), identity.userId());
+        if (institution != null) return institution;
+        return legacyPlan(tenantId, identity);
+    }
+
+    InsuranceInterventionWorkbenchResponse.Plan institutionPlan(
+            int tenantId, String subjectRef, String userId
+    ) {
+        return jdbc.query("""
+                SELECT plan.id, plan.status, revision.id, revision.revision_no,
+                       revision.title, revision.summary, revision.published_at,
+                       revision.effective_from, revision.effective_to
+                FROM rehealth_care_plan plan
+                INNER JOIN rehealth_care_plan_revision revision
+                  ON revision.tenant_id=plan.tenant_id AND revision.plan_id=plan.id
+                 AND revision.status='published' AND revision.effective_from<=NOW(3)
+                 AND (revision.effective_to IS NULL OR revision.effective_to>NOW(3))
+                WHERE plan.tenant_id=? AND plan.owner_type='insurance'
+                  AND plan.subject_ref=? AND plan.rehealth_user_id=? AND plan.status='active'
+                ORDER BY revision.effective_from DESC, revision.revision_no DESC, plan.updated_at DESC
+                LIMIT 1
+                """, (rs, row) -> new InsuranceInterventionWorkbenchResponse.Plan(
+                rs.getString(1), rs.getString(2), "institution", rs.getString(3), rs.getInt(4),
+                rs.getString(5), rs.getString(6), institutionPlanItems(
+                        tenantId, rs.getString(1), rs.getString(3), subjectRef),
+                false, format(rs.getTimestamp(7)), format(rs.getTimestamp(8)), format(rs.getTimestamp(9))
+        ), tenantId, subjectRef, userId).stream().findFirst().orElse(null);
+    }
+
+    private List<JsonNode> institutionPlanItems(
+            int tenantId, String planId, String revisionId, String subjectRef
+    ) {
+        return jdbc.query("""
+                SELECT item.id, item.logical_item_id, item.category, item.title,
+                       item.instructions, item.schedule_json, item.scoring_weight,
+                       item.allow_not_applicable, item.display_order,
+                       occurrence.id, occurrence.due_at,
+                       execution.feedback_type
+                FROM rehealth_care_plan_item item
+                LEFT JOIN rehealth_care_plan_occurrence occurrence
+                  ON occurrence.tenant_id=item.tenant_id
+                 AND occurrence.plan_id=item.plan_id
+                 AND occurrence.revision_id=item.revision_id
+                 AND occurrence.plan_item_id=item.id
+                 AND occurrence.subject_ref=?
+                 AND occurrence.status='scheduled'
+                 AND DATE(occurrence.scheduled_at)=CURRENT_DATE
+                LEFT JOIN rehealth_care_plan_execution execution
+                  ON execution.id=(
+                    SELECT latest.id FROM rehealth_care_plan_execution latest
+                    WHERE latest.tenant_id=occurrence.tenant_id
+                      AND latest.occurrence_id=occurrence.id
+                    ORDER BY latest.occurred_at DESC, latest.created_at DESC, latest.id DESC
+                    LIMIT 1
+                  )
+                WHERE item.tenant_id=? AND item.plan_id=? AND item.revision_id=?
+                ORDER BY item.display_order, item.id
+                """, (rs, row) -> {
+            ObjectNode item = objectMapper.createObjectNode();
+            item.put("item_id", rs.getString(1));
+            item.put("logical_item_id", rs.getString(2));
+            item.put("category", rs.getString(3));
+            item.put("title", rs.getString(4));
+            put(item, "action", rs.getString(5));
+            JsonNode schedule = tree(rs.getString(6));
+            if (schedule != null) item.set("schedule", schedule);
+            if (rs.getBigDecimal(7) != null) item.put("scoring_weight", rs.getBigDecimal(7));
+            item.put("allow_not_applicable", rs.getBoolean(8));
+            item.put("display_order", rs.getInt(9));
+            put(item, "occurrence_id", rs.getString(10));
+            put(item, "due_at", format(rs.getTimestamp(11)));
+            put(item, "feedback_type", rs.getString(12));
+            return item;
+        }, subjectRef, tenantId, planId, revisionId);
+    }
+
+    private InsuranceInterventionWorkbenchResponse.Plan legacyPlan(int tenantId, Identity identity) {
         return jdbc.query("""
                 SELECT binding.plan_id, binding.status, plan.priority_intervention, plan.response_json,
                        plan.is_mock, plan.generated_at
@@ -442,9 +528,20 @@ public class InsuranceInterventionWorkbenchService {
             JsonNode json = tree(rs.getString(4));
             List<JsonNode> items = new ArrayList<>();
             if (json != null && json.path("items").isArray()) json.path("items").forEach(items::add);
-            return new InsuranceInterventionWorkbenchResponse.Plan(rs.getString(1), rs.getString(2),
-                    rs.getString(3), items, nullableBoolean(rs, 5), format(rs.getTimestamp(6)));
+            return new InsuranceInterventionWorkbenchResponse.Plan(
+                    rs.getString(1), rs.getString(2), "personal", null, null, null,
+                    rs.getString(3), items, nullableBoolean(rs, 5), format(rs.getTimestamp(6)), null, null);
         }, identity.userId(), tenantId, identity.subjectRef()).stream().findFirst().orElse(null);
+    }
+
+    private static String text(JsonNode node, String field) {
+        JsonNode value = node == null ? null : node.get(field);
+        return value == null || !value.isTextual() || value.asText().isBlank()
+                ? null : value.asText().trim();
+    }
+
+    private static void put(ObjectNode node, String field, String value) {
+        if (value != null && !value.isBlank()) node.put(field, value);
     }
 
     private List<InsuranceInterventionWorkbenchResponse.Feedback> feedback(int tenantId, String subjectRef) {

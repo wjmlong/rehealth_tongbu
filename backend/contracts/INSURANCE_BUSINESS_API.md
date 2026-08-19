@@ -96,7 +96,7 @@ JeecgBoot `rehealth:insurance:organization:*`、`member:*`、`role:assign` 和
 | --- | --- | --- |
 | `GET` | `/rehealth/insurance/v1/interventions/dashboard` | 按当前员工负责范围汇总待行动、进行中、待复核和已改善数量 |
 | `GET` | `/rehealth/insurance/v1/interventions` | 分页查询负责用户档案中的年龄、性别、BMI，以及 CVD 风险、主要 Factor16、RHI、RDI、当前干预、依从性、负责人和流程状态；队列首屏无需再读取详情 |
-| `GET` | `/rehealth/insurance/v1/interventions/{subjectId}` | 返回 CVD 风险趋势、Factor16、RHI/RDI 日快照、RDI 结构化贡献项、计划、反馈、人工行动和归因证据 |
+| `GET` | `/rehealth/insurance/v1/interventions/{subjectId}` | 返回 CVD 风险趋势、Factor16、RHI/RDI 日快照、RDI 结构化贡献项、当前生效机构发布计划（无机构计划时回退旧个人计划）、反馈、人工行动和归因证据 |
 | `POST` | `/rehealth/insurance/v1/interventions/{subjectId}/actions` | 创建随访、任务或人工复核行动 |
 | `POST` | `/rehealth/insurance/v1/interventions/actions/batch` | 为 1–100 名负责范围内用户原子创建同一批激励行动；全部范围校验通过后才写入 |
 | `PUT` | `/rehealth/insurance/v1/intervention-actions/{actionId}` | 更新行动状态、负责人、期限和有界结果 |
@@ -114,6 +114,14 @@ JeecgBoot `rehealth:insurance:organization:*`、`member:*`、`role:assign` 和
 批量激励要求 `rehealth:insurance:intervention:manage`，使用批次请求 ID 派生逐行动幂等键；任一主体越权、无效或写入失败时整个事务回滚。APP 通用反馈只保留在个人计划链路；保险反馈必须带具体 `bindingId + planItemId`，不会复制到其他机构。工作台只消费聚合后的 CVD 风险、RHI、RDI、计划和反馈，不返回原始遥测；CVD 风险、RHI 与 RDI 是三个独立指标，前端不得用风险分数推导 RDI。RDI Mock、过期或数据不足状态必须显式展示，且不参与现有 PIAS/风险工作流状态计算。只有真实、数据充分且方向一致的归因证据才会自动标记“已改善”；Mock 或证据不足时必须显示说明，不能把合成风险评分当作业务判断。
 
 版本化机构计划 API 与旧 `rehealth_insurance_plan_binding` 并行存在。App 已通过独立聚合接口读取当前生效版本，并在请求时将 `daily`、`weekly`、`once` 规则展开为稳定任务实例；旧绑定仅保留兼容，不会因机构发布动作被自动改写。
+
+工作台详情中的 `plan` 与 App 读取同一当前生效发布版本，机构计划优先于旧个人计划绑定。
+机构计划返回 `source_type=institution`、`revision_id`、`revision_no`、标题、生效区间，以及按
+`display_order` 排序的项目；每个项目包含稳定项目标识、行动说明、时间规则、评分权重、是否允许
+不适用和当天任务/反馈（如已展开）。官网将这些项目逐项展示在“应该采取什么行动”。
+`actions` 仍表示保险员工创建的人工行动，作为独立补充记录追加展示并保留自身状态、期限与审计，
+不能覆盖或伪装成计划版本。列表 `current_intervention` 优先显示未完成人工行动，否则显示机构计划
+首项；不存在生效机构计划时才使用 `source_type=personal` 的旧绑定计划。
 
 JeecgBoot 基础路径：`/jeecg-boot/rehealth/insurance/v1`。
 

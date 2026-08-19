@@ -87,10 +87,16 @@ public final class InsuranceInterventionWorkbenchResponse {
     public record Plan(
             @JsonProperty("plan_id") String planId,
             String status,
+            @JsonProperty("source_type") String sourceType,
+            @JsonProperty("revision_id") String revisionId,
+            @JsonProperty("revision_no") Integer revisionNo,
+            String title,
             String summary,
             List<JsonNode> items,
             Boolean synthetic,
-            @JsonProperty("generated_at") String generatedAt
+            @JsonProperty("generated_at") String generatedAt,
+            @JsonProperty("effective_from") String effectiveFrom,
+            @JsonProperty("effective_to") String effectiveTo
     ) {
     }
 
