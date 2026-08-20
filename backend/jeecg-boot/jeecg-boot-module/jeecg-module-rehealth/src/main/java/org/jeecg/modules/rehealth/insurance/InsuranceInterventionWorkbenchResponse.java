@@ -84,6 +84,17 @@ public final class InsuranceInterventionWorkbenchResponse {
     }
 
     @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record HealthMetric(
+            @JsonProperty("metric_code") String metricCode,
+            Double value,
+            String unit,
+            @JsonProperty("observed_at") Long observedAt,
+            @JsonProperty("data_source") String dataSource,
+            Boolean synthetic
+    ) {
+    }
+
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     public record Plan(
             @JsonProperty("plan_id") String planId,
             String status,
@@ -162,6 +173,7 @@ public final class InsuranceInterventionWorkbenchResponse {
             @JsonProperty("rdi_trend") List<TrendPoint> rdiTrend,
             List<Factor> factors,
             @JsonProperty("rdi_contributions") List<RdiContribution> rdiContributions,
+            @JsonProperty("health_metrics") List<HealthMetric> healthMetrics,
             Plan plan,
             List<Feedback> feedback,
             List<Action> actions,

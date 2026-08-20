@@ -4,9 +4,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.jeecg.modules.rehealth.ingest.query.HardwareTelemetryQuery;
+import org.jeecg.modules.rehealth.ingest.writer.HardwarePersistenceUnavailableException;
+import org.jeecg.modules.rehealth.mobile.dto.RecentTelemetryResponseDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -26,7 +30,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -51,15 +57,21 @@ public class InsuranceInterventionWorkbenchService {
 
     private final JdbcTemplate jdbc;
     private final ObjectMapper objectMapper;
+    private final HardwareTelemetryQuery hardwareTelemetryQuery;
     private final Clock clock;
     private final ZoneId zoneId;
 
     @Autowired
     public InsuranceInterventionWorkbenchService(
             @Qualifier("rehealthSoftwareJdbcTemplate") JdbcTemplate jdbc,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            HardwareTelemetryQuery hardwareTelemetryQuery
     ) {
-        this(jdbc, objectMapper, Clock.systemUTC(), DEFAULT_ZONE);
+        this(jdbc, objectMapper, hardwareTelemetryQuery, Clock.systemUTC(), DEFAULT_ZONE);
+    }
+
+    InsuranceInterventionWorkbenchService(JdbcTemplate jdbc, ObjectMapper objectMapper) {
+        this(jdbc, objectMapper, emptyTelemetryQuery(), Clock.systemUTC(), DEFAULT_ZONE);
     }
 
     InsuranceInterventionWorkbenchService(
@@ -68,8 +80,19 @@ public class InsuranceInterventionWorkbenchService {
             Clock clock,
             ZoneId zoneId
     ) {
+        this(jdbc, objectMapper, emptyTelemetryQuery(), clock, zoneId);
+    }
+
+    InsuranceInterventionWorkbenchService(
+            JdbcTemplate jdbc,
+            ObjectMapper objectMapper,
+            HardwareTelemetryQuery hardwareTelemetryQuery,
+            Clock clock,
+            ZoneId zoneId
+    ) {
         this.jdbc = jdbc;
         this.objectMapper = objectMapper;
+        this.hardwareTelemetryQuery = hardwareTelemetryQuery;
         this.clock = clock;
         this.zoneId = zoneId;
     }
@@ -125,13 +148,121 @@ public class InsuranceInterventionWorkbenchService {
         return new InsuranceInterventionWorkbenchResponse.SubjectDetail(
                 "assigned_subjects", summary, riskTrend(identity.userId()), rhiTrend(identity.userId()),
                 rdiTrend(identity.userId()), factors(latestRisk == null ? null : latestRisk.responseJson()),
-                rdiContributions(identity.userId()), plan(tenantId, identity),
+                rdiContributions(identity.userId()), healthMetrics(identity.userId()), plan(tenantId, identity),
                 feedback(tenantId, identity.subjectRef()), actions(tenantId, identity.subjectRef()),
                 attribution(identity.userId()),
                 Boolean.TRUE.equals(summary.riskIsMock())
                         ? "当前风险或干预包含演练数据，不可作为真实改善结论。"
                         : "趋势为描述性证据；只有非 Mock 且数据充分的归因结果才显示为改善。"
         );
+    }
+
+    List<InsuranceInterventionWorkbenchResponse.HealthMetric> healthMetrics(String userId) {
+        RecentTelemetryResponseDto telemetry;
+        try {
+            telemetry = hardwareTelemetryQuery.recentForUser(userId, 200);
+        } catch (HardwarePersistenceUnavailableException | DataAccessException exception) {
+            return List.of();
+        }
+        if (telemetry == null) return List.of();
+
+        Map<String, InsuranceInterventionWorkbenchResponse.HealthMetric> metrics = new LinkedHashMap<>();
+        if (telemetry.measurements != null) {
+            for (RecentTelemetryResponseDto.Measurement measurement : telemetry.measurements) {
+                if (measurement == null || measurement.metricType == null || measurement.primaryValue == null) continue;
+                String type = measurement.metricType.trim().toUpperCase(Locale.ROOT);
+                boolean synthetic = isSyntheticSource(measurement.source);
+                switch (type) {
+                    case "HEART_RATE" -> putMetric(metrics, "heart_rate", measurement.primaryValue,
+                            defaultUnit(measurement.unit, "bpm"), measurement.measuredAt, synthetic);
+                    case "BLOOD_OXYGEN", "SPO2" -> putMetric(metrics, "spo2", measurement.primaryValue,
+                            defaultUnit(measurement.unit, "%"), measurement.measuredAt, synthetic);
+                    case "BLOOD_PRESSURE" -> {
+                        putMetric(metrics, "systolic_bp", measurement.primaryValue,
+                                defaultUnit(measurement.unit, "mmHg"), measurement.measuredAt, synthetic);
+                        if (measurement.secondaryValue != null) {
+                            putMetric(metrics, "diastolic_bp", measurement.secondaryValue,
+                                    defaultUnit(measurement.unit, "mmHg"), measurement.measuredAt, synthetic);
+                        }
+                    }
+                    case "STEPS" -> putMetric(metrics, "steps", measurement.primaryValue,
+                            defaultUnit(measurement.unit, "步"), measurement.measuredAt, synthetic);
+                    case "BLOOD_GLUCOSE" -> putMetric(metrics, "blood_glucose", measurement.primaryValue,
+                            defaultUnit(measurement.unit, "mmol/L"), measurement.measuredAt, synthetic);
+                    case "WEIGHT" -> putMetric(metrics, "weight", measurement.primaryValue,
+                            defaultUnit(measurement.unit, "kg"), measurement.measuredAt, synthetic);
+                    default -> {
+                        // Only the explicitly whitelisted health metrics reach the insurance workbench.
+                    }
+                }
+            }
+        }
+
+        if (telemetry.sleepSessions != null && !telemetry.sleepSessions.isEmpty()) {
+            RecentTelemetryResponseDto.SleepSession sleep = telemetry.sleepSessions.get(0);
+            Integer minutes = sleepMinutes(sleep);
+            if (minutes != null && minutes > 0) {
+                putMetric(metrics, "sleep_minutes", minutes.doubleValue(), "分钟", sleep.endedAt,
+                        isSyntheticSource(sleep.source));
+            }
+        }
+        if (telemetry.activities != null && !telemetry.activities.isEmpty()) {
+            RecentTelemetryResponseDto.Activity activity = telemetry.activities.get(0);
+            boolean synthetic = isSyntheticSource(activity.source);
+            if (activity.steps != null) {
+                putMetric(metrics, "steps", activity.steps.doubleValue(), "步", activity.endedAt, synthetic);
+            }
+            if (activity.durationMinutes != null) {
+                putMetric(metrics, "activity_minutes", activity.durationMinutes.doubleValue(),
+                        "分钟", activity.endedAt, synthetic);
+            }
+            if (activity.caloriesKcal != null) {
+                putMetric(metrics, "calories", activity.caloriesKcal, "kcal", activity.endedAt, synthetic);
+            }
+        }
+        return List.copyOf(metrics.values());
+    }
+
+    private static void putMetric(
+            Map<String, InsuranceInterventionWorkbenchResponse.HealthMetric> metrics,
+            String code,
+            Double value,
+            String unit,
+            Long observedAt,
+            boolean synthetic
+    ) {
+        if (value == null || !Double.isFinite(value)) return;
+        metrics.putIfAbsent(code, new InsuranceInterventionWorkbenchResponse.HealthMetric(
+                code, value, unit, observedAt, "device_telemetry", synthetic));
+    }
+
+    private static Integer sleepMinutes(RecentTelemetryResponseDto.SleepSession sleep) {
+        if (sleep == null) return null;
+        int phaseTotal = valueOrZero(sleep.deepMinutes) + valueOrZero(sleep.lightMinutes)
+                + valueOrZero(sleep.remMinutes);
+        if (phaseTotal > 0) return phaseTotal;
+        if (sleep.startedAt == null || sleep.endedAt == null || sleep.endedAt <= sleep.startedAt) return null;
+        return Math.toIntExact(Math.min(Integer.MAX_VALUE, (sleep.endedAt - sleep.startedAt) / 60_000L));
+    }
+
+    private static int valueOrZero(Integer value) {
+        return value == null ? 0 : Math.max(0, value);
+    }
+
+    private static String defaultUnit(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value.trim();
+    }
+
+    private static boolean isSyntheticSource(String source) {
+        if (source == null) return false;
+        String normalized = source.trim().toUpperCase(Locale.ROOT);
+        return normalized.startsWith("LOCAL_") || normalized.contains("MOCK")
+                || normalized.contains("SYNTHETIC") || normalized.contains("DEBUG")
+                || normalized.contains("_QA") || normalized.contains("TEST");
+    }
+
+    private static HardwareTelemetryQuery emptyTelemetryQuery() {
+        return (userId, limit) -> new RecentTelemetryResponseDto();
     }
 
     @Transactional

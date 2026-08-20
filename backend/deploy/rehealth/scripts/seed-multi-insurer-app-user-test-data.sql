@@ -573,14 +573,59 @@ ON DUPLICATE KEY UPDATE
 
 -- Snapshot IDs are stable by relative day while the unique business key uses
 -- the calendar date. Remove only this fixture's projections before rebuilding
--- them so changing AnchorDate cannot make old relative-day IDs collide.
+-- them so changing AnchorDate cannot make old relative-day IDs collide. The
+-- application may have recalculated an existing fixture row and replaced its
+-- calculation_source, so deterministic fixture IDs are also cleaned explicitly.
+DELETE contribution
+FROM rehealth_rdi_contribution contribution
+JOIN tmp_miqa_app_user app ON 1 = 1
+JOIN tmp_miqa_risk_day day
+  ON day.days_ago < 7
+ AND contribution.snapshot_id = LOWER(SHA2(CONCAT(
+       'LOCAL_MULTI_INSURER_APP_QA:rdi:', app.username, ':', day.days_ago
+     ), 256));
+
 DELETE contribution
 FROM rehealth_rdi_contribution contribution
 JOIN rehealth_rdi_daily_snapshot snapshot ON snapshot.id = contribution.snapshot_id
 WHERE snapshot.calculation_source = 'LOCAL_MULTI_INSURER_APP_QA';
 
+DELETE snapshot
+FROM rehealth_rdi_daily_snapshot snapshot
+JOIN tmp_miqa_app_user app ON 1 = 1
+JOIN tmp_miqa_risk_day day
+  ON day.days_ago < 7
+ AND snapshot.id = LOWER(SHA2(CONCAT(
+       'LOCAL_MULTI_INSURER_APP_QA:rdi:', app.username, ':', day.days_ago
+     ), 256));
+
+DELETE snapshot
+FROM rehealth_rdi_daily_snapshot snapshot
+JOIN tmp_miqa_app_user app
+  ON snapshot.user_id = LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_APP_QA:user:', app.username)))
+JOIN tmp_miqa_risk_day day
+  ON day.days_ago < 7
+ AND snapshot.scored_on = DATE_SUB(@anchor_date, INTERVAL day.days_ago DAY);
+
 DELETE FROM rehealth_rdi_daily_snapshot
 WHERE calculation_source = 'LOCAL_MULTI_INSURER_APP_QA';
+
+DELETE snapshot
+FROM rehealth_rhi_daily_snapshot snapshot
+JOIN tmp_miqa_app_user app ON 1 = 1
+JOIN tmp_miqa_risk_day day
+  ON day.days_ago < 7
+ AND snapshot.id = LOWER(SHA2(CONCAT(
+       'LOCAL_MULTI_INSURER_APP_QA:rhi:', app.username, ':', day.days_ago
+     ), 256));
+
+DELETE snapshot
+FROM rehealth_rhi_daily_snapshot snapshot
+JOIN tmp_miqa_app_user app
+  ON snapshot.user_id = LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_APP_QA:user:', app.username)))
+JOIN tmp_miqa_risk_day day
+  ON day.days_ago < 7
+ AND snapshot.scored_on = DATE_SUB(@anchor_date, INTERVAL day.days_ago DAY);
 
 DELETE FROM rehealth_rhi_daily_snapshot
 WHERE calculation_source = 'LOCAL_MULTI_INSURER_APP_QA';
