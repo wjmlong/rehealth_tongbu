@@ -343,7 +343,16 @@ class RingViewModel(
 
     private suspend fun runAutoCollectionCycle() {
         if (mutableUiState.value.isSyncing) return
-        if (mutableUiState.value.connectionState != RingConnectionState.CONNECTED) {
+        if (repository.acquisitionMode != RingAcquisitionMode.CLOUD) {
+            val connected = runCatching { repository.autoConnect() }.getOrDefault(false)
+            if (!connected) {
+                Log.i(TAG, "auto collection skipped because bound device reconnect failed")
+                return
+            }
+        }
+        if (repository.acquisitionMode == RingAcquisitionMode.CLOUD &&
+            repository.connectionState.value != RingConnectionState.CONNECTED
+        ) {
             Log.i(TAG, "auto collection skipped because device is disconnected")
             return
         }
@@ -481,7 +490,12 @@ class RingViewModel(
     fun syncAll() {
         viewModelScope.launch {
             val cloudMode = repository.acquisitionMode == RingAcquisitionMode.CLOUD
-            if (mutableUiState.value.connectionState != RingConnectionState.CONNECTED) {
+            val connected = if (cloudMode) {
+                repository.connectionState.value == RingConnectionState.CONNECTED
+            } else {
+                runCatching { repository.autoConnect() }.getOrDefault(false)
+            }
+            if (!connected) {
                 mutableUiState.update {
                     it.copy(
                         isSyncing = false,

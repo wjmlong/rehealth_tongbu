@@ -20,6 +20,7 @@ import com.rehealth.genie.ring.provider.ActiveWearableBindingStore
 import com.rehealth.genie.ring.provider.WearableVendor
 import kotlin.math.roundToInt
 import kotlin.math.ceil
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 
 class HBandRingRepository internal constructor(
@@ -80,19 +81,25 @@ class HBandRingRepository internal constructor(
     }
 
     override suspend fun autoConnect(): Boolean {
-        if (connectionState.value == RingConnectionState.CONNECTED) return true
+        if (gateway.transportConnected) return true
         val binding = activeWearableStore.activeBinding.value
         if (binding.vendor != WearableVendor.HBAND || binding.address.isNullOrBlank()) return false
-        return runCatching {
-            connect(RingDevice(binding.address, binding.deviceName, null))
-            connectionState.value == RingConnectionState.CONNECTED
-        }.getOrDefault(false)
+        val device = RingDevice(binding.address, binding.deviceName, null)
+        AUTO_CONNECT_RETRY_DELAYS_MILLIS.forEachIndexed { index, retryDelayMillis ->
+            if (index > 0) delay(retryDelayMillis)
+            val connected = runCatching {
+                connect(device)
+                gateway.transportConnected
+            }.getOrDefault(false)
+            if (connected) return true
+        }
+        return false
     }
 
     override suspend fun disconnect() = gateway.disconnect()
 
     override suspend fun syncAll(): RingSyncResult {
-        if (connectionState.value != RingConnectionState.CONNECTED && !autoConnect()) return emptyResult()
+        if (!gateway.transportConnected && !autoConnect()) return emptyResult()
         return persist(gateway.sync(supportedMetrics))
     }
 
@@ -100,7 +107,7 @@ class HBandRingRepository internal constructor(
         metrics: Set<RingMetricType>,
         onProgress: (Int) -> Unit,
     ): RingSyncResult {
-        if (connectionState.value != RingConnectionState.CONNECTED) return emptyResult()
+        if (!gateway.transportConnected && !autoConnect()) return emptyResult()
         val requested = metrics intersect supportedMetrics
         if (requested.isEmpty()) return emptyResult()
         val options = if (requested.all { it in DAILY_SYNC_METRICS }) {
@@ -223,5 +230,6 @@ class HBandRingRepository internal constructor(
             RingMetricType.STRESS,
             RingMetricType.MET,
         )
+        val AUTO_CONNECT_RETRY_DELAYS_MILLIS = longArrayOf(0L, 1_000L, 3_000L)
     }
 }

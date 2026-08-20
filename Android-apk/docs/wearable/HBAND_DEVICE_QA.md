@@ -171,6 +171,9 @@ test and has been removed from the product capability and data page.
 - user-initiated disconnect and out-of-range disconnect after a successful connection;
   verify the app remains alive and logcat contains no `NoClassDefFoundError` from
   `releaseJLSDK`, `JLWatchFaceManager`, or `BmpConvert`;
+- after an unexpected disconnect, verify the app state changes to disconnected, the next
+  foreground daily sync attempts only the encrypted bound address, and the bounded reconnect
+  sequence does not scan unrelated devices or loop indefinitely;
 - app foreground/background, screen locked, process killed, and phone reboot;
 - foreground manual sync overlapping scheduled collection (commands must remain
   serialized);

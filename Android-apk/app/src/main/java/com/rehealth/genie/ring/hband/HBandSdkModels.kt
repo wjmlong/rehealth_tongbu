@@ -334,6 +334,14 @@ internal interface HBandSdkGateway {
     val capabilities: StateFlow<HBandCapabilities>
     val liveEcg: StateFlow<RingEcgLiveState>
 
+    /**
+     * True only when the vendor transport is still usable, not merely when our
+     * last published state was CONNECTED. SDKs can lose the BLE link without
+     * synchronously updating the application state flow.
+     */
+    val transportConnected: Boolean
+        get() = connectionState.value == RingConnectionState.CONNECTED && connectedDevice.value != null
+
     suspend fun scan(): List<RingDevice>
     suspend fun connect(device: RingDevice, profile: HBandUserProfile): HBandConnectionInfo?
     suspend fun disconnect()

@@ -78,8 +78,10 @@ Status: implemented software path; updated 2026-08-05.
   the selected period; Data and Profile use the same selection rule and never treat cloud/local
   copies or intermediate callbacks as separate nights. Activity rows are cumulative day totals;
   presentation keeps the maximum per local day instead of adding overlapping local/cloud copies.
-- The Data-screen action is a connected-only daily sync for sleep, steps, and activity. It never
-  auto-connects from the UI, and the in-process automatic cycle skips while disconnected. Explicit
+- The Data-screen action is a daily sync for sleep, steps, and activity. When the active Bluetooth
+  device is disconnected, it first retries the encrypted bound-device connection with bounded
+  backoff; it never scans or connects an unbound device. The in-process automatic cycle uses the
+  same reconnect path instead of silently skipping a disconnected device. Explicit
   Foreground Service recovery retains bound-device reconnect behavior. For HBand, existing recent
   Room sleep/activity rows select a two-day-or-greater overlap window; origin history is skipped
   when activity has no gap, while first sync or a gap retains origin-history recovery. Vendor sleep

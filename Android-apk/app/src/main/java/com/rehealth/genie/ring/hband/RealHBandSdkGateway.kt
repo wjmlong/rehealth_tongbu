@@ -144,6 +144,8 @@ internal class RealHBandSdkGateway(
     override val connectedDevice: StateFlow<RingDevice?> = mutableConnectedDevice.asStateFlow()
     override val capabilities: StateFlow<HBandCapabilities> = mutableCapabilities.asStateFlow()
     override val liveEcg: StateFlow<RingEcgLiveState> = mutableLiveEcg.asStateFlow()
+    override val transportConnected: Boolean
+        get() = manager.isCurrentDeviceConnected && stateMachine.phase.value == HBandConnectionPhase.READY
 
     init {
         manager.init(appContext)
@@ -202,11 +204,13 @@ internal class RealHBandSdkGateway(
                 device.address,
                 object : IConnectResponse {
                     override fun connectState(code: Int, profile: BleGattProfile?, isOadModel: Boolean) {
-                        if (code != Code.REQUEST_SUCCESS) notified.complete(false)
+                        handleVendorConnectionState(code, notified, completesNotify = false)
                     }
                 },
                 object : INotifyResponse {
-                    override fun notifyState(code: Int) { notified.complete(code == Code.REQUEST_SUCCESS) }
+                    override fun notifyState(code: Int) {
+                        handleVendorConnectionState(code, notified, completesNotify = true)
+                    }
                 },
             )
         }
@@ -247,6 +251,7 @@ internal class RealHBandSdkGateway(
         stateMachine.syncProfile()
         publishState()
         syncPersonProfile(profile)
+        check(manager.isCurrentDeviceConnected) { "HBand device disconnected during initialization" }
 
         mutableCapabilities.value = supported
         mutableConnectedDevice.value = device
@@ -281,7 +286,11 @@ internal class RealHBandSdkGateway(
         metrics: Set<RingMetricType>,
         options: HBandSyncOptions,
     ): HBandPayload {
-        if (!manager.isCurrentDeviceConnected || stateMachine.phase.value != HBandConnectionPhase.READY) return HBandPayload()
+        if (!manager.isCurrentDeviceConnected) {
+            markDisconnected("sync precondition")
+            return HBandPayload()
+        }
+        if (stateMachine.phase.value != HBandConnectionPhase.READY) return HBandPayload()
         var accumulated = HBandPayload()
         return try {
             queue.execute(HISTORY_TIMEOUT_MILLIS) {
@@ -334,7 +343,13 @@ internal class RealHBandSdkGateway(
                     accumulated += optionalHistory { readBodyCompositionHistory() }
                     finishStage()
                 }
-                stateMachine.ready()
+                if (!manager.isCurrentDeviceConnected) {
+                    markDisconnected("sync transport lost")
+                    return@execute accumulated
+                }
+                if (stateMachine.phase.value == HBandConnectionPhase.SYNCING) {
+                    stateMachine.ready()
+                }
                 publishState()
                 options.onProgress(100)
                 accumulated
@@ -344,8 +359,12 @@ internal class RealHBandSdkGateway(
                 resetAfterFailure()
                 throw error
             }
-            if (manager.isCurrentDeviceConnected) stateMachine.recoverReady() else stateMachine.fail()
-            publishState()
+            if (manager.isCurrentDeviceConnected) {
+                stateMachine.recoverReady()
+                publishState()
+            } else {
+                markDisconnected("sync failed while transport was unavailable")
+            }
             // Preserve completed reads when a later vendor command times out.
             accumulated
         }
@@ -387,7 +406,13 @@ internal class RealHBandSdkGateway(
                         HBandMeasurementRoute.UNSUPPORTED -> HBandPayload()
                     }
                 } finally {
-                    stateMachine.ready()
+                    if (manager.isCurrentDeviceConnected &&
+                        stateMachine.phase.value == HBandConnectionPhase.SYNCING
+                    ) {
+                        stateMachine.ready()
+                    } else if (!manager.isCurrentDeviceConnected) {
+                        markDisconnected("measurement transport lost")
+                    }
                     publishState()
                 }
             }
@@ -396,8 +421,12 @@ internal class RealHBandSdkGateway(
                 resetAfterFailure()
                 throw error
             }
-            if (manager.isCurrentDeviceConnected) stateMachine.recoverReady() else stateMachine.fail()
-            publishState()
+            if (manager.isCurrentDeviceConnected) {
+                stateMachine.recoverReady()
+                publishState()
+            } else {
+                markDisconnected("measurement failed while transport was unavailable")
+            }
             HBandPayload()
         }
     }
@@ -1731,6 +1760,32 @@ internal class RealHBandSdkGateway(
         return false
     }
 
+    private fun handleVendorConnectionState(
+        code: Int,
+        pendingConnection: CompletableDeferred<Boolean>,
+        completesNotify: Boolean,
+    ) {
+        if (code == Code.REQUEST_SUCCESS) {
+            if (completesNotify) pendingConnection.complete(true)
+            return
+        }
+        pendingConnection.complete(false)
+        if (stateMachine.phase.value == HBandConnectionPhase.READY ||
+            stateMachine.phase.value == HBandConnectionPhase.SYNCING
+        ) {
+            markDisconnected("vendor callback code=$code")
+        }
+    }
+
+    private fun markDisconnected(reason: String) {
+        debugLog { "connection lost: $reason" }
+        mutableConnectedDevice.value = null
+        mutableCapabilities.value = HBandCapabilities()
+        mutableLiveEcg.value = RingEcgLiveState()
+        stateMachine.disconnect()
+        publishState()
+    }
+
     private fun publishState() { mutableConnectionState.value = stateMachine.ringState }
 
     private fun Throwable.rethrowIfExternalCancellation() {
@@ -1748,6 +1803,7 @@ internal class RealHBandSdkGateway(
         }
         mutableConnectedDevice.value = null
         mutableCapabilities.value = HBandCapabilities()
+        mutableLiveEcg.value = RingEcgLiveState()
         stateMachine.fail()
         publishState()
     }

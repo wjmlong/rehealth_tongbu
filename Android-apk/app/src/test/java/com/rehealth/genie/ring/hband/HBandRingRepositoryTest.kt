@@ -274,7 +274,7 @@ class HBandRingRepositoryTest {
     }
 
     @Test
-    fun foregroundDailySyncNeverReconnectsWhenDeviceIsDisconnected() = runTest {
+    fun foregroundDailySyncWithoutBindingDoesNotScanOrReconnect() = runTest {
         val gateway = FakeHBandGateway()
         val repository = repository(FakeHBandDao(), HBandBindingStore(), gateway)
 
@@ -285,6 +285,32 @@ class HBandRingRepositoryTest {
         assertEquals(0, result.recordsWritten)
         assertEquals(0, gateway.connectCalls)
         assertEquals(0, gateway.syncCalls)
+    }
+
+    @Test
+    fun foregroundDailySyncRetriesTheEncryptedBoundDeviceWhenDisconnected() = runTest {
+        val store = HBandBindingStore().apply {
+            recordConnectedDevice(WearableVendor.HBAND, DEVICE)
+        }
+        val gateway = FakeHBandGateway(capabilitiesValue = HBandCapabilities(ecg = true)).apply {
+            connectFailuresRemaining = 2
+        }
+        val repository = repository(FakeHBandDao(), store, gateway).apply {
+            wearableUserProfile = BaselineHealthProfile(
+                age = 35,
+                gender = "female",
+                heightCm = 165.0,
+                weightKg = 55.0,
+            )
+        }
+
+        val result = repository.sync(
+            setOf(RingMetricType.SLEEP, RingMetricType.STEPS, RingMetricType.ACTIVITY),
+        )
+
+        assertEquals(0, result.recordsWritten)
+        assertEquals(3, gateway.connectCalls)
+        assertEquals(1, gateway.syncCalls)
     }
 
     @Test
@@ -389,6 +415,7 @@ private class FakeHBandGateway(
     private val capabilityState = MutableStateFlow(capabilitiesValue)
     private val liveEcgState = MutableStateFlow(RingEcgLiveState())
     var connectCalls = 0
+    var connectFailuresRemaining = 0
     var measureCalls = 0
     val measuredTypes = mutableListOf<RingMetricType>()
     val historyFallbackRequests = mutableListOf<Boolean>()
@@ -404,6 +431,11 @@ private class FakeHBandGateway(
     override suspend fun scan() = emptyList<RingDevice>()
     override suspend fun connect(device: RingDevice, profile: HBandUserProfile): HBandConnectionInfo {
         connectCalls++
+        if (connectFailuresRemaining > 0) {
+            connectFailuresRemaining--
+            state.value = RingConnectionState.ERROR
+            throw IllegalStateException("simulated connection failure")
+        }
         lastConnectedAddress = device.address
         this.device.value = device
         state.value = RingConnectionState.CONNECTED
