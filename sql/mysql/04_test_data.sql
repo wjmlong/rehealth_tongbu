@@ -803,14 +803,14 @@ SELECT
     LOWER(SHA2(CONCAT('LOCAL_MULTI_INSURER_APP_QA:attribution:', username), 256)),
     LOWER(MD5(CONCAT('LOCAL_MULTI_INSURER_APP_QA:user:', username))),
     'ready', 'local-qa-pias-nonclinical-v1', CONCAT('miqa-pias-', profile_no),
-    'synthetic_qa', IF(profile_no IN (2, 6, 10), 0, 1), 'LOCAL_MULTI_INSURER_APP_QA_NOT_A_MODEL',
+    'synthetic_qa', IF(profile_no IN (2, 6, 13), 0, 1), 'LOCAL_MULTI_INSURER_APP_QA_NOT_A_MODEL',
     30, 14, 14, 1, risk_base,
     CASE WHEN risk_base >= 0.70 THEN 'high' WHEN risk_base >= 0.40 THEN 'medium' ELSE 'low' END,
     'improving', -0.035, -0.058, 0.82,
     '归因结果用于健康管理趋势参考，不作为诊断、核保或理赔结论。',
     JSON_OBJECT('sourceSystem', 'LOCAL_MULTI_INSURER_APP_QA', 'historyDays', 30),
     JSON_OBJECT(
-        'status', 'ready', 'isMock', IF(profile_no IN (2, 6, 10), FALSE, TRUE),
+        'status', 'ready', 'isMock', IF(profile_no IN (2, 6, 13), FALSE, TRUE),
         'clinicalUseAllowed', FALSE, 'syntheticLocalQa', TRUE
     ),
     @seed_time

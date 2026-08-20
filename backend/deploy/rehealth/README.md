@@ -345,7 +345,8 @@ To make every workbench status and risk distribution visible, the CVD fixture
 rows use `is_mock=0` together with `scorer_mode=local_qa_fixture`,
 `artifact_name=LOCAL_MULTI_INSURER_APP_QA_NOT_A_MODEL`, natural business display
 fields, and `clinicalUseAllowed=false`. Only the three explicit improvement-cohort APP
-accounts use a non-Mock attribution row. This exception exists solely for local
+accounts, including the shared `local_app_shared_01` account used for 何俊杰, use a
+non-Mock attribution row. This exception exists solely for local
 UI/permission acceptance and must never be copied to staging or production.
 
 ### Local medical workspace test data
