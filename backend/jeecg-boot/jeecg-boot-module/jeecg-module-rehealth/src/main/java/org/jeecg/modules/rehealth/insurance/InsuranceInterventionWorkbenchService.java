@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DuplicateKeyException;
@@ -18,7 +19,9 @@ import java.security.MessageDigest;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Clock;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -31,6 +34,7 @@ import java.util.UUID;
 @Service
 @ConditionalOnProperty(name = "rehealth.software-db.enabled", havingValue = "true")
 public class InsuranceInterventionWorkbenchService {
+    private static final ZoneId DEFAULT_ZONE = ZoneId.of("Asia/Shanghai");
     private static final String SCOPE_SQL = """
             FROM rehealth_insurance_subject subject
             INNER JOIN rehealth_insurance_subject_manager scope
@@ -47,13 +51,27 @@ public class InsuranceInterventionWorkbenchService {
 
     private final JdbcTemplate jdbc;
     private final ObjectMapper objectMapper;
+    private final Clock clock;
+    private final ZoneId zoneId;
 
+    @Autowired
     public InsuranceInterventionWorkbenchService(
             @Qualifier("rehealthSoftwareJdbcTemplate") JdbcTemplate jdbc,
             ObjectMapper objectMapper
     ) {
+        this(jdbc, objectMapper, Clock.systemUTC(), DEFAULT_ZONE);
+    }
+
+    InsuranceInterventionWorkbenchService(
+            JdbcTemplate jdbc,
+            ObjectMapper objectMapper,
+            Clock clock,
+            ZoneId zoneId
+    ) {
         this.jdbc = jdbc;
         this.objectMapper = objectMapper;
+        this.clock = clock;
+        this.zoneId = zoneId;
     }
 
     public InsuranceInterventionWorkbenchResponse.Dashboard dashboard(int tenantId, String managerUserId) {
@@ -248,7 +266,7 @@ public class InsuranceInterventionWorkbenchService {
         List<InsuranceInterventionWorkbenchResponse.Factor> mainFactors = risk == null
                 ? List.of()
                 : factors(risk.responseJson()).stream().limit(3).toList();
-        FeedbackAggregate feedback = latestFeedback(tenantId, identity.subjectRef());
+        FeedbackAggregate feedback = latestFeedback(tenantId, identity.subjectRef(), identity.userId());
         AttributionSnapshot attribution = latestAttribution(identity.userId());
         Owner owner = owner(tenantId, identity.subjectRef());
         CurrentIntervention currentIntervention = currentIntervention(tenantId, identity);
@@ -368,7 +386,63 @@ public class InsuranceInterventionWorkbenchService {
                 userId, userId);
     }
 
-    private FeedbackAggregate latestFeedback(int tenantId, String subjectRef) {
+    FeedbackAggregate latestFeedback(int tenantId, String subjectRef, String userId) {
+        LocalDateTime current = LocalDateTime.ofInstant(clock.instant(), zoneId);
+        LocalDateTime windowStart = current.toLocalDate().minusDays(27).atStartOfDay();
+        LocalDateTime windowEnd = current.toLocalDate().plusDays(1).atStartOfDay();
+        VersionedFeedbackAggregate versioned = jdbc.query("""
+                SELECT COUNT(occurrence.id),
+                       SUM(CASE WHEN execution.feedback_type='not_applicable' THEN 0
+                                ELSE COALESCE(item.scoring_weight, 1) * COALESCE(execution.score_value, 0) END),
+                       SUM(CASE WHEN execution.feedback_type='not_applicable' THEN 0
+                                ELSE COALESCE(item.scoring_weight, 1) END),
+                       MAX(COALESCE(execution.occurred_at, occurrence.due_at))
+                FROM rehealth_care_plan_occurrence occurrence
+                JOIN rehealth_care_plan plan
+                  ON plan.tenant_id=occurrence.tenant_id AND plan.id=occurrence.plan_id
+                 AND plan.owner_type='insurance' AND plan.subject_ref=? AND plan.rehealth_user_id=?
+                JOIN rehealth_care_plan_item item
+                  ON item.tenant_id=occurrence.tenant_id AND item.id=occurrence.plan_item_id
+                LEFT JOIN rehealth_care_plan_execution execution
+                  ON execution.id=(
+                    SELECT latest.id FROM rehealth_care_plan_execution latest
+                    WHERE latest.tenant_id=occurrence.tenant_id
+                      AND latest.occurrence_id=occurrence.id
+                    ORDER BY latest.occurred_at DESC, latest.created_at DESC, latest.id DESC
+                    LIMIT 1
+                  )
+                WHERE occurrence.tenant_id=? AND occurrence.subject_ref=?
+                  AND occurrence.status='scheduled'
+                  AND occurrence.scheduled_at>=? AND occurrence.scheduled_at<?
+                  AND (occurrence.due_at<=? OR execution.id IS NOT NULL)
+                """, (rs, row) -> new VersionedFeedbackAggregate(
+                rs.getLong(1), rs.getBigDecimal(2), rs.getBigDecimal(3), rs.getTimestamp(4)
+        ), subjectRef, userId, tenantId, subjectRef, windowStart, windowEnd, current)
+                .stream().findFirst().orElse(new VersionedFeedbackAggregate(0, null, null, null));
+        Integer activeVersionedPlans = jdbc.queryForObject("""
+                SELECT COUNT(*)
+                FROM rehealth_care_plan plan
+                JOIN rehealth_care_plan_revision revision
+                  ON revision.tenant_id=plan.tenant_id AND revision.plan_id=plan.id
+                 AND revision.status='published' AND revision.effective_from<=?
+                 AND (revision.effective_to IS NULL OR revision.effective_to>?)
+                WHERE plan.tenant_id=? AND plan.owner_type='insurance' AND plan.status='active'
+                  AND plan.subject_ref=? AND plan.rehealth_user_id=?
+                """, Integer.class, current, current, tenantId, subjectRef, userId);
+        if (versioned.occurrenceCount() > 0 || (activeVersionedPlans != null && activeVersionedPlans > 0)) {
+            BigDecimal expected = versioned.expected();
+            if (expected == null || expected.signum() == 0) {
+                return new FeedbackAggregate(null, null, null, format(versioned.latestActivityAt()));
+            }
+            BigDecimal completed = versioned.completed() == null ? BigDecimal.ZERO : versioned.completed();
+            return new FeedbackAggregate(
+                    completed.divide(expected, 4, RoundingMode.HALF_UP).doubleValue(),
+                    completed.doubleValue(), expected.doubleValue(), format(versioned.latestActivityAt()));
+        }
+        return legacyFeedback(tenantId, subjectRef);
+    }
+
+    private FeedbackAggregate legacyFeedback(int tenantId, String subjectRef) {
         return jdbc.query("""
                 SELECT
                   SUM(COALESCE(feedback.completed_count, feedback.adherence_score))
@@ -701,8 +775,11 @@ public class InsuranceInterventionWorkbenchService {
     private record RhiSnapshot(Double score, Double confidence, String updatedAt) {}
     private record RdiSnapshot(Double score, Double confidence, String status, Boolean isMock,
                                String scoredOn, String updatedAt) {}
-    private record FeedbackAggregate(
+    record FeedbackAggregate(
             Double adherence, Double completedCount, Double expectedCount, String occurredAt
+    ) {}
+    private record VersionedFeedbackAggregate(
+            long occurrenceCount, BigDecimal completed, BigDecimal expected, Timestamp latestActivityAt
     ) {}
     private record AttributionSnapshot(Boolean dataSufficient, Boolean isMock, Double individualAtt,
                                        Double trendDelta, String status, String interpretation, Timestamp createdAt) {}
