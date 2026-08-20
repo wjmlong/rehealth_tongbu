@@ -96,7 +96,7 @@ JeecgBoot `rehealth:insurance:organization:*`、`member:*`、`role:assign` 和
 | --- | --- | --- |
 | `GET` | `/rehealth/insurance/v1/interventions/dashboard` | 按当前员工负责范围汇总待行动、进行中、待复核和已改善数量 |
 | `GET` | `/rehealth/insurance/v1/interventions` | 分页查询负责用户档案中的年龄、性别、BMI，以及 CVD 风险、主要 Factor16、RHI、RDI、当前干预、依从性、负责人和流程状态；依从性优先按版本化机构计划近 28 日到期任务及每个任务最新执行事实计算，仅无当前版本化计划且窗口内无版本化任务时回退旧绑定事件；队列首屏无需再读取详情 |
-| `GET` | `/rehealth/insurance/v1/interventions/{subjectId}` | 返回 CVD 风险趋势、Factor16、RHI/RDI 日快照、RDI 结构化贡献项、当前生效机构发布计划（无机构计划时回退旧个人计划）、反馈、人工行动和归因证据 |
+| `GET` | `/rehealth/insurance/v1/interventions/{subjectId}` | 返回 CVD 风险趋势、Factor16、RHI/RDI 日快照、RDI 结构化贡献项、当前生效机构发布计划（无机构计划时回退旧个人计划）、反馈、人工行动和归因证据；归因同时返回证据天数、门槛、效果信号与三态结论 |
 | `POST` | `/rehealth/insurance/v1/interventions/{subjectId}/actions` | 创建随访、任务或人工复核行动 |
 | `POST` | `/rehealth/insurance/v1/interventions/actions/batch` | 为 1–100 名负责范围内用户原子创建同一批激励行动；全部范围校验通过后才写入 |
 | `PUT` | `/rehealth/insurance/v1/intervention-actions/{actionId}` | 更新行动状态、负责人、期限和有界结果 |
@@ -111,7 +111,9 @@ JeecgBoot `rehealth:insurance:organization:*`、`member:*`、`role:assign` 和
 
 机构计划采用 `draft -> published -> withdrawn` 版本状态。已发布版本的标题、说明、项目、时间规则和评分权重不可原地覆盖；修改时必须先克隆新版本。所有写操作使用计划级 `lock_version`，过期的 `expected_lock_version` 返回 `409`。发布新版本会为旧版本写入 `effective_to`，并把该时间之后尚未执行的旧任务实例标记为 `cancelled/superseded_by_revision`，使其不进入后续依从性分母。保险侧只允许生活方式、提醒、教育、监测和跟进类项目，不允许借此修改诊断、用药或治疗。
 
-批量激励要求 `rehealth:insurance:intervention:manage`，使用批次请求 ID 派生逐行动幂等键；任一主体越权、无效或写入失败时整个事务回滚。风险分层页面不暴露该批量接口的多选、按钮或弹窗，接口暂仅供后续受控流程使用。APP 通用反馈只保留在个人计划链路；保险反馈必须带具体 `bindingId + planItemId`，不会复制到其他机构。工作台只消费聚合后的 CVD 风险、RHI、RDI、计划和反馈，不返回原始遥测或 `latest_measurements`；详情可按已授权主体的 `user_id` 查询硬件库，并仅在 `health_metrics` 返回 `metric_code`、`value`、`unit`、`observed_at`、`data_source=device_telemetry` 和 `synthetic`。允许的 `metric_code` 为 `heart_rate`、`spo2`、`systolic_bp`、`diastolic_bp`、`steps`、`sleep_minutes`、`activity_minutes`、`calories`、`blood_glucose` 和 `weight`；设备 ID、原始记录 ID、波形和其他原始载荷不得进入保险接口。CVD 风险、RHI 与 RDI 是三个独立指标，前端不得用风险分数推导 RDI。页面可再用 RDI 结构化贡献中的步数、睡眠或活动当前值补足聚合证据，但不得伪装成原始测量或在真实模式补造缺失值。本地 QA 种子记录必须返回 `synthetic=true`，页面明确显示“测试/合成数据”。计划执行状态优先来自当天任务或 APP 最新反馈，人工行动状态来自保险后台工作流，二者必须分开展示；人工行动处于执行中或已完成不能单独证明用户完成计划或健康改善。RDI Mock、过期或数据不足状态必须显式展示，且不参与现有 PIAS/风险工作流状态计算。只有真实、数据充分且方向一致的归因证据才会自动标记“已改善”；Mock、指标缺失或证据不足时必须显示说明，不能把合成风险评分、人工行动状态或单次健康指标当作业务判断。
+批量激励要求 `rehealth:insurance:intervention:manage`，使用批次请求 ID 派生逐行动幂等键；任一主体越权、无效或写入失败时整个事务回滚。风险分层页面不暴露该批量接口的多选、按钮或弹窗，接口暂仅供后续受控流程使用。APP 通用反馈只保留在个人计划链路；保险反馈必须带具体 `bindingId + planItemId`，不会复制到其他机构。工作台只消费聚合后的 CVD 风险、RHI、RDI、计划和反馈，不返回原始遥测或 `latest_measurements`；详情可按已授权主体的 `user_id` 查询硬件库，并仅在 `health_metrics` 返回 `metric_code`、`value`、`unit`、`observed_at`、`data_source=device_telemetry` 和 `synthetic`。允许的 `metric_code` 为 `heart_rate`、`spo2`、`systolic_bp`、`diastolic_bp`、`steps`、`sleep_minutes`、`activity_minutes`、`calories`、`blood_glucose` 和 `weight`；设备 ID、原始记录 ID、波形和其他原始载荷不得进入保险接口。CVD 风险、RHI 与 RDI 是三个独立指标，前端不得用风险分数推导 RDI。页面可再用 RDI 结构化贡献中的步数、睡眠或活动当前值补足聚合证据，但不得伪装成原始测量或在真实模式补造缺失值。本地 QA 种子记录必须返回 `synthetic=true`，页面明确显示“测试/合成数据”。计划执行状态优先来自当天任务或 APP 最新反馈，人工行动状态来自保险后台工作流，二者必须分开展示；人工行动处于执行中或已完成不能单独证明用户完成计划或健康改善。RDI Mock、过期或数据不足状态必须显式展示，且不参与现有 PIAS/风险工作流状态计算。
+
+“执行后是否真的改善”采用三态结论。证据门槛为：归因记录必须为真实非 Mock；历史观察天数达到服务返回的 `min_history_days`（生产 PIAS 默认 14 天）；干预执行天数至少 7 天；`intervention_data_sufficient=true`；并存在有限的 `individual_att` 或 `trend_delta` 效果值。门槛满足后，效果值小于 0 返回 `conclusion=improved`，否则返回 `conclusion=not_improved`；任一门槛未满足则返回 `conclusion=insufficient`、`conclusive=false`。`attribution` 同时返回 `history_days`、`min_history_days`、`intervention_days`、`min_intervention_days`、`adherence_average`、`effect_metric` 和 `effect_value`，供页面逐项展示证据。该结论仅表示当前健康管理观察期的阶段性结果，不等于诊断、长期疗效或必然因果。
 
 版本化机构计划 API 与旧 `rehealth_insurance_plan_binding` 并行存在。App 已通过独立聚合接口读取当前生效版本，并在请求时将 `daily`、`weekly`、`once` 规则展开为稳定任务实例；旧绑定仅保留兼容，不会因机构发布动作被自动改写。
 

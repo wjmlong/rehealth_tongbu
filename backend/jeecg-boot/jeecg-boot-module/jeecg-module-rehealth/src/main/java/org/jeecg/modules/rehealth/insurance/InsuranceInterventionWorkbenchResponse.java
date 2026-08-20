@@ -157,8 +157,17 @@ public final class InsuranceInterventionWorkbenchResponse {
             String status,
             @JsonProperty("data_sufficient") Boolean dataSufficient,
             @JsonProperty("is_mock") Boolean isMock,
+            @JsonProperty("history_days") Integer historyDays,
+            @JsonProperty("min_history_days") Integer minHistoryDays,
+            @JsonProperty("intervention_days") Integer interventionDays,
+            @JsonProperty("min_intervention_days") Integer minInterventionDays,
+            @JsonProperty("adherence_average") Double adherenceAverage,
             @JsonProperty("individual_att") Double individualAtt,
             @JsonProperty("trend_delta") Double trendDelta,
+            Boolean conclusive,
+            String conclusion,
+            @JsonProperty("effect_metric") String effectMetric,
+            @JsonProperty("effect_value") Double effectValue,
             String interpretation,
             @JsonProperty("created_at") String createdAt
     ) {

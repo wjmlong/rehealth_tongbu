@@ -54,6 +54,7 @@ public class InsuranceInterventionWorkbenchService {
               AND subject.consent_status = 'granted'
             """;
     private static final Set<String> ACTION_STATUSES = Set.of("pending", "in_progress", "completed", "cancelled");
+    static final int MIN_INTERVENTION_DAYS = 7;
 
     private final JdbcTemplate jdbc;
     private final ObjectMapper objectMapper;
@@ -145,15 +146,16 @@ public class InsuranceInterventionWorkbenchService {
         Identity identity = requireIdentity(tenantId, managerUserId, subjectId);
         InsuranceInterventionWorkbenchResponse.SubjectSummary summary = summary(tenantId, identity);
         RiskSnapshot latestRisk = latestRisk(identity.userId());
+        InsuranceInterventionWorkbenchResponse.Attribution attribution = attribution(identity.userId());
         return new InsuranceInterventionWorkbenchResponse.SubjectDetail(
                 "assigned_subjects", summary, riskTrend(identity.userId()), rhiTrend(identity.userId()),
                 rdiTrend(identity.userId()), factors(latestRisk == null ? null : latestRisk.responseJson()),
                 rdiContributions(identity.userId()), healthMetrics(identity.userId()), plan(tenantId, identity),
                 feedback(tenantId, identity.subjectRef()), actions(tenantId, identity.subjectRef()),
-                attribution(identity.userId()),
+                attribution,
                 Boolean.TRUE.equals(summary.riskIsMock())
                         ? "当前风险或干预包含演练数据，不可作为真实改善结论。"
-                        : "趋势为描述性证据；只有非 Mock 且数据充分的归因结果才显示为改善。"
+                        : evidenceNotice(attribution)
         );
     }
 
@@ -433,11 +435,8 @@ public class InsuranceInterventionWorkbenchService {
     }
 
     private String workflowStatus(RiskSnapshot risk, AttributionSnapshot attribution, boolean active) {
-        boolean improved = attribution != null && !Boolean.TRUE.equals(attribution.isMock())
-                && Boolean.TRUE.equals(attribution.dataSufficient())
-                && ((attribution.individualAtt() != null && attribution.individualAtt() < 0)
-                    || (attribution.trendDelta() != null && attribution.trendDelta() < 0));
-        if (improved) return "improved";
+        ImprovementEvidenceDecision evidence = evaluateImprovementEvidence(attribution);
+        if ("improved".equals(evidence.conclusion())) return "improved";
         if (active) return "in_progress";
         if (risk != null && !Boolean.TRUE.equals(risk.isMock()) && "high".equals(normalizeLevel(risk.level()))) {
             return "pending_action";
@@ -598,11 +597,15 @@ public class InsuranceInterventionWorkbenchService {
 
     private AttributionSnapshot latestAttribution(String userId) {
         return jdbc.query("""
-                SELECT intervention_data_sufficient, is_mock, individual_att, trend_delta,
+                SELECT intervention_data_sufficient, is_mock, history_days, min_history_days,
+                       intervention_days, adherence_average, individual_att, trend_delta,
                        status, interpretation, created_at
                 FROM rehealth_attribution_result WHERE user_id=? ORDER BY created_at DESC, id DESC LIMIT 1
-                """, (rs, row) -> new AttributionSnapshot(nullableBoolean(rs, 1), nullableBoolean(rs, 2),
-                nullableDouble(rs, 3), nullableDouble(rs, 4), rs.getString(5), rs.getString(6), rs.getTimestamp(7)),
+                """, (rs, row) -> new AttributionSnapshot(
+                nullableBoolean(rs, 1), nullableBoolean(rs, 2), nullableInteger(rs, 3),
+                nullableInteger(rs, 4), nullableInteger(rs, 5), nullableDouble(rs, 6),
+                nullableDouble(rs, 7), nullableDouble(rs, 8), rs.getString(9), rs.getString(10),
+                rs.getTimestamp(11)),
                 userId).stream().findFirst().orElse(null);
     }
 
@@ -801,9 +804,44 @@ public class InsuranceInterventionWorkbenchService {
     private InsuranceInterventionWorkbenchResponse.Attribution attribution(String userId) {
         AttributionSnapshot value = latestAttribution(userId);
         if (value == null) return null;
+        ImprovementEvidenceDecision decision = evaluateImprovementEvidence(value);
         return new InsuranceInterventionWorkbenchResponse.Attribution(value.status(), value.dataSufficient(),
-                value.isMock(), value.individualAtt(), value.trendDelta(), value.interpretation(),
-                format(value.createdAt()));
+                value.isMock(), value.historyDays(), value.minHistoryDays(), value.interventionDays(),
+                MIN_INTERVENTION_DAYS, value.adherenceAverage(), value.individualAtt(), value.trendDelta(),
+                decision.conclusive(), decision.conclusion(), decision.effectMetric(), decision.effectValue(),
+                value.interpretation(), format(value.createdAt()));
+    }
+
+    private static String evidenceNotice(InsuranceInterventionWorkbenchResponse.Attribution attribution) {
+        if (attribution == null) {
+            return "尚无归因结果；需要真实非模拟数据、至少 14 天历史基线、至少 7 天干预执行和可计算的效果信号。";
+        }
+        return switch (attribution.conclusion()) {
+            case "improved" -> "证据门槛已满足，当前支持阶段性改善；该结论不等于诊断、长期疗效或必然因果。";
+            case "not_improved" -> "证据门槛已满足，但当前效果方向未显示改善；继续执行或调整行动后复评。";
+            default -> "证据尚未达到结论门槛：需真实非模拟数据、足量历史基线和干预执行记录，并形成可计算的效果信号。";
+        };
+    }
+
+    static ImprovementEvidenceDecision evaluateImprovementEvidence(AttributionSnapshot value) {
+        if (value == null || Boolean.TRUE.equals(value.isMock())
+                || !Boolean.TRUE.equals(value.dataSufficient())) {
+            return ImprovementEvidenceDecision.insufficient();
+        }
+        if (value.historyDays() == null || value.minHistoryDays() == null
+                || value.historyDays() < value.minHistoryDays()) {
+            return ImprovementEvidenceDecision.insufficient();
+        }
+        if (value.interventionDays() == null || value.interventionDays() < MIN_INTERVENTION_DAYS) {
+            return ImprovementEvidenceDecision.insufficient();
+        }
+        String metric = value.individualAtt() != null ? "individual_att"
+                : value.trendDelta() != null ? "trend_delta" : null;
+        Double effect = value.individualAtt() != null ? value.individualAtt() : value.trendDelta();
+        if (effect == null || !Double.isFinite(effect)) {
+            return ImprovementEvidenceDecision.insufficient();
+        }
+        return new ImprovementEvidenceDecision(true, effect < 0 ? "improved" : "not_improved", metric, effect);
     }
 
     private List<InsuranceInterventionWorkbenchResponse.Factor> factors(String responseJson) {
@@ -912,8 +950,30 @@ public class InsuranceInterventionWorkbenchService {
     private record VersionedFeedbackAggregate(
             long occurrenceCount, BigDecimal completed, BigDecimal expected, Timestamp latestActivityAt
     ) {}
-    private record AttributionSnapshot(Boolean dataSufficient, Boolean isMock, Double individualAtt,
-                                       Double trendDelta, String status, String interpretation, Timestamp createdAt) {}
+    static record AttributionSnapshot(
+            Boolean dataSufficient,
+            Boolean isMock,
+            Integer historyDays,
+            Integer minHistoryDays,
+            Integer interventionDays,
+            Double adherenceAverage,
+            Double individualAtt,
+            Double trendDelta,
+            String status,
+            String interpretation,
+            Timestamp createdAt
+    ) {}
+
+    static record ImprovementEvidenceDecision(
+            boolean conclusive,
+            String conclusion,
+            String effectMetric,
+            Double effectValue
+    ) {
+        static ImprovementEvidenceDecision insufficient() {
+            return new ImprovementEvidenceDecision(false, "insufficient", null, null);
+        }
+    }
     private record Owner(String name, String department) {}
     private record CurrentIntervention(String summary, String dueAt) {}
 
