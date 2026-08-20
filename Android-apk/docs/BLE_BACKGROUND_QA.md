@@ -1,12 +1,13 @@
 # BLE Background Collection QA
 
-Last updated: 2026-07-27
+Last updated: 2026-08-20
 
 ## Scope
 
 B1 adds a local-first foreground service for low-frequency wearable collection and a WorkManager recovery job. The service only calls the routed `RingRepository.syncAll()` path, which selects one active MRD, RWFit, or HBand Provider and persists parsed measurements, sleep, activity, and signal chunks through Room. It does not call backend APIs, model-service, `/measurements/batch`, or raw PPG/RRI upload.
 
-The production UI toggle is not part of B1. The app-facing APIs are:
+For a bound Bluetooth device, the production app starts or resumes this service when the Main
+stage is entered; logout stops it. The app-facing APIs remain:
 
 - `RingForegroundService.start(context)`
 - `RingForegroundService.stop(context)`
@@ -77,6 +78,5 @@ The production UI toggle is not part of B1. The app-facing APIs are:
 
 ## Known Follow-Ups
 
-- Add an in-app background collection toggle in a UI-owned workstream.
 - Add device-specific QA evidence from a real locked-screen run.
 - Consider a user-visible notification permission prompt on Android 13+ before enabling background collection.

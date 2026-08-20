@@ -113,6 +113,7 @@ fun ReHealthApp() {
         },
     )
     val ringState by ringViewModel.uiState.collectAsState()
+    val activeBinding by application.activeWearableManager.activeBinding.collectAsState()
     val queueState by application.syncRepository.queueState.collectAsState()
     val endSession: () -> Unit = {
         MeasurementSyncWorker.cancel(application)
@@ -131,9 +132,15 @@ fun ReHealthApp() {
     LaunchedEffect(stage) {
         if (stage == AppStage.Main) {
             ringViewModel.refreshPatientMvp()
-            ringViewModel.startAutoCollection()
         } else {
             ringViewModel.stopAutoCollection()
+        }
+    }
+    LaunchedEffect(stage, activeBinding.vendor, activeBinding.address) {
+        if (stage == AppStage.Main) {
+            // Background collection is the default path for a bound Bluetooth device.
+            // Keep the long-running BLE sync out of the foreground screen lifecycle.
+            ringViewModel.startBackgroundCollection(application)
         }
     }
     AnimatedContent(

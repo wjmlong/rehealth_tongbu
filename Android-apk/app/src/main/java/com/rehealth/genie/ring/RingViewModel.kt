@@ -304,6 +304,7 @@ class RingViewModel(
 
     fun startBackgroundCollection(context: Context) {
         if (repository.acquisitionMode == RingAcquisitionMode.CLOUD) return
+        if (wearableManager?.activeBinding?.value?.address.isNullOrBlank()) return
         RingForegroundService.start(context.applicationContext)
     }
 

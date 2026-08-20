@@ -1,6 +1,6 @@
 # D2 Telemetry Sync Status and Remaining QA
 
-Status: implemented software path; updated 2026-08-05.
+Status: implemented software path; updated 2026-08-20.
 
 ## Implemented
 
@@ -87,6 +87,10 @@ Status: implemented software path; updated 2026-08-05.
   when activity has no gap, while first sync or a gap retains origin-history recovery. Vendor sleep
   and origin callbacks feed monotonic target progress, and Compose smooths toward that target without
   delaying persistence or upload completion.
+- For an active Bluetooth binding, the Foreground Service is the default continuous collection path.
+  Re-entering the Main stage starts or resumes that service instead of running the full reconnect,
+  history-sync, and manual-measurement loop in the foreground ViewModel. Logout still stops the
+  service. This keeps collection available to older users without requiring repeated manual actions.
 
 ## Software-Only Validation
 
