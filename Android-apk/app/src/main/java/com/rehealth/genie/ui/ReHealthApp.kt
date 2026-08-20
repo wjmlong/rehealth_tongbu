@@ -131,6 +131,7 @@ fun ReHealthApp() {
     LaunchedEffect(stage) {
         if (stage == AppStage.Main) {
             ringViewModel.refreshPatientMvp()
+            ringViewModel.restoreLastConnection()
         } else {
             ringViewModel.stopAutoCollection()
         }

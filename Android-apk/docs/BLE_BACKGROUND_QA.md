@@ -23,8 +23,9 @@ ViewModel API; logout stops it. The app-facing APIs remain:
 4. Grant `BLUETOOTH_SCAN` and `BLUETOOTH_CONNECT` on Android 12+ or location permission on Android 11 and below.
 5. Scan for the device selected by the current MRD/RWFit `productCode` from the existing device-binding screen.
 6. Connect the ring from the existing device-binding screen.
-7. Restart the app and confirm the same encrypted active binding is used without starting an
-   immediate ring collection; logs and cloud payloads must not expose the raw address.
+7. Restart the app and confirm the same encrypted active binding is proactively reconnected without
+   scanning or starting an immediate ring collection; logs and cloud payloads must not expose the
+   raw address.
 8. Confirm manual heart-rate measurement still works and the latest row appears in Room.
 9. Confirm manual SpO2 measurement still works and the latest row appears in Room.
 10. For MRD, confirm manual BP measurement if firmware supports it. For RWFit,

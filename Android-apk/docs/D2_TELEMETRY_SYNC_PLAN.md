@@ -88,10 +88,11 @@ Status: implemented software path; updated 2026-08-20.
   and origin callbacks feed monotonic target progress, and Compose smooths toward that target without
   delaying persistence or upload completion.
 - For an active Bluetooth binding, the Foreground Service remains the continuous collection path
-  once explicitly enabled through the service/ViewModel API. Re-entering the Main stage no longer
-  starts the service or triggers an immediate ring collection; this avoids a long reconnect and
-  measurement step every time an older user reopens the app. Logout still stops the service, and a
-  future settings/action flow can explicitly enable background collection again.
+  once explicitly enabled through the service/ViewModel API. Re-entering the Main stage proactively
+  reconnects only the encrypted last binding through `autoConnect()`; it does not scan, start the
+  service, or trigger an immediate ring collection. This restores the device connection without
+  repeating the long measurement step every time an older user reopens the app. Logout still stops
+  the service, and a future settings/action flow can explicitly enable background collection again.
 
 ## Software-Only Validation
 

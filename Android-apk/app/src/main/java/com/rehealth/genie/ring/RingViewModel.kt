@@ -168,6 +168,7 @@ class RingViewModel(
     )
     val uiState: StateFlow<RingUiState> = mutableUiState.asStateFlow()
     private var autoCollectionJob: Job? = null
+    private var restoreConnectionJob: Job? = null
     private var patientRefreshJob: Job? = null
     private var lastRingVector: CvdFeatureVector = CvdFeatureVector()
     private val activePatientUserId = MutableStateFlow(
@@ -315,6 +316,33 @@ class RingViewModel(
 
     fun stopBackgroundCollection(context: Context) {
         RingForegroundService.stop(context.applicationContext)
+    }
+
+    /**
+     * Restores only the previously persisted device connection after the app process is recreated.
+     * Providers must use their encrypted active binding and must not scan or collect data here.
+     */
+    fun restoreLastConnection() {
+        if (restoreConnectionJob?.isActive == true) return
+        val binding = wearableManager?.activeBinding?.value ?: return
+        if (binding.address.isNullOrBlank()) return
+        if (repository.connectionState.value == RingConnectionState.CONNECTED) return
+        restoreConnectionJob = viewModelScope.launch {
+            mutableUiState.update { it.copy(message = "正在恢复上次设备连接") }
+            val connected = runCatching { repository.autoConnect() }
+                .onFailure { error -> Log.w(TAG, "last device reconnect failed", error) }
+                .getOrDefault(false)
+            mutableUiState.update {
+                it.copy(
+                    connectionState = repository.connectionState.value,
+                    message = if (connected) {
+                        "已恢复上次设备连接"
+                    } else {
+                        "未能恢复上次设备连接，请检查设备电量和蓝牙"
+                    },
+                )
+            }
+        }
     }
 
     fun switchWearableProduct(context: Context, productCode: String) {
@@ -473,6 +501,8 @@ class RingViewModel(
     }
 
     fun disconnect() {
+        restoreConnectionJob?.cancel()
+        restoreConnectionJob = null
         viewModelScope.launch {
             runCatching { repository.disconnect() }
                 .onSuccess {
