@@ -87,10 +87,11 @@ Status: implemented software path; updated 2026-08-20.
   when activity has no gap, while first sync or a gap retains origin-history recovery. Vendor sleep
   and origin callbacks feed monotonic target progress, and Compose smooths toward that target without
   delaying persistence or upload completion.
-- For an active Bluetooth binding, the Foreground Service is the default continuous collection path.
-  Re-entering the Main stage starts or resumes that service instead of running the full reconnect,
-  history-sync, and manual-measurement loop in the foreground ViewModel. Logout still stops the
-  service. This keeps collection available to older users without requiring repeated manual actions.
+- For an active Bluetooth binding, the Foreground Service remains the continuous collection path
+  once explicitly enabled through the service/ViewModel API. Re-entering the Main stage no longer
+  starts the service or triggers an immediate ring collection; this avoids a long reconnect and
+  measurement step every time an older user reopens the app. Logout still stops the service, and a
+  future settings/action flow can explicitly enable background collection again.
 
 ## Software-Only Validation
 

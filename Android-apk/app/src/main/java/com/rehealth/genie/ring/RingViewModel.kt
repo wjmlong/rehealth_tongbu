@@ -302,6 +302,11 @@ class RingViewModel(
         autoCollectionJob = null
     }
 
+    /**
+     * Explicitly opts into continuous background collection. App entry does not call this;
+     * keeping the trigger here lets a later settings/action flow enable it without coupling
+     * ring collection to the foreground Compose lifecycle.
+     */
     fun startBackgroundCollection(context: Context) {
         if (repository.acquisitionMode == RingAcquisitionMode.CLOUD) return
         if (wearableManager?.activeBinding?.value?.address.isNullOrBlank()) return

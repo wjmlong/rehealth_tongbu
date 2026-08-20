@@ -6,8 +6,9 @@ Last updated: 2026-08-20
 
 B1 adds a local-first foreground service for low-frequency wearable collection and a WorkManager recovery job. The service only calls the routed `RingRepository.syncAll()` path, which selects one active MRD, RWFit, or HBand Provider and persists parsed measurements, sleep, activity, and signal chunks through Room. It does not call backend APIs, model-service, `/measurements/batch`, or raw PPG/RRI upload.
 
-For a bound Bluetooth device, the production app starts or resumes this service when the Main
-stage is entered; logout stops it. The app-facing APIs remain:
+For a bound Bluetooth device, the production app does not start this service merely because the
+Main stage is entered. Background collection must be explicitly enabled through the service or
+ViewModel API; logout stops it. The app-facing APIs remain:
 
 - `RingForegroundService.start(context)`
 - `RingForegroundService.stop(context)`
@@ -22,8 +23,8 @@ stage is entered; logout stops it. The app-facing APIs remain:
 4. Grant `BLUETOOTH_SCAN` and `BLUETOOTH_CONNECT` on Android 12+ or location permission on Android 11 and below.
 5. Scan for the device selected by the current MRD/RWFit `productCode` from the existing device-binding screen.
 6. Connect the ring from the existing device-binding screen.
-7. Restart the app and confirm the same encrypted active binding is used; logs
-   and cloud payloads must not expose the raw address.
+7. Restart the app and confirm the same encrypted active binding is used without starting an
+   immediate ring collection; logs and cloud payloads must not expose the raw address.
 8. Confirm manual heart-rate measurement still works and the latest row appears in Room.
 9. Confirm manual SpO2 measurement still works and the latest row appears in Room.
 10. For MRD, confirm manual BP measurement if firmware supports it. For RWFit,
@@ -38,7 +39,9 @@ stage is entered; logout stops it. The app-facing APIs remain:
 17. Disconnect the ring and restart background collection; verify it retries later without a fast loop.
 18. Reconnect the ring and verify the next interval can persist local records.
 19. Kill the app process while collection is active.
-20. Reopen the app; verify WorkManager recovery is scheduled and no duplicate aggressive loops appear.
+20. Reopen the app; verify Main entry does not start an immediate collection or duplicate loop.
+    If the service was explicitly enabled before process death, verify WorkManager recovery remains
+    scheduled and resumes only on its normal interval.
 21. Search logs/network inspector and verify B1 performs no backend upload, model-service call, `/measurements/batch` call, or raw PPG/RRI upload.
 22. After clearing app data, start collection before scanning/binding. Confirm no
     hardcoded-device connection or automatic scan occurs and no zero/simulated
