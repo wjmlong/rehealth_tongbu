@@ -183,6 +183,16 @@ class InsuranceSchemaMigrationTest {
     }
 
     @Test
+    void passwordManagementMigrationDocumentsStateColumnsAndLeastPrivilegePermission() throws Exception {
+        String sql = read("db/software/mysql/V20260821_1__add_password_management.sql");
+        assertEveryTableAndColumnHasAComment(sql, "rehealth_user_password_state");
+        assertTrue(sql.contains("rehealth:insurance:member:password:reset"));
+        assertTrue(sql.contains("insurance_org_admin"));
+        assertTrue(sql.contains("role.role_code IN ('insurance_org_admin', 'admin')"));
+        assertTrue(sql.contains("software-V20260821.1"));
+    }
+
+    @Test
     void departmentMigrationUsesTenantScopedCodesAndNormalizesTheLocalTree() throws Exception {
         String sql = read("db/software/mysql/V20260813_8__isolate_department_codes_by_tenant.sql");
 

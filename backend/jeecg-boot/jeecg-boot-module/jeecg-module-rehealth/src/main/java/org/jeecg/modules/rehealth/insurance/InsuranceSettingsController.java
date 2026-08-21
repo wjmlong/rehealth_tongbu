@@ -7,6 +7,8 @@ import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.jeecg.common.api.vo.Result;
 import org.jeecg.common.constant.CommonConstant;
 import org.jeecg.common.system.vo.LoginUser;
+import org.jeecg.modules.rehealth.account.AccountPasswordResponse;
+import org.jeecg.modules.rehealth.account.AccountPasswordService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,10 +29,13 @@ import java.util.function.Supplier;
 public class InsuranceSettingsController {
     private final InsuranceSettingsService service;
     private final InsuranceTenantAccessGuard tenantAccessGuard;
+    private final AccountPasswordService accountPasswordService;
 
-    public InsuranceSettingsController(InsuranceSettingsService service, InsuranceTenantAccessGuard tenantAccessGuard) {
+    public InsuranceSettingsController(InsuranceSettingsService service, InsuranceTenantAccessGuard tenantAccessGuard,
+                                       AccountPasswordService accountPasswordService) {
         this.service = service;
         this.tenantAccessGuard = tenantAccessGuard;
+        this.accountPasswordService = accountPasswordService;
     }
 
     @GetMapping("/organization")
@@ -95,6 +100,19 @@ public class InsuranceSettingsController {
         return respond(() -> {
             LoginUser user = currentUser();
             return service.updateMemberStatus(tenantAccessGuard.requireTenant(user, tenantId), user.getId(), userId, request.status());
+        });
+    }
+
+    @PutMapping("/members/{userId}/password/reset")
+    @RequiresPermissions("rehealth:insurance:member:password:reset")
+    @Operation(summary = "Reset a member password to the temporary default")
+    public ResponseEntity<Result<AccountPasswordResponse.Reset>> resetMemberPassword(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
+            @PathVariable String userId) {
+        return respond(() -> {
+            LoginUser user = currentUser();
+            int currentTenant = tenantAccessGuard.requireTenant(user, tenantId);
+            return accountPasswordService.resetTenantMemberPassword(currentTenant, user.getId(), userId);
         });
     }
 

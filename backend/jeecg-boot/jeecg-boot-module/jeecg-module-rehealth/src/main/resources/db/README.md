@@ -51,6 +51,7 @@ Flyway 校验和及既有环境的升级链。
 - `V20260814_2__create_insurance_intervention_actions.sql`：人工干预行动。
 - `V20260817_1__add_insurance_adherence_events.sql`：保险计划执行事件与依从性统计基础。
 - `V20260819_1__create_versioned_care_plans.sql`：整合后的机构计划主表、不可变版本、版本项目、任务实例和审计表；5 个表和 71 个字段均带中文注释。
+- `V20260821_1__add_password_management.sql`：员工密码强制修改状态表，以及保险机构管理员重置成员密码权限；状态表及字段均带中文注释。
 
 ## 本地测试数据
 

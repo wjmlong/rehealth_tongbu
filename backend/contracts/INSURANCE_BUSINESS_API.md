@@ -1,6 +1,6 @@
 # 保险业务、PSM、RWE 与结算契约
 
-状态：本地 MVP 实现，2026-08-14。权威业务库为 JeecgBoot `software_db`（MySQL）；官网 FastAPI 是受控 BFF 和 PSM 执行器，不直接连接数据库。
+状态：本地 MVP 实现，2026-08-21。权威业务库为 JeecgBoot `software_db`（MySQL）；官网 FastAPI 是受控 BFF 和 PSM 执行器，不直接连接数据库。
 
 ## 1. 边界与租户安全
 
@@ -43,6 +43,7 @@ rehealth:insurance:report:manage
 rehealth:insurance:settlement:operate
 rehealth:insurance:audit:view
 rehealth:insurance:intervention:manage
+rehealth:insurance:member:password:reset
 ```
 
 迁移仅创建角色模板和权限关系，不自动给业务用户授权。`V20260813_3` 为本地既有 `admin` 角色补齐保险工作流权限，`V20260813_7` 补齐机构设置验收所需权限，仍不创建用户或租户成员；正式环境应通过 `insurance_org_admin` 等最小权限角色授权。
@@ -65,6 +66,7 @@ JeecgBoot `rehealth:insurance:organization:*`、`member:*`、`role:assign` 和
 | `PUT` | `/rehealth/insurance/v1/settings/members/{userId}/status` | 启用或停用当前租户成员关系，不停用全局账号 |
 | `PUT` | `/rehealth/insurance/v1/settings/members/{userId}/department` | 调整成员在当前租户内的部门，不影响其他租户 |
 | `PUT` | `/rehealth/insurance/v1/settings/members/{userId}/role` | 分配白名单内的保险业务角色，不允许通过接口授予机构管理员 |
+| `PUT` | `/rehealth/insurance/v1/settings/members/{userId}/password/reset` | 机构管理员将当前租户活跃成员密码重置为 `123456`，并要求首次登录改密 |
 | `GET` | `/rehealth/insurance/v1/settings/assignments` | 查询投保人与部门经理负责人关系 |
 | `PUT` | `/rehealth/insurance/v1/settings/assignments/{subjectRef}` | 由机构管理员维护负责人关系 |
 
@@ -74,6 +76,12 @@ JeecgBoot `rehealth:insurance:organization:*`、`member:*`、`role:assign` 和
 平台级 `admin`、`super_admin` 账号即使因本地验收加入了保险租户，也不会出现在机构成员目录、部门成员数或负责人候选中，且不能通过邀请、成员修改或负责人接口由机构管理员操作。平台管理员仍可使用其平台权限进行验收，但不属于保险机构可管理的业务成员。
 `insurance_department_manager`（保险部门经理）只能读取自己负责的投保人、所属部门及对应负责人关系，不能读取同租户其他经理或未分配投保人的信息。风险看板、列表和详情对所有保险后台角色统一应用 `rehealth_insurance_subject_manager`：角色只区分允许执行的后台操作，不裁剪负责用户的可读业务字段。
 邀请接口只匹配已经注册的 Jeecg 手机号，写入状态为 `5` 的待接受租户关系；被邀请人同意后才能登录该保险机构工作台，管理员不能通过状态接口跳过成员确认直接启用。新增成员接口只允许机构管理员创建全局账号，同时写入当前租户的 `sys_user_tenant`、当前租户部门的 `sys_user_depart` 和当前租户业务角色的 `sys_user_role`，不会修改该账号在其他租户的关系；临时密码不落日志，仅在创建响应中返回一次，生产环境应通过安全渠道交付并要求首次登录后修改。当前操作人不能停用自己的租户成员关系，避免机构管理会话自锁。
+
+## 2.2 账号密码生命周期
+
+账号密码仍由全局 `sys_user` 管理，不按租户拆分。`GET /rehealth/account/password/status` 只返回当前登录账号是否必须改密；`PUT /rehealth/account/password` 只允许当前账号提交旧密码、新密码和确认密码。官网 BFF 对应 `/api/auth/password`，用户名、用户 ID 和租户均从服务端会话取得，浏览器不能指定其他账号。新密码要求 8-72 位且不能使用 `123456` 或与账号相同。
+
+新增成员和机构管理员重置会在 `rehealth_user_password_state` 中标记 `must_change_password=1`。机构管理员重置只校验当前会话租户内的活跃成员，不会改变成员的部门、角色或其他租户关系；但由于 `sys_user.password` 是全局凭据，同一账号在多个租户中的登录密码会同时被重置。员工完成自助改密后清除强制改密状态，官网登录守卫禁止未完成改密的账号进入工作台。
 风险列表、详情和看板从 `rehealth_insurance_subject` 取得当前租户 APP 服务用户，并按当前员工 ID 关联 `rehealth_insurance_subject_manager`；APP 用户不需要加入 `sys_user_tenant`。有保险角色但没有分配时返回空范围，没有当前租户保险角色时拒绝访问。
 
 ### 2.1 投保人风险分层

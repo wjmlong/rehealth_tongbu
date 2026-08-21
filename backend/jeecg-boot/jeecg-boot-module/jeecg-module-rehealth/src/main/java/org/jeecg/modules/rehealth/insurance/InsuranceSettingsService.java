@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.jeecg.common.util.PasswordUtil;
 import org.jeecg.common.util.oConvertUtils;
+import org.jeecg.modules.rehealth.account.AccountPasswordService;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
@@ -45,9 +47,18 @@ public class InsuranceSettingsService {
             )
             """;
     private final JdbcTemplate jdbc;
+    private final AccountPasswordService accountPasswordService;
 
-    public InsuranceSettingsService(@Qualifier("rehealthSoftwareJdbcTemplate") JdbcTemplate jdbc) {
+    @Autowired
+    public InsuranceSettingsService(@Qualifier("rehealthSoftwareJdbcTemplate") JdbcTemplate jdbc,
+                                    AccountPasswordService accountPasswordService) {
         this.jdbc = jdbc;
+        this.accountPasswordService = accountPasswordService;
+    }
+
+    /** Constructor kept for focused service tests that use a mocked JDBC template. */
+    public InsuranceSettingsService(JdbcTemplate jdbc) {
+        this(jdbc, new AccountPasswordService(jdbc));
     }
 
     public InsuranceSettingsResponse.Organization organization(int tenantId) {
@@ -325,6 +336,7 @@ public class InsuranceSettingsService {
                 UUID.randomUUID().toString().replace("-", ""), userId, departmentId);
         jdbc.update("INSERT INTO sys_user_role (id, user_id, role_id, tenant_id) VALUES (?, ?, ?, ?)",
                 UUID.randomUUID().toString().replace("-", ""), userId, roleId, tenantId);
+        accountPasswordService.markNewMember(userId, now);
         return new MemberCreation(userId, username, temporaryPassword, true,
                 "成员已创建，请将临时密码安全交给成员并要求首次登录后修改");
     }
