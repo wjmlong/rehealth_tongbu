@@ -89,6 +89,13 @@ git diff --check
 
 ## Manual Android QA
 
+### Health chat and Home scrolling
+
+1. Start the managed local stack, sign in, and send a non-sensitive health-education question. Confirm the authenticated response has `status=ok`, a non-empty provider/model version, and no provider-unavailable fallback.
+2. Leave an older JeecgBoot process listening on port `8080` without its managed PID file, then run `start-local-apps.ps1`. Confirm startup fails with the owning PID instead of reporting a new healthy Jeecg process. Stop the exact stale process before continuing.
+3. On Home, send enough short and long user/AI messages to exceed one screen. Drag from message text and blank list areas in both directions; confirm the full conversation moves continuously, long messages are not truncated, and the hero item scrolls away and back without jumping during the gesture.
+4. Send a new question and switch between local conversations. Confirm the list moves to the latest message after send/reply/switch, while subsequent manual upward scrolling remains available.
+
 1. Android install/onboarding
    - Install `app/build/outputs/apk/debug/app-debug.apk`.
    - Launch app, request a registration SMS code, and confirm `/sys/registerSms` reaches

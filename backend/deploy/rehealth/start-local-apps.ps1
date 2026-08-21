@@ -76,11 +76,22 @@ function Start-ManagedProcess {
         [Parameter(Mandatory)][string]$Name,
         [Parameter(Mandatory)][string]$FilePath,
         [Parameter(Mandatory)][string[]]$ArgumentList,
-        [Parameter(Mandatory)][string]$WorkingDirectory
+        [Parameter(Mandatory)][string]$WorkingDirectory,
+        [int]$ExpectedPort = 0
     )
     if (Test-ManagedProcess $Name) {
         Write-Output "$Name is already running."
         return
+    }
+    if ($ExpectedPort -gt 0) {
+        $listener = Get-NetTCPConnection `
+            -State Listen `
+            -LocalPort $ExpectedPort `
+            -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        if ($null -ne $listener) {
+            throw "$Name cannot start because port $ExpectedPort is already owned by PID $($listener.OwningProcess). Stop the stale process before retrying."
+        }
     }
     $process = Start-Process `
         -FilePath $FilePath `
@@ -172,7 +183,8 @@ Start-ManagedProcess `
     -Name 'model-service' `
     -FilePath $python `
     -ArgumentList @('-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', '8000', '--no-access-log') `
-    -WorkingDirectory (Join-Path $repoRoot 'model-service')
+    -WorkingDirectory (Join-Path $repoRoot 'model-service') `
+    -ExpectedPort 8000
 
 $env:PYTHONPATH = Join-Path $repoRoot 'rehealth-algorithms'
 $env:REHEALTH_INTERNAL_SERVICE_CREDENTIAL_FILE = $internalCredentialFile
@@ -180,7 +192,8 @@ Start-ManagedProcess `
     -Name 'pias' `
     -FilePath $python `
     -ArgumentList @('-m', 'uvicorn', 'api.production_main:app', '--host', '127.0.0.1', '--port', '8010', '--no-access-log') `
-    -WorkingDirectory (Join-Path $repoRoot 'rehealth-algorithms')
+    -WorkingDirectory (Join-Path $repoRoot 'rehealth-algorithms') `
+    -ExpectedPort 8010
 
 $softwarePassword = Read-Secret 'software_db_password'
 $redisPassword = Read-Secret 'redis_password'
@@ -268,7 +281,8 @@ Start-ManagedProcess `
     -Name 'jeecg' `
     -FilePath $java `
     -ArgumentList $jeecgArguments `
-    -WorkingDirectory (Split-Path $jeecgJar)
+    -WorkingDirectory (Split-Path $jeecgJar) `
+    -ExpectedPort 8080
 
 $env:REHEALTH_HARDWARE_DB_ENABLED = 'true'
 $env:REHEALTH_HARDWARE_DB_URL = 'jdbc:postgresql://127.0.0.1:5432/rehealth_hardware'
@@ -288,6 +302,7 @@ Start-ManagedProcess `
     -Name 'device-service' `
     -FilePath $java `
     -ArgumentList @('-Xms256m', '-Xmx768m', '-jar', $deviceJar) `
-    -WorkingDirectory (Split-Path $deviceJar)
+    -WorkingDirectory (Split-Path $deviceJar) `
+    -ExpectedPort ([int]$deviceServicePort)
 
 Write-Output 'Local application processes started. Logs and PID files are under .local-runtime.'

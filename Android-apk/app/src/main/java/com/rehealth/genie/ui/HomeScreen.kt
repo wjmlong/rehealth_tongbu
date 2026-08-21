@@ -60,16 +60,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
@@ -143,11 +142,13 @@ internal fun HomeScreen() {
     val displayName = session.realname?.takeIf(String::isNotBlank)
         ?: session.username?.takeIf(String::isNotBlank)
     val messageListState = rememberLazyListState()
-    val showHero by remember {
-        derivedStateOf {
-            messageListState.firstVisibleItemIndex == 0 &&
-                messageListState.firstVisibleItemScrollOffset < 16 &&
-                !messageListState.isScrollInProgress
+    val latestMessageId = messages.lastOrNull()?.messageId
+    LaunchedEffect(activeConversationId, latestMessageId, chatState.isLoading) {
+        if (messages.isEmpty() && !chatState.isLoading) return@LaunchedEffect
+        withFrameNanos { }
+        val lastItemIndex = messageListState.layoutInfo.totalItemsCount - 1
+        if (lastItemIndex >= 0) {
+            messageListState.animateScrollToItem(lastItemIndex)
         }
     }
     val greetingPrefix = remember {
@@ -277,36 +278,35 @@ internal fun HomeScreen() {
             modifier = Modifier.weight(1f).fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp),
+            userScrollEnabled = true,
         ) {
             item(key = "hero") {
-                AnimatedVisibility(visible = showHero) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Spacer(Modifier.height(6.dp))
-                        Box(
-                            modifier = Modifier.size(250.dp).clip(CircleShape)
-                                .background(Brush.radialGradient(listOf(Color.White, MintSoft, Color.Transparent))),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            androidx.compose.foundation.Image(
-                                painter = painterResource(R.drawable.xiaohelin),
-                                contentDescription = "小禾灵",
-                                modifier = Modifier.size(230.dp),
-                                contentScale = ContentScale.Fit,
-                            )
-                        }
-                        Text(
-                            displayName?.let { "$greetingPrefix，$it" } ?: greetingPrefix,
-                            color = Ink,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text(
-                            "今天想从哪里开始？",
-                            color = Muted,
-                            fontSize = 13.sp,
-                            modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Spacer(Modifier.height(6.dp))
+                    Box(
+                        modifier = Modifier.size(250.dp).clip(CircleShape)
+                            .background(Brush.radialGradient(listOf(Color.White, MintSoft, Color.Transparent))),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        androidx.compose.foundation.Image(
+                            painter = painterResource(R.drawable.xiaohelin),
+                            contentDescription = "小禾灵",
+                            modifier = Modifier.size(230.dp),
+                            contentScale = ContentScale.Fit,
                         )
                     }
+                    Text(
+                        displayName?.let { "$greetingPrefix，$it" } ?: greetingPrefix,
+                        color = Ink,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        "今天想从哪里开始？",
+                        color = Muted,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
+                    )
                 }
             }
             if (behaviorState.records.isNotEmpty() || behaviorState.isLoading || behaviorState.isUploading) {
@@ -676,7 +676,7 @@ private fun HomeChatPreview(message: HealthChatMessageEntity) {
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
             if (isUser) {
-                Text(message.content, color = Ink, fontSize = 12.sp, lineHeight = 17.sp, maxLines = 3)
+                Text(message.content, color = Ink, fontSize = 12.sp, lineHeight = 17.sp)
             } else {
                 SafeMarkdownText(message.content, fontSize = 12.sp)
             }

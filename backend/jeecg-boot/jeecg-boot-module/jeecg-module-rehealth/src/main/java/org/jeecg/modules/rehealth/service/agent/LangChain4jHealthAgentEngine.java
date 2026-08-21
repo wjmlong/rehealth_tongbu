@@ -109,10 +109,13 @@ public class LangChain4jHealthAgentEngine {
             return response;
         } catch (RuntimeException failure) {
             log.warn(
-                    "LangChain4j health-agent request failed: failureType={}, rootCauseType={}, httpStatus={}",
+                    "LangChain4j health-agent request failed: failureType={}, rootCauseType={}, "
+                            + "httpStatus={}, failureSite={}, rootCauseSite={}",
                     failure.getClass().getSimpleName(),
                     rootCause(failure).getClass().getSimpleName(),
-                    httpStatus(failure)
+                    httpStatus(failure),
+                    failureSite(failure),
+                    failureSite(rootCause(failure))
             );
             return unavailable(response);
         }
@@ -202,6 +205,15 @@ public class LangChain4jHealthAgentEngine {
             current = current.getCause();
         }
         return null;
+    }
+
+    private String failureSite(Throwable failure) {
+        StackTraceElement[] stackTrace = failure.getStackTrace();
+        if (stackTrace.length == 0) {
+            return "unknown";
+        }
+        StackTraceElement top = stackTrace[0];
+        return top.getClassName() + "#" + top.getMethodName() + ":" + top.getLineNumber();
     }
 
     private String systemPrompt(String authorizedContextJson) {

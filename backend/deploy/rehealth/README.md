@@ -484,6 +484,11 @@ powershell -ExecutionPolicy Bypass -File backend/deploy/rehealth/start-local-app
 powershell -ExecutionPolicy Bypass -File backend/deploy/rehealth/stop-local-apps.ps1
 ```
 
+The launcher now verifies each expected loopback port before starting its managed process. If an
+older untracked JeecgBoot or Python process still owns `8080`, `8000`, `8010`, or the selected Device
+Service port, startup fails with the owning PID instead of writing a misleading fresh PID file while
+the new process exits on a bind conflict.
+
 If Docker/WSL reserves the default `8091` host port on Windows, choose an
 available loopback port without changing tracked files:
 
