@@ -49,4 +49,21 @@ class SafeMarkdownTest {
 
         assertEquals("<script>alert('x')</script>", text)
     }
+
+    @Test
+    fun `converts markdown table into structured rows and cells`() {
+        val table = parseSafeMarkdown(
+            """
+            | 项目 | 数值 | 说明 |
+            |---|---:|---|
+            | BMI | 22.4 | 正常 |
+            | 腰围 | 82.6 cm | 男性 |
+            """.trimIndent(),
+        ).single()
+
+        assertEquals(SafeMarkdownBlockType.Table, table.type)
+        assertEquals(listOf("项目", "数值", "说明"), table.table!!.headers.map { it.text })
+        assertEquals(listOf("BMI", "22.4", "正常"), table.table.rows[0].map { it.text })
+        assertEquals(listOf("腰围", "82.6 cm", "男性"), table.table.rows[1].map { it.text })
+    }
 }

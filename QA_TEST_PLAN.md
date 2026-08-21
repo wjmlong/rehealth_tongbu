@@ -180,6 +180,13 @@ git diff --check
    - Send a response containing headings, lists, bold text, inline code, a Markdown link,
      a remote image and raw HTML. Confirm the supported formatting renders on Home and chat,
      while HTML is inert, no remote image is loaded, and no link target opens automatically.
+   - Ask for a long health summary containing multiple Markdown tables. Confirm the response
+     does not stop in the middle of a row: the provider output budget and length-continuation
+     path complete the answer, and the Android bubble renders each table as a bordered grid
+     with horizontal scrolling for wide tables rather than displaying pipe characters.
+   - Delay the health-agent response beyond the normal API timeout once, then return it on the
+     retry. Confirm the mobile client uses the health-agent long-timeout client and reuses the
+     same request id so no duplicate user message or assistant answer is created.
    - Send a question from Home, leave and return to the Home tab, and reopen the app as the same
      user. Confirm the Home preview is sourced from the same latest Room conversation rather
      than a temporary one-turn state.

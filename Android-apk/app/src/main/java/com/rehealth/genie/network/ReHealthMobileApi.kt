@@ -94,8 +94,16 @@ class ReHealthMobileApi(
         .callTimeout(PHOTO_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .build()
 
+    // Health-agent calls may execute several authorized tool rounds before the model writes
+    // the answer. Keep this timeout separate from the short telemetry/API defaults.
+    private val healthAgentClient = authenticatedClient.newBuilder()
+        .readTimeout(HEALTH_AGENT_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .callTimeout(HEALTH_AGENT_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .build()
+
     private val api: ReHealthApi = createApi(authenticatedClient)
     private val photoAnalysisApi: ReHealthApi = createApi(photoAnalysisClient)
+    private val healthAgentApi: ReHealthApi = createApi(healthAgentClient)
 
     private fun createApi(client: OkHttpClient): ReHealthApi = Retrofit.Builder()
         .baseUrl(normalizedBaseUrl)
@@ -222,12 +230,12 @@ suspend fun uploadRhiSnapshot(
     suspend fun sendHealthAgentMessage(
         request: HealthAgentMessageRequest,
     ): RemotePhmOutcome<HealthAgentResponse> =
-        unwrap { api.sendHealthAgentMessage(request) }
+        unwrap { healthAgentApi.sendHealthAgentMessage(request) }
 
     suspend fun getLatestHealthAgentConversation(
         limit: Int = 100,
     ): RemotePhmOutcome<HealthAgentConversation?> =
-        unwrapNullable { api.getLatestHealthAgentConversation(limit) }
+        unwrapNullable { healthAgentApi.getLatestHealthAgentConversation(limit) }
 
     suspend fun analyzeBehaviorPhoto(
         image: ByteArray,
@@ -284,6 +292,8 @@ suspend fun uploadRhiSnapshot(
         const val PHOTO_WRITE_TIMEOUT_SECONDS = 45L
         const val PHOTO_READ_TIMEOUT_SECONDS = 100L
         const val PHOTO_CALL_TIMEOUT_SECONDS = 110L
+        const val HEALTH_AGENT_READ_TIMEOUT_SECONDS = 90L
+        const val HEALTH_AGENT_CALL_TIMEOUT_SECONDS = 100L
     }
 }
 

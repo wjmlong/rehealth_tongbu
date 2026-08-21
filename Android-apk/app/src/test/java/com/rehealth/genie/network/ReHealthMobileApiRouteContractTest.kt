@@ -372,6 +372,41 @@ class ReHealthMobileApiRouteContractTest {
     }
 
     @Test
+    fun `health agent uses a dedicated long read timeout for tool-backed responses`() = runTest {
+        server.start()
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody(
+                    """{"success":true,"code":200,"result":{"request_id":"agent-timeout-1","status":"ok","answer":"已完成健康信息整理"}}""",
+                )
+                .setBodyDelay(300, TimeUnit.MILLISECONDS),
+        )
+        val api = ReHealthMobileApi(
+            baseUrl = server.url("/jeecg-boot/").toString(),
+            httpClient = OkHttpClient.Builder()
+                .readTimeout(100, TimeUnit.MILLISECONDS)
+                .build(),
+            apiToken = "synthetic-test-token",
+        )
+
+        val result = assertIs<RemotePhmOutcome.Success<*>>(
+            api.sendHealthAgentMessage(
+                HealthAgentMessageRequest(
+                    requestId = "agent-timeout-1",
+                    conversationId = "conversation-1",
+                    clientMessageId = "message-timeout-1",
+                    message = "整理我的健康数据",
+                    timeZone = "Asia/Shanghai",
+                ),
+            ),
+        ).data as com.rehealth.genie.network.dto.HealthAgentResponse
+
+        assertEquals("已完成健康信息整理", result.answer)
+        assertRequest("/jeecg-boot/rehealth/mobile/agent/messages", "POST")
+    }
+
+    @Test
     fun `uses authenticated software loop routes and parses persistence acknowledgements`() = runTest {
         server.start()
         listOf(

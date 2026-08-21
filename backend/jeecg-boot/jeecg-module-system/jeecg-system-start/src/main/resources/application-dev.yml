@@ -447,7 +447,7 @@ rehealth:
       api-key-file: ${REHEALTH_LLM_API_KEY_FILE:}
       model: ${REHEALTH_LLM_MODEL:deepseek-v4-flash}
       timeout-seconds: ${REHEALTH_LLM_TIMEOUT_SECONDS:20}
-      max-tokens: ${REHEALTH_LLM_MAX_TOKENS:800}
+      max-tokens: ${REHEALTH_LLM_MAX_TOKENS:1600}
     rate-limit:
       requests: ${REHEALTH_AGENT_RATE_LIMIT_REQUESTS:20}
       window-seconds: ${REHEALTH_AGENT_RATE_LIMIT_WINDOW_SECONDS:60}

@@ -1,14 +1,20 @@
 package com.rehealth.genie.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -21,6 +27,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rehealth.genie.ui.theme.Ink
+import com.rehealth.genie.ui.theme.Line
 import com.rehealth.genie.ui.theme.Mint
 import com.rehealth.genie.ui.theme.MintSoft
 import com.rehealth.genie.ui.theme.Muted
@@ -31,11 +38,18 @@ internal enum class SafeMarkdownBlockType {
     Bullet,
     Quote,
     Code,
+    Table,
 }
+
+internal data class SafeMarkdownTable(
+    val headers: List<AnnotatedString>,
+    val rows: List<List<AnnotatedString>>,
+)
 
 internal data class SafeMarkdownBlock(
     val type: SafeMarkdownBlockType,
     val content: AnnotatedString,
+    val table: SafeMarkdownTable? = null,
 )
 
 /**
@@ -64,7 +78,10 @@ internal fun parseSafeMarkdown(markdown: String): List<SafeMarkdownBlock> {
         }
     }
 
-    normalized.lines().forEach { rawLine ->
+    val lines = normalized.lines()
+    var index = 0
+    while (index < lines.size) {
+        val rawLine = lines[index]
         val line = rawLine.trimEnd()
         if (line.trimStart().startsWith("```")) {
             flushParagraph()
@@ -76,15 +93,45 @@ internal fun parseSafeMarkdown(markdown: String): List<SafeMarkdownBlock> {
                 code.clear()
             }
             inCodeFence = !inCodeFence
-            return@forEach
+            index += 1
+            continue
         }
         if (inCodeFence) {
             code += line
-            return@forEach
+            index += 1
+            continue
         }
         if (line.isBlank()) {
             flushParagraph()
-            return@forEach
+            index += 1
+            continue
+        }
+
+        val nextLine = lines.getOrNull(index + 1)?.trimEnd()
+        val headerCells = splitTableRow(line)
+        if (headerCells.size >= 2 && nextLine != null && isTableSeparator(nextLine)) {
+            flushParagraph()
+            val rawRows = mutableListOf<List<String>>()
+            var rowIndex = index + 2
+            while (rowIndex < lines.size) {
+                val candidate = lines[rowIndex].trimEnd()
+                if (candidate.isBlank() || splitTableRow(candidate).size < 2) break
+                rawRows += splitTableRow(candidate)
+                rowIndex += 1
+            }
+            val columnCount = maxOf(headerCells.size, rawRows.maxOfOrNull { it.size } ?: 0)
+            if (columnCount >= 2) {
+                blocks += SafeMarkdownBlock(
+                    type = SafeMarkdownBlockType.Table,
+                    content = AnnotatedString(""),
+                    table = SafeMarkdownTable(
+                        headers = tableCells(headerCells, columnCount),
+                        rows = rawRows.map { tableCells(it, columnCount) },
+                    ),
+                )
+                index = rowIndex
+                continue
+            }
         }
 
         val trimmed = line.trimStart()
@@ -128,6 +175,7 @@ internal fun parseSafeMarkdown(markdown: String): List<SafeMarkdownBlock> {
             }
             else -> paragraph += line
         }
+        index += 1
     }
     flushParagraph()
     if (code.isNotEmpty()) {
@@ -137,6 +185,22 @@ internal fun parseSafeMarkdown(markdown: String): List<SafeMarkdownBlock> {
         listOf(SafeMarkdownBlock(SafeMarkdownBlockType.Paragraph, AnnotatedString("")))
     }
 }
+
+private fun splitTableRow(line: String): List<String> {
+    var value = line.trim()
+    if (value.startsWith("|")) value = value.drop(1)
+    if (value.endsWith("|") && !value.endsWith("\\|")) value = value.dropLast(1)
+    return value
+        .split(Regex("(?<!\\\\)\\|"))
+        .map { it.replace("\\|", "|").trim() }
+}
+
+private fun isTableSeparator(line: String): Boolean = TABLE_SEPARATOR.matches(line)
+
+private fun tableCells(cells: List<String>, columnCount: Int): List<AnnotatedString> =
+    (0 until columnCount).map { index ->
+        parseSafeInlineMarkdown(cells.getOrNull(index).orEmpty())
+    }
 
 private fun parseSafeInlineMarkdown(source: String): AnnotatedString = buildAnnotatedString {
     var cursor = 0
@@ -197,6 +261,15 @@ internal fun SafeMarkdownText(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         parseSafeMarkdown(markdown).forEach { block ->
+            if (block.type == SafeMarkdownBlockType.Table) {
+                block.table?.let { table ->
+                    SafeMarkdownTableView(
+                        table = table,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                return@forEach
+            }
             val blockModifier = when (block.type) {
                 SafeMarkdownBlockType.Quote -> Modifier.fillMaxWidth().background(MintSoft)
                     .padding(horizontal = 10.dp, vertical = 7.dp)
@@ -226,10 +299,51 @@ internal fun SafeMarkdownText(
     }
 }
 
+@Composable
+private fun SafeMarkdownTableView(
+    table: SafeMarkdownTable,
+    modifier: Modifier = Modifier,
+) {
+    val scrollState = rememberScrollState()
+    val shape = RoundedCornerShape(8.dp)
+    Row(
+        modifier = modifier
+            .horizontalScroll(scrollState)
+            .border(1.dp, Line, shape)
+            .clip(shape),
+    ) {
+        Column {
+            TableRow(table.headers, header = true)
+            table.rows.forEach { row -> TableRow(row, header = false) }
+        }
+    }
+}
+
+@Composable
+private fun TableRow(cells: List<AnnotatedString>, header: Boolean) {
+    Row {
+        cells.forEach { cell ->
+            Text(
+                text = cell,
+                color = if (header) Ink else Muted,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                fontWeight = if (header) FontWeight.Bold else FontWeight.Normal,
+                modifier = Modifier
+                    .width(116.dp)
+                    .background(if (header) MintSoft else Color.White)
+                    .border(0.5.dp, Line)
+                    .padding(horizontal = 8.dp, vertical = 7.dp),
+            )
+        }
+    }
+}
+
 private const val MAX_MARKDOWN_CHARS = 12_000
 private val HEADING = Regex("^(#{1,3})\\s+(.+)$")
 private val BULLET = Regex("^[-+*]\\s+(.+)$")
 private val NUMBERED = Regex("^(\\d{1,3})[.)]\\s+(.+)$")
+private val TABLE_SEPARATOR = Regex("""^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$""")
 private val INLINE_TOKEN = Regex(
     """!\[(?<imageAlt>[^\]]*)]\([^)]+\)|\[(?<linkLabel>[^\]]+)]\([^)]+\)|\*\*(?<boldA>[^*]+)\*\*|__(?<boldB>[^_]+)__|`(?<code>[^`\n]+)`|\*(?<italicA>[^*\n]+)\*|_(?<italicB>[^_\n]+)_""",
 )

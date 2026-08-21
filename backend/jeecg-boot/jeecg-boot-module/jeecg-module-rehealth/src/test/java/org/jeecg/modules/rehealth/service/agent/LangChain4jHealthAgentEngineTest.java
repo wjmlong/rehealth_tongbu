@@ -10,6 +10,7 @@ import dev.langchain4j.data.message.ToolExecutionResultMessage;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
+import dev.langchain4j.model.output.FinishReason;
 import org.jeecg.modules.rehealth.mobile.dto.HealthAgentHistoryMessageDto;
 import org.jeecg.modules.rehealth.mobile.dto.HealthAgentModelRequestDto;
 import org.jeecg.modules.rehealth.mobile.dto.PatientProfileDto;
@@ -201,6 +202,32 @@ class LangChain4jHealthAgentEngineTest {
         assertTrue(model.profileResult.contains("\"name\":\"小禾\""));
     }
 
+    @Test
+    void continuesAResponseWhenTheProviderStopsAtTheOutputLimit() {
+        LengthLimitedChatModel model = new LengthLimitedChatModel();
+        LangChain4jHealthAgentEngine engine = new LangChain4jHealthAgentEngine(
+                model,
+                "test-model",
+                profileTool(new StubReHealthBusinessRepository()),
+                healthTool(new StubReHealthBusinessRepository())
+        );
+        HealthAgentModelRequestDto legacy = new HealthAgentModelRequestDto();
+        legacy.requestId = "length-limited";
+        legacy.message = "整理我的健康数据";
+
+        var response = engine.respond(new HealthAgentEngineRequest(
+                "tenant-a",
+                "user-a",
+                ZoneId.of("Asia/Shanghai"),
+                new HealthAgentPromptContext(legacy, "{}"),
+                List.of()
+        ));
+
+        assertEquals("ok", response.status);
+        assertEquals("第一段表格行\n第二段表格行已完整结束", response.answer);
+        assertEquals(2, model.calls);
+    }
+
     private static CurrentUserProfileTool profileTool(StubReHealthBusinessRepository repository) {
         return new CurrentUserProfileTool(repository, new ObjectMapper());
     }
@@ -276,6 +303,27 @@ class LangChain4jHealthAgentEngineTest {
             return ChatResponse.builder()
                     .aiMessage(AiMessage.from("你是小禾"))
                     .modelName("test-model")
+                    .build();
+        }
+    }
+
+    private static class LengthLimitedChatModel implements ChatModel {
+        int calls;
+
+        @Override
+        public ChatResponse chat(ChatRequest request) {
+            calls++;
+            if (calls == 1) {
+                return ChatResponse.builder()
+                        .aiMessage(AiMessage.from("第一段表格行"))
+                        .modelName("test-model")
+                        .finishReason(FinishReason.LENGTH)
+                        .build();
+            }
+            return ChatResponse.builder()
+                    .aiMessage(AiMessage.from("第二段表格行已完整结束"))
+                    .modelName("test-model")
+                    .finishReason(FinishReason.STOP)
                     .build();
         }
     }

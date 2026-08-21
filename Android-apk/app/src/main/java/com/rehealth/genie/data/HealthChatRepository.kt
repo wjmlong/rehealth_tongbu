@@ -8,6 +8,7 @@ import com.rehealth.genie.network.dto.HealthAgentResponse
 import java.time.ZoneId
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.delay
 
 class HealthChatRepository(
     private val dao: HealthChatDao,
@@ -53,15 +54,14 @@ class HealthChatRepository(
                 createdAt = createdAt,
             ),
         )
-        val result = apiClient.sendHealthAgentMessage(
-            HealthAgentMessageRequest(
-                requestId = requestId,
-                conversationId = conversationId,
-                clientMessageId = messageId,
-                message = content,
-                timeZone = ZoneId.systemDefault().id,
-            ),
+        val request = HealthAgentMessageRequest(
+            requestId = requestId,
+            conversationId = conversationId,
+            clientMessageId = messageId,
+            message = content,
+            timeZone = ZoneId.systemDefault().id,
         )
+        val result = sendWithRetry(request)
         when (result) {
             is ApiResult.Success -> {
                 dao.updateDeliveryStatus(userId, messageId, DELIVERY_SYNCED)
@@ -91,6 +91,26 @@ class HealthChatRepository(
             else -> dao.updateDeliveryStatus(userId, messageId, DELIVERY_FAILED)
         }
         return result
+    }
+
+    private suspend fun sendWithRetry(
+        request: HealthAgentMessageRequest,
+    ): ApiResult<HealthAgentResponse> {
+        var result = apiClient.sendHealthAgentMessage(request)
+        if (shouldRetry(result)) {
+            // Reuse the same requestId so a response that completed on the server while the
+            // mobile socket timed out is recovered idempotently instead of creating a duplicate.
+            delay(AGENT_RETRY_DELAY_MILLIS)
+            result = apiClient.sendHealthAgentMessage(request)
+        }
+        return result
+    }
+
+    private fun shouldRetry(result: ApiResult<HealthAgentResponse>): Boolean = when (result) {
+        is ApiResult.ServiceUnavailable -> true
+        is ApiResult.NetworkError -> true
+        is ApiResult.Success -> result.data.retryable == true
+        else -> false
     }
 
     suspend fun createConversation(): String? {
@@ -192,5 +212,6 @@ class HealthChatRepository(
         const val DELIVERY_FAILED = "FAILED"
         const val DEFAULT_TITLE = "新对话"
         const val MAX_TITLE_LENGTH = 32
+        const val AGENT_RETRY_DELAY_MILLIS = 750L
     }
 }

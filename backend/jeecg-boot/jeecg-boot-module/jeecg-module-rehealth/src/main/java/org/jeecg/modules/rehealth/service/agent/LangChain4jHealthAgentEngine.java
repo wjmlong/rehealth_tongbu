@@ -14,6 +14,7 @@ import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.openai.OpenAiChatModel;
+import dev.langchain4j.model.output.FinishReason;
 import org.jeecg.modules.rehealth.mobile.dto.HealthAgentHistoryMessageDto;
 import org.jeecg.modules.rehealth.mobile.dto.HealthAgentResponseDto;
 import org.slf4j.Logger;
@@ -50,7 +51,7 @@ public class LangChain4jHealthAgentEngine {
             @Value("${rehealth.health-agent.langchain4j.api-key-file:}") String apiKeyFile,
             @Value("${rehealth.health-agent.langchain4j.model:deepseek-v4-flash}") String modelName,
             @Value("${rehealth.health-agent.langchain4j.timeout-seconds:20}") long timeoutSeconds,
-            @Value("${rehealth.health-agent.langchain4j.max-tokens:800}") int maxTokens,
+            @Value("${rehealth.health-agent.langchain4j.max-tokens:1600}") int maxTokens,
             CurrentUserProfileTool currentUserProfileTool,
             CurrentUserHealthContextTool currentUserHealthContextTool
     ) {
@@ -58,7 +59,7 @@ public class LangChain4jHealthAgentEngine {
         this.apiKey = resolveSecret(apiKey, apiKeyFile);
         this.modelName = modelName == null ? "" : modelName.trim();
         this.timeout = Duration.ofSeconds(Math.max(1, timeoutSeconds));
-        this.maxTokens = Math.max(128, Math.min(maxTokens, 2000));
+        this.maxTokens = Math.max(128, Math.min(maxTokens, 3000));
         this.currentUserProfileTool = currentUserProfileTool;
         this.currentUserHealthContextTool = currentUserHealthContextTool;
     }
@@ -73,7 +74,7 @@ public class LangChain4jHealthAgentEngine {
         this.apiKey = "test";
         this.modelName = modelName;
         this.timeout = Duration.ofSeconds(5);
-        this.maxTokens = 800;
+        this.maxTokens = 1600;
         this.currentUserProfileTool = currentUserProfileTool;
         this.currentUserHealthContextTool = currentUserHealthContextTool;
         this.chatModel = chatModel;
@@ -108,7 +109,7 @@ public class LangChain4jHealthAgentEngine {
                 return unavailable(response);
             }
             response.status = "ok";
-            response.answer = bounded(answer.strip(), 2000);
+            response.answer = bounded(answer.strip(), 8000);
             response.modelVersion = modelResponse.modelName() == null
                     ? modelName
                     : modelResponse.modelName();
@@ -155,6 +156,13 @@ public class LangChain4jHealthAgentEngine {
                     .build());
             AiMessage assistant = response == null ? null : response.aiMessage();
             if (assistant == null || !assistant.hasToolExecutionRequests()) {
+                if (response != null
+                        && assistant != null
+                        && FinishReason.LENGTH.equals(response.finishReason())
+                        && assistant.text() != null
+                        && !assistant.text().isBlank()) {
+                    return continueLengthLimitedAnswer(response, workingMessages, tools, assistant);
+                }
                 return response;
             }
             workingMessages.add(assistant);
@@ -164,6 +172,37 @@ public class LangChain4jHealthAgentEngine {
             }
         }
         throw new IllegalStateException("health-agent tool round limit exceeded");
+    }
+
+    private ChatResponse continueLengthLimitedAnswer(
+            ChatResponse firstResponse,
+            List<ChatMessage> messages,
+            List<ToolSpecification> tools,
+            AiMessage firstAnswer
+    ) {
+        List<ChatMessage> continuationMessages = new ArrayList<>(messages);
+        continuationMessages.add(firstAnswer);
+        continuationMessages.add(UserMessage.from(
+                "上一段回答触及单次输出上限。请从中断位置继续，只输出续写内容，不要重复已经写过的内容；"
+                        + "如果正在 Markdown 表格中，请先补齐当前行并完整结束表格，再继续后面的内容。"
+        ));
+        ChatResponse continuation = model().chat(ChatRequest.builder()
+                .messages(continuationMessages)
+                .toolSpecifications(tools)
+                .build());
+        AiMessage continuationAnswer = continuation == null ? null : continuation.aiMessage();
+        if (continuationAnswer == null || continuationAnswer.text() == null
+                || continuationAnswer.text().isBlank() || continuationAnswer.hasToolExecutionRequests()) {
+            return firstResponse;
+        }
+        String combined = firstAnswer.text().stripTrailing()
+                + "\n"
+                + continuationAnswer.text().stripLeading();
+        return ChatResponse.builder()
+                .aiMessage(AiMessage.from(combined))
+                .modelName(continuation.modelName() == null ? firstResponse.modelName() : continuation.modelName())
+                .finishReason(continuation.finishReason())
+                .build();
     }
 
     private String toolResult(
@@ -264,6 +303,7 @@ public class LangChain4jHealthAgentEngine {
                 8. 回答任何基于用户本人健康数据的个体化问题前，必须调用 get_current_user_health_context；工具不接收用户或租户参数，禁止尝试查询其他人。
                 9. 只使用工具 coverage 标为 available 的分区，并说明数据日期、范围和明显缺失；不得把 isMock=true 的数据当作用户真实健康依据。
                 10. 工具只返回有界摘要，不代表完整病历或原始信号；不要声称“已查看全部病历”，也不要根据趋势声称因果关系。
+                11. 输出 Markdown 表格时必须完整写出表头、分隔线和所有计划输出的行；如果内容较多，拆成多个小表格或只保留重点，不要在表格行中间停止。
 
                 服务端授权健康画像 JSON：
                 """ + (authorizedContextJson == null || authorizedContextJson.isBlank()

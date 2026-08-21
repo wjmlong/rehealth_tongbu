@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,6 +36,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -72,6 +74,17 @@ fun HealthChatScreen(
     val messages by chatViewModel.messages.collectAsState()
     val uiState by chatViewModel.uiState.collectAsState()
     var inputText by remember { mutableStateOf("") }
+    val messageListState = rememberLazyListState()
+
+    LaunchedEffect(messages.size, uiState.isLoading) {
+        val totalItems = messageListState.layoutInfo.totalItemsCount
+        val lastVisible = messageListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+        val wasNearBottom = totalItems == 0 || lastVisible >= totalItems - 2
+        if (messages.isNotEmpty() && wasNearBottom) {
+            val lastItem = messages.lastIndex + if (uiState.isLoading) 1 else 0
+            messageListState.animateScrollToItem(lastItem)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -106,6 +119,7 @@ fun HealthChatScreen(
             )
         } else {
             LazyColumn(
+                state = messageListState,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
