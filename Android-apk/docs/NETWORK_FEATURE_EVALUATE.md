@@ -6,6 +6,14 @@
 
 Status: D1 narrowed scope. Production durable telemetry sync is intentionally E2.
 
+> 状态更新（2026-08-21）：本文是 D1 设计记录。文中“推迟到 E2”的条目已由
+> D2/E2.1 完成：`/measurements/batch` 已具备 durable 上传、幂等与
+> Device Service/TimescaleDB 持久化；认证感知队列（401 暂停、重新登录恢复）与
+> WorkManager 恢复均已实现。旧 `ReHealthBackendClient`/`ring/snapshots` 快照路径
+> 已从代码删除；BuildConfig 不再包含 `REHEALTH_API_TOKEN`，认证由
+> `AuthenticatedApiClient` 使用加密会话 token 完成。当前权威状态见
+> `REHEALTH_INTEGRATION_CONTRACT.md` 与 `D2_TELEMETRY_SYNC_PLAN.md`。
+
 ## Scope
 
 D1 delivers:
@@ -64,9 +72,11 @@ https://rehealth.youngjimmy.store/jeecg-boot
 Source: `app/build.gradle.kts`
 
 ```kotlin
-buildConfigField("String", "REHEALTH_API_BASE_URL", "\"https://rehealth.youngjimmy.store/jeecg-boot\"")
-buildConfigField("String", "REHEALTH_API_TOKEN", "\"\"")
+buildConfigField("String", "REHEALTH_API_BASE_URL", "\"https://rehealth.youngjimmy.store/jeecg-boot/\"")
 ```
+
+（2026-08-21 注：当前 BuildConfig 只有 `REHEALTH_API_BASE_URL`；token 不再由
+BuildConfig 提供，而是登录后写入加密会话存储。）
 
 Override for physical-device QA: change those fields (or the local.properties-driven
 build type) to the LAN IP of the backend host, e.g.:

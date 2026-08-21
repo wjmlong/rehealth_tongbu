@@ -1,6 +1,6 @@
 ---
 name: rehealth-android-mvp
-description: Use when implementing or reviewing the ReHealth Android MVP: real MRD ring collection, Room persistence, CVD 16-feature extraction, backend upload, model-service risk scoring, intervention feedback, and QA release gates. Do not use for unrelated Android apps.
+description: Use when implementing or reviewing the ReHealth Android MVP: real HBand/Viomi Cloud collection, Room persistence, CVD 16-feature extraction, backend upload, model-service risk scoring, intervention feedback, and QA release gates. Do not use for unrelated Android apps.
 ---
 
 # ReHealth Android MVP Skill
@@ -12,10 +12,12 @@ Help Codex reliably execute the ReHealth Android MVP workflow.
 The target vertical slice is:
 
 ```text
-Onboarding → MRD ring binding → real data collection → Room persistence
+Onboarding → HBand MT116 BLE / Viomi cloud binding → real data collection → Room persistence
 → CVD 16-feature vector → upload queue → backend API → model-service risk score
 → intervention recommendation → user feedback → trend/QA report
 ```
+
+Release 只注册 HBand 与 Viomi Cloud；MRD/RWFit/Mock 仅存在于 Debug 工程测试。
 
 ## Required context
 
@@ -31,7 +33,7 @@ Before acting, read:
 
 ```text
 Android-apk:
-  BLE / MRD SDK / Room / Compose / local features / upload queue
+  BLE (HBand/MRD/RWFit) / Viomi Cloud / Room / Compose / local features / upload queue
 
 backend:
   JeecgBoot account, device, mobile API, admin/doctor operations
@@ -94,7 +96,7 @@ Next recommended task
 ## MVP acceptance checklist
 
 - App builds.
-- User can bind ring.
+- User can bind HBand/Viomi device.
 - Real data is persisted in Room.
 - Background collection works.
 - Feature vector can be generated.

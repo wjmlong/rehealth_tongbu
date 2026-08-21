@@ -150,16 +150,22 @@ rehealth_tongbu/
 │  │  └─ jeecg-boot-module/
 │  │     └─ jeecg-module-rehealth/  ReHealth 业务模块
 │  ├─ jeecgboot-vue3/           JeecgBoot 管理前端
+│  ├─ docs/                     后端架构、API、数据库与保险链路文档
 │  ├─ deploy/rehealth/          Compose、Gateway、Kafka、TimescaleDB、监控
 │  └─ qa/                       拓扑、迁移和发布门禁
 │
 ├─ model-service/               FastAPI 模型与健康助手服务
 │  ├─ app/                      API、模型加载、执行保护和安全策略
 │  ├─ models/                   本地模型制品挂载位置
+│  ├─ config/                   本地 ai-chat 示例配置（真实密钥不入库）
 │  ├─ tests/                    Python 自动化测试
 │  └─ docs/                     模型契约、制品和注册表文档
 │
 ├─ rehealth-algorithms/         HealthAgent、PIAS、训练和算法研究
+├─ sql/                         多数据库结构快照、初始化与测试数据（入口 `sql/README.md`）
+├─ config/                      Jeecg 在线代码生成模板
+├─ docs/                        管理层全景报告、租户创建流程与云米接口测试等运营文档
+├─ .agents/skills/              仓库级代理技能说明
 ├─ docs/archive/                历史验收与 QA 快照（只读参考）
 ├─ tools/                       仓库级源码辅助工具（不存放下载的工具链）
 ├─ STATUS.md                    当前实现与发布状态唯一入口
@@ -167,6 +173,9 @@ rehealth_tongbu/
 ├─ QA_TEST_PLAN.md              测试计划
 └─ RELEASE_CHECKLIST.md         发布检查清单
 ```
+
+公司官网（FastAPI BFF + 静态前端）位于独立仓库 `E:\code\RehealthCore_website`，
+通过 `POST /sys/webLogin` 复用本仓库 JeecgBoot 的用户/租户/角色认证；其结构与运行方式见该仓库根 `README.md`。
 
 ## 4. 核心数据流
 
@@ -292,7 +301,7 @@ RHI v2 当前以可回滚的 preview 链路接入，不替代既有临床风险�
 
 Android 当前保留独立的本地 `RDI rdi-rule-1.0.1` 算法与持久化骨架，但它
 不再驱动“健康改善得分”。归因页顶部改由 `RHI Lite
-rhi-deterministic-preview-2.1.0-android-lite` 从 Room、经核对的健康档案
+rhi-deterministic-preview-2.2.0-android-lite` 从 Room、经核对的健康档案
 和当前用户资料计算 RHI-100；阈值曲线、适用域权重、可信度收缩和
 `0.25/0.75` 平滑与 RHI v2 预览规范一致。Room v10 通过显式 8→9→10
 迁移保存日均久坐、腰围、正式 VO₂max、HbA1c、eGFR、经确认上臂袖带
@@ -476,15 +485,25 @@ python backend/qa/rehealth_stack_gate.py topology `
 | `Android-apk/docs/wearable/HBAND_DEVICE_QA.md` | HBand 真机安装、认证、采集与证据清单 | HBand 构建开关、指标映射或真机结果变化时 |
 | `backend/contracts/openapi/rehealth-mobile-v1.openapi.json` | 公共移动 API 机器可读契约 | 公共 API 字段或路径变化时 |
 | `backend/contracts/openapi/rehealth-admin-v1.openapi.json` | 官网管理后台患者只读 API 契约 | 后台路径、权限、租户隔离、筛选或返回字段变化时 |
+| `backend/docs/MOBILE_API.md` | 移动 API E1 行为、端点、软件库/遥测分离与 Android 客户端契约 | 移动端点、DTO、完成语义或 software_db 边界变化时 |
+| `backend/docs/REHEALTH_BACKEND_API.md` | 后端模块边界、端点总览、官网/保险桥接与数据库拆分状态 | 模块边界、端点分组或数据源拆分变化时 |
+| `backend/docs/CANONICAL_BACKEND_RISK_PATH.md` | 标准后端风险路径与退役旧路径 | 风险编排、ModelServiceClient 边界或退役路径变化时 |
+| `backend/docs/HARDWARE_INGEST_ARCHITECTURE.md` | 硬件遥测接入、云米适配器与回调契约 | 遥测校验、TimescaleDB 写入、云米上报或原始信号策略变化时 |
 | `backend/contracts/adrs/` | 跨服务架构决策 | 权威边界、消息系统、数据库或信任模型变化时 |
 | `backend/contracts/INSURANCE_BUSINESS_API.md` | 保险数据导入、PSM、RWE、结算和 App 授权契约 | 保险 API、状态机、角色权限、隐私或幂等语义变化时 |
 | `backend/contracts/INSURANCE_STAFF_APP_USER_MATCHING_ANALYSIS.md` | 保险员工、平台 APP 用户、多机构服务、后台角色、现有表复用和负责人匹配的持续分析 | 机构员工权限、APP 领域服务关系、后台角色、负责人范围、多机构服务或相关产品决策变化时 |
 | `backend/docs/保险干预依从性完整链路.md` | 保险计划反馈从 APP 本地队列、服务端计分到工作台 28 天聚合的完整链路、当前口径和演进计划 | 反馈类型、依从性公式、统计窗口、任务分母、多源证据、多机构复用或展示语义变化时 |
-| `backend/docs/REHEALTH_DB_SCHEMA.md` | Room、MySQL 与 TimescaleDB 数据库结构总览及 228 张基础表逐表附录入口 | Room/MySQL/TimescaleDB Schema、索引、关系或字段语义变化时 |
+| `backend/docs/REHEALTH_DB_SCHEMA.md` | Room、MySQL 与 TimescaleDB 数据库结构总览及逐表附录入口（2026-08-19 快照 228 张，运行库 229 张） | Room/MySQL/TimescaleDB Schema、索引、关系或字段语义变化时 |
 | `sql/README.md` | 多数据库当前结构快照、中文注释、基础数据、测试数据与执行顺序 | 统一 SQL 资产、初始化边界或空库验证方式变化时 |
 | `backend/deploy/rehealth/README.md` | 部署拓扑和运行方式 | 服务、端口、环境变量、secret、容器变化时 |
 | `model-service/docs/API_CONTRACT.md` | 模型服务接口 | 模型请求/响应、版本或就绪语义变化时 |
+| `model-service/docs/REAL_MODEL_INTEGRATION.md`、`MODEL_ARTIFACTS.md`、`MODEL_REGISTRY.md`、`REHEALTH_ALGORITHMS_MODEL_TRACE.md` | 真实模型集成门禁、制品、注册表与制品溯源 | 制品、校验门禁、模型版本或 Mock 策略变化时 |
+| `rehealth-algorithms/README.md` | 算法研究仓库结构与工作流 | 算法目录、仿真/训练能力或 PIAS 实现变化时 |
 | `rehealth-algorithms/docs/RHI_V2_ALGORITHM_PLAN.md` | RHI v2 双轨模型、32 维协议、迁移与验证门禁 | RHI 字段、评分、证据或上线阶段变化时 |
+| `docs/ReHealth_APP_全景报告_2026-08-13.md` | 管理层全景报告（APP、后端、数据、风险与路线图） | 产品定位、页面能力、发布结论或路线图变化时 |
+| `docs/租户创建.md` | 新保险公司两阶段开户与人员/负责人配置流程 | 租户开户、成员、角色或负责人配置流程变化时 |
+| `docs/测试数据生成提示词.md` | 测试数据生成提示词与用例说明 | 测试数据口径、种子脚本或提示词变化时 |
+| `docs/云米接口/postman/README.md` | 云米 OpenAPI Postman 测试说明 | 云米接口、命令码或成功码口径变化时 |
 | `tools/dev-tunnel/README.md` | 真机联调公网通道（SSH 反向隧道 + ECS nginx） | 隧道链路、域名、ECS 侧配置或自启方式变化时 |
 | `QA_TEST_PLAN.md` | QA 范围 | 用户行为、硬件能力和发布门禁变化时 |
 | `RELEASE_CHECKLIST.md` | 发布条件 | 新权限、新数据类型、新依赖或新运行时风险出现时 |

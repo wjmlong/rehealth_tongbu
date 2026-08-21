@@ -29,7 +29,7 @@ The Retrofit base URL is configured by `REHEALTH_API_BASE_URL`, defaulting in de
 (the committed `gradle.properties` value for internal testing):
 
 ```text
-https://rehealth.youngjimmy.store/jeecg-boot
+https://rehealth.youngjimmy.store/jeecg-boot/
 ```
 
 ## Endpoints Explicitly Not Used In P0b
@@ -45,14 +45,13 @@ https://rehealth.youngjimmy.store/jeecg-boot
 
 ## Legacy Paths Retired From Primary UI
 
-`ReHealthBackendClient.uploadRingSnapshot()` and
-`/rehealth/mobile/ring/snapshots` remain in the codebase as legacy snapshot/debug
-behavior owned outside P0b. They are no longer the primary source for the Data/Model risk
-cards.
+`ReHealthBackendClient.uploadRingSnapshot()` 与 `/rehealth/mobile/ring/snapshots` 已从
+Android 代码删除；它们不再出现在任何生产或 Debug 路径中，仅存在于历史文档。
 
-`RingViewModel` still contains legacy cloud snapshot state (`cloudRiskScore`,
-`cloudRiskLevel`, `cloudRiskMode`, `cloudRiskSummary`) for existing sync behavior, but
-P0b risk UI reads from the canonical feature-evaluate status instead.
+`RingViewModel` 仍保留旧版云端快照状态字段（`cloudSnapshotId`、`cloudRiskScore`、
+`cloudRiskLevel`、`cloudRiskMode`、`cloudRiskSummary`、`patientMvp` 等，
+见 `ring/RingViewModel.kt` 的 `RingUiState`），属于未清理的遗留状态；
+P0b 风险 UI 只读取 canonical feature-evaluate 状态，不消费这些字段。
 
 ## Mock And Failure Behavior
 
@@ -74,9 +73,9 @@ The UI preserves and displays, when available:
 
 ## E2 Telemetry Note
 
-E2 added a backend ingest boundary for `/rehealth/mobile/measurements/batch`, but it is
-not durable and remains outside P0b. P0b does not integrate telemetry sync, raw signal
-upload, WorkManager telemetry upload, MQ, or hardware_db persistence.
+E2/E2.1 已实现 durable 遥测接入：`/rehealth/mobile/measurements/batch` 经 Gateway 路由到
+Device Service/TimescaleDB，事务提交后返回 `ACCEPTED_PERSISTED`；该路径与 P0b 风险路径
+保持分离，接入不触发评分。详见 `D2_TELEMETRY_SYNC_PLAN.md`。
 
 ## Known Remaining Work
 
@@ -87,10 +86,12 @@ upload, WorkManager telemetry upload, MQ, or hardware_db persistence.
   (`contribution_method=shap_via_catboost`). The mobile `features/evaluate` path
   reaches this via JeecgBoot `model-service.base-url=http://127.0.0.1:8000`
   (application-dev.yml).
-- D2: durable Android telemetry upload queue and retry strategy.
-- B1: release blockers for background collection remain outside P0b.
-- Production auth/token handling and refresh if not already completed.
-- Backend persistence for latest risk/intervention retrieval, if required by later UI
-  screens.
-- Canonical intervention generation/display if the backend path is promoted for Android
-  UI use.
+- D2: durable Android telemetry upload queue and retry strategy — **已实现**（见
+  `D2_TELEMETRY_SYNC_PLAN.md`）。
+- B1: background collection 已实现；物理锁屏、重启、功耗与准确性门禁仍未解除
+  （见 `STATUS.md` 与 `BLE_BACKGROUND_QA.md`）。
+- 生产认证/token 处理：无 refresh-token 流程，401 暂停队列并要求重新登录（已实现）。
+- 风险/干预结果的 software_db 持久化与读取已实现（`/risk/latest`、
+  `/risk/history`、`/interventions/today`）。
+- 干预生成已上线：`POST /rehealth/mobile/interventions/generate` 由 JeecgBoot
+  LangChain4j 以服务端权威上下文生成结构化计划。

@@ -1,5 +1,13 @@
 # E2.1 持久化硬件接入运行手册
 
+> 状态更新（2026-08-21）：本文记录的独立 MySQL `rehealth_hardware` 写入路径是
+> 历史 E2.1 方案。硬件遥测权威现已迁移到独立 Device Service/TimescaleDB
+> （TimescaleDB V1–V4，V4 增加 `hardware_diet_record`），
+> `POST /rehealth/mobile/measurements/batch` 经 Gateway 路由到 Device Service；
+> JeecgBoot 内保留的 MySQL 写入器仅作 legacy/本地联调兼容，不对外可达。
+> 当前权威架构见 `HARDWARE_INGEST_ARCHITECTURE.md` 与
+> `backend/device-service/README.md`。
+
 日期：2026-07-13
 端点：`POST /rehealth/mobile/measurements/batch`
 

@@ -29,14 +29,16 @@ Do not interpret a static pass as a deployed-service health result.
 
 ## Local insurer workflow
 
-Apply the non-destructive MySQL migrations through `V20260819_2` before testing
+Apply the non-destructive MySQL migrations through `V20260821_1` before testing
 the insurer website. They add import/job/plan-feedback tables, workflow
 permissions, insurance organization settings, tenant-scoped department codes and
 local-admin acceptance grants, read-only organization/member settings, insurer
 intervention actions and aggregate RHI/RDI daily snapshots plus structured RDI
 contributions. `V20260819_1` creates the commented, versioned institution care-plan
 tables and separates plan view, draft edit and publish permissions; `V20260819_2`
-adds immutable occurrence execution facts used by the App's rolling 28-day adherence.
+adds immutable occurrence execution facts used by the App's rolling 28-day adherence;
+`V20260821_1` adds the employee password-status table and the tenant-scoped member
+password-reset permission (`rehealth:insurance:member:password:reset`).
 Production must assign
 `insurer_viewer`, `insurer_analyst`, `insurance_operator` or `insurer_auditor`
 explicitly and must not rely on the local admin grant.
@@ -156,6 +158,9 @@ The website administration read API uses the same secret-file boundary. Set
 `REHEALTH_DEVICE_SERVICE_INTERNAL_TOKEN_FILE` to the mounted internal credential
 file (Compose uses `/run/secrets/internal_service_credential`); do not configure
 the retired plaintext `rehealth.device-service.credential` property for this API.
+（`/rehealth/admin/v1` 控制器位于 `jeecg-system-biz` 的
+`org.jeecg.modules.rehealth.controller`，随 Cloud JAR 打包，不依赖
+`jeecg-module-rehealth`。）
 For systemd, put
 `REHEALTH_DEVICE_SERVICE_INTERNAL_TOKEN_FILE=/run/secrets/internal_service_credential`
 in the unit's root-owned `EnvironmentFile` (mode `0600`). Missing/unreadable

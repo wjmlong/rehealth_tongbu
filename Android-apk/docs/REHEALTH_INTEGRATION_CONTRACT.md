@@ -1,6 +1,6 @@
 # ReHealth Android / Backend MVP Integration Contract
 
-Status: canonical Android contract, updated 2026-08-05.
+Status: canonical Android contract, updated 2026-08-21.
 
 ## Runtime Boundary
 
@@ -81,11 +81,14 @@ queue until the user logs in again; the app does not invent a refresh-token flow
 | Manual RHI health archive | `GET/PUT /rehealth/mobile/rhi/manual-inputs` | Save Room first, then PUT the nullable typed fields with `updatedAt` through the stable upload queue. The server derives ownership from auth; GET restores only a newer cloud copy. |
 | Interview | `POST /rehealth/mobile/interviews`, `GET /rehealth/mobile/interviews/latest` | Store in the Room durable queue before leaving the result screen, retry through WorkManager, and reload the latest typed record after login/profile entry. The optional `profile` object carries parsed age/height/weight and is merged into the typed profile in the same software-db transaction. |
 | Device binding | `POST /rehealth/mobile/devices/bind` | Send a stable device ID and SHA-256 address hash; never send the raw BLE MAC. |
+| Viomi cloud watch | `POST /rehealth/mobile/viomi/bind`, `POST /rehealth/mobile/viomi/sync` | Authenticated IMEI validation and up-to-31-day heart-rate/blood-pressure/SpO₂ history pull; vendor credentials remain server-only. |
 | Telemetry | `POST /rehealth/mobile/measurements/batch` | Use `telemetry-v2`; upload locally persisted normalized Room records and optional structured `dietRecords` with a stable `batchId`; exclude raw PPG/RRI and meal-image bytes. |
 | Login telemetry restore | `GET /rehealth/mobile/measurements/recent?limit=200` | After each successful login (and once after process restart with an existing session), query the authenticated user's recent normalized measurement, sleep, and activity rows before refreshing the profile. Validate ownership, map stable server record IDs into Room with replace semantics, collapse duplicate client activity/sleep snapshots to the final cumulative value, and trigger local RHI refresh. Daily step presentation uses the highest cumulative value per local day rather than summing local and restored copies. Network/query failure must not block login, BLE collection, or later retry. |
-| Risk | `POST /rehealth/mobile/features/evaluate`, `GET /risk/latest` | Use the authenticated client and persisted server result. |
-| Intervention | `POST /interventions/generate`, `GET /interventions/today` | GET today's persisted plan on load; generation is an explicit user action with visible loading/failure state. Send only a stable `request_id`; the server reloads profile/interview/risk and tenant-scoped TimescaleDB context and returns ordered structured `items`. Android accepts canonical snake_case plus the deployed camelCase response during compatibility rollout. |
-| Feedback | `POST /interventions/{id}/feedback` | Mark local feedback complete only when `persisted=true`. |
+| Risk | `POST /rehealth/mobile/features/evaluate`, `GET /rehealth/mobile/risk/latest`, `GET /rehealth/mobile/risk/history` | Use the authenticated client and persisted server result. |
+| Intervention | `POST /rehealth/mobile/interventions/generate`, `GET /rehealth/mobile/interventions/today` | GET today's persisted plan on load; generation is an explicit user action with visible loading/failure state. Send only a stable `request_id`; the server reloads profile/interview/risk and tenant-scoped TimescaleDB context and returns ordered structured `items`. Android accepts canonical snake_case plus the deployed camelCase response during compatibility rollout. |
+| Feedback | `POST /rehealth/mobile/interventions/{id}/feedback` | Mark local feedback complete only when `persisted=true`. |
+| Insurance plans | `POST /rehealth/mobile/insurance/plans/bind`, `GET /rehealth/mobile/insurance/plans/current`, `GET /rehealth/mobile/insurance/plans/active`, `POST /rehealth/mobile/insurance/plans/{bindingId}/feedback` | Legacy per-binding plan flow; feedback is idempotent by `sourceRecordId` with `feedbackType`/`verificationType` enums. |
+| Versioned care plans | `GET /rehealth/mobile/insurance/care-plans/current`, `POST /rehealth/mobile/insurance/care-plan-occurrences/{occurrenceId}/feedback` | Current effective institution plan revision with today's occurrences and server-derived rolling 28-day adherence; occurrence feedback is idempotent and uploads from the Room v19 queue. |
 | Attribution | `POST /rehealth/mobile/attribution/events` | Authenticated individual attribution only. |
 | Health assistant | `POST /rehealth/mobile/agent/messages`, `GET /rehealth/mobile/agent/conversations/latest` | Persist the user message in Room before sending. `conversationId`, `clientMessageId`, and `requestId` make retries stable; send the device IANA `timeZone` for local-day context and restore the latest user/tenant-scoped server conversation after login. JeecgBoot extracts only explicit self-reported name, gender, age, height and weight, merges changed values before that turn, and appends a Chinese confirmation. For personalized questions the model must call a no-argument server tool whose tenant/user come only from authentication. The bounded result covers profile, interview, confirmed manual clinical archive, risk/history, RHI/RDI, device behavior and recent changes, structured behavior records, intervention and feedback. It excludes owner/device identifiers, raw PPG/RRI and unbounded history; each source carries available/no-data/unavailable coverage, timestamps and Mock state. Hypothetical or third-party values are not profile updates. Provider credentials remain server-only. |
 | Photo behavior record | `POST /rehealth/mobile/behavior-records/analyze-photo`, `GET /rehealth/mobile/behavior-records/today` | Capture with the system camera into app-private cache, normalize and upload JPEG/PNG/WebP up to 4 MB with an owner-stable `requestId`, then render the persisted FOOD/OCR result on Home and Data. A FOOD result with valid calories is inserted idempotently into the current owner's Room meal log by behavior id both on the immediate photo response and when today's persisted behavior records are restored, then queued as `telemetry-v2 dietRecords`; OCR/OTHER and incomplete nutrition never create placeholder meals. The upload uses a dedicated client timeout longer than the server's vision timeout; provider timeout is surfaced separately from connectivity failure. Never include a provider credential in Android. |
@@ -379,8 +382,9 @@ replaced with client-side medical or mock advice.
 - Device identity is `<vendor>-<first 24 SHA-256 hex characters>` plus
   `hardwareAddressHash`; raw MAC addresses are not uploaded. Currently `<vendor>`
   is `mrd`, `rwfit`, or `hband`.
-- `source=mrd_room`, `source=rwfit_room`, and `source=hband_room` identify the real Room collection
-  path for the active Provider. The upload snapshot filters out rows from other
+- Room rows use `source=mrd_ring`, `source=rwfit`, and `source=hband_wearable` to identify the real
+  Room collection path for the active Provider. Upload-batch provenance uses the vendor-prefixed
+  `mrd_room` / `rwfit_room` / `hband_room` values; the upload snapshot filters out rows from other
   vendors before creating a batch.
   Synthetic software QA must use `source=synthetic_qa`.
 - `rawPayload`, PPG/RRI/ECG waveform bytes, access tokens, phone numbers, and direct
@@ -419,8 +423,11 @@ rehealth:
 ```
 
 Risk/model calls still require `rehealth.model-service.base-url`. Health chat uses
-`rehealth.health-agent.engine=model-service|langchain4j`; the default remains
-`model-service` for rollback safety. Enabling `langchain4j` additionally requires
+`rehealth.health-agent.engine=model-service|langchain4j`; the default is
+`langchain4j` (prompt assembly, bounded conversation memory, the authenticated
+current-user tools and the OpenAI-compatible provider call all run inside
+JeecgBoot), while `model-service` is retained only as an explicit rollback.
+Enabling `langchain4j` additionally requires
 `REHEALTH_LLM_BASE_URL`, `REHEALTH_LLM_MODEL`, and a provider credential supplied
 through `REHEALTH_LLM_API_KEY_FILE`. Provider and internal credentials belong only
 in backend runtime secrets.

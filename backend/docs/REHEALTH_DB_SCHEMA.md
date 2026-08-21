@@ -1,6 +1,7 @@
 # 数据库表结构说明文档
 
 > 最后生成：2026-08-19。
+> 2026-08-21 修订：ReHealth 迁移口径更新至 `software-V20260821.1`；逐表附录仍为 2026-08-19 快照，尚未包含该迁移新增的 1 张 MySQL 表（见第 2 节）。
 > 结构基线来自当前运行中的本地开发数据库 catalog、Room v19 导出 schema、SQL 迁移和业务代码。
 > 本文档不包含账号、密码、业务数据明细、原始健康值或直接身份信息。
 
@@ -24,7 +25,7 @@ ReHealth 不是单库系统，而是三个相互隔离的关系型存储域：
 | 软件业务库 | `rehealth_software`（逻辑名 `software_db`） | MySQL 8.4.6 | 194 | 0 | Jeecg 用户权限及 ReHealth 业务权威数据 |
 | 硬件时序库 | `rehealth_hardware`（逻辑名 `hardware_db`） | PostgreSQL 17.5 + TimescaleDB 2.21.1 | 11 | 0 个业务普通视图 | 规范化硬件时序数据、Outbox 和对账 |
 
-总计 **228 张基础表**。其中 ReHealth 专属业务域表 **87 张**：Room 23 张、MySQL ReHealth 业务表 54 张、TimescaleDB 业务表 10 张。Kafka 是事件传递系统、Redis 是短期状态存储，均不计入关系表总数。
+总计 **228 张基础表**（2026-08-19 快照口径）。其中 ReHealth 专属业务域表 **87 张**：Room 23 张、MySQL ReHealth 业务表 54 张、TimescaleDB 业务表 10 张。Kafka 是事件传递系统、Redis 是短期状态存储，均不计入关系表总数。2026-08-21 起 `software-V20260821.1` 新增 `rehealth_user_password_state`，运行库合计 **229 张基础表**；附录重新生成前以本节口径为准。
 
 明确可识别的特殊表类别：
 
@@ -37,7 +38,7 @@ ReHealth 不是单库系统，而是三个相互隔离的关系型存储域：
 | 迁移元数据表 | 3 | Room 使用 schema JSON；MySQL 2 张、TimescaleDB 1 张迁移表 |
 | 历史/备份/年/月分表 | 0 | 未发现 `*_history` 之外的物理历史/备份或按年月命名分表；`cvd_risk_history` 是业务历史表，不是备份表 |
 
-MySQL `flyway_schema_history` 当前存在 `3.9.2.0 all upgrade` 失败记录；ReHealth 自定义迁移已到 `software-V20260819.2`。
+MySQL `flyway_schema_history` 当前存在 `3.9.2.0 all upgrade` 失败记录；ReHealth 自定义迁移已到 `software-V20260821.1`。
 
 ## 3. 数据库表清单与模块划分
 

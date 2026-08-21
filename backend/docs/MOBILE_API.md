@@ -41,7 +41,7 @@ http://localhost:8080/jeecg-boot/rehealth/mobile
 
 只有 `GET /rehealth/mobile/health` 标记了 `@IgnoreAuth`。所有生产型移动端点都使用 JeecgBoot 常规认证流程。
 
-保险计划接口同样只接受当前 Jeecg 登录身份。APP 服务用户不加入机构后台的 `sys_user_tenant` 成员目录；服务端以当前登录用户在 `rehealth_insurance_subject` 中的有效服务关系为入口，并继续校验保险租户、保单、授权和计划绑定均有效。一个 APP 用户可以同时拥有多家机构的有效绑定，`GET /insurance/plans/active` 返回全部绑定。保险反馈必须带稳定的计划项标识和完成事实，服务端忽略客户端自报的依从分，统一按 `completedCount / expectedCount` 计算。App 只回传计划、授权、完成事实、验证方式和有界结果摘要；原始心率、血压、睡眠、ECG、手机号和身份证号不得进入保险接口。Android 已接入按用户与机构绑定隔离的 Room v18 离线反馈队列和归因页执行入口；授权/撤回 UI 仍待完成。
+保险计划接口同样只接受当前 Jeecg 登录身份。APP 服务用户不加入机构后台的 `sys_user_tenant` 成员目录；服务端以当前登录用户在 `rehealth_insurance_subject` 中的有效服务关系为入口，并继续校验保险租户、保单、授权和计划绑定均有效。一个 APP 用户可以同时拥有多家机构的有效绑定，`GET /insurance/plans/active` 返回全部绑定。保险反馈必须带稳定的计划项标识和完成事实，服务端忽略客户端自报的依从分，统一按 `completedCount / expectedCount` 计算。App 只回传计划、授权、完成事实、验证方式和有界结果摘要；原始心率、血压、睡眠、ECG、手机号和身份证号不得进入保险接口。Android 已接入按用户与机构绑定隔离的 Room v18 离线反馈队列，Room v19 再为版本化机构计划任务增加稳定 `occurrence_id` 并接入归因页执行入口；授权/撤回 UI 仍待完成。
 
 ## 端点
 
@@ -82,6 +82,10 @@ http://localhost:8080/jeecg-boot/rehealth/mobile
 | `GET` | `/rehealth/mobile/health` | ReHealth 模块的开发健康检查。 |
 | `POST` | `/rehealth/mobile/attribution/events` | 通过认证代理到 PIAS `POST /api/pias/v2/attribute/individual`；`software_db` 启用时，在当前用户下持久化请求和结果。 |
 | `POST` | `/rehealth/mobile/agent/messages` | 认证的健康助手代理；后端组装已持久化的用户上下文、执行限流，并默认使用 Java LangChain4j。Provider 凭据绝不进入 APK。 |
+| `GET` | `/rehealth/mobile/agent/conversations/latest` | 读取当前用户+租户隔离的最新会话（含消息历史），登录后恢复本机/服务端最新会话。 |
+
+云米平台主动上报回调 `POST /rehealth/viomi/report`（`@IgnoreAuth`，JWT HS256 验签）
+不属于移动端点，契约见 `HARDWARE_INGEST_ARCHITECTURE.md` 的“云米适配器”一节。
 
 拍照分析接受 JPEG、PNG 或 WebP，最大为配置的 4 MB。Android 将图片捕获到私有 `FileProvider` 缓存项中，校正方向、限制长边并重新编码后上传。JeecgBoot 将图片发送给配置的视觉 Provider，不持久化或记录原始字节；它校验结构化食物/OCR 结果，并只把该结果保存到 `software_db`。营养值是估算值，不是临床测量。复用同一所有者范围内的 `requestId` 会返回现有记录，不会重复调用 Provider。
 
@@ -150,7 +154,7 @@ model-service 不可用或配置错误时，E1 返回受控的 `Result.error` �
 
 ## `software_db` 配置
 
-在 Jeecg 主数据源上运行 `db/software/mysql/V1__create_rehealth_software_tables.sql`，并配置：
+在 Jeecg 主数据源上运行 `src/main/resources/db/software/mysql/V1__create_rehealth_software_tables.sql`，并配置：
 
 ```yaml
 rehealth:

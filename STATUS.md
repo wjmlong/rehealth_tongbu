@@ -19,6 +19,17 @@ HBand 近期窗口还必须匹配当前绑定设备与 `hband_wearable` 来源�
 时间与 Mock，单一数据源失败不会使整轮问答不可用，原始信号和直接标识不进入模型上下文。
 Release Lint 保留全部既有门禁，但临时禁用会因 AGP 8.10.1/Compose lint 类加载缺失而直接崩溃的
 `MutableCollectionMutableState` 单项检测；升级整套 Android 工具链后必须恢复该检测。
+2026-08-21 已完成一次全仓“文档 vs 代码”核对并同步修正：根 README 补齐仓库结构与文档索引
+（`sql/`、`config/`、`backend/docs/`、管理层全景报告等），RHI Lite 版本统一为
+`rhi-deterministic-preview-2.2.0-android-lite`；`BUILD_NOTES.md` 工具链更新为
+Gradle 8.11.1 / AGP 8.10.1 / Kotlin 2.2.20；`REHEALTH_INTEGRATION_CONTRACT.md` 默认健康助手引擎
+修正为 `langchain4j`（`model-service` 仅显式回滚）并补齐云米/保险端点；`REHEALTH_BACKEND_API.md`
+端点列表与数据库拆分状态重写为当前实现；OpenAPI 契约补入 `rhi/rdi daily-snapshot` 两个端点并
+通过 `validate_contracts.py` 全部门禁；`REHEALTH_DB_SCHEMA.md` 迁移口径更新至
+`software-V20260821.1`；管理层全景报告、`D3`/`NETWORK_FEATURE_EVALUATE`/`CANONICAL_RISK_PATH`
+等历史文档补加当前状态说明并修正失效引用；`rehealth-algorithms/README.md` 结构与入口修正。
+文档改动未涉及任何运行时代码；当前工作树仅包含本次文档修订，未提交（如需入库请按
+“分批提交”约定单独提交文档变更）。
 
 ## 2026-08-12 保险业务闭环（本地 MVP）
 

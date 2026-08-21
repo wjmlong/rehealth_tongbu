@@ -23,6 +23,10 @@ Status: implemented software path; updated 2026-08-21.
 
 - MRD/RWFit/HBand collection writes to Room before any network operation.
 - Successful manual/automatic sync creates a durable `telemetry_batch` queue item.
+  上传队列 `kind` 全集为：`telemetry_batch`、`health_interview`、`rhi_daily_snapshot`、
+  `rdi_daily_snapshot`、`rhi_manual_health_input`（`SyncRepository.kt` 私有 companion
+  常量）；批次 `schemaVersion` 为 `telemetry-v2`。干预反馈不走该通用队列，使用独立的
+  `intervention_feedback_queue` 实体。
 - WorkManager uploads through the authenticated Jeecg mobile client.
 - `401` pauses the queue for re-login; transient failures retry the same batch.
 - Institution care-plan feedback observes its exact owner-scoped Room queue row after submission.

@@ -1,5 +1,15 @@
 # D3 Android Auth + Typed Feedback Integration
 
+> 状态更新（2026-08-21）：本文是 D3 的设计记录，部分“待实现”条目已完成：
+> `MeasurementSyncWorker` 已实现并接管队列排空；队列 kind 实际为
+> `telemetry_batch` / `health_interview` / `rhi_daily_snapshot` / `rdi_daily_snapshot` /
+> `rhi_manual_health_input`（不存在 `feature_evaluate` / `intervention_feedback` kind，
+> 干预反馈使用独立的 `intervention_feedback_queue` 实体，Room v18/v19 扩展了
+> 保险归属、`occurrence_id`、`dead_letter` 与 `superseded` 状态）；旧
+> `ReHealthBackendClient`/`submitCheckIn` 已删除；`ApiResult`/`AuthInterceptor`
+> 的文件名与现状不同，认证由 `AuthenticatedApiClient` 统一处理。当前权威契约见
+> `REHEALTH_INTEGRATION_CONTRACT.md` 与 `D2_TELEMETRY_SYNC_PLAN.md`。
+
 ## Overview
 
 D3 implements authentication-aware upload queuing and typed intervention feedback to replace the legacy `submitCheckIn` pattern.
@@ -36,7 +46,7 @@ Each feedback:
 ### 3. Upload Queue Infrastructure
 
 **UploadQueueEntity**: Generic queue for all upload types
-- `kind`: "telemetry_batch" | "feature_evaluate" | "intervention_feedback"
+- `kind`: "telemetry_batch" | "health_interview" | "rhi_daily_snapshot" | "rdi_daily_snapshot" | "rhi_manual_health_input"
 - `status`: "pending" | "uploading" | "done" | "failed"
 - Exponential backoff: 30s → 60s → 120s → ... (max 30 min)
 

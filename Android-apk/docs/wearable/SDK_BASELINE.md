@@ -10,6 +10,10 @@ device or an unprovided vendor SDK works.
 
 ## Build baseline
 
+> 以下构建基线为 2026-07-27 在 Git commit `49aa569d` 的验证记录；当前工具链已升级为
+> Gradle 8.11.1 / AGP 8.10.1 / Kotlin 2.2.20（见 `BUILD_NOTES.md` 与
+> `gradle-wrapper.properties`），SDK 制品清单不受影响。
+
 Environment:
 
 - Windows 11 amd64

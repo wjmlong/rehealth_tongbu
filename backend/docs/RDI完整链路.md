@@ -32,7 +32,7 @@ Android 首先把采集结果写进 Room，然后 RDI 再读取最近约 28 天�
 
 ## 2. Android 如何计算 RDI
 
-核心实现在 [RdiEngine.kt](/E:/code/rehealth_tonbu/Android-apk/app/src/main/java/com/rehealth/genie/rdi/RdiEngine.kt:98)，当前算法版本为 `rdi-rule-1.0.1`。
+核心实现在 [RdiEngine.kt](../../Android-apk/app/src/main/java/com/rehealth/genie/rdi/RdiEngine.kt)，当前算法版本为 `rdi-rule-1.0.1`。
 
 基础公式是：
 
@@ -68,7 +68,7 @@ RDI 更准确的含义是“近期可改善负荷指数”，不是疾病诊断�
 
 ## 3. 什么情况下触发计算
 
-[RdiRepository.kt](/E:/code/rehealth_tonbu/Android-apk/app/src/main/java/com/rehealth/genie/rdi/RdiRepository.kt:71) 会读取 Room 数据并调用计算引擎。
+[RdiRepository.kt](../../Android-apk/app/src/main/java/com/rehealth/genie/rdi/RdiRepository.kt) 会读取 Room 数据并调用计算引擎。
 
 目前主要触发点是：
 
@@ -126,7 +126,7 @@ POST /jeecg-boot/rehealth/mobile/rdi/daily-snapshot
 
 后端入口会从当前登录 Token 取得用户 ID，不相信客户端任意传入的 `userId`。
 
-[RdiDailySnapshotService.java](/E:/code/rehealth_tonbu/backend/jeecg-boot/jeecg-module-demo/src/main/java/org/jeecg/modules/rehealth/service/RdiDailySnapshotService.java:35) 主要执行：
+[RdiDailySnapshotService.java](../jeecg-boot/jeecg-boot-module/jeecg-module-rehealth/src/main/java/org/jeecg/modules/rehealth/mobile/service/RdiDailySnapshotService.java) 主要执行：
 
 1. 检查报文用户与登录用户是否一致。
 2. 校验分数、置信度、状态和贡献项。
@@ -163,7 +163,7 @@ rehealth_rdi_contribution
 - RDI 趋势。
 - 最新贡献因素。
 
-对应实现位于 [InsuranceInterventionWorkbenchService.java](/E:/code/rehealth_tonbu/backend/jeecg-boot/jeecg-module-demo/src/main/java/org/jeecg/modules/rehealth/service/InsuranceInterventionWorkbenchService.java:293)。
+对应实现位于 [InsuranceInterventionWorkbenchService.java](../jeecg-boot/jeecg-boot-module/jeecg-module-rehealth/src/main/java/org/jeecg/modules/rehealth/insurance/InsuranceInterventionWorkbenchService.java)。
 
 一个 APP 用户可以同时接受多家保险公司或医疗机构的服务：
 
@@ -175,7 +175,8 @@ rehealth_rdi_contribution
 
 官网后端使用服务端保存的 Jeecg Token 和租户 ID 调用保险接口，浏览器不能自己指定租户。
 
-BFF 对返回字段进行白名单转换，见 [insurer_intervention_normalization.py](/E:/code/RehealthCore_website/backend/api/insurer_intervention_normalization.py:72)。
+BFF 对返回字段进行白名单转换，见官网仓库（`E:/code/RehealthCore_website`）的
+`backend/api/insurer_intervention_normalization.py`。
 
 前端把以下内容分别展示：
 
@@ -185,7 +186,8 @@ BFF 对返回字段进行白名单转换，见 [insurer_intervention_normalizati
 - RDI 趋势。
 - RDI 贡献因素。
 
-页面不会用 CVD `risk_score` 临时推导 RDI。Mock 数据也会明确显示“RDI 演练数据”，见 [insurer_psm.html](/E:/code/RehealthCore_website/insurer_psm.html:323)。
+页面不会用 CVD `risk_score` 临时推导 RDI。Mock 数据也会明确显示“RDI 演练数据”，见官网仓库的
+`frontend/insurer_psm.html`。
 
 ## 当前真实接入状态
 

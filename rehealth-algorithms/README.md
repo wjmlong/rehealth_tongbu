@@ -5,6 +5,9 @@
 > RHI v2.0 研究规划与验证入口：`docs/RHI_V2_ALGORITHM_PLAN.md`。
 > 当前生产仍使用 `cvd-16-v1`；RHI 确定性评分处于 research preview，
 > 不得替换生产临床风险模型。
+> 本仓库是 ReHealth AI / 睿禾健康主仓库（`E:\code\rehealth_tonbu`）内的算法研究子仓库：
+> 训练、HealthAgent/PIAS 仿真与算法验证。生产 PIAS 归因服务、患者 APP、后端与模型服务
+> 分别位于主仓库的 `Android-apk`、`backend` 与 `model-service`；本仓库不承载患者移动端入口。
 
 ### Multi-Agent Health Intervention Simulation Engine
 
@@ -112,8 +115,8 @@ Simulation loop:
 
 Clone repository
 
-    git clone https://github.com/csong8904-spec/ReHealthAI-HealthAgent.git
-    cd ReHealthAI-HealthAgent
+    git clone <本仓库随主仓库一并检出>
+    cd rehealth-algorithms
 
 Create environment
 
@@ -132,9 +135,7 @@ Run simulation
 
     python simulate.py
 
-Visualize results
-
-    python visualize.py
+（旧版示例 `visualize.py` 已不在当前仓库；可视化与 PIAS 服务入口见 `api/` 与 `rhi/`。）
 
 ---
 
@@ -172,31 +173,23 @@ Visualize results
 
 # 📦 Project Structure
 
-    ReHealthAI-HealthAgent
+    rehealth-algorithms
     │
-    ├ healthagent
-    │   ├ agents
-    │   │   ├ emotion_agent.py
-    │   │   ├ compliance_agent.py
-    │   │   ├ physiology_agent.py
-    │   │   ├ intervention_agent.py
-    │   │   └ orchestrator.py
-    │   │
-    │   ├ models
-    │   │   ├ patient_profile.py
-    │   │   ├ intervention.py
-    │   │   └ trajectory.py
-    │   │
-    │   └ engine
-    │       └ simulation_engine.py
-    │
-    ├ examples
-    │   ├ sleep_simulation.py
-    │   └ cardio_simulation.py
-    │
-    ├ simulate.py
-    ├ visualize.py
-    ├ requirements.txt
+    ├ healthagent           多智能体健康干预仿真引擎（agents/models/engine）
+    ├ api                   PIAS 归因 FastAPI 服务（routers）
+    ├ rhi                   RHI v2 研究实现与验证
+    ├ train                 模型训练（蒸馏/迁移学习）与下载脚本
+    ├ docker                Docker 构建与运行配置
+    ├ examples              示例与演示
+    ├ frontend              配套前端
+    ├ bodyup_cloud          BodyUP 云端侧
+    ├ bodyup_edge_sdk       BodyUP 端侧 SDK
+    ├ config / data / tests 配置、数据与测试
+    ├ docs                  算法规划、PIAS 集成、项目总结与对话记录
+    ├ simulate.py           仿真入口
+    ├ factor16_rules_v1.0.yaml  Factor16 透明贡献规则
+    ├ pyproject.toml / requirements.txt
+    └ LICENSE
 
 ---
 

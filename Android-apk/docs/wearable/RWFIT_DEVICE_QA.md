@@ -6,8 +6,8 @@ Status: provider implemented; physical acceptance pending.
 
 From `Android-apk` build the debug APK with RWFit as the forced single active
 product. This property is debug-only; Release continues to obtain the active
-product from the normal binding state and defaults to MRD when no selection is
-present.
+product from the normal binding state and defaults to HBand (`RH-HB-E01`) when
+no selection is present.
 
 ```powershell
 .\gradlew.bat "-Prehealth.debug.wearable.product.code=RH-RW-P01" testDebugUnitTest assembleDebug
@@ -21,7 +21,8 @@ rehealth.debug.wearable.product.code=RH-RW-P01
 ```
 
 The command-line `-P` value takes precedence over `local.properties`. If neither
-is present, Debug intentionally defaults to MRD.
+is present, Debug defaults to `RH-HB-E01`（HBand）；要测试 RWFit 必须显式传入
+`RH-RW-P01`。
 
 Install `app/build/outputs/apk/debug/app-debug.apk`. If another application with
 the same package/signature is installed, uninstall it or clear its data before

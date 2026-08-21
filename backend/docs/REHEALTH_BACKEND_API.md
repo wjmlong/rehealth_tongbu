@@ -17,19 +17,55 @@ ReHealth 生产后端代码位于 `jeecg-module-rehealth`。
 /jeecg-boot/rehealth/mobile
 ```
 
-已实现的 E1 端点：
+移动端点（以 `ReHealthMobileController` 及各专项控制器为准；逐字段契约见
+[`MOBILE_API.md`](./MOBILE_API.md)）：
 
 ```text
-GET  /rehealth/mobile/health
+GET  /rehealth/mobile/health                       （唯一 @IgnoreAuth 健康检查）
 GET  /rehealth/mobile/config
+GET  /rehealth/mobile/profile
+PUT  /rehealth/mobile/profile
+POST /rehealth/mobile/interviews
+GET  /rehealth/mobile/interviews/latest
 POST /rehealth/mobile/devices/bind
 POST /rehealth/mobile/measurements/batch
+GET  /rehealth/mobile/measurements/recent
+POST /rehealth/mobile/viomi/bind
+POST /rehealth/mobile/viomi/sync
 POST /rehealth/mobile/features/evaluate
+POST /rehealth/mobile/rhi/evaluate-series
+GET  /rehealth/mobile/rhi/manual-inputs
+PUT  /rehealth/mobile/rhi/manual-inputs
+POST /rehealth/mobile/rhi/daily-snapshot
+POST /rehealth/mobile/rdi/daily-snapshot
 GET  /rehealth/mobile/risk/latest
+GET  /rehealth/mobile/risk/history
 POST /rehealth/mobile/interventions/generate
 GET  /rehealth/mobile/interventions/today
 POST /rehealth/mobile/interventions/{id}/feedback
 POST /rehealth/mobile/attribution/events
+POST /rehealth/mobile/agent/messages
+GET  /rehealth/mobile/agent/conversations/latest
+POST /rehealth/mobile/behavior-records/analyze-photo
+GET  /rehealth/mobile/behavior-records/today
+POST /rehealth/mobile/insurance/plans/bind
+GET  /rehealth/mobile/insurance/plans/current
+GET  /rehealth/mobile/insurance/plans/active
+POST /rehealth/mobile/insurance/plans/{bindingId}/feedback
+GET  /rehealth/mobile/insurance/care-plans/current
+POST /rehealth/mobile/insurance/care-plan-occurrences/{occurrenceId}/feedback
+```
+
+其他 ReHealth 模块端点：
+
+```text
+POST /rehealth/viomi/report                        （云米主动上报回调，JWT HS256 验签）
+POST /rehealth/website/v1/{resource} 及 GET/{id}、DELETE/{id}   （官网 BFF 业务记录）
+GET/POST/PUT /rehealth/insurance/v1/**             （保险风险、干预工作台、机构计划、导入、研究、报告、结算、机构设置）
+POST /rehealth/internal/v1/identity/authorize-device （Device Service 内部设备授权）
+GET  /rehealth/account/password/status             （员工密码状态）
+PUT  /rehealth/account/password                    （当前账号自助修改密码）
+GET  /rehealth/admin/v1/patients、/patients/{patientId} （官网患者只读聚合，位于 jeecg-system-biz）
 ```
 
 ## Website BFF business records
@@ -138,7 +174,12 @@ rehealth:
 - `GET /health`
 - `POST /v1/cvd/risk/evaluate`
 - `POST /v1/cvd/intervention/generate`
-- `POST /v1/cvd/attribution/individual`
+- `POST /v1/cvd/attribution/individual`（仅非 PIAS 兼容回退）
+
+生产归因默认 `attributionMode=pias`，经独立配置的
+`rehealth.attribution-service.base-url` 调用 PIAS
+`POST /api/pias/v2/attribute/individual`；`/v1/cvd/attribution/individual`
+只是该模式下未启用时的兼容目标。
 
 Java 后端不实现 CatBoost、SHAP、CVD 评分或归因逻辑。移动端干预端点是为 LangChain4j 明确保留的例外：Jeecg 组装持久化的权威上下文并生成结构化、保守的健康行动，但不进行诊断、调整用药或推断因果治疗效果。
 
@@ -148,22 +189,31 @@ Device Service 从 TimescaleDB 读取今日活动、睡眠、测量、饮食及�
 
 ## 数据库拆分状态
 
-E1 定义了软件库和硬件库边界，但未实现数据库持久化。
+E1 定义的软件库/硬件库边界已实现：
 
 `software_db` 边界：
 
-- `ReHealthBusinessRepository`
-- 当前实现：`E1PendingSoftwareDbReHealthBusinessRepository`
-- 状态：接口已就绪，数据表和 Mapper 待完成
+- 由 `jeecg-module-rehealth` 通过 `ReHealthBusinessRepository` 系列实现读写；
+- 档案、访谈、绑定、RHI/RDI 手工输入与日快照、风险、干预、反馈、行为记录、
+  保险业务和官网业务记录均已持久化；
+- 迁移见 `src/main/resources/db/software/mysql/`，当前最新为
+  `V20260821_1__add_password_management.sql`；`software_db` 禁用时相关读写返回可重试的 `503`。
 
 `hardware_db` 边界：
 
-- `HardwareIngestionPort`
-- 当前实现：`E2PendingHardwareIngestionPort`
-- 状态：接入端口已就绪，消息队列和 `hardware_db` 写入待 E2 完成
+- 遥测权威已迁移到独立 Device Service/TimescaleDB（E2.1 完成），
+  `POST /rehealth/mobile/measurements/batch` 经 Gateway 路由到 Device Service，
+  由 `HardwareTelemetryIngestionService` 在单个 TimescaleDB 事务中写入批次、测量、
+  睡眠、活动和饮食并提交 Outbox；
+- `jeecg-module-rehealth` 内保留的 `HardwareIngestionPort` MySQL 实现仅为
+  legacy/本地联调兼容路径，不再对外可达（路由优先于 Jeecg 通配路由）；
+- TimescaleDB 迁移见 `device-service/src/main/resources/db/migration/timescale/`，
+  当前最新为 `V4__create_diet_behavior_records.sql`。
 
 遥测上传通过 `HardwareIngestionPort` 路由，不直接写入普通业务表。
 
 ## D1 集成说明
 
-后端配置指向正在运行的 model-service 后，Android D1 即可使用 `/features/evaluate`。当前向 `/measurements/batch` 上传遥测会返回明确的 E2 待完成响应，不得将其视为持久化同步完成。
+后端配置指向正在运行的 model-service 后，Android D1 即可使用 `/features/evaluate`。
+`/measurements/batch` 只有返回 `accepted=true`、`persisted=true`、状态以 `ACCEPTED_` 开头时
+才视为持久化同步完成；重复批次返回 `ACCEPTED_DUPLICATE` 和原始收据。

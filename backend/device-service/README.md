@@ -7,17 +7,18 @@ and exposes:
 - `POST /rehealth/mobile/measurements/batch`
 - `GET /rehealth/mobile/measurements/recent`
 - `GET /rehealth/internal/v1/operations/status`
+- `GET /rehealth/internal/v1/operations/users/{userId}/health`
+- `GET /rehealth/internal/v1/operations/users/{userId}/intervention-context`
 - `/actuator/health` and `/actuator/health/readiness`
 - `/v3/api-docs`
 
-The scaffold fails closed for identity and persistence until concrete adapters
-are configured. Todo 7 provides the PostgreSQL 17 / TimescaleDB schema and
-Flyway lifecycle. Todo 8 adds the telemetry-port adapter: each accepted batch,
-normalized telemetry, quality/rejection records, reconciliation state, and
-versioned Outbox events commit in one Timescale transaction. Duplicate replays
-return the original receipt without adding rows. Kafka publication remains a
-separate concern. This module does not copy Jeecg repositories or model
-responsibilities.
+身份与持久化采用失败关闭：设备授权经 JeecgBoot
+`POST /rehealth/internal/v1/identity/authorize-device`，遥测写入 TimescaleDB。
+PostgreSQL 17 / TimescaleDB schema 与 Flyway 生命周期由
+`src/main/resources/db/migration/timescale/`（V1–V4，V4 增加
+`hardware_diet_record`）管理；每个被接受的批次、规范化遥测、质量/拒绝记录、
+对账状态与版本化 Outbox 事件在同一 Timescale 事务内提交，重复重放返回原始收据
+而不新增行。Kafka 发布是独立关注点。本模块不复制 Jeecg 仓库或模型职责。
 
 Readiness is `OUT_OF_SERVICE` until both identity authorization and telemetry
 storage report ready. The HTTP identity adapter requires

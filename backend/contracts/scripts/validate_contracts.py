@@ -25,6 +25,8 @@ CONTROLLERS: Final = (
     CONTROLLER_ROOT / "ReHealthMobileController.java",
     CONTROLLER_ROOT / "HealthAgentController.java",
     CONTROLLER_ROOT / "BehaviorRecordController.java",
+    CONTROLLER_ROOT / "RhiDailySnapshotController.java",
+    CONTROLLER_ROOT / "RdiDailySnapshotController.java",
     ROOT / "backend" / "jeecg-boot" / "jeecg-boot-module" / "jeecg-module-rehealth" / "src" / "main" / "java" / "org" / "jeecg" / "modules" / "rehealth" / "insurance" / "InsuranceMobilePlanController.java",
 )
 DTO_ROOT: Final = CONTROLLER_ROOT.parent / "dto"

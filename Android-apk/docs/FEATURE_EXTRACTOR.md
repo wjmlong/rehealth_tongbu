@@ -1,5 +1,13 @@
 # CVD Feature Extractor
 
+> 状态更新（2026-08-21）：本文的数值守卫经代码复核仍准确（年龄 18–120、BMI 10–80、
+> 血压 70–250/40–150 且收缩压>舒张压、步数 0–100,000、活动时长 0–1,440 分钟、
+> 化验有限正值 ≤1,000）。两处与现状不同：①“Current Scope”中 C1 未接线 UI/风险/上传的
+> 描述已过时，特征提取现已接入 `features/evaluate` 链路；②`exercise_days` 判定已从
+> “≥7,000 步或 ≥20 活动分钟”改为“单日存在时长 ≥30 分钟（高强度类型 ≥15 分钟）的有效
+> 活动会话”，以 `HealthFeatureExtractor.qualifiesAsExerciseDay()` 为准。
+> RHI v2 草稿映射器仍不接 Retrofit/Room/UI（该条不变）。
+
 This document defines the Android-local CVD feature extraction contract for the MVP.
 
 ## Contract
@@ -51,7 +59,7 @@ Implausible values are rejected as `null` with `FeatureQualityStatus.LOW_CONFIDE
 
 - Blood pressure uses the most recent plausible `ring_measurements` row where `metric_type == BLOOD_PRESSURE`.
 - Duplicate blood pressure rows with the same timestamp and values are ignored for selection.
-- `exercise_days` counts distinct UTC dates in the last 7 days with either at least 7,000 steps or at least 20 activity minutes.
+- `exercise_days` counts distinct UTC dates in the last 7 days with at least one plausible activity session whose duration is ≥ 30 minutes（高强度类型 `running/run/hiit/vigorous/high_intensity` 为 ≥ 15 分钟）。
 - Sleep sessions are summarized on `HealthMemorySnapshot.sleepSummary` for local memory/context. Sleep is not included in the CVD 16-feature vector.
 
 ## Current Scope

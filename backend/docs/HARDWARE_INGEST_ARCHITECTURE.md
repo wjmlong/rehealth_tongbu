@@ -56,7 +56,9 @@ E2.1 用独立 `hardware` 数据源/Schema 中的同步事务型 MVP 写入，�
 - 写入器通过 `DynamicRoutingDataSource.getDataSources().get("hardware")` 获取物理数据源，不使用默认 `master` 路由。
 - 事务管理器仅针对该物理数据源创建，不存在软件库/硬件库分布式事务。
 
-使用持久化 `software_db` 绑定校验设备归属仍是 E1.1 依赖。在该能力完成前，认证可以保护用户归属，但无法证明提交的 `deviceId` 已绑定到该用户。
+E1.1 已实现：Device Service 在写入前通过受凭据保护的 JeecgBoot
+`POST /rehealth/internal/v1/identity/authorize-device` 校验用户/租户/设备绑定，
+无法证明 `deviceId` 已绑定到该用户的批次会被拒绝。
 
 ## 幂等性
 

@@ -181,6 +181,7 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 | --- | --- | --- |
 | `POST` | `/rehealth/mobile/insurance/plans/bind` | 当前登录用户按租户、有效保单和授权版本绑定保险计划 |
 | `GET` | `/rehealth/mobile/insurance/plans/current` | 查询当前有效计划 |
+| `GET` | `/rehealth/mobile/insurance/plans/active` | 返回当前 APP 用户在所有有效保险服务关系中的有效绑定数组（每条含 `tenantId`） |
 | `POST` | `/rehealth/mobile/insurance/plans/{bindingId}/feedback` | 幂等回传完成率、依从性和有界结果摘要 |
 | `GET` | `/rehealth/mobile/insurance/care-plans/current` | 查询当前登录用户各机构的生效发布版本、今日任务及权威 28 日依从性 |
 | `POST` | `/rehealth/mobile/insurance/care-plan-occurrences/{occurrenceId}/feedback` | 按稳定任务实例幂等提交完成、部分完成、跳过或不适用执行事实 |
@@ -204,6 +205,7 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 - `V20260814_4__create_rdi_daily_snapshot.sql`：认证 APP 用户的 RDI 每日聚合快照与结构化贡献项；不存原始遥测或自由文本证据，并按用户/日期幂等更新。
 - `V20260819_1__create_versioned_care_plans.sql`：通用机构计划、不可变发布版本、版本化项目、任务实例和审计表；增加保险计划查看、草稿编辑和发布权限。
 - `V20260819_2__create_care_plan_execution_facts.sql`：按任务实例保存不可变执行事实、计分值、验证类型和幂等来源；所有表和字段均带注释。
+- `V20260821_1__add_password_management.sql`：员工密码强制修改状态表与保险机构管理员重置成员密码权限（`rehealth:insurance:member:password:reset`）。
 
 迁移均为向前兼容的非破坏性变更，不删除既有保险数据。完整逐表结构见 `backend/docs/REHEALTH_DB_SCHEMA.md`。
 
