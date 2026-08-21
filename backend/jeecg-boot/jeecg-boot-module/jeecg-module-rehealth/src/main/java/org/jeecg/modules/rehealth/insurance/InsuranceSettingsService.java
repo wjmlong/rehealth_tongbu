@@ -337,8 +337,8 @@ public class InsuranceSettingsService {
         jdbc.update("INSERT INTO sys_user_role (id, user_id, role_id, tenant_id) VALUES (?, ?, ?, ?)",
                 UUID.randomUUID().toString().replace("-", ""), userId, roleId, tenantId);
         accountPasswordService.markNewMember(userId, now);
-        return new MemberCreation(userId, username, temporaryPassword, true,
-                "成员已创建，请将临时密码安全交给成员并要求首次登录后修改");
+        return new MemberCreation(userId, username, temporaryPassword, false,
+                "成员已创建，请将临时密码安全交给成员；成员登录后可自行修改密码");
     }
 
     @Transactional

@@ -45,11 +45,10 @@ public class AccountPasswordService {
     }
 
     public Status status(String userId) {
-        Credential credential = credential(userId);
-        Integer forced = stateFlag(userId);
-        boolean defaultPassword = PasswordUtil.encrypt(credential.username(), DEFAULT_PASSWORD, credential.salt())
-                .equals(credential.password());
-        return new Status((forced != null && forced == 1) || defaultPassword);
+        // Default and temporary passwords remain valid login credentials. The
+        // password page is available from the account menu, but is not forced
+        // after member creation or administrator reset.
+        return new Status(false);
     }
 
     @Transactional
@@ -96,12 +95,12 @@ public class AccountPasswordService {
                 WHERE id = ? AND del_flag = 0
                 """, encoded, salt, now, now, operatorId, userId);
         markReset(userId, tenantId, operatorId, now);
-        return new Reset(true, "密码已重置为默认密码，请通知成员首次登录后修改");
+        return new Reset(false, "密码已重置为默认密码，成员可直接登录并自行修改");
     }
 
-    /** Marks a newly created account as requiring its first password change. */
+    /** Records a newly created account without forcing a password change. */
     public void markNewMember(String userId, LocalDateTime now) {
-        upsertState(userId, true, "new_member", null, null, null, null, now);
+        upsertState(userId, false, "new_member", null, null, null, null, now);
     }
 
     private Credential credential(String userId) {
@@ -118,16 +117,6 @@ public class AccountPasswordService {
             ), userId);
         } catch (EmptyResultDataAccessException e) {
             throw InsuranceApiException.notFound("用户不存在");
-        }
-    }
-
-    private Integer stateFlag(String userId) {
-        try {
-            return jdbc.queryForObject(
-                    "SELECT must_change_password FROM rehealth_user_password_state WHERE user_id = ?",
-                    Integer.class, userId);
-        } catch (EmptyResultDataAccessException ignored) {
-            return null;
         }
     }
 
@@ -174,7 +163,7 @@ public class AccountPasswordService {
     }
 
     private void markReset(String userId, int tenantId, String operatorId, LocalDateTime now) {
-        upsertState(userId, true, "admin_reset", tenantId, operatorId, null, now, now);
+        upsertState(userId, false, "admin_reset", tenantId, operatorId, null, now, now);
     }
 
     private void upsertState(String userId, boolean mustChange, String reason, Integer resetTenantId,

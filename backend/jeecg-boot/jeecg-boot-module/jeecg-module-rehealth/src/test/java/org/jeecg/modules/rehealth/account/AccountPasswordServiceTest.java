@@ -22,15 +22,10 @@ class AccountPasswordServiceTest {
     private static final String SALT = "salt1234";
 
     @Test
-    void statusUsesExplicitForcedChangeState() {
+    void statusDoesNotForceChangeForDefaultOrTemporaryPasswords() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
-        when(jdbc.queryForObject(anyString(), org.mockito.ArgumentMatchers.<RowMapper<AccountPasswordService.Credential>>any(), eq(USER_ID)))
-                .thenReturn(new AccountPasswordService.Credential(USERNAME, PasswordUtil.encrypt(USERNAME, "Existing1!", SALT), SALT));
-        when(jdbc.queryForObject(
-                eq("SELECT must_change_password FROM rehealth_user_password_state WHERE user_id = ?"),
-                eq(Integer.class), eq(USER_ID))).thenReturn(1);
 
-        assertTrue(new AccountPasswordService(jdbc).status(USER_ID).mustChangePassword());
+        assertFalse(new AccountPasswordService(jdbc).status(USER_ID).mustChangePassword());
     }
 
     @Test
@@ -62,7 +57,7 @@ class AccountPasswordServiceTest {
     }
 
     @Test
-    void resetWritesDefaultPasswordAndForcedStateForCurrentTenantMember() {
+    void resetWritesDefaultPasswordWithoutForcingChangeForCurrentTenantMember() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         when(jdbc.queryForObject(anyString(), eq(Integer.class), eq("target"), eq(1001))).thenReturn(1);
         when(jdbc.queryForObject(anyString(), org.mockito.ArgumentMatchers.<RowMapper<AccountPasswordService.Credential>>any(), eq("target")))
@@ -71,7 +66,7 @@ class AccountPasswordServiceTest {
         AccountPasswordResponse.Reset result = new AccountPasswordService(jdbc)
                 .resetTenantMemberPassword(1001, USER_ID, "target");
 
-        assertTrue(result.mustChangePassword());
+        assertFalse(result.mustChangePassword());
         assertFalse(result.message().isBlank());
         verify(jdbc).update(org.mockito.ArgumentMatchers.argThat(sql -> sql.contains("UPDATE sys_user")), any(), any(), any(), any(), eq(USER_ID), eq("target"));
         verify(jdbc).update(org.mockito.ArgumentMatchers.argThat(sql -> sql.contains("INSERT INTO rehealth_user_password_state")), any(), any(), any(), any(), any(), any(), any(), any(), any());

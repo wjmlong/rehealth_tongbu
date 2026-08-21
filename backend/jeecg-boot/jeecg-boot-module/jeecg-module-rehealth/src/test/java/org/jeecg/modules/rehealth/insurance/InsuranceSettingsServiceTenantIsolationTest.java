@@ -8,6 +8,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -145,7 +146,7 @@ class InsuranceSettingsServiceTenantIsolationTest {
         assertNotNull(created.userId());
         assertEquals("13800000001", created.username());
         assertEquals(16, created.temporaryPassword().length());
-        assertTrue(created.mustChangePassword());
+        assertFalse(created.mustChangePassword());
         verify(jdbc).update(
                 org.mockito.ArgumentMatchers.argThat(sql -> sql.contains("INSERT INTO sys_user_tenant")),
                 anyString(), anyString(), eq(1001), eq("operator-user"), any()
