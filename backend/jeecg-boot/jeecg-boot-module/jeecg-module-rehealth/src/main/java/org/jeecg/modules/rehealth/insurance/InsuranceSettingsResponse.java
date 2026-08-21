@@ -51,6 +51,15 @@ public final class InsuranceSettingsResponse {
     ) {
     }
 
+    public record MemberCreation(
+            String userId,
+            String username,
+            String temporaryPassword,
+            boolean mustChangePassword,
+            String message
+    ) {
+    }
+
     public record Assignment(
             String subjectRef,
             String managerUserId,

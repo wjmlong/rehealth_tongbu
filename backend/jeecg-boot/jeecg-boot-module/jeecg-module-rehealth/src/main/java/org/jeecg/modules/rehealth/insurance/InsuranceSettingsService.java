@@ -7,7 +7,10 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.jeecg.common.util.PasswordUtil;
+import org.jeecg.common.util.oConvertUtils;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -17,12 +20,21 @@ import static org.jeecg.modules.rehealth.insurance.InsuranceSettingsResponse.Ass
 import static org.jeecg.modules.rehealth.insurance.InsuranceSettingsResponse.AssignmentRequest;
 import static org.jeecg.modules.rehealth.insurance.InsuranceSettingsResponse.Department;
 import static org.jeecg.modules.rehealth.insurance.InsuranceSettingsResponse.Member;
+import static org.jeecg.modules.rehealth.insurance.InsuranceSettingsResponse.MemberCreation;
 import static org.jeecg.modules.rehealth.insurance.InsuranceSettingsResponse.MemberInvitation;
 
 @Service
 @ConditionalOnProperty(name = "rehealth.software-db.enabled", havingValue = "true")
 public class InsuranceSettingsService {
     private static final Pattern SUBJECT_REF = Pattern.compile("(?i)[0-9a-f]{64}");
+    private static final Pattern USERNAME = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._@-]{2,99}");
+    private static final List<String> INSURANCE_MEMBER_ROLES = List.of(
+            "insurer_viewer", "insurer_analyst", "insurance_operator", "insurer_auditor",
+            "insurance_department_manager"
+    );
+    private static final char[] TEMP_PASSWORD_ALPHABET =
+            "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789".toCharArray();
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final String EXCLUDE_PLATFORM_ADMINS = """
             AND NOT EXISTS (
                 SELECT 1
@@ -214,6 +226,11 @@ public class InsuranceSettingsService {
 
     @Transactional
     public MemberInvitation inviteMember(int tenantId, String operatorId, String phone, String departmentId) {
+        return inviteMember(tenantId, operatorId, phone, departmentId, null);
+    }
+
+    @Transactional
+    public MemberInvitation inviteMember(int tenantId, String operatorId, String phone, String departmentId, String roleCode) {
         String normalizedPhone = required(phone, "phone");
         if (normalizedPhone.length() > 32) {
             throw InsuranceApiException.badRequest("phone must be at most 32 characters");
@@ -247,7 +264,69 @@ public class InsuranceSettingsService {
             jdbc.update("INSERT INTO sys_user_depart (id, user_id, dep_id) VALUES (?, ?, ?)",
                     UUID.randomUUID().toString().replace("-", ""), userId, normalizedDepartmentId);
         }
+        if (roleCode != null && !roleCode.isBlank()) {
+            String roleId = resolveInsuranceMemberRole(tenantId, roleCode);
+            jdbc.update("INSERT INTO sys_user_role (id, user_id, role_id, tenant_id) VALUES (?, ?, ?, ?)",
+                    UUID.randomUUID().toString().replace("-", ""), userId, roleId, tenantId);
+        }
         return new MemberInvitation(userId, "invited", "邀请已发送，成员同意后方可进入保险机构工作台");
+    }
+
+    /**
+     * Creates a new global Jeecg account and binds it to this tenant in one
+     * transaction. The account is intentionally not added to any other
+     * tenant, and the generated password is returned only in this response.
+     */
+    @Transactional
+    public MemberCreation createMember(int tenantId, String operatorId, InsuranceSettingsRequest.MemberCreation request) {
+        String realName = required(request.realName(), "realName");
+        String phone = required(request.phone(), "phone");
+        if (phone.length() > 45) {
+            throw InsuranceApiException.badRequest("phone must be at most 45 characters");
+        }
+        String username = request.username() == null || request.username().isBlank()
+                ? phone : required(request.username(), "username");
+        if (!USERNAME.matcher(username).matches()) {
+            throw InsuranceApiException.badRequest("username must be 3-100 characters using letters, numbers, '.', '_' '@' or '-'");
+        }
+        String email = request.email() == null || request.email().isBlank()
+                ? null : required(request.email(), "email");
+        if (email != null && email.length() > 45) {
+            throw InsuranceApiException.badRequest("email must be at most 45 characters");
+        }
+        String departmentId = required(request.departmentId(), "departmentId");
+        Integer validDepartment = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM sys_depart WHERE id = ? AND tenant_id = ? AND COALESCE(del_flag, '0') = '0' AND COALESCE(status, '1') = '1'",
+                Integer.class, departmentId, tenantId);
+        if (validDepartment == null || validDepartment < 1) {
+            throw InsuranceApiException.badRequest("departmentId is not in the requested tenant");
+        }
+        String roleId = resolveInsuranceMemberRole(tenantId, request.roleCode());
+        ensureUniqueAccount("username", username);
+        ensureUniqueAccount("phone", phone);
+        if (email != null) {
+            ensureUniqueAccount("email", email);
+        }
+
+        String userId = UUID.randomUUID().toString().replace("-", "");
+        String salt = oConvertUtils.randomGen(8);
+        String temporaryPassword = generateTemporaryPassword();
+        LocalDateTime now = LocalDateTime.now();
+        jdbc.update("""
+                INSERT INTO sys_user
+                    (id, username, realname, password, salt, email, phone, status, del_flag,
+                     create_by, create_time, update_by, update_time)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, ?)
+                """, userId, username, realName, PasswordUtil.encrypt(username, temporaryPassword, salt), salt,
+                email, phone, operatorId, now, operatorId, now);
+        jdbc.update("INSERT INTO sys_user_tenant (id, user_id, tenant_id, status, create_by, create_time) VALUES (?, ?, ?, '1', ?, ?)",
+                UUID.randomUUID().toString().replace("-", ""), userId, tenantId, operatorId, now);
+        jdbc.update("INSERT INTO sys_user_depart (id, user_id, dep_id) VALUES (?, ?, ?)",
+                UUID.randomUUID().toString().replace("-", ""), userId, departmentId);
+        jdbc.update("INSERT INTO sys_user_role (id, user_id, role_id, tenant_id) VALUES (?, ?, ?, ?)",
+                UUID.randomUUID().toString().replace("-", ""), userId, roleId, tenantId);
+        return new MemberCreation(userId, username, temporaryPassword, true,
+                "成员已创建，请将临时密码安全交给成员并要求首次登录后修改");
     }
 
     @Transactional
@@ -273,19 +352,7 @@ public class InsuranceSettingsService {
     @Transactional
     public Member updateMemberRole(int tenantId, String userId, String roleCode) {
         requireMember(tenantId, userId);
-        if (!List.of("insurer_viewer", "insurer_analyst", "insurance_operator", "insurer_auditor", "insurance_department_manager").contains(roleCode)) {
-            throw InsuranceApiException.badRequest("roleCode is not an insurer role");
-        }
-        String roleId = jdbc.queryForObject("""
-                SELECT id
-                FROM sys_role
-                WHERE role_code = ? AND (tenant_id = 0 OR tenant_id = ?)
-                ORDER BY CASE WHEN tenant_id = ? THEN 0 ELSE 1 END
-                LIMIT 1
-                """, String.class, roleCode, tenantId, tenantId);
-        if (roleId == null) {
-            throw InsuranceApiException.badRequest("roleCode is not configured");
-        }
+        String roleId = resolveInsuranceMemberRole(tenantId, roleCode);
         jdbc.update("DELETE ur FROM sys_user_role ur JOIN sys_role r ON r.id = ur.role_id WHERE ur.user_id = ? AND ur.tenant_id = ? AND r.role_code IN ('insurer_viewer','insurer_analyst','insurance_operator','insurer_auditor','insurance_department_manager')", userId, tenantId);
         jdbc.update("INSERT INTO sys_user_role (id, user_id, role_id, tenant_id) VALUES (?, ?, ?, ?)", UUID.randomUUID().toString().replace("-", ""), userId, roleId, tenantId);
         return members(tenantId).stream().filter(member -> member.id().equals(userId)).findFirst()
@@ -302,6 +369,42 @@ public class InsuranceSettingsService {
         if (valid == null || valid < 1) {
             throw InsuranceApiException.notFound("member was not found in the requested tenant");
         }
+    }
+
+    private String resolveInsuranceMemberRole(int tenantId, String roleCode) {
+        if (roleCode == null || !INSURANCE_MEMBER_ROLES.contains(roleCode.trim())) {
+            throw InsuranceApiException.badRequest("roleCode is not an insurer role");
+        }
+        try {
+            String roleId = jdbc.queryForObject("""
+                    SELECT id
+                    FROM sys_role
+                    WHERE role_code = ? AND (tenant_id = 0 OR tenant_id = ?)
+                    ORDER BY CASE WHEN tenant_id = ? THEN 0 ELSE 1 END
+                    LIMIT 1
+                    """, String.class, roleCode.trim(), tenantId, tenantId);
+            if (roleId == null) {
+                throw InsuranceApiException.badRequest("roleCode is not configured");
+            }
+            return roleId;
+        } catch (EmptyResultDataAccessException e) {
+            throw InsuranceApiException.badRequest("roleCode is not configured");
+        }
+    }
+
+    private void ensureUniqueAccount(String field, String value) {
+        Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM sys_user WHERE " + field + " = ?", Integer.class, value);
+        if (count != null && count > 0) {
+            throw InsuranceApiException.conflict("the account " + field + " is already registered; use the existing-account invitation flow");
+        }
+    }
+
+    private String generateTemporaryPassword() {
+        StringBuilder password = new StringBuilder(16);
+        for (int i = 0; i < 16; i++) {
+            password.append(TEMP_PASSWORD_ALPHABET[SECURE_RANDOM.nextInt(TEMP_PASSWORD_ALPHABET.length)]);
+        }
+        return password.toString();
     }
 
     @Transactional

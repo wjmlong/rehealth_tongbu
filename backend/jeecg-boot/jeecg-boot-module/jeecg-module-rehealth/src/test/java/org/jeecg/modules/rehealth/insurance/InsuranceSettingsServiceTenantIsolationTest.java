@@ -6,6 +6,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -120,6 +122,38 @@ class InsuranceSettingsServiceTenantIsolationTest {
                 eq(String.class), eq("13800000000")
         );
         org.junit.jupiter.api.Assertions.assertEquals("invited", invitation.status());
+    }
+
+    @Test
+    void creatingMemberWritesOnlyCurrentTenantMembershipDepartmentAndRole() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        InsuranceSettingsService service = new InsuranceSettingsService(jdbc);
+        when(jdbc.queryForObject(anyString(), eq(Integer.class), eq("tenant-department"), eq(1001)))
+                .thenReturn(1);
+        when(jdbc.queryForObject(anyString(), eq(String.class), eq("insurer_analyst"), eq(1001), eq(1001)))
+                .thenReturn("analyst-role");
+
+        InsuranceSettingsResponse.MemberCreation created = service.createMember(
+                1001,
+                "operator-user",
+                new InsuranceSettingsRequest.MemberCreation(
+                        null, "新成员", "13800000001", "new-member@example.com",
+                        "tenant-department", "insurer_analyst"
+                )
+        );
+
+        assertNotNull(created.userId());
+        assertEquals("13800000001", created.username());
+        assertEquals(16, created.temporaryPassword().length());
+        assertTrue(created.mustChangePassword());
+        verify(jdbc).update(
+                org.mockito.ArgumentMatchers.argThat(sql -> sql.contains("INSERT INTO sys_user_tenant")),
+                anyString(), anyString(), eq(1001), eq("operator-user"), any()
+        );
+        verify(jdbc).update(
+                eq("INSERT INTO sys_user_role (id, user_id, role_id, tenant_id) VALUES (?, ?, ?, ?)"),
+                anyString(), anyString(), eq("analyst-role"), eq(1001)
+        );
     }
 
     @Test

@@ -106,7 +106,21 @@ public class InsuranceSettingsController {
             @RequestBody InsuranceSettingsRequest.MemberInvitation request) {
         return respond(() -> {
             LoginUser user = currentUser();
-            return service.inviteMember(tenantAccessGuard.requireTenant(user, tenantId), user.getId(), request.phone(), request.departmentId());
+            requireRoleAssignmentPermission(request.roleCode());
+            return service.inviteMember(tenantAccessGuard.requireTenant(user, tenantId), user.getId(), request.phone(), request.departmentId(), request.roleCode());
+        });
+    }
+
+    @PostMapping("/members")
+    @RequiresPermissions("rehealth:insurance:member:manage")
+    @Operation(summary = "Create a new member in the current insurance tenant")
+    public ResponseEntity<Result<InsuranceSettingsResponse.MemberCreation>> createMember(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
+            @RequestBody InsuranceSettingsRequest.MemberCreation request) {
+        return respond(() -> {
+            LoginUser user = currentUser();
+            requireRoleAssignmentPermission(request.roleCode());
+            return service.createMember(tenantAccessGuard.requireTenant(user, tenantId), user.getId(), request);
         });
     }
 
@@ -146,6 +160,13 @@ public class InsuranceSettingsController {
             return loginUser;
         }
         throw InsuranceApiException.forbidden("authenticated service account is required");
+    }
+
+    private void requireRoleAssignmentPermission(String roleCode) {
+        if (roleCode != null && !roleCode.isBlank()
+                && !SecurityUtils.getSubject().isPermitted("rehealth:insurance:role:assign")) {
+            throw InsuranceApiException.forbidden("role assignment permission is required");
+        }
     }
 
     private <T> ResponseEntity<Result<T>> respond(Supplier<T> action) {

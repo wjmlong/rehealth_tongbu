@@ -60,7 +60,8 @@ JeecgBoot `rehealth:insurance:organization:*`、`member:*`、`role:assign` 和
 | `GET/PUT` | `/rehealth/insurance/v1/settings/organization` | 查询/保存当前租户机构信息 |
 | `GET` | `/rehealth/insurance/v1/settings/departments` | 查询当前租户部门及成员数 |
 | `GET` | `/rehealth/insurance/v1/settings/members` | 查询成员、角色、部门和负责人数量 |
-| `POST` | `/rehealth/insurance/v1/settings/members/invitations` | 按已注册手机号邀请账号加入当前租户，可预选当前租户部门 |
+| `POST` | `/rehealth/insurance/v1/settings/members/invitations` | 按已注册手机号邀请账号加入当前租户，可预选当前租户部门和业务角色；关系保持待接受 |
+| `POST` | `/rehealth/insurance/v1/settings/members` | 机构管理员创建新 Jeecg 账号并原子写入当前租户、部门和业务角色；响应只返回一次性临时密码 |
 | `PUT` | `/rehealth/insurance/v1/settings/members/{userId}/status` | 启用或停用当前租户成员关系，不停用全局账号 |
 | `PUT` | `/rehealth/insurance/v1/settings/members/{userId}/department` | 调整成员在当前租户内的部门，不影响其他租户 |
 | `PUT` | `/rehealth/insurance/v1/settings/members/{userId}/role` | 分配白名单内的保险业务角色，不允许通过接口授予机构管理员 |
@@ -72,7 +73,7 @@ JeecgBoot `rehealth:insurance:organization:*`、`member:*`、`role:assign` 和
 
 平台级 `admin`、`super_admin` 账号即使因本地验收加入了保险租户，也不会出现在机构成员目录、部门成员数或负责人候选中，且不能通过邀请、成员修改或负责人接口由机构管理员操作。平台管理员仍可使用其平台权限进行验收，但不属于保险机构可管理的业务成员。
 `insurance_department_manager`（保险部门经理）只能读取自己负责的投保人、所属部门及对应负责人关系，不能读取同租户其他经理或未分配投保人的信息。风险看板、列表和详情对所有保险后台角色统一应用 `rehealth_insurance_subject_manager`：角色只区分允许执行的后台操作，不裁剪负责用户的可读业务字段。
-邀请接口只匹配已经注册的 Jeecg 手机号，写入状态为 `5` 的待接受租户关系；被邀请人同意后才能登录该保险机构工作台，管理员不能通过状态接口跳过成员确认直接启用。当前操作人不能停用自己的租户成员关系，避免机构管理会话自锁。
+邀请接口只匹配已经注册的 Jeecg 手机号，写入状态为 `5` 的待接受租户关系；被邀请人同意后才能登录该保险机构工作台，管理员不能通过状态接口跳过成员确认直接启用。新增成员接口只允许机构管理员创建全局账号，同时写入当前租户的 `sys_user_tenant`、当前租户部门的 `sys_user_depart` 和当前租户业务角色的 `sys_user_role`，不会修改该账号在其他租户的关系；临时密码不落日志，仅在创建响应中返回一次，生产环境应通过安全渠道交付并要求首次登录后修改。当前操作人不能停用自己的租户成员关系，避免机构管理会话自锁。
 风险列表、详情和看板从 `rehealth_insurance_subject` 取得当前租户 APP 服务用户，并按当前员工 ID 关联 `rehealth_insurance_subject_manager`；APP 用户不需要加入 `sys_user_tenant`。有保险角色但没有分配时返回空范围，没有当前租户保险角色时拒绝访问。
 
 ### 2.1 投保人风险分层

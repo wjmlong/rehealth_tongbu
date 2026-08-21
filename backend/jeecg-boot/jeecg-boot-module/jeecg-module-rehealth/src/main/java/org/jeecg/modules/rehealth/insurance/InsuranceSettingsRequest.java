@@ -25,6 +25,19 @@ public final class InsuranceSettingsRequest {
     public record MemberRole(String roleCode) {
     }
 
-    public record MemberInvitation(String phone, String departmentId) {
+    public record MemberInvitation(String phone, String departmentId, String roleCode) {
+        public MemberInvitation(String phone, String departmentId) {
+            this(phone, departmentId, null);
+        }
+    }
+
+    public record MemberCreation(
+            String username,
+            String realName,
+            String phone,
+            String email,
+            String departmentId,
+            String roleCode
+    ) {
     }
 }
