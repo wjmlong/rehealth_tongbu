@@ -130,6 +130,7 @@ fun ReHealthApp() {
     }
     LaunchedEffect(stage) {
         if (stage == AppStage.Main) {
+            ringViewModel.refreshBackgroundCollectionState(application)
             ringViewModel.refreshPatientMvp()
             ringViewModel.restoreLastConnection()
         } else {
@@ -262,6 +263,8 @@ private fun MainShell(
             onConnect = onConnect,
             onDisconnect = onDisconnect,
             onSync = onSync,
+            onStartBackgroundCollection = { ringViewModel.startBackgroundCollection(application) },
+            onStopBackgroundCollection = { ringViewModel.stopBackgroundCollection(application) },
             onSwitchProduct = onSwitchProduct,
             simulationAvailable = application.fullChainSimulationRunner.available,
             simulationRunning = simulationRunning,
@@ -329,7 +332,10 @@ private fun MainShell(
                         Tab.Model -> ModelScreen(ringState, canonicalRiskStatus)
                         Tab.Profile -> ProfileScreen(
                             state = ringState,
-                            onDeviceBinding = { showDeviceBinding = true },
+                            onDeviceBinding = {
+                                ringViewModel.refreshBackgroundCollectionState(application)
+                                showDeviceBinding = true
+                            },
                             onRestartOnboarding = onRestartOnboarding,
                             onGoToLogin = onGoToLogin,
                             onStartInterview = { showInterview = true },

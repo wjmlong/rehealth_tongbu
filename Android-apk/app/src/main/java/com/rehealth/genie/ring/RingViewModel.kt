@@ -7,14 +7,10 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.rehealth.genie.data.sync.RingCloudRepository
 import com.rehealth.genie.data.RiskHistoryRepository
-import com.rehealth.genie.network.PatientInterventionPayload
 import com.rehealth.genie.network.PatientMvpPayload
 import com.rehealth.genie.network.PatientProfilePayload
-import com.rehealth.genie.network.PatientRiskPayload
 import com.rehealth.genie.features.BaselineHealthProfile
 import com.rehealth.genie.features.HealthMemorySnapshot
-import com.rehealth.genie.phm.CvdFeatureVector
-import com.rehealth.genie.phm.CvdRiskHeuristic
 import com.rehealth.genie.ring.SupportedHardwareHealthMetrics
 import com.rehealth.genie.ring.data.RingActivityEntity
 import com.rehealth.genie.ring.data.RingDataDao
@@ -42,8 +38,6 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-private val initialFallbackMvp = buildFallbackPatientMvp()
-
 data class RingUiState(
     val acquisitionMode: RingAcquisitionMode = RingAcquisitionMode.BLUETOOTH,
     val connectionState: RingConnectionState = RingConnectionState.DISCONNECTED,
@@ -57,11 +51,11 @@ data class RingUiState(
     val lastSyncAt: Long? = null,
     val message: String? = null,
     val cloudSnapshotId: String? = null,
-    val cloudRiskLevel: String? = initialFallbackMvp.risk?.riskLevel,
-    val cloudRiskScore: Double? = initialFallbackMvp.risk?.riskScore,
-    val cloudRiskMode: String? = initialFallbackMvp.risk?.mode,
-    val cloudRiskSummary: String? = initialFallbackMvp.risk?.summary,
-    val patientMvp: PatientMvpPayload? = initialFallbackMvp,
+    val cloudRiskLevel: String? = null,
+    val cloudRiskScore: Double? = null,
+    val cloudRiskMode: String? = null,
+    val cloudRiskSummary: String? = null,
+    val patientMvp: PatientMvpPayload? = null,
     val isPatientMvpLoading: Boolean = false,
     val isInterventionGenerating: Boolean = false,
     val interventionGenerationError: String? = null,
@@ -77,6 +71,8 @@ data class RingUiState(
     val supportedFeatures: Set<RingFeatureType> = emptySet(),
     val wearableProducts: List<WearableProductOption> = emptyList(),
     val activeProductCode: String? = null,
+    val hasBoundBluetoothDevice: Boolean = false,
+    val backgroundCollectionEnabled: Boolean = false,
 ) {
     val collectedMetricCount: Int
         get() = measurements.keys.count { it in SupportedHardwareHealthMetrics && it != RingMetricType.SLEEP } +
@@ -101,6 +97,8 @@ internal fun RingUiState.clearedForPatientSession(): RingUiState = copy(
     isPatientMvpLoading = false,
     isInterventionGenerating = false,
     interventionGenerationError = null,
+    hasBoundBluetoothDevice = false,
+    backgroundCollectionEnabled = false,
     measurements = emptyMap(),
     sleep = null,
     activity = null,
@@ -170,7 +168,6 @@ class RingViewModel(
     private var autoCollectionJob: Job? = null
     private var restoreConnectionJob: Job? = null
     private var patientRefreshJob: Job? = null
-    private var lastRingVector: CvdFeatureVector = CvdFeatureVector()
     private val activePatientUserId = MutableStateFlow(
         currentUserIdProvider()?.takeIf(String::isNotBlank),
     )
@@ -190,6 +187,9 @@ class RingViewModel(
                         emptyList()
                     },
                     activeProductCode = manager.activeBinding.value.productCode,
+                    hasBoundBluetoothDevice = manager.activeBinding.value.let { binding ->
+                        binding.vendor != WearableVendor.VIOMI_CLOUD && !binding.address.isNullOrBlank()
+                    },
                 )
             }
             viewModelScope.launch {
@@ -198,6 +198,8 @@ class RingViewModel(
                         it.copy(
                             activeProductCode = binding.productCode,
                             acquisitionMode = repository.acquisitionMode,
+                            hasBoundBluetoothDevice =
+                                binding.vendor != WearableVendor.VIOMI_CLOUD && !binding.address.isNullOrBlank(),
                             measurements = if (binding.vendor == WearableVendor.VIOMI_CLOUD) {
                                 emptyMap()
                             } else {
@@ -248,7 +250,6 @@ class RingViewModel(
                     }
                 }
             }.collect { snapshot ->
-                lastRingVector = vectorFromMeasurements(snapshot.measurements)
                 mutableUiState.update { state ->
                     val cloudMode = state.acquisitionMode == RingAcquisitionMode.CLOUD
                     state.copy(
@@ -303,19 +304,47 @@ class RingViewModel(
         autoCollectionJob = null
     }
 
-    /**
-     * Explicitly opts into continuous background collection. App entry does not call this;
-     * keeping the trigger here lets a later settings/action flow enable it without coupling
-     * ring collection to the foreground Compose lifecycle.
-     */
+    /** Explicitly opts into continuous local collection for the encrypted Bluetooth binding. */
     fun startBackgroundCollection(context: Context) {
-        if (repository.acquisitionMode == RingAcquisitionMode.CLOUD) return
-        if (wearableManager?.activeBinding?.value?.address.isNullOrBlank()) return
-        RingForegroundService.start(context.applicationContext)
+        val appContext = context.applicationContext
+        val binding = wearableManager?.activeBinding?.value
+        if (repository.acquisitionMode == RingAcquisitionMode.CLOUD) {
+            mutableUiState.update { it.copy(message = "云米数据由云端同步，不需要启用蓝牙后台采集") }
+            return
+        }
+        if (binding?.address.isNullOrBlank()) {
+            mutableUiState.update { it.copy(message = "请先绑定 HBand 设备，再启用后台采集") }
+            return
+        }
+        RingForegroundService.start(appContext)
+        mutableUiState.update {
+            it.copy(
+                backgroundCollectionEnabled = true,
+                message = "后台采集已启用，将按保守间隔保存设备数据",
+            )
+        }
     }
 
     fun stopBackgroundCollection(context: Context) {
         RingForegroundService.stop(context.applicationContext)
+        mutableUiState.update {
+            it.copy(
+                backgroundCollectionEnabled = false,
+                message = "后台采集已关闭",
+            )
+        }
+    }
+
+    fun refreshBackgroundCollectionState(context: Context) {
+        val binding = wearableManager?.activeBinding?.value
+        mutableUiState.update {
+            it.copy(
+                hasBoundBluetoothDevice = binding != null &&
+                    binding.vendor != WearableVendor.VIOMI_CLOUD &&
+                    !binding.address.isNullOrBlank(),
+                backgroundCollectionEnabled = RingBackgroundCollectionSettings.isActive(context.applicationContext),
+            )
+        }
     }
 
     /**
@@ -370,6 +399,9 @@ class RingViewModel(
                 }
             if (resumeBackground && repository.acquisitionMode != RingAcquisitionMode.CLOUD) {
                 RingForegroundService.start(appContext)
+            }
+            mutableUiState.update {
+                it.copy(backgroundCollectionEnabled = resumeBackground && repository.acquisitionMode != RingAcquisitionMode.CLOUD)
             }
             if (resumeAuto) startAutoCollection()
         }
@@ -670,7 +702,6 @@ class RingViewModel(
         patientRefreshJob?.cancel()
         patientRefreshJob = null
         activePatientUserId.value = null
-        lastRingVector = CvdFeatureVector()
         pushProfileToRepository(repository, null)
         mutableUiState.update(RingUiState::clearedForPatientSession)
     }
@@ -905,7 +936,6 @@ class RingViewModel(
                 mutableUiState.update {
                     it.copy(
                         isPatientMvpLoading = false,
-                        patientMvp = it.patientMvp ?: buildFallbackPatientMvp(lastRingVector),
                         message = if (silent) it.message else "资料读取失败，请检查网络后重试",
                     )
                 }
@@ -1001,112 +1031,6 @@ private fun periodStartMillis(windowDays: Int): Long {
         set(Calendar.MILLISECOND, 0)
         if (windowDays > 1) add(Calendar.DAY_OF_YEAR, -(windowDays - 1))
     }.timeInMillis
-}
-
-/**
- * Computed offline fallback for the patient MVP. Used only when the backend is
- * unavailable and no prior real [PatientMvpPayload] exists. Every field is derived from
- * the available local feature vector (or a neutral baseline) via [CvdRiskHeuristic] —
- * no canned persona (no hardcoded name/age). This satisfies Requirement C: the fallback
- * is simulated data computed from real local inputs, never arbitrary placeholders.
- */
-private fun buildFallbackPatientMvp(vector: CvdFeatureVector = CvdFeatureVector()): PatientMvpPayload {
-    val score = CvdRiskHeuristic.score(vector)
-    val level = CvdRiskHeuristic.level(score)
-    val profile = PatientProfilePayload(
-        patientId = "local-computed",
-        name = null,
-        gender = if (vector.gender == 1) "male" else if (vector.gender == 0) "female" else null,
-        age = vector.age,
-        heightCm = null,
-        weightKg = null,
-        bmi = vector.bmi,
-        diagnoses = emptyList(),
-        medications = emptyList(),
-        allergies = emptyList(),
-        familyHistory = vector.familyHistory == 1,
-        smoking = vector.smoking == 1,
-        drinking = vector.drinking == 1,
-        diabetesHistory = vector.diabetesHistory == 1,
-        hypertensionHistory = vector.hypertensionHistory == 1,
-        updatedAt = System.currentTimeMillis(),
-    )
-    val risk = PatientRiskPayload(
-        mode = "local_heuristic",
-        modelVersion = "rehealth-local-heuristic-0.1",
-        riskScore = score,
-        riskLevel = level,
-        summary = CvdRiskHeuristic.summary(score, vector),
-        generatedAt = null,
-    )
-    return PatientMvpPayload(
-        profile = profile,
-        risk = risk,
-        interventionPlan = buildFallbackInterventions(vector, level),
-        recentCheckins = emptyList(),
-        updatedAt = System.currentTimeMillis(),
-    )
-}
-
-private fun buildFallbackInterventions(
-    vector: CvdFeatureVector,
-    level: String,
-): List<PatientInterventionPayload> {
-    val list = mutableListOf<PatientInterventionPayload>()
-    if (vector.sbp != null || vector.dbp != null) {
-        list += PatientInterventionPayload(
-            id = "bp_monitor",
-            title = "规律监测血压",
-            goal = "观察血压趋势",
-            action = "早晚各测 1 次血压",
-            duration = "3 天",
-            reason = "当前风险分提示需要关注血压波动",
-            status = "active",
-        )
-    }
-    if (vector.exerciseDays == null || vector.exerciseDays < 4) {
-        list += PatientInterventionPayload(
-            id = "walking_zone2",
-            title = "餐后轻运动",
-            goal = "降低餐后代谢压力",
-            action = "晚餐后步行 15-20 分钟",
-            duration = "2 周",
-            reason = "低强度活动有助于血糖、血脂和压力管理",
-            status = "active",
-        )
-    }
-    list += PatientInterventionPayload(
-        id = "sleep_baseline",
-        title = "睡眠节律打卡",
-        goal = "连续记录睡眠恢复情况",
-        action = "起床后记录精神状态",
-        duration = "7 天",
-        reason = "稳定睡眠有助于血压和心率恢复",
-        status = "active",
-    )
-    return list
-}
-
-private fun vectorFromMeasurements(measurements: List<RingMeasurementEntity>): CvdFeatureVector {
-    val bp = measurements.firstOrNull { runCatching { RingMetricType.valueOf(it.metricType) }.getOrNull() == RingMetricType.BLOOD_PRESSURE }
-    return CvdFeatureVector(
-        sbp = bp?.primaryValue,
-        dbp = bp?.secondaryValue,
-        fastingGlucose = null,
-        totalCholesterol = null,
-        ldl = null,
-        hdl = null,
-        triglycerides = null,
-        exerciseDays = null,
-        smoking = null,
-        drinking = null,
-        diabetesHistory = null,
-        hypertensionHistory = null,
-        familyHistory = null,
-        age = null,
-        gender = null,
-        bmi = null,
-    )
 }
 
 /**

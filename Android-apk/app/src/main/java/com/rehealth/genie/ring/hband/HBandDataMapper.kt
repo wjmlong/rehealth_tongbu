@@ -9,8 +9,9 @@ import com.rehealth.genie.ring.data.RingSignalChunkEntity
 import com.rehealth.genie.ring.data.RingSleepSessionEntity
 import java.security.MessageDigest
 
+internal const val HBAND_DATA_SOURCE = "hband_wearable"
+
 internal object HBandDataMapper {
-    private const val SOURCE = "hband_wearable"
 
     fun toEntities(payload: HBandPayload, deviceKey: String): RingDataBatch = RingDataBatch(
         measurements = payload.measurements
@@ -24,7 +25,7 @@ internal object HBandDataMapper {
                     secondaryValue = sample.secondaryValue,
                     unit = sample.unit,
                     quality = null,
-                    source = SOURCE,
+                    source = HBAND_DATA_SOURCE,
                     rawPayload = null,
                 )
             }.distinctBy { it.id },
@@ -41,7 +42,7 @@ internal object HBandDataMapper {
                     // The selected HBand API does not report REM as a separate stage.
                     remMinutes = 0,
                     interruptionMinutes = record.awakeMinutes,
-                    source = SOURCE,
+                    source = HBAND_DATA_SOURCE,
                     rawPayload = null,
                     totalSleepMinutes = record.totalMinutes,
                 )
@@ -60,7 +61,7 @@ internal object HBandDataMapper {
                     // Daily SportData has no workout-duration field; do not report elapsed wall-clock time as exercise.
                     durationMinutes = 0,
                     averageHeartRate = null,
-                    source = SOURCE,
+                    source = HBAND_DATA_SOURCE,
                     rawPayload = null,
                 )
             }.distinctBy { it.id },
@@ -75,7 +76,7 @@ internal object HBandDataMapper {
                     sampleCount = record.samplesMv.size,
                     encoding = "FLOAT32_LE",
                     payload = SignalEncoding.float32LittleEndian(record.samplesMv),
-                    source = SOURCE,
+                    source = HBAND_DATA_SOURCE,
                     drawFrequencyHz = record.drawFrequencyHz,
                     durationSeconds = record.durationSeconds,
                     leadType = record.lead.takeUnless { it == com.rehealth.genie.ring.RingEcgLead.UNKNOWN }?.name,
@@ -104,7 +105,7 @@ internal object HBandDataMapper {
     }
 
     private fun stableId(deviceKey: String, kind: String, subtype: String, timestamp: Long): String {
-        val input = "$SOURCE|${deviceKey.lowercase()}|$kind|$subtype|$timestamp"
+        val input = "$HBAND_DATA_SOURCE|${deviceKey.lowercase()}|$kind|$subtype|$timestamp"
         return MessageDigest.getInstance("SHA-256")
             .digest(input.toByteArray(Charsets.UTF_8))
             .joinToString("") { "%02x".format(it) }

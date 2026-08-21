@@ -12,6 +12,17 @@ import kotlin.test.assertTrue
 
 class RingPatientSessionClearTest {
     @Test
+    fun initialStateDoesNotSynthesizeRiskOrInterventionPlan() {
+        val state = RingUiState()
+
+        assertNull(state.patientMvp)
+        assertNull(state.cloudRiskScore)
+        assertNull(state.cloudRiskLevel)
+        assertNull(state.cloudRiskMode)
+        assertNull(state.cloudRiskSummary)
+    }
+
+    @Test
     fun logoutClearsAllPatientOwnedHealthState() {
         val measurement = RingMeasurementEntity("m", "HEART_RATE", 1L, 70.0, unit = "bpm", source = "test")
         val sleep = RingSleepSessionEntity("s", 1L, 2L, 1, 0, 0, 0, 0, "test")
@@ -31,6 +42,8 @@ class RingPatientSessionClearTest {
             signals = mapOf(RingMetricType.ECG to signal),
             ecgHistory = listOf(signal),
             liveEcg = RingEcgLiveState(samplesMv = floatArrayOf(0.1f)),
+            hasBoundBluetoothDevice = true,
+            backgroundCollectionEnabled = true,
         )
 
         val cleared = populated.clearedForPatientSession()
@@ -46,5 +59,7 @@ class RingPatientSessionClearTest {
         assertNull(cleared.cloudRiskScore)
         assertNull(cleared.lastSyncAt)
         assertEquals(false, cleared.isSyncing)
+        assertEquals(false, cleared.hasBoundBluetoothDevice)
+        assertEquals(false, cleared.backgroundCollectionEnabled)
     }
 }

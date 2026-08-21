@@ -1,6 +1,6 @@
 # D2 Telemetry Sync Status and Remaining QA
 
-Status: implemented software path; updated 2026-08-20.
+Status: implemented software path; updated 2026-08-21.
 
 ## Implemented
 
@@ -82,17 +82,19 @@ Status: implemented software path; updated 2026-08-20.
   device is disconnected, it first retries the encrypted bound-device connection with bounded
   backoff; it never scans or connects an unbound device. The in-process automatic cycle uses the
   same reconnect path instead of silently skipping a disconnected device. Explicit
-  Foreground Service recovery retains bound-device reconnect behavior. For HBand, existing recent
-  Room sleep/activity rows select a two-day-or-greater overlap window; origin history is skipped
+  Foreground Service recovery retains bound-device reconnect behavior. For HBand, only recent Room
+  sleep/activity rows owned by the authenticated user and matching the active device plus
+  `hband_wearable` source select a two-day-or-greater overlap window; origin history is skipped
   when activity has no gap, while first sync or a gap retains origin-history recovery. Vendor sleep
   and origin callbacks feed monotonic target progress, and Compose smooths toward that target without
   delaying persistence or upload completion.
 - For an active Bluetooth binding, the Foreground Service remains the continuous collection path
-  once explicitly enabled through the service/ViewModel API. Re-entering the Main stage proactively
+  once explicitly enabled through “My → Device binding → Background automatic collection”. Android
+  13+ requests notification permission before starting it. Re-entering the Main stage proactively
   reconnects only the encrypted last binding through `autoConnect()`; it does not scan, start the
   service, or trigger an immediate ring collection. This restores the device connection without
-  repeating the long measurement step every time an older user reopens the app. Logout still stops
-  the service, and a future settings/action flow can explicitly enable background collection again.
+  repeating the long measurement step every time an older user reopens the app. The same device
+  page can explicitly stop collection, and logout still stops it.
 
 ## Software-Only Validation
 
@@ -106,6 +108,9 @@ Status: implemented software path; updated 2026-08-20.
 - Debug Kotlin compilation, JVM unit tests, and debug APK assembly.
 - Viomi mapping/range/scope unit tests, Room 14→15 migration-test compilation, and backend
   Shanghai-time/range validation tests.
+- Risk feature queries and HBand incremental-window reads are owner scoped; HBand tests reject
+  recent rows from another user or device. Background-entry policy tests cover binding, Bluetooth,
+  Android 13+ notification permission, and the absence of a synthesized local risk/plan default.
 
 ## HARDWARE_QA_PENDING
 

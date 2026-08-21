@@ -1,6 +1,6 @@
 # BLE Background Collection QA
 
-Last updated: 2026-08-20
+Last updated: 2026-08-21
 
 ## Scope
 
@@ -8,7 +8,9 @@ B1 adds a local-first foreground service for low-frequency wearable collection a
 
 For a bound Bluetooth device, the production app does not start this service merely because the
 Main stage is entered. Background collection must be explicitly enabled through the service or
-ViewModel API; logout stops it. The app-facing APIs remain:
+ViewModel API; logout stops it. Users enable or stop it from “我的 → 设备绑定 → 后台自动采集”.
+Android 13+ requests notification permission before the enable action reaches the service. The
+app-facing APIs remain:
 
 - `RingForegroundService.start(context)`
 - `RingForegroundService.stop(context)`
@@ -31,7 +33,8 @@ ViewModel API; logout stops it. The app-facing APIs remain:
 10. For MRD, confirm manual BP measurement if firmware supports it. For RWFit,
     confirm HRV only when the capability flag is present; BP/temperature/stress
     are outside the current RWFit Provider.
-11. Start background collection using the service/ViewModel API.
+11. Open “我的 → 设备绑定 → 后台自动采集” and enable it. On Android 13+, grant the notification
+    permission and verify the page changes to “已启用”.
 12. Put the app in the background.
 13. Lock the screen.
 14. Wait for one conservative interval, currently 15 minutes.
@@ -83,4 +86,3 @@ ViewModel API; logout stops it. The app-facing APIs remain:
 ## Known Follow-Ups
 
 - Add device-specific QA evidence from a real locked-screen run.
-- Consider a user-visible notification permission prompt on Android 13+ before enabling background collection.

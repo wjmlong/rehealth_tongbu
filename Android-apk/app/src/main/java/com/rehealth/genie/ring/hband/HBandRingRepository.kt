@@ -165,8 +165,20 @@ class HBandRingRepository internal constructor(
     private suspend fun incrementalDailyOptions(onProgress: (Int) -> Unit): HBandSyncOptions {
         val now = System.currentTimeMillis()
         val floor = now - MAX_INCREMENTAL_LOOKBACK_MILLIS
-        val latestActivity = dao.getActivitiesSince(floor).firstOrNull()?.startedAt
-        val latestSleep = dao.getSleepSessionsSince(floor).firstOrNull()?.endedAt
+        val ownerUserId = userIdProvider()?.takeIf(String::isNotBlank)
+            ?: return HBandSyncOptions(onProgress = onProgress)
+        val deviceKey = connectedDevice.value?.address ?: activeBindingAddress()
+            ?: return HBandSyncOptions(onProgress = onProgress)
+        val latestActivity = dao.getActivitiesSinceForOwner(floor, ownerUserId)
+            .firstOrNull {
+                it.deviceId.equals(deviceKey, ignoreCase = true) && it.source == HBAND_DATA_SOURCE
+            }
+            ?.startedAt
+        val latestSleep = dao.getSleepSessionsSinceForOwner(floor, ownerUserId)
+            .firstOrNull {
+                it.deviceId.equals(deviceKey, ignoreCase = true) && it.source == HBAND_DATA_SOURCE
+            }
+            ?.endedAt
         val lastCompleteDailyAt = listOfNotNull(latestActivity, latestSleep).minOrNull()
         if (latestActivity == null || latestSleep == null || lastCompleteDailyAt == null) {
             return HBandSyncOptions(onProgress = onProgress)

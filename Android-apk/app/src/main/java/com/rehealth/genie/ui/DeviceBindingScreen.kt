@@ -30,6 +30,7 @@ import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Bluetooth
 import androidx.compose.material.icons.outlined.Devices
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
@@ -76,6 +77,8 @@ internal fun DeviceBindingScreen(
     onConnect: (RingDevice) -> Unit,
     onDisconnect: () -> Unit,
     onSync: () -> Unit,
+    onStartBackgroundCollection: () -> Unit = {},
+    onStopBackgroundCollection: () -> Unit = {},
     onSwitchProduct: (String) -> Unit = {},
     simulationAvailable: Boolean = false,
     simulationRunning: Boolean = false,
@@ -90,10 +93,17 @@ internal fun DeviceBindingScreen(
         mutableStateOf(hasBluetoothPermission(context))
     }
     var viomiImei by remember(state.activeProductCode) { mutableStateOf("") }
+    var notificationPermissionDenied by remember { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { results ->
         permissionGranted = results.values.all { it }
+    }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        notificationPermissionDenied = !granted
+        if (granted) onStartBackgroundCollection()
     }
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(Canvas).statusBarsPadding(),
@@ -248,6 +258,63 @@ internal fun DeviceBindingScreen(
                 }
             }
         }
+        if (state.acquisitionMode == RingAcquisitionMode.BLUETOOTH) item {
+            ReHealthCardBlock {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier.size(44.dp).clip(CircleShape).background(MintSoft),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Outlined.NotificationsActive, null, tint = Mint)
+                    }
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        Text("后台自动采集", color = Ink, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            when {
+                                state.backgroundCollectionEnabled -> "已启用，每 15 分钟尝试保存一次设备数据"
+                                !state.hasBoundBluetoothDevice -> "请先绑定 HBand 设备"
+                                else -> "锁屏或离开页面后继续按保守间隔采集"
+                            },
+                            color = Muted,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(top = 3.dp),
+                        )
+                    }
+                }
+                Button(
+                    onClick = {
+                        if (state.backgroundCollectionEnabled) {
+                            onStopBackgroundCollection()
+                        } else if (requiresNotificationPermission(context)) {
+                            notificationPermissionLauncher.launch(POST_NOTIFICATIONS_PERMISSION)
+                        } else {
+                            onStartBackgroundCollection()
+                        }
+                    },
+                    enabled = canChangeBackgroundCollection(
+                        backgroundCollectionEnabled = state.backgroundCollectionEnabled,
+                        bluetoothPermissionGranted = permissionGranted,
+                        hasBoundBluetoothDevice = state.hasBoundBluetoothDevice,
+                    ),
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (state.backgroundCollectionEnabled) Color(0xFFF1F4F3) else Mint,
+                        contentColor = if (state.backgroundCollectionEnabled) Ink else Color.White,
+                    ),
+                ) {
+                    Text(if (state.backgroundCollectionEnabled) "关闭后台采集" else "启用后台采集")
+                }
+                if (notificationPermissionDenied) {
+                    Text(
+                        "需要通知权限才能清晰展示后台采集状态，请授权后重试。",
+                        color = Color(0xFFC76555),
+                        fontSize = 10.sp,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+            }
+        }
         item {
             ReHealthCardBlock {
                 Text("数据采集目标", color = Ink, fontWeight = FontWeight.SemiBold)
@@ -389,6 +456,29 @@ internal fun canStartBluetoothScan(
     isScanning: Boolean,
     isSyncing: Boolean,
 ): Boolean = permissionGranted && !isScanning && !isSyncing
+
+internal fun canChangeBackgroundCollection(
+    backgroundCollectionEnabled: Boolean,
+    bluetoothPermissionGranted: Boolean,
+    hasBoundBluetoothDevice: Boolean,
+): Boolean = backgroundCollectionEnabled ||
+    (bluetoothPermissionGranted && hasBoundBluetoothDevice)
+
+internal fun requiresNotificationPermission(context: Context): Boolean =
+    requiresNotificationPermission(
+        sdkInt = Build.VERSION.SDK_INT,
+        permissionGranted = ContextCompat.checkSelfPermission(
+            context,
+            POST_NOTIFICATIONS_PERMISSION,
+        ) == PackageManager.PERMISSION_GRANTED,
+    )
+
+internal fun requiresNotificationPermission(
+    sdkInt: Int,
+    permissionGranted: Boolean,
+): Boolean = sdkInt >= Build.VERSION_CODES.TIRAMISU && !permissionGranted
+
+private const val POST_NOTIFICATIONS_PERMISSION = "android.permission.POST_NOTIFICATIONS"
 
 private fun connectionLabel(state: RingConnectionState): String = when (state) {
     RingConnectionState.SCANNING -> "搜索中"

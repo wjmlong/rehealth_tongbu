@@ -327,7 +327,9 @@ class HBandRingRepositoryTest {
                 caloriesKcal = 10.0,
                 durationMinutes = 1,
                 averageHeartRate = null,
-                source = "hband_wearable",
+                source = HBAND_DATA_SOURCE,
+                ownerUserId = "local-device",
+                deviceId = DEVICE.address,
             )
             sleep += RingSleepSessionEntity(
                 id = "sleep",
@@ -338,7 +340,9 @@ class HBandRingRepositoryTest {
                 awakeMinutes = 10,
                 remMinutes = 0,
                 interruptionMinutes = 0,
-                source = "hband_wearable",
+                source = HBAND_DATA_SOURCE,
+                ownerUserId = "local-device",
+                deviceId = DEVICE.address,
             )
         }
         val gateway = FakeHBandGateway(capabilitiesValue = HBandCapabilities(ecg = true))
@@ -351,6 +355,50 @@ class HBandRingRepositoryTest {
 
         assertEquals(2, gateway.lastSyncOptions?.historyDays)
         assertEquals(false, gateway.lastSyncOptions?.includeOriginHistory)
+    }
+
+    @Test
+    fun recentRowsFromAnotherOwnerOrDeviceDoNotShortenIncrementalHistory() = runTest {
+        val now = System.currentTimeMillis()
+        val dao = FakeHBandDao().apply {
+            activities += RingActivityEntity(
+                id = "other-owner-activity",
+                startedAt = now - 60_000,
+                endedAt = now,
+                activityType = "daily",
+                steps = 100,
+                distanceMeters = 50.0,
+                caloriesKcal = 10.0,
+                durationMinutes = 1,
+                averageHeartRate = null,
+                source = HBAND_DATA_SOURCE,
+                ownerUserId = "other-user",
+                deviceId = DEVICE.address,
+            )
+            sleep += RingSleepSessionEntity(
+                id = "other-device-sleep",
+                startedAt = now - 8 * 60 * 60 * 1_000,
+                endedAt = now - 60_000,
+                deepMinutes = 60,
+                lightMinutes = 240,
+                awakeMinutes = 10,
+                remMinutes = 0,
+                interruptionMinutes = 0,
+                source = HBAND_DATA_SOURCE,
+                ownerUserId = "local-device",
+                deviceId = "different-device",
+            )
+        }
+        val gateway = FakeHBandGateway(capabilitiesValue = HBandCapabilities(ecg = true))
+        val repository = repository(dao, HBandBindingStore(), gateway).apply {
+            wearableUserProfile = BaselineHealthProfile(35, "female", 165.0, 55.0)
+        }
+        repository.connect(DEVICE)
+
+        repository.sync(setOf(RingMetricType.SLEEP, RingMetricType.STEPS, RingMetricType.ACTIVITY))
+
+        assertEquals(null, gateway.lastSyncOptions?.historyDays)
+        assertEquals(true, gateway.lastSyncOptions?.includeOriginHistory)
     }
 
     @Test

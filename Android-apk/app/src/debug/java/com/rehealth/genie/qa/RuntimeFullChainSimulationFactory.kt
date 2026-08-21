@@ -143,10 +143,13 @@ private class DebugFullChainSimulationRunner(
         stages += rdiStage
 
         val riskResults = mutableListOf<Pair<Long, com.rehealth.genie.network.dto.RiskResultDto>>()
-        val measurements = application.database.ringDataDao().getMeasurementsSince(observedAt)
-        val activities = application.database.ringDataDao().getActivitiesSince(observedAt)
-        val sleeps = application.database.ringDataDao().getSleepSessionsSince(
+        val measurements = application.database.ringDataDao()
+            .getMeasurementsSinceForOwner(observedAt, userId)
+        val activities = application.database.ringDataDao()
+            .getActivitiesSinceForOwner(observedAt, userId)
+        val sleeps = application.database.ringDataDao().getSleepSessionsSinceForOwner(
             firstDay.minusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli(),
+            userId,
         )
         for (daysAgo in RISK_HISTORY_DAYS - 1 downTo 0) {
             val scoreDate = today.minusDays(daysAgo.toLong())

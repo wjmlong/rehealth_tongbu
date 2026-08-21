@@ -101,9 +101,14 @@ internal suspend fun refreshRemoteFeatureEvaluateStatus(
     val now = System.currentTimeMillis()
     val since = now - RISK_FEATURE_LOOKBACK_MILLIS
     val dao = application.database.ringDataDao()
-    val measurements = runCatching { dao.getMeasurementsSince(since) }.getOrDefault(emptyList())
-    val activities = runCatching { dao.getActivitiesSince(since) }.getOrDefault(emptyList())
-    val manualInput = application.sessionStore.userId?.let { userId ->
+    val ownerUserId = application.sessionStore.userId?.takeIf(String::isNotBlank)
+    val measurements = ownerUserId?.let { userId ->
+        runCatching { dao.getMeasurementsSinceForOwner(since, userId) }.getOrDefault(emptyList())
+    }.orEmpty()
+    val activities = ownerUserId?.let { userId ->
+        runCatching { dao.getActivitiesSinceForOwner(since, userId) }.getOrDefault(emptyList())
+    }.orEmpty()
+    val manualInput = ownerUserId?.let { userId ->
         runCatching { application.database.rhiManualHealthInputDao().get(userId) }.getOrNull()
     }
     val isDebugMockWearable =
