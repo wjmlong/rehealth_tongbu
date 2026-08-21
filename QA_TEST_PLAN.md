@@ -156,6 +156,20 @@ git diff --check
    - Apply `software-V20260730.1`, enable `REHEALTH_SOFTWARE_DB_ENABLED=true`, and
      send two related questions. Verify the second Java LangChain4j prompt receives the
      bounded prior messages and freshly queried profile/interview/risk/intervention context.
+   - Populate the same authenticated user with profile/diagnosis/medication/allergy, interview,
+     confirmed manual BP/lab values, CVD risk/history, RHI/RDI snapshots and contributions,
+     device measurements/sleep/activity/diet, photo behavior, intervention, feedback and
+     attribution. Ask “结合我的数据，最近睡眠和心血管风险应该注意什么？” and verify the
+     model calls `get_current_user_health_context` before answering, uses only categories whose
+     coverage is `available`, cites dates/limitations, and does not treat `isMock=true` as real.
+   - Inspect the model tool schema and request: it must expose no `userId` or `tenantId` argument.
+     Repeat with another user/tenant and confirm every repository/Device Service query uses only
+     the authenticated owner. Invalid IANA `timeZone` returns `400`; an older request without it
+     uses `Asia/Shanghai` compatibility behavior.
+   - Stop Device Service or make one longitudinal projection unavailable. The tool must mark only
+     that section `unavailable`; profile and other available health data remain usable and the
+     response must not invent the missing values. Raw PPG/RRI, device ids, patient ids and
+     unlimited history must never appear in the tool result or production logs.
    - Force-stop and reopen the app, then log out and log back into the same account.
      Verify Room shows the latest local messages immediately and
      `GET /rehealth/mobile/agent/conversations/latest` reconciles the server history.
@@ -171,7 +185,7 @@ git diff --check
      than a temporary one-turn state.
    - Log out and log in again. Confirm Home starts a fresh active conversation while history
      remains selectable. Send enough messages to scroll; confirm all current messages are
-     reachable and the large mascot/greeting collapses while scrolling. Ask “我是谁” after
+     reachable and the large mascot/greeting scrolls naturally with the list. Ask “我是谁” after
      saving a nickname and confirm the server-authorized assistant context contains that name.
    - Upgrade an installed v6 database containing two conversations to v7. Confirm both message
      histories remain, the latest conversation is active, and the generated titles are readable.

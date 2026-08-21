@@ -9,4 +9,5 @@ public class HealthAgentMessageRequestDto {
     public String clientMessageId;
     public String message;
     public String locale;
+    public String timeZone;
 }

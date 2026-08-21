@@ -9,6 +9,8 @@ import org.jeecg.modules.rehealth.repository.HealthAgentConversationRepository;
 import org.jeecg.modules.rehealth.repository.ReHealthBusinessRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.DateTimeException;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -57,6 +59,7 @@ public class HealthAgentMobileService {
             throw new HealthAgentRequestException(429, "health-agent rate limit exceeded");
         }
         validateIdentifiers(message);
+        ZoneId requestTimeZone = timeZone(message.timeZone);
         HealthAgentPromptContext promptContext = contextAssembler.assemblePrompt(userId, message);
         String conversationId = conversationRepository.resolveConversation(
                 tenantId,
@@ -102,7 +105,13 @@ public class HealthAgentMobileService {
         HealthAgentResponseDto response;
         try {
             response = safetyPolicy.preflight(enginePromptContext.legacyRequest())
-                    .orElseGet(() -> engine.respond(new HealthAgentEngineRequest(userId, enginePromptContext, history)));
+                    .orElseGet(() -> engine.respond(new HealthAgentEngineRequest(
+                            tenantId,
+                            userId,
+                            requestTimeZone,
+                            enginePromptContext,
+                            history
+                    )));
             response = safetyPolicy.postflight(response);
             appendProfileUpdateConfirmation(response, profileUpdate);
         } catch (RuntimeException failure) {
@@ -176,6 +185,20 @@ public class HealthAgentMobileService {
 
     private String clientMessageId(String candidate) {
         return candidate == null || candidate.isBlank() ? UUID.randomUUID().toString() : candidate;
+    }
+
+    private ZoneId timeZone(String candidate) {
+        if (candidate == null || candidate.isBlank()) {
+            return ZoneId.of("Asia/Shanghai");
+        }
+        if (candidate.length() > 64) {
+            throw new HealthAgentRequestException(400, "invalid health-agent timeZone");
+        }
+        try {
+            return ZoneId.of(candidate);
+        } catch (DateTimeException failure) {
+            throw new HealthAgentRequestException(400, "invalid health-agent timeZone");
+        }
     }
 
     private void recordAudit(

@@ -27,7 +27,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Component
 public class LangChain4jHealthAgentEngine {
@@ -38,6 +40,7 @@ public class LangChain4jHealthAgentEngine {
     private final Duration timeout;
     private final int maxTokens;
     private final CurrentUserProfileTool currentUserProfileTool;
+    private final CurrentUserHealthContextTool currentUserHealthContextTool;
     private volatile ChatModel chatModel;
 
     @Autowired
@@ -48,7 +51,8 @@ public class LangChain4jHealthAgentEngine {
             @Value("${rehealth.health-agent.langchain4j.model:deepseek-v4-flash}") String modelName,
             @Value("${rehealth.health-agent.langchain4j.timeout-seconds:20}") long timeoutSeconds,
             @Value("${rehealth.health-agent.langchain4j.max-tokens:800}") int maxTokens,
-            CurrentUserProfileTool currentUserProfileTool
+            CurrentUserProfileTool currentUserProfileTool,
+            CurrentUserHealthContextTool currentUserHealthContextTool
     ) {
         this.baseUrl = normalizeBaseUrl(baseUrl);
         this.apiKey = resolveSecret(apiKey, apiKeyFile);
@@ -56,12 +60,14 @@ public class LangChain4jHealthAgentEngine {
         this.timeout = Duration.ofSeconds(Math.max(1, timeoutSeconds));
         this.maxTokens = Math.max(128, Math.min(maxTokens, 2000));
         this.currentUserProfileTool = currentUserProfileTool;
+        this.currentUserHealthContextTool = currentUserHealthContextTool;
     }
 
     LangChain4jHealthAgentEngine(
             ChatModel chatModel,
             String modelName,
-            CurrentUserProfileTool currentUserProfileTool
+            CurrentUserProfileTool currentUserProfileTool,
+            CurrentUserHealthContextTool currentUserHealthContextTool
     ) {
         this.baseUrl = "test";
         this.apiKey = "test";
@@ -69,6 +75,7 @@ public class LangChain4jHealthAgentEngine {
         this.timeout = Duration.ofSeconds(5);
         this.maxTokens = 800;
         this.currentUserProfileTool = currentUserProfileTool;
+        this.currentUserHealthContextTool = currentUserHealthContextTool;
         this.chatModel = chatModel;
     }
 
@@ -93,7 +100,7 @@ public class LangChain4jHealthAgentEngine {
         response.provider = "langchain4j-openai-compatible";
         response.isDemo = false;
         try {
-            ChatResponse modelResponse = chatWithCurrentUserProfileTool(request.userId(), messages);
+            ChatResponse modelResponse = chatWithAuthorizedTools(request, messages);
             String answer = modelResponse == null || modelResponse.aiMessage() == null
                     ? null
                     : modelResponse.aiMessage().text();
@@ -121,7 +128,7 @@ public class LangChain4jHealthAgentEngine {
         }
     }
 
-    private ChatResponse chatWithCurrentUserProfileTool(String authenticatedUserId, List<ChatMessage> messages) {
+    private ChatResponse chatWithAuthorizedTools(HealthAgentEngineRequest request, List<ChatMessage> messages) {
         ToolSpecification profileTool = ToolSpecification.builder()
                 .name(CurrentUserProfileTool.NAME)
                 .description("读取当前已认证用户的昵称和基本个人资料。回答‘我是谁’、‘我叫什么’或核对个人资料前必须调用。")
@@ -130,27 +137,54 @@ public class LangChain4jHealthAgentEngine {
                         .additionalProperties(false)
                         .build())
                 .build();
-        ChatResponse first = model().chat(ChatRequest.builder()
-                .messages(messages)
-                .toolSpecifications(profileTool)
-                .build());
-        AiMessage assistant = first == null ? null : first.aiMessage();
-        if (assistant == null || !assistant.hasToolExecutionRequests()) {
-            return first;
+        ToolSpecification healthContextTool = ToolSpecification.builder()
+                .name(CurrentUserHealthContextTool.NAME)
+                .description("读取当前已认证用户的完整有界健康上下文，包括档案、访谈、临床手填项、风险与趋势、RHI/RDI、设备健康汇总、饮食/行为、干预及反馈。回答任何基于用户本人健康数据的个体化问题前必须调用。")
+                .parameters(JsonObjectSchema.builder()
+                        .description("无需参数；租户、用户和时区均来自服务端认证请求上下文")
+                        .additionalProperties(false)
+                        .build())
+                .build();
+        List<ToolSpecification> tools = List.of(profileTool, healthContextTool);
+        List<ChatMessage> workingMessages = new ArrayList<>(messages);
+        Map<String, String> toolResultCache = new HashMap<>();
+        for (int round = 0; round < 4; round++) {
+            ChatResponse response = model().chat(ChatRequest.builder()
+                    .messages(workingMessages)
+                    .toolSpecifications(tools)
+                    .build());
+            AiMessage assistant = response == null ? null : response.aiMessage();
+            if (assistant == null || !assistant.hasToolExecutionRequests()) {
+                return response;
+            }
+            workingMessages.add(assistant);
+            for (ToolExecutionRequest toolRequest : assistant.toolExecutionRequests()) {
+                String result = toolResult(toolRequest.name(), request, toolResultCache);
+                workingMessages.add(ToolExecutionResultMessage.from(toolRequest, result));
+            }
         }
+        throw new IllegalStateException("health-agent tool round limit exceeded");
+    }
 
-        List<ChatMessage> followUp = new ArrayList<>(messages);
-        followUp.add(assistant);
-        for (ToolExecutionRequest toolRequest : assistant.toolExecutionRequests()) {
-            String result = CurrentUserProfileTool.NAME.equals(toolRequest.name())
-                    ? currentUserProfileTool.execute(authenticatedUserId)
-                    : "{\"error\":\"unsupported_tool\"}";
-            followUp.add(ToolExecutionResultMessage.from(toolRequest, result));
+    private String toolResult(
+            String toolName,
+            HealthAgentEngineRequest request,
+            Map<String, String> cache
+    ) {
+        if (CurrentUserProfileTool.NAME.equals(toolName)) {
+            return cache.computeIfAbsent(
+                    toolName,
+                    ignored -> currentUserProfileTool.execute(request.userId())
+            );
         }
-        return model().chat(ChatRequest.builder()
-                .messages(followUp)
-                .toolSpecifications(profileTool)
-                .build());
+        if (CurrentUserHealthContextTool.NAME.equals(toolName)) {
+            return cache.computeIfAbsent(
+                    toolName,
+                    ignored -> currentUserHealthContextTool.execute(
+                            request.tenantId(), request.userId(), request.timeZone())
+            );
+        }
+        return "{\"error\":\"unsupported_tool\"}";
     }
 
     private ChatModel model() {
@@ -227,6 +261,9 @@ public class LangChain4jHealthAgentEngine {
                 5. 信息不足时明确说明，不编造设备数据、检查结果或疾病结论。
                 6. 回答使用简体中文，尽量给出少量、可执行、循序渐进的建议。
                 7. 用户询问“我是谁”“我叫什么”或要求核对个人资料时，必须先调用 get_current_user_profile；不得从旧对话猜测身份。
+                8. 回答任何基于用户本人健康数据的个体化问题前，必须调用 get_current_user_health_context；工具不接收用户或租户参数，禁止尝试查询其他人。
+                9. 只使用工具 coverage 标为 available 的分区，并说明数据日期、范围和明显缺失；不得把 isMock=true 的数据当作用户真实健康依据。
+                10. 工具只返回有界摘要，不代表完整病历或原始信号；不要声称“已查看全部病历”，也不要根据趋势声称因果关系。
 
                 服务端授权健康画像 JSON：
                 """ + (authorizedContextJson == null || authorizedContextJson.isBlank()

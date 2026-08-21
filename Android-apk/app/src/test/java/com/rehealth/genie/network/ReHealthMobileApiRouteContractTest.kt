@@ -420,18 +420,21 @@ class ReHealthMobileApiRouteContractTest {
                     conversationId = "conversation-1",
                     clientMessageId = "message-1",
                     message = "如何改善睡眠？",
+                    timeZone = "Asia/Shanghai",
                 ),
             ),
         ).data as com.rehealth.genie.network.dto.HealthAgentResponse
         assertEquals("请保持规律作息", agent.answer)
-        assertRequest("/jeecg-boot/rehealth/mobile/agent/messages", "POST")
+        val agentRequest = assertRequest("/jeecg-boot/rehealth/mobile/agent/messages", "POST")
+        assertTrue(agentRequest.body.readUtf8().contains("\"timeZone\":\"Asia/Shanghai\""))
     }
 
-    private fun assertRequest(expectedPath: String, expectedMethod: String) {
+    private fun assertRequest(expectedPath: String, expectedMethod: String): okhttp3.mockwebserver.RecordedRequest {
         val request = server.takeRequest()
         assertEquals(expectedPath, request.path)
         assertEquals(expectedMethod, request.method)
         assertEquals("synthetic-test-token", request.getHeader("X-Access-Token"))
+        return request
     }
 
     private companion object {

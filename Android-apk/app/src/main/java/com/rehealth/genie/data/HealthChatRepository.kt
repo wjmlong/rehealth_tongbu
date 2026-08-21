@@ -5,6 +5,7 @@ import com.rehealth.genie.network.AuthenticatedApiClient
 import com.rehealth.genie.network.dto.HealthAgentConversation
 import com.rehealth.genie.network.dto.HealthAgentMessageRequest
 import com.rehealth.genie.network.dto.HealthAgentResponse
+import java.time.ZoneId
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 
@@ -58,6 +59,7 @@ class HealthChatRepository(
                 conversationId = conversationId,
                 clientMessageId = messageId,
                 message = content,
+                timeZone = ZoneId.systemDefault().id,
             ),
         )
         when (result) {

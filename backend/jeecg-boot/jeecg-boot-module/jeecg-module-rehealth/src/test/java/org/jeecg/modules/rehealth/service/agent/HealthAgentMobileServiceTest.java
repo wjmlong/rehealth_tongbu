@@ -79,6 +79,28 @@ class HealthAgentMobileServiceTest {
     }
 
     @Test
+    void rejectsInvalidTimeZoneBeforePersistingOrCallingTheProvider() {
+        StubReHealthBusinessRepository repository = populatedRepository();
+        RecordingModelClient modelClient = new RecordingModelClient();
+        HealthAgentMobileService service = service(
+                repository,
+                modelClient,
+                HealthAgentRateLimitDecision.allowedDecision()
+        );
+        HealthAgentMessageRequestDto message = message();
+        message.timeZone = "not/a-zone";
+
+        HealthAgentRequestException failure = assertThrows(
+                HealthAgentRequestException.class,
+                () -> service.respond("tenant-a", "user-a", message)
+        );
+
+        assertEquals(400, failure.statusCode());
+        assertFalse(modelClient.called);
+        assertTrue(repository.queriedUsers.isEmpty());
+    }
+
+    @Test
     void persistsExplicitBasicProfileBeforeBuildingTheSameTurnPrompt() {
         StubReHealthBusinessRepository repository = populatedRepository();
         RecordingModelClient modelClient = new RecordingModelClient();

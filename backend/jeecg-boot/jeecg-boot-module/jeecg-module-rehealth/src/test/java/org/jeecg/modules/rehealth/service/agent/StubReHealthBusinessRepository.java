@@ -21,8 +21,11 @@ import java.util.Optional;
 
 class StubReHealthBusinessRepository implements ReHealthBusinessRepository {
     PatientProfileDto profile;
+    RhiManualHealthInputDto manualHealthInput;
+    HealthInterviewSubmitRequestDto interview;
     RiskEvaluateResponseDto risk;
     InterventionGenerateResponseDto intervention;
+    List<AttributionEventsRequestDto.AttributionHistoryPointDto> riskHistory = List.of();
     final List<String> queriedUsers = new ArrayList<>();
     ModelCallAudit audit;
     int profileSaveCount;
@@ -71,12 +74,14 @@ class StubReHealthBusinessRepository implements ReHealthBusinessRepository {
 
     @Override
     public RhiManualHealthInputDto saveRhiManualHealthInput(String userId, RhiManualHealthInputDto input) {
+        manualHealthInput = input;
         return input;
     }
 
     @Override
     public Optional<RhiManualHealthInputDto> findRhiManualHealthInput(String userId) {
-        return Optional.empty();
+        queriedUsers.add(userId);
+        return Optional.ofNullable(manualHealthInput);
     }
 
     @Override
@@ -84,12 +89,14 @@ class StubReHealthBusinessRepository implements ReHealthBusinessRepository {
             String userId,
             HealthInterviewSubmitRequestDto request
     ) {
+        interview = request;
         return request;
     }
 
     @Override
     public Optional<HealthInterviewSubmitRequestDto> findLatestHealthInterview(String userId) {
-        return Optional.empty();
+        queriedUsers.add(userId);
+        return Optional.ofNullable(interview);
     }
 
     @Override
@@ -118,7 +125,8 @@ class StubReHealthBusinessRepository implements ReHealthBusinessRepository {
 
     @Override
     public List<AttributionEventsRequestDto.AttributionHistoryPointDto> findRiskHistory(String userId, int limit) {
-        return List.of();
+        queriedUsers.add(userId);
+        return riskHistory.stream().limit(limit).toList();
     }
 
     @Override

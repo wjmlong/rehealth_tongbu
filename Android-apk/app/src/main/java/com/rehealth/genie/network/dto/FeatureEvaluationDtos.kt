@@ -210,6 +210,7 @@ data class HealthAgentMessageRequest(
     val clientMessageId: String? = null,
     val message: String,
     val locale: String = "zh-CN",
+    val timeZone: String = java.time.ZoneId.systemDefault().id,
 )
 
 @JsonClass(generateAdapter = true)
