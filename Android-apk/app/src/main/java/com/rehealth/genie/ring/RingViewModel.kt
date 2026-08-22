@@ -73,6 +73,8 @@ data class RingUiState(
     val activeProductCode: String? = null,
     val hasBoundBluetoothDevice: Boolean = false,
     val backgroundCollectionEnabled: Boolean = false,
+    val measurementIntervalMinutes: Int = RingBackgroundCollectionSettings.DEFAULT_MEASUREMENT_INTERVAL_MINUTES,
+    val uploadIntervalMinutes: Int = RingBackgroundCollectionSettings.DEFAULT_UPLOAD_INTERVAL_MINUTES,
 ) {
     val collectedMetricCount: Int
         get() = measurements.keys.count { it in SupportedHardwareHealthMetrics && it != RingMetricType.SLEEP } +
@@ -309,7 +311,28 @@ class RingViewModel(
         val appContext = context.applicationContext
         val binding = wearableManager?.activeBinding?.value
         if (repository.acquisitionMode == RingAcquisitionMode.CLOUD) {
-            mutableUiState.update { it.copy(message = "云米数据由云端同步，不需要启用蓝牙后台采集") }
+            val planRepository = repository as? RingActiveMeasurementPlanRepository
+            if (planRepository == null || repository.connectedDevice.value == null) {
+                mutableUiState.update { it.copy(message = "请先绑定云米设备，再启用主动测量") }
+                return
+            }
+            viewModelScope.launch {
+                mutableUiState.update { it.copy(message = "正在保存云米主动测量计划") }
+                runCatching {
+                    planRepository.configureActiveMeasurement(currentMeasurementInterval(), enabled = true)
+                }.onSuccess {
+                    RingBackgroundCollectionSettings.setCloudPlanActive(
+                        appContext,
+                        currentUserIdProvider(),
+                        true,
+                    )
+                    mutableUiState.update {
+                        it.copy(backgroundCollectionEnabled = true, message = "云米云端主动测量已启用")
+                    }
+                }.onFailure { error ->
+                    mutableUiState.update { it.copy(message = error.message ?: "云米主动测量启用失败") }
+                }
+            }
             return
         }
         if (binding?.address.isNullOrBlank()) {
@@ -320,12 +343,32 @@ class RingViewModel(
         mutableUiState.update {
             it.copy(
                 backgroundCollectionEnabled = true,
-                message = "后台采集已启用，将按保守间隔保存设备数据",
+                message = "后台采集已启用，每 ${it.measurementIntervalMinutes} 分钟主动测量一次",
             )
         }
     }
 
     fun stopBackgroundCollection(context: Context) {
+        if (repository.acquisitionMode == RingAcquisitionMode.CLOUD) {
+            val planRepository = repository as? RingActiveMeasurementPlanRepository ?: return
+            viewModelScope.launch {
+                runCatching { planRepository.configureActiveMeasurement(currentMeasurementInterval(), enabled = false) }
+                    .onSuccess {
+                        RingBackgroundCollectionSettings.setCloudPlanActive(
+                            context.applicationContext,
+                            currentUserIdProvider(),
+                            false,
+                        )
+                        mutableUiState.update {
+                            it.copy(backgroundCollectionEnabled = false, message = "云米云端主动测量已关闭")
+                        }
+                    }
+                    .onFailure { error ->
+                        mutableUiState.update { it.copy(message = error.message ?: "云米主动测量关闭失败") }
+                    }
+            }
+            return
+        }
         RingForegroundService.stop(context.applicationContext)
         mutableUiState.update {
             it.copy(
@@ -342,9 +385,70 @@ class RingViewModel(
                 hasBoundBluetoothDevice = binding != null &&
                     binding.vendor != WearableVendor.VIOMI_CLOUD &&
                     !binding.address.isNullOrBlank(),
-                backgroundCollectionEnabled = RingBackgroundCollectionSettings.isActive(context.applicationContext),
+                backgroundCollectionEnabled = if (repository.acquisitionMode == RingAcquisitionMode.CLOUD) {
+                    RingBackgroundCollectionSettings.isCloudPlanActive(
+                        context.applicationContext,
+                        currentUserIdProvider(),
+                    )
+                } else {
+                    RingBackgroundCollectionSettings.isActive(context.applicationContext)
+                },
+                measurementIntervalMinutes = RingBackgroundCollectionSettings.measurementIntervalMinutes(
+                    context.applicationContext,
+                ),
+                uploadIntervalMinutes = RingBackgroundCollectionSettings.uploadIntervalMinutes(
+                    context.applicationContext,
+                ),
             )
         }
+    }
+
+    fun setMeasurementInterval(context: Context, minutes: Int) {
+        val appContext = context.applicationContext
+        runCatching { RingBackgroundCollectionSettings.setMeasurementIntervalMinutes(appContext, minutes) }
+            .onSuccess {
+                if (repository.acquisitionMode == RingAcquisitionMode.CLOUD) {
+                    val planRepository = repository as? RingActiveMeasurementPlanRepository
+                    mutableUiState.update { it.copy(measurementIntervalMinutes = minutes) }
+                    if (planRepository != null && mutableUiState.value.backgroundCollectionEnabled) {
+                        viewModelScope.launch {
+                            runCatching { planRepository.configureActiveMeasurement(minutes, enabled = true) }
+                                .onSuccess {
+                                    mutableUiState.update { it.copy(message = "云米主动测量间隔已设为 $minutes 分钟") }
+                                }
+                                .onFailure { error -> mutableUiState.update { it.copy(message = error.message) } }
+                        }
+                    }
+                    return@onSuccess
+                }
+                val wasActive = RingBackgroundCollectionSettings.isActive(appContext)
+                if (wasActive) {
+                    RingForegroundService.stop(appContext)
+                    RingForegroundService.start(appContext)
+                }
+                mutableUiState.update {
+                    it.copy(
+                        measurementIntervalMinutes = minutes,
+                        backgroundCollectionEnabled = wasActive,
+                        message = "主动测量间隔已设为 $minutes 分钟",
+                    )
+                }
+            }
+            .onFailure { error -> mutableUiState.update { it.copy(message = error.message) } }
+    }
+
+    private fun currentMeasurementInterval(): Int = mutableUiState.value.measurementIntervalMinutes
+
+    fun setUploadInterval(context: Context, minutes: Int) {
+        val appContext = context.applicationContext
+        runCatching { RingBackgroundCollectionSettings.setUploadIntervalMinutes(appContext, minutes) }
+            .onSuccess {
+                com.rehealth.genie.work.TelemetryUploadWorker.schedule(appContext)
+                mutableUiState.update {
+                    it.copy(uploadIntervalMinutes = minutes, message = "数据上传间隔已更新")
+                }
+            }
+            .onFailure { error -> mutableUiState.update { it.copy(message = error.message) } }
     }
 
     /**

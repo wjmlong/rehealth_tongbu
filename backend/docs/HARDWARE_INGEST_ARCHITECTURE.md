@@ -95,6 +95,17 @@ Android -> POST /rehealth/mobile/viomi/sync（IMEI + Epoch 毫秒时间窗 + 指
 
 `AppId`、`AppKey` 和缓存的 `AccessToken` 仅保留在服务端。绑定流程验证 IMEI 对已配置云米账号可见，只在 `software_db` 保存哈希设备身份，并将绑定限定到当前认证用户。设备列表请求使用云米令牌响应返回的 `UserId`；只有该字段缺失时，才使用配置项 `REHEALTH_VIOMI_USER_ID` 作为兼容回退。
 
+认证用户可通过 `PUT /rehealth/mobile/viomi/measurement-plan` 启用、关闭或更新 3–60 分钟
+主动测量计划。`software_db.rehealth_viomi_measurement_plan` 保存用户/哈希设备作用域、间隔、指标、
+下一次执行和运行状态；原始 IMEI 只以 AES-GCM 密文保存，密钥由
+`REHEALTH_VIOMI_PLAN_ENCRYPTION_SECRET` 注入。调度器抢占到期行后调用
+`/api/command/sendcommand`，并按 5/10/15/30 秒回查；只有出现晚于下发前基线的真实历史记录才经
+`HardwareIngestionPort` 持久化并标记成功。命令受理码不等于测量成功。
+
+命令码必须分别通过 `REHEALTH_VIOMI_COMMAND_HEART_RATE`、
+`REHEALTH_VIOMI_COMMAND_BLOOD_PRESSURE`、`REHEALTH_VIOMI_COMMAND_BLOOD_OXYGEN` 配置；
+默认值为 `0`，表示未完成具体型号/固件验证并拒绝下发。
+
 同步支持 `HEART_RATE`、`BLOOD_PRESSURE` 和 `BLOOD_OXYGEN`，将没有显式偏移量的厂商时间戳按 `Asia/Shanghai` 解释，并将单次请求限制为最多 31 天。同步会拒绝非有限值或生理范围无效的样本：心率 20–250 bpm、SpO₂ 50–100%、收缩压 50–260 mmHg、舒张压 30–180 mmHg，且收缩压必须高于舒张压。只有硬件接入持久化成功后，记录才会返回 Android。`NO_NEW_DATA` 是成功的空操作。
 
 `POST /rehealth/viomi/report` 允许云米（miwitracker）平台向本后端推送可穿戴遥测。手表不会直接调用 `measurements/batch`；云米云端收到手表数据后调用我们的回调。
@@ -168,6 +179,11 @@ rehealth:
     require-auth: ${REHEALTH_VIOMI_REQUIRE_AUTH:true}
     user-id: ${REHEALTH_VIOMI_USER_ID:viomi-gateway}
     source: ${REHEALTH_VIOMI_SOURCE:viomi}
+    plan-encryption-secret: ${REHEALTH_VIOMI_PLAN_ENCRYPTION_SECRET:}
+    command:
+      heart-rate: ${REHEALTH_VIOMI_COMMAND_HEART_RATE:0}
+      blood-pressure: ${REHEALTH_VIOMI_COMMAND_BLOOD_PRESSURE:0}
+      blood-oxygen: ${REHEALTH_VIOMI_COMMAND_BLOOD_OXYGEN:0}
 ```
 
 `app-id`/`app-key` 由云米在接入期间签发，并通过 `REHEALTH_VIOMI_APP_ID`/`REHEALTH_VIOMI_APP_KEY` 环境变量注入，源码中不保存密钥。`require-auth` 默认为 `true`；在云米签发真实凭据前进行本地集成时，可设置 `REHEALTH_VIOMI_REQUIRE_AUTH=false` 让上报通过，但数据仍会持久化到配置的 `user-id` 下。

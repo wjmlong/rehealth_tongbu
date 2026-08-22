@@ -297,6 +297,12 @@ private class FakeUploadQueueDao : UploadQueueDao {
     override suspend fun pending(now: Long): List<UploadQueueEntity> =
         rows.filter { it.status in setOf("pending", "failed") && it.nextRetryAt <= now }
 
+    override suspend fun pendingByKind(now: Long, kind: String): List<UploadQueueEntity> =
+        pending(now).filter { it.kind == kind }
+
+    override suspend fun pendingExcludingKind(now: Long, excludedKind: String): List<UploadQueueEntity> =
+        pending(now).filter { it.kind != excludedKind }
+
     override fun observeOutstanding(): Flow<List<UploadQueueEntity>> = flowOf(rows)
     override suspend fun pruneDone(before: Long) = Unit
     override suspend fun getById(id: String): UploadQueueEntity? = rows.firstOrNull { it.id == id }

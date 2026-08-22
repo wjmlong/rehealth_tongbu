@@ -4,12 +4,14 @@ import com.rehealth.genie.network.ApiResult
 import com.rehealth.genie.network.AuthenticatedApiClient
 import com.rehealth.genie.network.dto.ViomiBindRequestDto
 import com.rehealth.genie.network.dto.ViomiSyncRequestDto
+import com.rehealth.genie.network.dto.ViomiMeasurementPlanRequestDto
 import com.rehealth.genie.ring.RingAcquisitionMode
 import com.rehealth.genie.ring.RingConnectionState
 import com.rehealth.genie.ring.RingDevice
 import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.RingRepository
 import com.rehealth.genie.ring.RingSyncResult
+import com.rehealth.genie.ring.RingActiveMeasurementPlanRepository
 import com.rehealth.genie.ring.data.RingDataDao
 import com.rehealth.genie.ring.data.RingMeasurementEntity
 import com.rehealth.genie.ring.provider.ActiveWearableBindingStore
@@ -24,7 +26,7 @@ class ViomiCloudRingRepository(
     private val api: AuthenticatedApiClient,
     private val bindingStore: ActiveWearableBindingStore,
     private val userIdProvider: () -> String?,
-) : RingRepository {
+) : RingRepository, RingActiveMeasurementPlanRepository {
     override val acquisitionMode = RingAcquisitionMode.CLOUD
     override val supportedMetrics = setOf(
         RingMetricType.HEART_RATE,
@@ -113,6 +115,20 @@ class ViomiCloudRingRepository(
 
     override suspend fun measure(type: RingMetricType): RingSyncResult = sync(setOf(type))
     override suspend fun sendCommand(data: ByteArray): Boolean = false
+
+    override suspend fun configureActiveMeasurement(intervalMinutes: Int, enabled: Boolean) {
+        val imei = device.value?.address ?: error("请先绑定云米手表")
+        val response = api.saveViomiMeasurementPlan(
+            ViomiMeasurementPlanRequestDto(
+                imei = imei,
+                enabled = enabled,
+                intervalMinutes = intervalMinutes,
+            ),
+        ).getOrThrow()
+        check(response.intervalMinutes == intervalMinutes && response.enabled == enabled) {
+            "云米主动测量计划未正确保存"
+        }
+    }
 
     private fun savedDevice(): RingDevice? = bindingStore.activeBinding.value
         .takeIf { it.vendor == WearableVendor.VIOMI_CLOUD && !it.address.isNullOrBlank() }

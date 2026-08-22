@@ -12,8 +12,11 @@ import com.rehealth.genie.ring.RingBackgroundCollectionPolicy
 import com.rehealth.genie.ring.RingBackgroundCollectionSettings
 import com.rehealth.genie.ring.RingBleGuards
 import com.rehealth.genie.ring.RingConnectionState
+import com.rehealth.genie.ring.RingMetricType
 import com.rehealth.genie.ring.RingRepository
+import com.rehealth.genie.ring.provider.WearableVendor
 import com.rehealth.genie.work.RingBackgroundRecoveryWorker
+import com.rehealth.genie.work.TelemetryUploadWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -59,6 +62,7 @@ class RingForegroundService : Service() {
     private fun startCollection(runImmediately: Boolean) {
         RingBackgroundCollectionSettings.setActive(this, true)
         RingBackgroundRecoveryWorker.schedule(this)
+        TelemetryUploadWorker.schedule(this)
         if (!moveToForeground("Preparing local ring collection")) {
             return
         }
@@ -77,21 +81,26 @@ class RingForegroundService : Service() {
         while (currentCoroutineContext().isActive && RingBackgroundCollectionSettings.isActive(this)) {
             val now = System.currentTimeMillis()
             val lastAttempt = RingBackgroundCollectionSettings.lastAttemptAt(this)
-            val delayMs = RingBackgroundCollectionPolicy.nextDelayMillis(now, lastAttempt)
+            val intervalMs = RingBackgroundCollectionSettings.measurementIntervalMinutes(this) * 60_000L
+            val delayMs = RingBackgroundCollectionPolicy.nextDelayMillis(now, lastAttempt, intervalMs)
             if (delayMs > 0L) {
                 updateNotification("Next local ring collection is scheduled")
                 delay(delayMs)
                 continue
             }
             updateNotification("Collecting ring data locally")
-            RingBackgroundCollectionSettings.markAttempt(this, now)
             val message = runLocalCollectionCycle()
+            RingBackgroundCollectionSettings.markAttempt(this, System.currentTimeMillis())
             updateNotification(message)
-            delay(RingBackgroundCollectionPolicy.COLLECTION_INTERVAL_MS)
         }
     }
 
     private suspend fun runLocalCollectionCycle(): String {
+        val app = application as ReHealthApplication
+        val binding = app.activeWearableStore.activeBinding.value
+        if (binding.vendor != WearableVendor.HBAND) {
+            return "Active measurement paused: HBand binding required"
+        }
         if (!RingBleGuards.hasCollectionPermission(this)) {
             return "Ring collection paused: Bluetooth permission required"
         }
@@ -104,14 +113,80 @@ class RingForegroundService : Service() {
         if (repository.connectionState.value == RingConnectionState.SYNCING) {
             return "Ring collection skipped: foreground collection in progress"
         }
-        return runCatching { repository.syncAll() }
+        if (repository.connectionState.value != RingConnectionState.CONNECTED && !repository.autoConnect()) {
+            return "Ring collection paused: bound device is unavailable"
+        }
+        val now = System.currentTimeMillis()
+        val scheduledMetrics = buildList {
+            add(RingMetricType.HEART_RATE)
+            if (RingBackgroundCollectionPolicy.shouldMeasureBloodOxygen(
+                    now,
+                    RingBackgroundCollectionSettings.lastBloodOxygenAt(this@RingForegroundService),
+                )
+            ) {
+                add(RingMetricType.BLOOD_OXYGEN)
+            }
+            if (RingBackgroundCollectionPolicy.shouldMeasureBloodPressure(
+                    now,
+                    RingBackgroundCollectionSettings.lastBloodPressureAt(this@RingForegroundService),
+                )
+            ) {
+                add(RingMetricType.BLOOD_PRESSURE)
+            }
+        }.filter { it in repository.manuallyMeasurableMetrics }
+        return runCatching {
+            val failures = mutableListOf<Throwable>()
+            val results = scheduledMetrics.mapNotNull { metric ->
+                runCatching { repository.measure(metric) }
+                    .fold(
+                        onSuccess = { metric to it },
+                        onFailure = { error ->
+                            failures += error
+                            Log.w(TAG, "scheduled metric failed: ${metric.name}", error)
+                            null
+                        },
+                    )
+            }
+            if (results.isEmpty() && failures.isNotEmpty()) throw failures.first()
+            val recordsWritten = results.sumOf { it.second.recordsWritten }
+            val completedAt = results.maxOfOrNull { it.second.completedAt } ?: System.currentTimeMillis()
+            if (results.any { (metric, result) ->
+                    metric == RingMetricType.BLOOD_PRESSURE && result.recordsWritten > 0
+                }
+            ) {
+                RingBackgroundCollectionSettings.markBloodPressureSuccess(this, completedAt)
+            }
+            if (results.any { (metric, result) ->
+                    metric == RingMetricType.BLOOD_OXYGEN && result.recordsWritten > 0
+                }
+            ) {
+                RingBackgroundCollectionSettings.markBloodOxygenSuccess(this, completedAt)
+            }
+            ScheduledCollectionOutcome(recordsWritten, completedAt, scheduledMetrics.size, failures.size)
+        }
             .fold(
-                onSuccess = { result ->
-                    if (result.recordsWritten > 0) {
-                        RingBackgroundCollectionSettings.markSuccess(this, result.completedAt)
-                        "Saved ${result.recordsWritten} local ring records"
+                onSuccess = { outcome ->
+                    val recordsWritten = outcome.recordsWritten
+                    val completedAt = outcome.completedAt
+                    if (recordsWritten > 0) {
+                        RingBackgroundCollectionSettings.markSuccess(this, completedAt)
+                        val device = repository.connectedDevice.value
+                            ?: binding.address?.let { address ->
+                                com.rehealth.genie.ring.RingDevice(address, binding.deviceName, null)
+                            }
+                        if (device != null) {
+                            app.ringCloudRepository.enqueueLatestTelemetry(
+                                device = device,
+                                collectedAt = completedAt,
+                                trigger = "scheduled_active_measurement",
+                                triggerUpload = false,
+                            ).onFailure { error ->
+                                Log.w(TAG, "unable to enqueue scheduled telemetry", error)
+                            }
+                        }
+                        "Saved $recordsWritten records (${outcome.attemptedMetrics - outcome.failedMetrics}/${outcome.attemptedMetrics} measurements)"
                     } else {
-                        "Ring collection finished: no new local records"
+                        "Active measurement finished: no new local records"
                     }
                 },
                 onFailure = { error ->
@@ -187,3 +262,10 @@ class RingForegroundService : Service() {
         }
     }
 }
+
+private data class ScheduledCollectionOutcome(
+    val recordsWritten: Int,
+    val completedAt: Long,
+    val attemptedMetrics: Int,
+    val failedMetrics: Int,
+)

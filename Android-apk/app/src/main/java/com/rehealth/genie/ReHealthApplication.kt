@@ -35,6 +35,7 @@ import com.rehealth.genie.ring.runtimeAllowedWearableVendors
 import com.rehealth.genie.ring.shouldForceRuntimeWearableSelection
 import com.rehealth.genie.work.MeasurementSyncWorker
 import com.rehealth.genie.work.RingBackgroundRecoveryWorker
+import com.rehealth.genie.work.TelemetryUploadWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -86,7 +87,7 @@ class ReHealthApplication : Application() {
             syncRepository = syncRepository,
             apiClient = authenticatedApiClient,
             sessionStore = sessionStore,
-            triggerSync = { MeasurementSyncWorker.triggerImmediate(this) },
+            triggerSync = { TelemetryUploadWorker.triggerImmediate(this) },
             wearableBindingProvider = { activeWearableStore.activeBinding.value },
         )
     }
@@ -239,6 +240,7 @@ class ReHealthApplication : Application() {
         // D3: if a session was restored, schedule the feedback sync worker
         if (sessionStore.isLoggedIn) {
             MeasurementSyncWorker.schedule(this)
+            TelemetryUploadWorker.schedule(this)
         }
         if (BuildConfig.DEBUG && BuildConfig.SEED_FAKE_HEALTH_DATA) {
             applicationScope.launch {

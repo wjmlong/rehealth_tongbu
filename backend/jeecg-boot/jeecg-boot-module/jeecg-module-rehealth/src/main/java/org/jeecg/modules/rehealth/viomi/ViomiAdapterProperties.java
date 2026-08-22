@@ -40,6 +40,18 @@ public class ViomiAdapterProperties {
     @Value("${rehealth.viomi.request-timeout-seconds:30}")
     private int requestTimeoutSeconds;
 
+    @Value("${rehealth.viomi.command.heart-rate:0}")
+    private int heartRateCommand;
+
+    @Value("${rehealth.viomi.command.blood-pressure:0}")
+    private int bloodPressureCommand;
+
+    @Value("${rehealth.viomi.command.blood-oxygen:0}")
+    private int bloodOxygenCommand;
+
+    @Value("${rehealth.viomi.plan-encryption-secret:}")
+    private String planEncryptionSecret;
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -74,5 +86,18 @@ public class ViomiAdapterProperties {
 
     public int getRequestTimeoutSeconds() {
         return requestTimeoutSeconds;
+    }
+
+    public int commandFor(String metric) {
+        return switch (metric) {
+            case "HEART_RATE" -> heartRateCommand;
+            case "BLOOD_PRESSURE" -> bloodPressureCommand;
+            case "BLOOD_OXYGEN" -> bloodOxygenCommand;
+            default -> 0;
+        };
+    }
+
+    public String getPlanEncryptionSecret() {
+        return planEncryptionSecret;
     }
 }

@@ -46,7 +46,9 @@ SDK 疾病风险不作为诊断展示，界面明确标注仅供健康参考、�
 Debug 与 Release 的用户选择器都只展示“HBand”和“云米（IMEI 云端）”；Mock 与旧 MRD/RWFit
 工程测试入口只存在于 Debug。两种构建首次安装都默认 HBand，覆盖安装时旧 MRD/RWFit 选择会迁移到 HBand。
 后台恢复只重连加密保存的当前绑定；HBand 所需四项真实画像使用按用户哈希隔离的
-加密缓存，不使 BLE 采集依赖网络。
+加密缓存，不使 BLE 采集依赖网络。用户可将 HBand 主动测量设为 3–60 分钟（默认 5 分钟），
+将独立遥测上传设为 30–1440 分钟（默认 2 小时）；每轮先写 Room v19 并耐久入队。
+云米主动测量由 JeecgBoot 持久计划调度，App 不持有供应商凭据或命令码。
 Android 在重新登录和进入个人页时按当前用户读取类型化个人资料及最近健康问答；这些读取与
 风险/干预服务解耦，退出后清除上一用户的内存资料。健康问答用户消息先写按用户隔离的
 Room v8 本地库（v7 会话/消息表及可空的设备睡眠总时长），再调用服务端并由 `software_db` 保存完整会话；
@@ -201,6 +203,7 @@ productCode / 单一有效绑定
 ```text
 POST /jeecg-boot/rehealth/mobile/measurements/batch
 POST /jeecg-boot/rehealth/mobile/viomi/bind  (云米 IMEI 验证与用户绑定)
+PUT  /jeecg-boot/rehealth/mobile/viomi/measurement-plan  (云米主动测量计划启停与间隔)
 POST /jeecg-boot/rehealth/mobile/viomi/sync  (按时间窗拉取心率/血压/血氧并入库)
 GET  /jeecg-boot/rehealth/mobile/measurements/recent
 POST /jeecg-boot/rehealth/viomi/report        (云米/viomi 平台主动上报回调；JWT HS256 验签)

@@ -220,6 +220,24 @@ data class ViomiSyncResponseDto(
     val measurements: List<ViomiMeasurementDto> = emptyList(),
 )
 
+@JsonClass(generateAdapter = true)
+data class ViomiMeasurementPlanRequestDto(
+    val imei: String,
+    val enabled: Boolean,
+    val intervalMinutes: Int,
+    val metrics: Set<String> = setOf("HEART_RATE", "BLOOD_OXYGEN"),
+)
+
+@JsonClass(generateAdapter = true)
+data class ViomiMeasurementPlanResponseDto(
+    val deviceId: String,
+    val enabled: Boolean,
+    val intervalMinutes: Int,
+    val status: String? = null,
+    val lastRunAt: Long? = null,
+    val nextRunAt: Long? = null,
+)
+
 data class AttributionEventItemDto(
     @SerializedName("date") val date: String? = null,
     @SerializedName("risk_score") val riskScore: Double? = null,

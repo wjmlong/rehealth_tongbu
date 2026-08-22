@@ -79,6 +79,8 @@ internal fun DeviceBindingScreen(
     onSync: () -> Unit,
     onStartBackgroundCollection: () -> Unit = {},
     onStopBackgroundCollection: () -> Unit = {},
+    onMeasurementIntervalChanged: (Int) -> Unit = {},
+    onUploadIntervalChanged: (Int) -> Unit = {},
     onSwitchProduct: (String) -> Unit = {},
     simulationAvailable: Boolean = false,
     simulationRunning: Boolean = false,
@@ -94,6 +96,12 @@ internal fun DeviceBindingScreen(
     }
     var viomiImei by remember(state.activeProductCode) { mutableStateOf("") }
     var notificationPermissionDenied by remember { mutableStateOf(false) }
+    var customMeasurementInterval by remember(state.measurementIntervalMinutes) {
+        mutableStateOf(state.measurementIntervalMinutes.toString())
+    }
+    var customUploadInterval by remember(state.uploadIntervalMinutes) {
+        mutableStateOf(state.uploadIntervalMinutes.toString())
+    }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { results ->
@@ -258,7 +266,7 @@ internal fun DeviceBindingScreen(
                 }
             }
         }
-        if (state.acquisitionMode == RingAcquisitionMode.BLUETOOTH) item {
+        item {
             ReHealthCardBlock {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
@@ -268,12 +276,20 @@ internal fun DeviceBindingScreen(
                         Icon(Icons.Outlined.NotificationsActive, null, tint = Mint)
                     }
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                        Text("后台自动采集", color = Ink, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            if (state.acquisitionMode == RingAcquisitionMode.CLOUD) "云端主动测量" else "后台自动采集",
+                            color = Ink,
+                            fontWeight = FontWeight.SemiBold,
+                        )
                         Text(
                             when {
-                                state.backgroundCollectionEnabled -> "已启用，每 15 分钟尝试保存一次设备数据"
+                                state.backgroundCollectionEnabled ->
+                                    "已启用，每 ${state.measurementIntervalMinutes} 分钟主动测量；每 ${formatInterval(state.uploadIntervalMinutes)} 上传"
+                                state.acquisitionMode == RingAcquisitionMode.CLOUD && state.connectedDevice == null ->
+                                    "请先绑定云米设备"
+                                state.acquisitionMode == RingAcquisitionMode.CLOUD -> "由服务器持续调度，App 关闭后仍可执行"
                                 !state.hasBoundBluetoothDevice -> "请先绑定 HBand 设备"
-                                else -> "锁屏或离开页面后继续按保守间隔采集"
+                                else -> "锁屏或离开页面后继续主动测量"
                             },
                             color = Muted,
                             fontSize = 11.sp,
@@ -281,21 +297,94 @@ internal fun DeviceBindingScreen(
                         )
                     }
                 }
+                Text(
+                    "测量间隔",
+                    color = Ink,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+                IntervalButtons(
+                    options = listOf(3, 5, 10, 15),
+                    selected = state.measurementIntervalMinutes,
+                    label = { "$it 分钟" },
+                    onSelected = onMeasurementIntervalChanged,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OutlinedTextField(
+                        value = customMeasurementInterval,
+                        onValueChange = { customMeasurementInterval = it.filter(Char::isDigit).take(2) },
+                        label = { Text("自定义 3–60 分钟", fontSize = 10.sp) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Button(
+                        onClick = { customMeasurementInterval.toIntOrNull()?.let(onMeasurementIntervalChanged) },
+                        enabled = customMeasurementInterval.toIntOrNull() in 3..60,
+                        colors = ButtonDefaults.buttonColors(containerColor = Mint),
+                    ) { Text("应用") }
+                }
+                if (state.acquisitionMode == RingAcquisitionMode.BLUETOOTH) {
+                    Text(
+                        "上传间隔（数据先保存在本机）",
+                        color = Ink,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                    IntervalButtons(
+                        options = listOf(30, 60, 120, 240),
+                        selected = state.uploadIntervalMinutes,
+                        label = ::formatInterval,
+                        onSelected = onUploadIntervalChanged,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        OutlinedTextField(
+                            value = customUploadInterval,
+                            onValueChange = { customUploadInterval = it.filter(Char::isDigit).take(4) },
+                            label = { Text("自定义 30–1440 分钟", fontSize = 10.sp) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Button(
+                            onClick = { customUploadInterval.toIntOrNull()?.let(onUploadIntervalChanged) },
+                            enabled = customUploadInterval.toIntOrNull() in 30..1440,
+                            colors = ButtonDefaults.buttonColors(containerColor = Mint),
+                        ) { Text("应用") }
+                    }
+                }
                 Button(
                     onClick = {
                         if (state.backgroundCollectionEnabled) {
                             onStopBackgroundCollection()
-                        } else if (requiresNotificationPermission(context)) {
+                        } else if (
+                            state.acquisitionMode == RingAcquisitionMode.BLUETOOTH &&
+                            requiresNotificationPermission(context)
+                        ) {
                             notificationPermissionLauncher.launch(POST_NOTIFICATIONS_PERMISSION)
                         } else {
                             onStartBackgroundCollection()
                         }
                     },
-                    enabled = canChangeBackgroundCollection(
-                        backgroundCollectionEnabled = state.backgroundCollectionEnabled,
-                        bluetoothPermissionGranted = permissionGranted,
-                        hasBoundBluetoothDevice = state.hasBoundBluetoothDevice,
-                    ),
+                    enabled = if (state.acquisitionMode == RingAcquisitionMode.CLOUD) {
+                        state.connectedDevice != null
+                    } else {
+                        canChangeBackgroundCollection(
+                            backgroundCollectionEnabled = state.backgroundCollectionEnabled,
+                            bluetoothPermissionGranted = permissionGranted,
+                            hasBoundBluetoothDevice = state.hasBoundBluetoothDevice,
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -303,7 +392,9 @@ internal fun DeviceBindingScreen(
                         contentColor = if (state.backgroundCollectionEnabled) Ink else Color.White,
                     ),
                 ) {
-                    Text(if (state.backgroundCollectionEnabled) "关闭后台采集" else "启用后台采集")
+                    Text(
+                        if (state.backgroundCollectionEnabled) "关闭主动测量" else "启用主动测量",
+                    )
                 }
                 if (notificationPermissionDenied) {
                     Text(
@@ -417,6 +508,40 @@ internal fun DeviceBindingScreen(
             }
         }
     }
+}
+
+@Composable
+private fun IntervalButtons(
+    options: List<Int>,
+    selected: Int,
+    label: (Int) -> String,
+    onSelected: (Int) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 6.dp)) {
+        options.chunked(2).forEach { rowOptions ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                rowOptions.forEach { option ->
+                    OutlinedButton(
+                        onClick = { onSelected(option) },
+                        modifier = Modifier.weight(1f),
+                        border = BorderStroke(1.dp, if (option == selected) Mint else Color(0xFFDCE5E2)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = if (option == selected) MintSoft else Color.Transparent,
+                            contentColor = if (option == selected) Mint else Ink,
+                        ),
+                    ) {
+                        Text(label(option), fontSize = 11.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun formatInterval(minutes: Int): String = when {
+    minutes < 60 -> "$minutes 分钟"
+    minutes % 60 == 0 -> "${minutes / 60} 小时"
+    else -> "${minutes / 60} 小时 ${minutes % 60} 分"
 }
 
 @Composable

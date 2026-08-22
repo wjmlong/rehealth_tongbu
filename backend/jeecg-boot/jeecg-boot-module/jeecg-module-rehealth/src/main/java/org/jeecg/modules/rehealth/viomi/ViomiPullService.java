@@ -122,7 +122,7 @@ public class ViomiPullService {
         return response;
     }
 
-    private static ViomiSyncResponseDto.Measurement normalize(String deviceId, String metric, JsonNode row) {
+    static ViomiSyncResponseDto.Measurement normalize(String deviceId, String metric, JsonNode row) {
         String timeField = switch (metric) {
             case "HEART_RATE" -> "HrTime";
             case "BLOOD_PRESSURE" -> "BpTime";
@@ -157,7 +157,7 @@ public class ViomiPullService {
         return out;
     }
 
-    private static Instant parseTime(String value) {
+    static Instant parseTime(String value) {
         if (value == null || value.isBlank()) return null;
         try {
             if (value.chars().allMatch(Character::isDigit)) {
@@ -188,7 +188,7 @@ public class ViomiPullService {
         return imei;
     }
 
-    private static String deviceId(String imei) {
+    static String deviceId(String imei) {
         return "viomi-" + sha256(imei).substring(0, 24);
     }
 

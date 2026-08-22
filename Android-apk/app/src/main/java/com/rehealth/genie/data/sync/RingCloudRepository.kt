@@ -64,6 +64,7 @@ class RingCloudRepository(
         device: RingDevice,
         collectedAt: Long,
         trigger: String,
+        triggerUpload: Boolean = true,
     ): Result<String> = runCatching {
         check(sessionStore.isLoggedIn) { "登录已失效，请重新登录后同步。" }
         val ownerUserId = sessionStore.userId?.takeIf(String::isNotBlank)
@@ -94,7 +95,7 @@ class RingCloudRepository(
                 nextRetryAt = now,
             ),
         )
-        triggerSync()
+        if (triggerUpload) triggerSync()
         request.batchId
     }
 

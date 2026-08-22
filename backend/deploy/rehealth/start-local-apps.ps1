@@ -263,6 +263,18 @@ $env:REHEALTH_VIOMI_CONNECT_TIMEOUT_SECONDS = Read-LocalSettingOrEnvironment `
 $env:REHEALTH_VIOMI_REQUEST_TIMEOUT_SECONDS = Read-LocalSettingOrEnvironment `
     'REHEALTH_VIOMI_REQUEST_TIMEOUT_SECONDS' `
     '30'
+$env:REHEALTH_VIOMI_PLAN_ENCRYPTION_SECRET = Read-LocalSettingOrEnvironment `
+    'REHEALTH_VIOMI_PLAN_ENCRYPTION_SECRET' `
+    ''
+$env:REHEALTH_VIOMI_COMMAND_HEART_RATE = Read-LocalSettingOrEnvironment `
+    'REHEALTH_VIOMI_COMMAND_HEART_RATE' `
+    '0'
+$env:REHEALTH_VIOMI_COMMAND_BLOOD_PRESSURE = Read-LocalSettingOrEnvironment `
+    'REHEALTH_VIOMI_COMMAND_BLOOD_PRESSURE' `
+    '0'
+$env:REHEALTH_VIOMI_COMMAND_BLOOD_OXYGEN = Read-LocalSettingOrEnvironment `
+    'REHEALTH_VIOMI_COMMAND_BLOOD_OXYGEN' `
+    '0'
 
 $jeecgJar = Join-Path $repoRoot 'backend\jeecg-boot\jeecg-server-cloud\jeecg-system-cloud-start\target\jeecg-system-cloud-start-3.9.2.jar'
 $jeecgConfig = (Join-Path $repoRoot 'backend\jeecg-boot\jeecg-module-system\jeecg-system-start\src\main\resources\application-dev.yml').Replace('\', '/')

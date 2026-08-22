@@ -59,6 +59,7 @@ import com.rehealth.genie.ui.components.QueueStatusBanner
 import com.rehealth.genie.data.sync.QueueState
 import com.rehealth.genie.network.AuthState
 import com.rehealth.genie.work.MeasurementSyncWorker
+import com.rehealth.genie.work.TelemetryUploadWorker
 import kotlinx.coroutines.launch
 
 internal enum class AppStage { Splash, Login, Register, InterviewSession, Main }
@@ -116,6 +117,7 @@ fun ReHealthApp() {
     val queueState by application.syncRepository.queueState.collectAsState()
     val endSession: () -> Unit = {
         MeasurementSyncWorker.cancel(application)
+        TelemetryUploadWorker.cancel(application)
         application.authenticatedApiClient.onLogout()
         application.syncRepository.pauseQueue()
         ringViewModel.stopBackgroundCollection(application)
@@ -265,6 +267,8 @@ private fun MainShell(
             onSync = onSync,
             onStartBackgroundCollection = { ringViewModel.startBackgroundCollection(application) },
             onStopBackgroundCollection = { ringViewModel.stopBackgroundCollection(application) },
+            onMeasurementIntervalChanged = { ringViewModel.setMeasurementInterval(application, it) },
+            onUploadIntervalChanged = { ringViewModel.setUploadInterval(application, it) },
             onSwitchProduct = onSwitchProduct,
             simulationAvailable = application.fullChainSimulationRunner.available,
             simulationRunning = simulationRunning,

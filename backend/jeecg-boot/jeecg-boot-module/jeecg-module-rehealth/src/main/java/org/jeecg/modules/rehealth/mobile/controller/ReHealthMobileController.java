@@ -36,6 +36,10 @@ import org.jeecg.modules.rehealth.model.ModelServiceException;
 import org.jeecg.modules.rehealth.ingest.writer.HardwarePersistenceUnavailableException;
 import org.jeecg.modules.rehealth.service.ReHealthMobileService;
 import org.jeecg.modules.rehealth.viomi.ViomiPullService;
+import org.jeecg.modules.rehealth.viomi.ViomiMeasurementPlanService;
+import org.jeecg.modules.rehealth.mobile.dto.ViomiMeasurementPlanRequestDto;
+import org.jeecg.modules.rehealth.mobile.dto.ViomiMeasurementPlanResponseDto;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -54,15 +58,18 @@ public class ReHealthMobileController {
     private final ReHealthMobileService mobileService;
     private final AuthenticatedTenantResolver tenantResolver;
     private final ViomiPullService viomiPullService;
+    private final ObjectProvider<ViomiMeasurementPlanService> viomiMeasurementPlanService;
 
     public ReHealthMobileController(
             ReHealthMobileService mobileService,
             AuthenticatedTenantResolver tenantResolver,
-            ViomiPullService viomiPullService
+            ViomiPullService viomiPullService,
+            ObjectProvider<ViomiMeasurementPlanService> viomiMeasurementPlanService
     ) {
         this.mobileService = mobileService;
         this.tenantResolver = tenantResolver;
         this.viomiPullService = viomiPullService;
+        this.viomiMeasurementPlanService = viomiMeasurementPlanService;
     }
 
     @IgnoreAuth
@@ -186,6 +193,24 @@ public class ReHealthMobileController {
             return Result.error(503, "hardware telemetry persistence unavailable; retry the same Viomi window");
         } catch (IllegalStateException e) {
             return Result.error(503, "Viomi service or hardware persistence unavailable; retry later");
+        }
+    }
+
+    @PutMapping("/viomi/measurement-plan")
+    @Operation(summary = "Create, update, enable, or disable the current user's Viomi active measurement plan")
+    public Result<ViomiMeasurementPlanResponseDto> saveViomiMeasurementPlan(
+            @RequestBody ViomiMeasurementPlanRequestDto request
+    ) {
+        ViomiMeasurementPlanService service = viomiMeasurementPlanService.getIfAvailable();
+        if (service == null) return Result.error(503, "Viomi measurement scheduling is unavailable");
+        try {
+            return Result.OK(service.save(currentUserId(), request));
+        } catch (IllegalArgumentException e) {
+            return Result.error(400, e.getMessage());
+        } catch (SecurityException e) {
+            return Result.error(403, e.getMessage());
+        } catch (IllegalStateException e) {
+            return Result.error(503, "Viomi measurement scheduling is not configured");
         }
     }
 

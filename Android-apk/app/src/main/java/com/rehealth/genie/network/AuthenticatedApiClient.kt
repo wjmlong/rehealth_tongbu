@@ -130,6 +130,12 @@ class AuthenticatedApiClient(
         mobileApi.syncViomi(request)
     }
 
+    suspend fun saveViomiMeasurementPlan(
+        request: com.rehealth.genie.network.dto.ViomiMeasurementPlanRequestDto,
+    ): ApiResult<com.rehealth.genie.network.dto.ViomiMeasurementPlanResponseDto> = executeWithAuth {
+        mobileApi.saveViomiMeasurementPlan(request)
+    }
+
     suspend fun submitInterventionFeedback(
         interventionId: String,
         request: InterventionFeedbackRequest,

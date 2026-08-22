@@ -40,8 +40,8 @@ class RingBackgroundRecoveryWorker(
 
         fun schedule(context: Context) {
             val request = PeriodicWorkRequestBuilder<RingBackgroundRecoveryWorker>(
-                RingBackgroundCollectionPolicy.COLLECTION_INTERVAL_MS,
-                TimeUnit.MILLISECONDS,
+                RingBackgroundCollectionPolicy.RECOVERY_INTERVAL_MINUTES,
+                TimeUnit.MINUTES,
             )
                 .setConstraints(
                     Constraints.Builder()

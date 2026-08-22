@@ -509,6 +509,11 @@ The local launcher runs JeecgBoot with the `development` profile, so it does not
 load Viomi defaults from `application-prod.yml`. For local Viomi binding, place
 `REHEALTH_VIOMI_APP_ID`, `REHEALTH_VIOMI_APP_KEY`, and optionally
 `REHEALTH_VIOMI_USER_ID` in the ignored `backend/deploy/rehealth/.env` file.
+Server-side active measurement additionally requires
+`REHEALTH_VIOMI_PLAN_ENCRYPTION_SECRET` and vendor-validated per-model command codes in
+`REHEALTH_VIOMI_COMMAND_HEART_RATE`, `REHEALTH_VIOMI_COMMAND_BLOOD_PRESSURE`, and
+`REHEALTH_VIOMI_COMMAND_BLOOD_OXYGEN`. Command-code defaults are disabled (`0`); do not enable
+them until the target model/firmware has passed vendor and physical-device validation.
 `start-local-apps.ps1` loads those values into the JeecgBoot process while
 preserving already supplied process environment variables as fallbacks. Never
 commit the local `.env` file or print the AppKey in logs.

@@ -474,14 +474,20 @@ rehealth:
   # through for local integration (still persisted under the configured user-id).
   viomi:
     enabled: ${REHEALTH_VIOMI_ENABLED:true}
-    app-id: ${REHEALTH_VIOMI_APP_ID:1115}
-    app-key: ${REHEALTH_VIOMI_APP_KEY:BE9D8972-6E0C-4252-933C-AD8A9DF41FB9}
+    app-id: ${REHEALTH_VIOMI_APP_ID:}
+    app-key: ${REHEALTH_VIOMI_APP_KEY:}
     require-auth: ${REHEALTH_VIOMI_REQUIRE_AUTH:true}
     user-id: ${REHEALTH_VIOMI_USER_ID:viomi-gateway}
     source: ${REHEALTH_VIOMI_SOURCE:viomi}
     base-url: ${REHEALTH_VIOMI_BASE_URL:https://openapi.miwitracker.com}
     connect-timeout-seconds: ${REHEALTH_VIOMI_CONNECT_TIMEOUT_SECONDS:10}
     request-timeout-seconds: ${REHEALTH_VIOMI_REQUEST_TIMEOUT_SECONDS:30}
+    plan-encryption-secret: ${REHEALTH_VIOMI_PLAN_ENCRYPTION_SECRET:}
+    scheduler-poll-ms: ${REHEALTH_VIOMI_SCHEDULER_POLL_MS:30000}
+    command:
+      heart-rate: ${REHEALTH_VIOMI_COMMAND_HEART_RATE:0}
+      blood-pressure: ${REHEALTH_VIOMI_COMMAND_BLOOD_PRESSURE:0}
+      blood-oxygen: ${REHEALTH_VIOMI_COMMAND_BLOOD_OXYGEN:0}
   # 微信小程序登录（jscode2session）。生产环境必须通过环境变量注入，勿写入版本控制。
   wechat:
     mini:

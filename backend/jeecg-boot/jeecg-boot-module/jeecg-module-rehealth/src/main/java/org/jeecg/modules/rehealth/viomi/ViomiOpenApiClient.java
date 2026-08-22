@@ -19,6 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 @Component
 public class ViomiOpenApiClient implements ViomiOpenApiGateway {
@@ -72,6 +73,21 @@ public class ViomiOpenApiClient implements ViomiOpenApiGateway {
         List<JsonNode> rows = new ArrayList<>();
         if (result.isArray()) result.forEach(rows::add);
         return rows;
+    }
+
+    @Override
+    public void sendMeasurementCommand(String metric, String imei) {
+        int commandCode = properties.commandFor(metric);
+        if (commandCode <= 0) {
+            throw new IllegalStateException("Viomi measurement command is not validated for metric " + metric);
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("Imei", imei);
+        body.put("Time", API_TIME.format(Instant.now()));
+        body.put("CommandCode", Integer.toString(commandCode));
+        body.put("CommandValue", "");
+        body.put("ReqId", UUID.randomUUID().toString());
+        authorizedPost("/api/command/sendcommand", body, Set.of(0, 1, 1803));
     }
 
     private JsonNode authorizedPost(String path, Map<String, Object> body) {

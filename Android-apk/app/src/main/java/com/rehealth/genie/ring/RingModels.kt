@@ -82,6 +82,10 @@ data class RingSyncResult(
     val requiresUpload: Boolean = true,
 )
 
+interface RingActiveMeasurementPlanRepository {
+    suspend fun configureActiveMeasurement(intervalMinutes: Int, enabled: Boolean)
+}
+
 val RequiredRingMetrics: Set<RingMetricType> = setOf(
     RingMetricType.HEART_RATE,
     RingMetricType.HRV,

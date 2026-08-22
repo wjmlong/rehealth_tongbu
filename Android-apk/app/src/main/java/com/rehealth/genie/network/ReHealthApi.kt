@@ -35,6 +35,8 @@ import com.rehealth.genie.network.dto.ViomiBindRequestDto
 import com.rehealth.genie.network.dto.ViomiBindResponseDto
 import com.rehealth.genie.network.dto.ViomiSyncRequestDto
 import com.rehealth.genie.network.dto.ViomiSyncResponseDto
+import com.rehealth.genie.network.dto.ViomiMeasurementPlanRequestDto
+import com.rehealth.genie.network.dto.ViomiMeasurementPlanResponseDto
 import com.rehealth.genie.network.dto.BehaviorRecordDto
 import com.rehealth.genie.network.dto.InsurancePlanBindRequestDto
 import com.rehealth.genie.network.dto.InsurancePlanBindingDto
@@ -97,6 +99,11 @@ interface ReHealthApi {
     suspend fun syncViomi(
         @Body request: ViomiSyncRequestDto,
     ): Response<JeecgResult<ViomiSyncResponseDto>>
+
+    @PUT("rehealth/mobile/viomi/measurement-plan")
+    suspend fun saveViomiMeasurementPlan(
+        @Body request: ViomiMeasurementPlanRequestDto,
+    ): Response<JeecgResult<ViomiMeasurementPlanResponseDto>>
 
     @POST("rehealth/mobile/features/evaluate")
     suspend fun evaluateFeatures(@Body request: FeatureEvaluateRequest): Response<JeecgResult<RiskResultDto>>

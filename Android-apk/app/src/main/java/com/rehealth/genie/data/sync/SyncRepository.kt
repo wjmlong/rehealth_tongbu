@@ -55,6 +55,12 @@ class SyncRepository(
 
     suspend fun pending(): List<UploadQueueEntity> = dao.pending(nowProvider())
 
+    suspend fun pendingByKind(kind: String): List<UploadQueueEntity> =
+        dao.pendingByKind(nowProvider(), kind)
+
+    suspend fun pendingExcludingKind(kind: String): List<UploadQueueEntity> =
+        dao.pendingExcludingKind(nowProvider(), kind)
+
     fun observeOutstanding(): Flow<List<UploadQueueEntity>> = dao.observeOutstanding()
 
     suspend fun pruneDone() = dao.pruneDone(nowProvider() - 7 * 86_400_000L)

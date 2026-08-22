@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.network.ApiResult
 import com.rehealth.genie.work.MeasurementSyncWorker
+import com.rehealth.genie.work.TelemetryUploadWorker
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -123,6 +124,7 @@ class RegisterViewModel(private val context: Context) : ViewModel() {
                     app.healthChatRepository.createConversation()
                     app.syncRepository.resumeQueue()
                     MeasurementSyncWorker.schedule(context)
+                    TelemetryUploadWorker.schedule(context)
                     MeasurementSyncWorker.triggerImmediate(context)
                     _uiState.value = RegisterUiState(isRegistered = true)
                 }

@@ -48,7 +48,7 @@ class MeasurementSyncWorker(
         }
 
         try {
-            for (item in syncRepo.pending()) {
+            for (item in syncRepo.pendingExcludingKind(TELEMETRY_BATCH_KIND)) {
                 when (measurementWorkerAction(syncRepo.uploadQueuedItem(item))) {
                     MeasurementWorkerAction.RETRY -> return@withContext Result.retry()
                     MeasurementWorkerAction.STOP_SUCCESS -> return@withContext Result.success()
@@ -111,6 +111,7 @@ class MeasurementSyncWorker(
     companion object {
         private const val TAG = "MeasurementSyncWorker"
         private const val WORK_NAME = "measurement_sync"
+        private const val TELEMETRY_BATCH_KIND = "telemetry_batch"
         /**
          * Schedule periodic sync worker. Called after login or app startup.
          */

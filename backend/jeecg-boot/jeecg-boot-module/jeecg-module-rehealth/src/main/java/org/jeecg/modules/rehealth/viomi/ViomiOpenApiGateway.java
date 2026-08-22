@@ -7,4 +7,5 @@ import java.util.List;
 public interface ViomiOpenApiGateway {
     boolean deviceExists(String imei);
     List<JsonNode> history(String metric, String imei, Instant begin, Instant end);
+    void sendMeasurementCommand(String metric, String imei);
 }
