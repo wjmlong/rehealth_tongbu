@@ -139,7 +139,10 @@ class RdiRepository(
             )
         }
         rdiDao.replaceCalculation(snapshot, records)
-        if (userIdProvider()?.takeIf { it.isNotBlank() } != null) {
+        val ownerUserId = userIdProvider()?.takeIf { it.isNotBlank() }
+        // Mock/synthetic calculations stay local: they are never exported to the
+        // backend as user projections, matching the "no silent mock" policy.
+        if (ownerUserId != null && !snapshot.isMock) {
             enqueueUpload(snapshot, records)
         }
         val sevenDaysAgo = rdiDao.snapshotForDay(userId, scoredOn.minusDays(7).toString())
@@ -473,11 +476,33 @@ class RdiRepository(
         tryEstablish("hrv_personal_trend", hrvByDay.map { it.median() ?: 0.0 })
         tryEstablish("resting_hr", hrByDay.map { it.median() ?: 0.0 })
 
-        // 血压基线（设计 6.7）：仅已确认袖带且有效日足够。
+        // 血压基线（设计 6.7）：7 日袖带均值本身已是聚合值，作为单点个人锚定
+        // 基线在首次满足门槛时建立并冻结 90 天，后续 7 日均值与该锚点比较。
+        // 不能像日频因子那样要求 14 个观测（那会让血压域永远建不起基线）。
         val bp = rhiManualHealthInputDao.get(userId)?.toClinicalBloodPressureValues()
-        if (bp != null && bp.confirmedUpperArmCuff && (bp.validDays ?: 0) >= 14) {
-            bp.sbp7dMean?.let { tryEstablish("bp_sbp", listOf(it)) }
-            bp.dbp7dMean?.let { tryEstablish("bp_dbp", listOf(it)) }
+        if (bp != null && bp.confirmedUpperArmCuff && (bp.validDays ?: 0) >= 3) {
+            suspend fun establishBpAnchor(factorCode: String, value: Double) {
+                if (!value.isFinite() || value <= 0.0) return
+                val active = rdiBaselineDao.activeBaseline(userId, factorCode)
+                if (active != null && active.frozenUntil >= establishedOn) return
+                val version = (active?.version ?: 0) + 1
+                rdiBaselineDao.establish(
+                    RdiBaselineEntity(
+                        userId = userId,
+                        factorCode = factorCode,
+                        baselineValue = value,
+                        mad = 0.0,
+                        establishedOn = establishedOn,
+                        frozenUntil = frozenUntil,
+                        version = version,
+                        status = "ACTIVE",
+                        algorithmVersion = RDI_ALGORITHM_VERSION,
+                        updatedAt = now,
+                    ),
+                )
+            }
+            bp.sbp7dMean?.let { establishBpAnchor("bp_sbp", it) }
+            bp.dbp7dMean?.let { establishBpAnchor("bp_dbp", it) }
         }
     }
 

@@ -473,16 +473,21 @@ object RdiEngine {
 
     /**
      * 血检风险锚点领域（设计 6.1 C_lab）：上限 ±10，权重最高。
-     * 每个已确认指标：finalPoints = 0.8 × 实测贡献 + 0.2 × 控制支持趋势。
-     * OCR 未确认（confidence=0）不计分；无数据时本域贡献为 0（不伪装基线）。
+     *
+     * 实测贡献必须由 model-service 的 lab 标准化服务输出为 -10~+10 区间内的
+     * 标准化点。原始化验值（例如 LDL 3.4 mmol/L）的量纲与贡献分完全不同，
+     * 禁止直接当作贡献分参与计算。当前客户端尚未接入标准化结果，且
+     * [RdiConfirmedLabEntity] 也没有标准化字段，因此本域在标准化点可用前
+     * 不产出任何贡献：宁可缺失，也不伪造占位分数。
      */
     private fun labContributions(input: RdiCalculationInput): List<RdiContribution> {
+        if (input.confirmedLabs.isEmpty()) return emptyList()
+        // 保持显式实现：一旦输入携带标准化点（-10~+10 且有限），才允许计分。
         return input.confirmedLabs.mapNotNull { lab ->
             if (lab.confidence <= 0.0) return@mapNotNull null
-            // 实测贡献：由 marker 参考范围映射到 -10~+10 的贡献，当前采用规范化后的实测点（由 model-service 给出）。
-            // 此处以 measuredRawPoint 占位，实际由 model-service 的 lab 标准化服务提供。
-            val measuredRawPoint = lab.measuredValue.takeIf { it.isFinite() } ?: return@mapNotNull null
-            val finalPoints = 0.8 * measuredRawPoint + 0.2 * lab.controlTrend
+            val normalized = lab.normalizedPoint ?: return@mapNotNull null
+            if (!normalized.isFinite() || normalized !in -10.0..10.0) return@mapNotNull null
+            val finalPoints = 0.8 * normalized + 0.2 * lab.controlTrend.coerceIn(-10.0, 10.0)
             contribution(
                 factorCode = lab.markerCode,
                 domain = "lab",
@@ -490,9 +495,9 @@ object RdiEngine {
                 currentValue = lab.measuredValue,
                 baselineValue = null,
                 unit = lab.unit,
-                rawPoints = measuredRawPoint,
+                rawPoints = normalized,
                 confidence = lab.confidence,
-                evidence = "${lab.markerCode} ${lab.measuredValue}${lab.unit}（控制支持趋势 ${lab.controlTrend.round2()}）",
+                evidence = "${lab.markerCode} ${lab.measuredValue}${lab.unit}（标准化点 ${normalized.round2()}，控制支持趋势 ${lab.controlTrend.round2()}）",
                 sourceFactorId = "lab:${lab.markerCode}:${lab.measuredAt}",
             ).copy(finalPoints = finalPoints)
         }

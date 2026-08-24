@@ -19,6 +19,7 @@ import com.rehealth.genie.ring.data.RingDataDao
 import com.google.gson.Gson
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -137,27 +138,35 @@ class RhiRepository(
         enqueueForUpload: Boolean,
     ) {
         val dao = snapshotDao ?: return
-        val uploadSnapshots = mutableListOf<com.rehealth.genie.network.dto.RhiDailyIndexDto>()
-        daily.forEach { item ->
-            val entities = RhiSnapshotMapper.toEntities(
-                userId = userId,
-                scoredOn = item.date,
-                calculation = item.result,
-                calculationSource = calculationSource,
-                algorithmVersion = algorithmVersion,
-            )
-            dao.replaceDay(
-                index = entities.index,
-                domains = entities.domains,
-                features = entities.features,
-                quality = entities.quality,
-            )
-            uploadSnapshots += RhiSnapshotMapper.toUploadDto(entities)
-        }
-        val cutoff = daily.last().date.minusDays(RETENTION_DAYS).toString()
-        dao.pruneBefore(userId, cutoff)
-        if (enqueueForUpload) {
-            enqueueUpload(userId, uploadSnapshots)
+        try {
+            val uploadSnapshots = mutableListOf<com.rehealth.genie.network.dto.RhiDailyIndexDto>()
+            daily.forEach { item ->
+                val entities = RhiSnapshotMapper.toEntities(
+                    userId = userId,
+                    scoredOn = item.date,
+                    calculation = item.result,
+                    calculationSource = calculationSource,
+                    algorithmVersion = algorithmVersion,
+                )
+                dao.replaceDay(
+                    index = entities.index,
+                    domains = entities.domains,
+                    features = entities.features,
+                    quality = entities.quality,
+                )
+                uploadSnapshots += RhiSnapshotMapper.toUploadDto(entities)
+            }
+            val cutoff = daily.last().date.minusDays(RETENTION_DAYS).toString()
+            dao.pruneBefore(userId, cutoff)
+            if (enqueueForUpload) {
+                enqueueUpload(userId, uploadSnapshots)
+            }
+        } catch (error: Throwable) {
+            if (error is CancellationException) throw error
+            // Persistence is a side effect of scoring, never a precondition for
+            // it: a storage failure must not deny the user a score that was
+            // already computed correctly.
+            android.util.Log.w("RhiRepository", "RHI snapshot persistence failed", error)
         }
     }
 

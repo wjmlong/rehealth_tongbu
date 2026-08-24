@@ -107,6 +107,11 @@ data class RdiConfirmedLabEntity(
     @ColumnInfo(name = "unit") val unit: String,
     /** 测量/报告日期（本地日期）。 */
     @ColumnInfo(name = "measured_at") val measuredAt: String,
+    /**
+     * model-service 标准化服务输出的贡献点（-10~+10）。原始实测值量纲不同，
+     * 不能直接当作贡献分；该字段缺失时本指标不参与计分。
+     */
+    @ColumnInfo(name = "normalized_point") val normalizedPoint: Double? = null,
     /** 近期控制支持趋势分（设计 6.1：实测 80% + 控制支持 20%），范围约 -1~+1。 */
     @ColumnInfo(name = "control_trend") val controlTrend: Double,
     @ColumnInfo(name = "source") val source: String,

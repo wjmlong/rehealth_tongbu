@@ -305,7 +305,7 @@ internal fun DeviceBindingScreen(
                     modifier = Modifier.padding(top = 12.dp),
                 )
                 IntervalButtons(
-                    options = listOf(3, 5, 10, 15),
+                    options = listOf(3, 5, 10, 15, 30, 60),
                     selected = state.measurementIntervalMinutes,
                     label = { "$it 分钟" },
                     onSelected = onMeasurementIntervalChanged,
@@ -338,7 +338,7 @@ internal fun DeviceBindingScreen(
                         modifier = Modifier.padding(top = 12.dp),
                     )
                     IntervalButtons(
-                        options = listOf(30, 60, 120, 240),
+                        options = listOf(30, 60, 120, 240, 720, 1440),
                         selected = state.uploadIntervalMinutes,
                         label = ::formatInterval,
                         onSelected = onUploadIntervalChanged,
