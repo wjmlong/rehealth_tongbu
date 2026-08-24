@@ -273,6 +273,12 @@ IDLE
   补跑造成设备连续工作；UI 文案明确为“每轮完成后等待 N 分钟”。
 - 整轮只允许一个 Job；配置更新、手动测量、页面同步和 Provider 切换继续通过
   `ActiveRingRepository` 路由互斥锁及 `HBandCommandQueue` 串行化。
+- 测量间隔更新不得通过 stop/start 前台服务生效：运行中的循环每轮重读间隔配置，
+  新档位下一轮生效。stop→start 会在快速点击时把 `startForegroundService()` 的 5 秒
+  看门狗挂在已 `stopSelf()` 的服务上，系统随后以
+  `RemoteServiceException$ForegroundServiceDidNotStartInTimeException` 杀死进程；
+  `onStartCommand(ACTION_START)` 必须首先调用 `startForeground()`（2026-08-24 真机
+  crash buffer 实证，两台复现均为此异常）。
 - 单指标沿用 45 秒测量超时；建议增加整轮最大 120 秒截止时间。到达截止时间时保留此前已写入
   Room 的成功记录，其余指标标记为跳过，禁止回滚真实结果。
 - 断连时只对已绑定地址执行现有 `autoConnect()` 有界重连；失败后结束本轮，不做环境扫描。

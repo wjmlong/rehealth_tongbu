@@ -435,19 +435,17 @@ class RingViewModel(
                     }
                     return@onSuccess
                 }
-                val wasActive = RingBackgroundCollectionSettings.isActive(
-                    appContext,
-                    currentUserIdProvider(),
-                )
-                if (wasActive) {
-                    RingForegroundService.stop(appContext)
-                    RingForegroundService.start(appContext)
-                }
+                // The running collection loop re-reads the measurement interval on
+                // every round (RingForegroundService.runCollectionLoop), so the new
+                // value takes effect on the next cycle without touching the service.
+                // Restarting the foreground service here caused a stop/start race on
+                // rapid taps: a startForegroundService() request stayed pending while
+                // stopSelf() tore the service down, and the system killed the app 5s
+                // later with RemoteServiceException$ForegroundServiceDidNotStartInTimeException.
                 mutableUiState.update {
                     it.copy(
                         measurementIntervalMinutes = minutes,
-                        backgroundCollectionEnabled = wasActive,
-                        message = "主动测量间隔已设为 $minutes 分钟",
+                        message = "主动测量间隔已设为 $minutes 分钟，下一轮采集生效",
                     )
                 }
             }

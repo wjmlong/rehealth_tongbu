@@ -63,12 +63,16 @@ class RingForegroundService : Service() {
         (application as? ReHealthApplication)?.sessionStore?.userId
 
     private fun startCollection(runImmediately: Boolean) {
-        RingBackgroundCollectionSettings.setActive(this, currentUserId(), true)
-        RingBackgroundRecoveryWorker.schedule(this)
-        TelemetryUploadWorker.schedule(this, currentUserId())
+        // startForeground() must run first: startForegroundService() arms a 5-second
+        // system watchdog that kills the process if the service is stopped before it
+        // enters the foreground state ("Bringing down service while still waiting
+        // for start foreground").
         if (!moveToForeground("Preparing local ring collection")) {
             return
         }
+        RingBackgroundCollectionSettings.setActive(this, currentUserId(), true)
+        RingBackgroundRecoveryWorker.schedule(this)
+        TelemetryUploadWorker.schedule(this, currentUserId())
         if (collectionJob?.isActive == true) {
             return
         }
@@ -255,17 +259,27 @@ class RingForegroundService : Service() {
                 .putExtra(EXTRA_RUN_IMMEDIATELY, runImmediately)
 
         fun start(context: Context) {
-            ContextCompat.startForegroundService(
-                context,
-                intent(context, ACTION_START, runImmediately = true),
-            )
+            runCatching {
+                ContextCompat.startForegroundService(
+                    context,
+                    intent(context, ACTION_START, runImmediately = true),
+                )
+            }.onFailure { error ->
+                // Android 12+ can reject the start (e.g. ForegroundServiceStartNotAllowedException);
+                // keep the plan enabled and wait for the next foreground opportunity instead of crashing.
+                Log.w(TAG, "unable to request ring foreground service start", error)
+            }
         }
 
         fun recover(context: Context) {
-            ContextCompat.startForegroundService(
-                context,
-                intent(context, ACTION_START, runImmediately = false),
-            )
+            runCatching {
+                ContextCompat.startForegroundService(
+                    context,
+                    intent(context, ACTION_START, runImmediately = false),
+                )
+            }.onFailure { error ->
+                Log.w(TAG, "unable to request ring foreground service recovery", error)
+            }
         }
 
         fun stop(context: Context) {

@@ -1,6 +1,6 @@
 # BLE Background Collection QA
 
-Last updated: 2026-08-21
+Last updated: 2026-08-24
 
 ## Scope
 
@@ -71,6 +71,17 @@ app-facing APIs remain:
 - Android 12+ BLE platform calls re-check `BLUETOOTH_SCAN` and
   `BLUETOOTH_CONNECT` immediately before use. Revoking permission during a scan
   or connection attempt must return an empty/error state without crashing.
+- Changing the measurement interval while collection is enabled must NOT
+  restart the foreground service. The running loop re-reads the interval every
+  round, so the new preset applies on the next cycle. Rapidly tapping interval
+  presets must not crash: a previous stop/start design left a
+  `startForegroundService()` request pending while `stopSelf()` tore the
+  service down, and the system killed the process after 5 seconds with
+  `RemoteServiceException$ForegroundServiceDidNotStartInTimeException`
+  (logcat marker: "Bringing down service while still waiting for start
+  foreground"). `startForeground()` is also called first in
+  `onStartCommand(ACTION_START)` so the system watchdog is always satisfied
+  before any other start work.
 
 ## Emulator Regression (API 31+)
 
