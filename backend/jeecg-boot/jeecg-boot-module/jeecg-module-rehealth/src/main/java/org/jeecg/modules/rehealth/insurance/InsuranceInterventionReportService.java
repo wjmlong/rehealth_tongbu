@@ -518,10 +518,29 @@ public class InsuranceInterventionReportService {
     private static String factorName(String code) {
         if (code == null) return "未知因素";
         String value = code.toLowerCase(Locale.ROOT);
+        //update-begin---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】补齐 RDI 因素码与领域码中文映射,报告不出现英文------------
+        if (value.startsWith("diet_")) {
+            return switch (value.substring("diet_".length())) {
+                case "breakfast" -> "早餐结构";
+                case "lunch" -> "午餐结构";
+                case "dinner" -> "晚餐结构";
+                case "snack" -> "加餐结构";
+                default -> "饮食·" + value.substring("diet_".length());
+            };
+        }
         return switch (value) {
             case "steps" -> "步数";
             case "activity", "exercise" -> "运动天数";
+            case "verified_activity_minutes" -> "有效活动时长";
             case "sleep" -> "睡眠";
+            case "sleep_duration" -> "睡眠时长";
+            case "sleep_efficiency" -> "睡眠效率";
+            case "sleep_regularity" -> "睡眠规律";
+            case "sleep_consistency_reward" -> "睡眠规律奖励";
+            case "nocturnal_hrv" -> "夜间 HRV";
+            case "hrv_personal_trend" -> "HRV 个人趋势";
+            case "hrv" -> "HRV";
+            case "resting_hr" -> "静息心率";
             case "sedentary" -> "久坐时长";
             case "sbp", "dbp", "blood_pressure", "bp" -> "血压";
             case "glucose", "blood_glucose" -> "空腹血糖";
@@ -531,18 +550,21 @@ public class InsuranceInterventionReportService {
             case "hr", "heart_rate" -> "心率";
             case "spo2", "blood_oxygen" -> "血氧";
             case "ldl", "ldl_c" -> "LDL-C";
-            case "hrv" -> "HRV";
             default -> code;
         };
+        //update-end---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】补齐 RDI 因素码与领域码中文映射,报告不出现英文------------
     }
 
     private static String domainName(String code) {
         if (code == null) return "未分类";
         String value = code.toLowerCase(Locale.ROOT);
+        //update-begin---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】补齐 RDI 因素码与领域码中文映射,报告不出现英文------------
         return switch (value) {
             case "exercise", "activity", "sport" -> "运动";
             case "sleep" -> "睡眠";
+            case "recovery" -> "恢复";
             case "diet", "nutrition", "food" -> "饮食";
+            case "lab", "laboratory" -> "实验室检查";
             case "blood_pressure", "bp", "pressure" -> "血压";
             case "blood_glucose", "glucose", "metabolic" -> "代谢";
             case "weight", "bmi", "body" -> "体重";
@@ -551,6 +573,7 @@ public class InsuranceInterventionReportService {
             case "heart_rate", "hr", "vital" -> "生命体征";
             default -> code;
         };
+        //update-end---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】补齐 RDI 因素码与领域码中文映射,报告不出现英文------------
     }
 
     private static String share(int count, int total) {

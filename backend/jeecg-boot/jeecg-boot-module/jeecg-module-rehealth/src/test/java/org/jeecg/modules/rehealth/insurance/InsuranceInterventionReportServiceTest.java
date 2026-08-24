@@ -227,12 +227,16 @@ class InsuranceInterventionReportServiceTest {
         rdi("rdi-latest", "user-1", "2026-08-20", 30.0, 1);
         contribution("c-1", "rdi-latest", "steps", "activity", -3.0);
         contribution("c-2", "rdi-latest", "sleep_duration", "sleep", 2.0);
+        contribution("c-3", "rdi-latest", "nocturnal_hrv", "recovery", 1.0);
 
         InsuranceInterventionReportResponse.ReportData data = includeMockService.reportData(TENANT, MANAGER, 30);
 
-        assertEquals(2, data.factors().size());
+        assertEquals(3, data.factors().size());
         assertEquals("步数", data.factors().get(0).name());
         assertEquals("-3.00", data.factors().get(0).contribution());
+        assertEquals("睡眠时长", data.factors().get(1).name());
+        assertEquals("夜间 HRV", data.factors().get(2).name());
+        assertTrue(data.factors().get(2).meaning().contains("领域:恢复"));
         assertEquals("RDI 近期风险负荷", data.outcomes().get(1).name());
         assertEquals("-10.0 分", data.outcomes().get(1).change());
         assertTrue(data.dataStatusLabel().contains("演练数据"));
