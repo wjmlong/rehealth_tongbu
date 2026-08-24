@@ -2,6 +2,7 @@ package com.rehealth.genie.data.sync
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
@@ -13,7 +14,15 @@ import androidx.room.PrimaryKey
  * "rhi_daily_snapshot", "rdi_daily_snapshot", and "rhi_manual_health_input".
  * status values: "pending" | "uploading" | "done" | "failed" | "dead_letter"
  */
-@Entity(tableName = "sync_upload_queue")
+@Entity(
+    tableName = "sync_upload_queue",
+    indices = [
+        Index(
+            value = ["owner_user_id", "status", "next_retry_at"],
+            name = "index_sync_upload_queue_owner_status_retry",
+        ),
+    ],
+)
 data class UploadQueueEntity(
     @PrimaryKey val id: String,
     @ColumnInfo(name = "kind") val kind: String,

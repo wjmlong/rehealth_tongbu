@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 20,
-    "identityHash": "cba1ef032821755a2428a40648dac710",
+    "identityHash": "bd11713765c34bf166b06c26e24fa5e4",
     "entities": [
       {
         "tableName": "health_records",
@@ -581,7 +581,20 @@
           "columnNames": [
             "id"
           ]
-        }
+        },
+        "indices": [
+          {
+            "name": "index_sync_upload_queue_owner_status_retry",
+            "unique": false,
+            "columnNames": [
+              "owner_user_id",
+              "status",
+              "next_retry_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_sync_upload_queue_owner_status_retry` ON `${TABLE_NAME}` (`owner_user_id`, `status`, `next_retry_at`)"
+          }
+        ]
       },
       {
         "tableName": "intervention_feedback_queue",
@@ -2145,7 +2158,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'cba1ef032821755a2428a40648dac710')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'bd11713765c34bf166b06c26e24fa5e4')"
     ]
   }
 }
