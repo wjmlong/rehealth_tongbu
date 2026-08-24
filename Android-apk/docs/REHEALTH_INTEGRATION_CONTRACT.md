@@ -258,9 +258,44 @@ The plan UI observes the exact owner-scoped queue row after a local-first submis
 `done` is shown as synced, transient `retry` remains queued with bounded backoff, and
 permanent rejection or ten exhausted attempts becomes `dead_letter`. A dead-letter row
 is shown as a failure rather than an endless syncing banner. Legacy `failed` rows remain
-retryable for compatibility. A new submission for the same occurrence marks an older
-dead-letter row `superseded`, so a resolved attempt no longer leaves a stale error banner.
-No Room schema migration is required for these status values.
+retryable for compatibility. A new submission for the same occurrence marks every older
+row (`pending`/`retry`/`failed`/`dead_letter`) `superseded` so only the newest attempt
+uploads and no stale error banner remains; a generic (non-occurrence) resubmission
+supersedes older `dead_letter` rows for the same intervention. Dead-letter rows are
+pruned after 30 days. No Room schema migration is required for these status values.
+
+Room v20 adds authenticated ownership to the generic upload queue and the in-flight
+claim used by the upload workers:
+
+- `sync_upload_queue.owner_user_id` is stamped at enqueue time and every pending/
+  claim read is owner-scoped. Pending rows of another account are never uploaded or
+  shown after an account switch; the server still derives ownership from the
+  authenticated session and the telemetry DTO carries no user identifier.
+- `sync_upload_queue.claim_time` supports an atomic `pending -> uploading` claim, so
+  the periodic worker and an immediate one-time trigger never POST the same batch
+  concurrently; stale claims are recovered after a ten-minute lease.
+- Generic-queue transient retries are capped at ten attempts and then become
+  `dead_letter`, matching the feedback queue policy.
+- `rdi_confirmed_labs.normalized_point` (nullable) is the only accepted lab
+  contribution input: raw measured values are never used as -10..+10 points.
+- The v10-era `ring_sleep_sessions.total_sleep_minutes` column is now carried by the
+  explicit `9→10` migration, with a guarded repair ALTER in `13→14` for databases
+  created at v11–v13; the previously documented v7→v8 statement was incorrect.
+
+A real HTTP 401 on an authorized session clears the stored token immediately, marks
+the session expired, and the root navigation returns to Login. Anonymous guest
+browsing (no token) is not treated as an expired session. Logout clears only the
+authentication keys and never the device-local `first_use_at` anchor, and it stops
+local Bluetooth collection without altering the account-level Viomi cloud
+measurement plan (the plan changes only when the user disables it explicitly or
+unbinds the device).
+
+The device binding address and every background-collection setting are scoped to a
+SHA-256-derived user key. A stored binding is only reconnected when its bound owner
+matches the signed-in user; legacy ownerless bindings are claimed once by the first
+signed-in user. Collection paths (HBand auto-connect, Viomi saved device, Foreground
+Service rounds) refuse another account's binding.
+
 Generic intervention feedback remains on `/interventions/{id}/feedback` and is never
 fanned out to every institution serving the user. The attribution plan card reads
 `GET /rehealth/mobile/insurance/care-plans/current`, displays institution and revision,

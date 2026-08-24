@@ -1,7 +1,41 @@
 # ReHealth 当前状态
 
-> 最后核对：2026-08-22。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
+> 最后核对：2026-08-23。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
 > `docs/archive/acceptance/`，不得作为当前实现或发布状态的依据。
+
+## 2026-08-23 Android 客户端审查修复批次（P0–P3）
+
+对 Android 客户端全量静态审查发现的账号隔离、迁移链、假登录入口与算法占位问题进行了修复：
+
+- **Room v20**：通用上传队列 `sync_upload_queue` 新增 `owner_user_id`（按登录用户隔离，切换账号
+  不再上传他人队列项）与 `claim_time`（Worker 原子认领 in-flight 抢占，10 分钟租约后回收崩溃遗留行，
+  周期任务与“立即上传”不再并发重发同一批次）；`rdi_confirmed_labs` 新增 `normalized_point`
+  （血检贡献只接受 model-service 标准化点，原始化验值不再直接当作 -10~+10 贡献分）。
+- **迁移链修复**：`total_sleep_minutes` 由 `9→10` 迁移显式补列（`13→14` 增加带存在性守卫的补列，
+  兼容 v11–v13 新建库），修正 11/12/13 导出的 schema 快照与 `SleepTotalMigrationTest`
+  （改为 7→10 全链校验）；此前旧库升级会触发 Room schema 校验崩溃。
+- **会话与账号隔离**：401 后立即清除本地 token 并新增 `sessionExpired` 状态流，根导航以该状态
+  为准回登录（游客浏览不会被误弹）；退出登录只清认证键、保留 `first_use_at`；HealthChatViewModel
+  随登录用户切换刷新账号流（修复换号串看聊天记录）；设备绑定地址与后台采集设置（开关/间隔/冷却）
+  全部按账号哈希隔离，旧值一次性认领迁移，FGS/恢复 Worker/重连路径校验绑定归属。
+- **入口与文案**：移除假“微信一键登录”按钮（原为无认证直通），游客体验明确标注“浏览模式”；
+  登录/注册页加密文案改为“登录凭证加密存储，健康数据仅保存在您的设备内”（Room 为沙盒明文）。
+- **上传与调度**：batchId 加入 owner 哈希/source/schemaVersion（崩溃重入幂等）；通用队列 transient
+  重试 10 次封顶后进入 `dead_letter`；干预反馈同任务重新提交会把旧 pending/retry/failed/dead_letter
+  全部置 `superseded`，dead_letter 30 天后清理；访谈队列项 id 改为确定性哈希；遥测/业务 Worker
+  拆分认领循环；`MeasurementSyncWorker`/恢复 Worker 改用 `ExistingPeriodicWorkPolicy.UPDATE`。
+- **采集与配置**：删除页面级 15 分钟自动采集循环及其每轮立即上传（D2 待办闭环），前台服务成为唯一
+  无人值守调度器；HBand 命令队列锁等待 30 秒上界；测量/上传档位预设补齐契约区间（3–60 分钟 /
+  30–1440 分钟）；退出登录不再改动云米服务端测量计划（仅停止本地采集）。
+- **权限与算法**：Manifest 移除 READ_CALL_LOG/READ_CONTACTS/ANSWER_PHONE_CALLS/后台定位/忽略
+  电池优化/未用前台服务类型/GET_TASKS/REORDER_TASKS/RECEIVE_BOOT_COMPLETED 等未用权限
+  （合并清单验证无厂商 AAR 冲突）；RDI 血压 7 日均值改为单点锚定基线（修复永远建不起基线的死代码），
+  mock 快照不再进入上传队列；RhiRepository 持久化失败不再吞掉已算出的评分；档案编辑在远端档案
+  读取失败时中止保存（不再以空 DTO 覆盖服务端字段）；`RemotePhmError` 死分支与
+  `SyncRepository.handleResult` 死代码删除。
+- 验证：`testDebugUnitTest` 全量通过、`compileDebugAndroidTestKotlin` 与 `assembleDebug` 通过；
+  `connectedDebugAndroidTest` 与物理设备 QA 仍待真机执行。仍待后端：云米计划 GET 回读端点、
+  心率/血氧“未佩戴/低电量”厂商回调分支（需 SDK 状态枚举文档）。
 
 当前待发布 Android 版本为 `1.0.0 (versionCode 1)`；该版本包含 HBand/云米连接方式选择，
 显示版本和内部版本号均按产品要求固定为 `1.0.0 (1)`。

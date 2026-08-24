@@ -73,6 +73,8 @@ Status: implemented software path; updated 2026-08-21.
   or out-of-range values hide the card. HRV/stress show a measure action only when mini-checkup is
   available; a history-only value has no action. MET never exposes a real-time measure action.
 - Room v8 adds nullable `total_sleep_minutes` through a non-destructive v7→v8 migration.
+  (实施修正：该列实际由 `9→10` 迁移显式添加，`13→14` 另设带存在性守卫的补列迁移，
+  兼容 v11–v13 时代新建的库；此前文档声称 v7→v8 添加与代码不符，测试与说明已修正。)
   HBand persists the SDK-authoritative `allSleepTime` there and period aggregation uses it
   before actual sleep stages (`deep + light + REM`) and finally elapsed session time. Awake
   minutes and the `sleepDown`/`sleepUp` clock span are not counted as HBand sleep duration.
@@ -99,6 +101,16 @@ Status: implemented software path; updated 2026-08-21.
   service, or trigger an immediate ring collection. This restores the device connection without
   repeating the long measurement step every time an older user reopens the app. The same device
   page can explicitly stop collection, and logout still stops it.
+- 2026-08-23 隔离与队列强化：Room v20 为通用上传队列 `sync_upload_queue` 增加
+  `owner_user_id` 与 in-flight `claim_time` 抢占（Worker 先原子认领再上传，崩溃遗留行 10 分钟
+  租约后回收；周期任务与“立即上传”不再并发重发同一批次），所有入队按当前登录用户盖章、所有
+  pending 读取按 owner 过滤；通用队列 transient 重试改为 10 次封顶后进入 `dead_letter`；
+  设备绑定地址与后台采集设置（开关/间隔/冷却）全部按账号哈希隔离，旧值一次性认领迁移；
+  退出登录只停止本地前台采集，不再改动云米服务端计划；遥测 batchId 加入 owner 哈希、source
+  与 schemaVersion 使其崩溃重入幂等；测量/上传档位预设补齐契约区间（3–60 分钟与 30–1440
+  分钟）；HBand 命令队列锁等待有 30 秒上界；RDI mock 快照不再进入上传队列，血检贡献只接受
+  model-service 标准化点（原始化验值不再直接当作贡献分），血压 7 日均值作为单点锚定基线
+  可正常建立。
 
 ## 主动测量与可配置上传节奏（已实现，真机 QA 待完成）
 
@@ -487,7 +499,8 @@ DTO 要求：
 - [x] 将 `RingBackgroundCollectionPolicy` 改为动态间隔并使用轮次完成时间计算下一次 due time。
 - [x] 在 `RingForegroundService` 实现单 Job 循环、血氧/血压冷却和安全通知状态；整轮沿用各指标 45 秒上限。
 - [x] 复用 `HBandRingRepository.measure()`、`HBandCommandQueue`、能力判断和 Room 持久化。
-- [ ] 移除/收敛 `RingViewModel` 的重复自动循环。
+- [x] 移除/收敛 `RingViewModel` 的重复自动循环。（已删除页面级 15 分钟循环与每轮立即上传，
+  前台服务成为唯一无人值守调度器；`stopAutoCollection` 保留为生命周期钩子。）
 - [x] 扩展 `DeviceBindingScreen` 预设、自定义设置和输入范围校验。
 
 #### 阶段 C：Room 时间窗批次与可配置上传（3–4 人日）
