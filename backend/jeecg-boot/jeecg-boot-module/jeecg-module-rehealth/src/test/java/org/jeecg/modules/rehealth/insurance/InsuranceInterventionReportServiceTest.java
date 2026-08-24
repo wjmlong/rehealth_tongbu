@@ -192,6 +192,26 @@ class InsuranceInterventionReportServiceTest {
     }
 
     @Test
+    void factorsPlaceholderWhenOnlyMockSnapshotsExist() {
+        stubWorkbench(List.of(identity("subject-1", "user-1")), Map.of(
+                "user-1", summary("pending_review", "medium", 0.3, 60.0, 40.0, 0.5, false, true, null)
+        ));
+        String snapshot = "snapshot-mock";
+        rdiSnapshot(snapshot, "user-1", "2026-08-20", 1);
+        contribution("c-1", snapshot, "steps", "activity", -3.0);
+
+        InsuranceInterventionReportResponse.ReportData data = service.reportData(TENANT, MANAGER, 30);
+
+        assertEquals(1, data.factors().size());
+        assertEquals("暂无贡献数据", data.factors().get(0).name());
+        assertEquals("—", data.factors().get(0).contribution());
+        assertTrue(data.factors().get(0).meaning().contains("演练数据"));
+        assertTrue(data.dataStatusLabel().contains("演练数据"));
+        assertEquals("数据不足", data.outcomes().get(1).change());
+        assertTrue(data.outcomes().get(1).meaning().contains("演练快照不计入统计"));
+    }
+
+    @Test
     void reportDataUsesTenantAndManagerScope() {
         stubWorkbench(List.of(), Map.of());
         service.reportData(9102, "manager-2", 30);

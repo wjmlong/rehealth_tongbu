@@ -175,8 +175,8 @@ public class InsuranceInterventionReportService {
                 adherenceRows(funnel, planned, improved),
                 topPeople,
                 suggestions(),
-                outcomes(userIds, windowStart, window),
-                factors(userIds)
+                outcomes(userIds, windowStart, window, mockPresent),
+                factors(userIds, mockPresent)
         );
     }
 
@@ -350,12 +350,17 @@ public class InsuranceInterventionReportService {
         return movement;
     }
 
-    private List<Outcome> outcomes(List<String> userIds, LocalDate windowStart, int window) {
+    private List<Outcome> outcomes(List<String> userIds, LocalDate windowStart, int window, boolean mockPresent) {
         List<Outcome> outcomes = new ArrayList<>();
         outcomes.add(meanDeltaOutcome("RHI 综合健康状态", "rehealth_rhi_daily_snapshot",
                 "display_score", userIds, windowStart, false, window, "整体健康状态向好"));
-        outcomes.add(meanDeltaOutcome("RDI 近期风险负荷", "rehealth_rdi_daily_snapshot",
-                "display_score", userIds, windowStart, true, window, "近期可干预风险负荷下降"));
+        Outcome rdiOutcome = meanDeltaOutcome("RDI 近期风险负荷", "rehealth_rdi_daily_snapshot",
+                "display_score", userIds, windowStart, true, window, "近期可干预风险负荷下降");
+        if (mockPresent && "数据不足".equals(rdiOutcome.change())) {
+            rdiOutcome = new Outcome(rdiOutcome.name(), rdiOutcome.change(),
+                    "演练快照不计入统计,当前无真实样本(" + rdiOutcome.meaning() + ")");
+        }
+        outcomes.add(rdiOutcome);
         outcomes.add(new Outcome("收缩压", "待复测口径",
                 "可穿戴无袖带血压不作为效果评估口径,需血压复测数据接入"));
         outcomes.add(new Outcome("LDL-C", "待复测口径",
@@ -417,13 +422,13 @@ public class InsuranceInterventionReportService {
                 "近 " + window + " 日人群均值变化 · 样本 " + sample + " 人(" + meaning + ")");
     }
 
-    private List<Factor> factors(List<String> userIds) {
+    private List<Factor> factors(List<String> userIds, boolean mockPresent) {
         if (userIds.isEmpty()) {
             return List.of();
         }
         String marks = placeholders(userIds.size());
         Object[] ids = userIds.toArray();
-        return jdbc.query("""
+        List<Factor> factors = jdbc.query("""
                         SELECT contribution.factor_code, contribution.domain_code,
                                AVG(contribution.final_points) AS mean_points
                         FROM rehealth_rdi_contribution contribution
@@ -447,6 +452,14 @@ public class InsuranceInterventionReportService {
                         "领域:" + domainName(rs.getString(2)) + " · 人群均值贡献分,负值表示降低风险负荷"
                 ),
                 ids);
+        if (factors.isEmpty()) {
+            //update-begin---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】演练数据不进入贡献统计时输出占位说明------------
+            return List.of(new Factor("暂无贡献数据", "—", mockPresent
+                    ? "当前范围内 RDI 快照均为演练数据,按口径不纳入贡献统计;真实快照上传后自动填充"
+                    : "范围内暂无满足口径的 RDI 贡献数据(需非演练 RDI 每日快照与结构化贡献)"));
+            //update-end---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】演练数据不进入贡献统计时输出占位说明------------
+        }
+        return factors;
     }
 
     private static List<Suggestion> suggestions() {
