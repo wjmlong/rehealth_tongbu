@@ -2,6 +2,9 @@ package com.rehealth.genie.network
 
 import com.rehealth.genie.network.dto.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import retrofit2.Response
@@ -75,6 +78,14 @@ class AuthenticatedApiClient(
 
     override var authState: AuthState = if (sessionStore.isLoggedIn) AuthState.Authorized else AuthState.Unauthorized
         private set
+
+    /**
+     * True once a previously-authorized session received a real HTTP 401. The
+     * root navigation uses this (and not [authState] alone) to return to Login,
+     * so an anonymous guest browsing Main is not bounced by the missing token.
+     */
+    private val _sessionExpired = MutableStateFlow(false)
+    val sessionExpired: StateFlow<Boolean> = _sessionExpired.asStateFlow()
 
     suspend fun evaluateFeatures(
         request: FeatureEvaluateRequest,
@@ -323,6 +334,7 @@ class AuthenticatedApiClient(
     fun onLoginSuccess(token: String) {
         sessionStore.token = token
         authState = AuthState.Authorized
+        _sessionExpired.value = false
         mobileApi = ReHealthMobileApi(baseUrl, httpClient, token)
     }
 
@@ -333,6 +345,7 @@ class AuthenticatedApiClient(
     fun onLogout() {
         sessionStore.clear()
         authState = AuthState.Unauthorized
+        _sessionExpired.value = false
         mobileApi = ReHealthMobileApi(baseUrl, httpClient, null)
     }
 
@@ -351,6 +364,10 @@ class AuthenticatedApiClient(
                     is RemotePhmError.HttpStatusError -> {
                         if (error.code == 401) {
                             authState = AuthState.Unauthorized
+                            _sessionExpired.value = true
+                            // Drop the rejected token immediately so no later call
+                            // re-sends it before the root navigation clears the session.
+                            sessionStore.clear()
                             ApiResult.Unauthorized("Token expired or invalid, please re-login")
                         } else if (error.code == 403) {
                             ApiResult.Forbidden(error.message)

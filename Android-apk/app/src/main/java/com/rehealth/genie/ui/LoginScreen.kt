@@ -22,7 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PersonOutline
@@ -262,29 +261,6 @@ fun LoginScreen(
                             .height(46.dp),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = Color(0xFF19B765),
-                            containerColor = Color(0xFFF1FCF6),
-                        ),
-                        border = BorderStroke(1.dp, Color(0xFFBDEBD2)),
-                    ) {
-                        Icon(Icons.Outlined.ChatBubbleOutline, null, modifier = Modifier.size(16.dp))
-                        Text(
-                            "微信一键登录",
-                            fontSize = 10.sp,
-                            maxLines = 1,
-                            softWrap = false,
-                            modifier = Modifier.padding(start = 3.dp),
-                        )
-                    }
-                    OutlinedButton(
-                        onClick = {
-                            if (agreed) onLoginSuccess() else showAgreementHint = true
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(46.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = Color(0xFF536273),
                             containerColor = Color(0xFFF8FAFC),
                         ),
@@ -292,7 +268,7 @@ fun LoginScreen(
                     ) {
                         Icon(Icons.Outlined.PersonOutline, null, modifier = Modifier.size(16.dp))
                         Text(
-                            "游客体验",
+                            "游客体验（浏览，完整功能需登录）",
                             fontSize = 10.sp,
                             maxLines = 1,
                             softWrap = false,
@@ -373,7 +349,7 @@ fun LoginScreen(
             ) {
                 Icon(Icons.Outlined.Shield, null, tint = Mint, modifier = Modifier.size(17.dp))
                 Text(
-                    "个人健康数据已加密保护",
+                    "登录凭证加密存储，健康数据仅保存在您的设备内",
                     color = Muted,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(start = 7.dp),

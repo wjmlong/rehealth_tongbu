@@ -20,10 +20,20 @@ data class ActiveWearableBinding(
     val capabilityJson: String?,
     val boundAt: Long,
     val lastDeviceChangedAt: Long,
+    /**
+     * SHA-256-derived key of the authenticated user who bound this device.
+     * Collection/reconnect paths must refuse the stored address when this key
+     * does not match the current user, so account switching can never measure
+     * or sync another account's device.
+     */
+    val boundByUserKey: String? = null,
 )
 
 interface ActiveWearableBindingStore {
     val activeBinding: StateFlow<ActiveWearableBinding>
+
+    /** True when the stored binding address belongs to the currently signed-in user. */
+    fun boundToCurrentUser(): Boolean
 
     fun activateProduct(profile: WearableProductProfile, changedAt: Long = System.currentTimeMillis())
 
@@ -43,6 +53,7 @@ class ActiveWearableStore(
     defaultVendor: WearableVendor = WearableVendor.MRD,
     forceDefaultSelection: Boolean = false,
     allowedVendors: Set<WearableVendor>? = null,
+    private val userIdProvider: () -> String? = { null },
 ) : ActiveWearableBindingStore {
     private val defaultBinding = ActiveWearableBinding(
         productCode = defaultProductCode,
@@ -80,6 +91,31 @@ class ActiveWearableStore(
 
     override val activeBinding: StateFlow<ActiveWearableBinding> = mutableActiveBinding.asStateFlow()
 
+    /**
+     * Ownership gate for the stored binding. Legacy bindings (written before the
+     * owner column existed) are claimed once by the first signed-in user so
+     * existing single-user devices do not need to re-bind; from that point on
+     * the address is only usable by the owner account.
+     */
+    override fun boundToCurrentUser(): Boolean {
+        val owner = userIdProvider()?.takeIf(String::isNotBlank) ?: return false
+        val current = mutableActiveBinding.value
+        if (current.address.isNullOrBlank()) return false
+        val expectedKey = userKey(owner)
+        if (current.boundByUserKey == null) {
+            update(current.copy(boundByUserKey = expectedKey))
+            return true
+        }
+        return current.boundByUserKey == expectedKey
+    }
+
+    private fun userKey(userId: String): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(userId.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+        return digest.take(24)
+    }
+
     override fun activateProduct(profile: WearableProductProfile, changedAt: Long) {
         val current = mutableActiveBinding.value
         if (current.productCode == profile.productCode && current.vendor == profile.vendor) return
@@ -109,6 +145,8 @@ class ActiveWearableStore(
         val current = mutableActiveBinding.value
         if (current.vendor != vendor) return
         val deviceChanged = !current.address.equals(device.address, ignoreCase = true)
+        val ownerKey = userIdProvider()?.takeIf(String::isNotBlank)?.let(::userKey)
+            ?: current.boundByUserKey
         update(
             current.copy(
                 address = device.address,
@@ -118,6 +156,7 @@ class ActiveWearableStore(
                 capabilityJson = capabilityJson ?: current.capabilityJson,
                 boundAt = if (deviceChanged || current.boundAt <= 0L) changedAt else current.boundAt,
                 lastDeviceChangedAt = if (deviceChanged) changedAt else current.lastDeviceChangedAt,
+                boundByUserKey = ownerKey,
             ),
         )
     }
@@ -207,6 +246,7 @@ class ActiveWearableStore(
             .putString(KEY_CAPABILITY_JSON, binding.capabilityJson)
             .putLong(KEY_BOUND_AT, binding.boundAt)
             .putLong(KEY_LAST_DEVICE_CHANGED_AT, binding.lastDeviceChangedAt)
+            .putString(KEY_BOUND_BY_USER, binding.boundByUserKey)
             .apply()
     }
 
@@ -224,6 +264,7 @@ class ActiveWearableStore(
             capabilityJson = preferences.getString(KEY_CAPABILITY_JSON, null),
             boundAt = preferences.getLong(KEY_BOUND_AT, 0L),
             lastDeviceChangedAt = preferences.getLong(KEY_LAST_DEVICE_CHANGED_AT, 0L),
+            boundByUserKey = preferences.getString(KEY_BOUND_BY_USER, null),
         )
     }
 
@@ -238,6 +279,7 @@ class ActiveWearableStore(
         const val KEY_CAPABILITY_JSON = "capability_json"
         const val KEY_BOUND_AT = "bound_at"
         const val KEY_LAST_DEVICE_CHANGED_AT = "last_device_changed_at"
+        const val KEY_BOUND_BY_USER = "bound_by_user_key"
     }
 }
 

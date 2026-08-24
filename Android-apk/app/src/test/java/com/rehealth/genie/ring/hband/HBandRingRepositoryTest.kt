@@ -516,6 +516,7 @@ private class FakeHBandGateway(
 private class HBandBindingStore : ActiveWearableBindingStore {
     private val binding = MutableStateFlow(ActiveWearableBinding(HBAND_PRODUCT_CODE, WearableVendor.HBAND, null, null, null, null, null, 0, 0))
     override val activeBinding: StateFlow<ActiveWearableBinding> = binding
+    override fun boundToCurrentUser(): Boolean = true
     override fun activateProduct(profile: WearableProductProfile, changedAt: Long) {
         binding.value = binding.value.copy(productCode = profile.productCode, vendor = profile.vendor)
     }

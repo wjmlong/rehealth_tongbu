@@ -9,6 +9,7 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.ring.RingBackgroundCollectionPolicy
 import com.rehealth.genie.ring.RingBackgroundCollectionSettings
 import com.rehealth.genie.service.RingForegroundService
@@ -19,7 +20,8 @@ class RingBackgroundRecoveryWorker(
     workerParams: WorkerParameters,
 ) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result {
-        if (!RingBackgroundCollectionSettings.isActive(applicationContext)) {
+        val userId = (applicationContext as? ReHealthApplication)?.sessionStore?.userId
+        if (!RingBackgroundCollectionSettings.isActive(applicationContext, userId)) {
             Log.i(TAG, "ring background recovery inactive")
             return Result.success()
         }
@@ -53,7 +55,7 @@ class RingBackgroundRecoveryWorker(
             WorkManager.getInstance(context.applicationContext)
                 .enqueueUniquePeriodicWork(
                     UNIQUE_WORK_NAME,
-                    ExistingPeriodicWorkPolicy.KEEP,
+                    ExistingPeriodicWorkPolicy.UPDATE,
                     request,
                 )
         }

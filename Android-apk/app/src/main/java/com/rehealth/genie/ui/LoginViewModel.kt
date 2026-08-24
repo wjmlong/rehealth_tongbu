@@ -56,7 +56,7 @@ class LoginViewModel(private val context: Context) : ViewModel() {
                     // D3: resume queue + schedule/trigger worker
                     app.syncRepository.resumeQueue()
                     MeasurementSyncWorker.schedule(context)
-                    TelemetryUploadWorker.schedule(context)
+                    TelemetryUploadWorker.schedule(context, response.userInfo?.id)
                     MeasurementSyncWorker.triggerImmediate(context)
                     _uiState.value = LoginUiState(isLoggedIn = true)
                 }

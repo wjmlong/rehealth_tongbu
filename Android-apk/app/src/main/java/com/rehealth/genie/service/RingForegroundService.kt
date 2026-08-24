@@ -59,10 +59,13 @@ class RingForegroundService : Service() {
         super.onDestroy()
     }
 
+    private fun currentUserId(): String? =
+        (application as? ReHealthApplication)?.sessionStore?.userId
+
     private fun startCollection(runImmediately: Boolean) {
-        RingBackgroundCollectionSettings.setActive(this, true)
+        RingBackgroundCollectionSettings.setActive(this, currentUserId(), true)
         RingBackgroundRecoveryWorker.schedule(this)
-        TelemetryUploadWorker.schedule(this)
+        TelemetryUploadWorker.schedule(this, currentUserId())
         if (!moveToForeground("Preparing local ring collection")) {
             return
         }
@@ -76,12 +79,17 @@ class RingForegroundService : Service() {
 
     private suspend fun runCollectionLoop(runImmediately: Boolean) {
         if (runImmediately) {
-            RingBackgroundCollectionSettings.markAttempt(this, 0L)
+            RingBackgroundCollectionSettings.markAttempt(this, currentUserId(), 0L)
         }
-        while (currentCoroutineContext().isActive && RingBackgroundCollectionSettings.isActive(this)) {
+        while (currentCoroutineContext().isActive &&
+            RingBackgroundCollectionSettings.isActive(this, currentUserId())
+        ) {
             val now = System.currentTimeMillis()
-            val lastAttempt = RingBackgroundCollectionSettings.lastAttemptAt(this)
-            val intervalMs = RingBackgroundCollectionSettings.measurementIntervalMinutes(this) * 60_000L
+            val lastAttempt = RingBackgroundCollectionSettings.lastAttemptAt(this, currentUserId())
+            val intervalMs = RingBackgroundCollectionSettings.measurementIntervalMinutes(
+                this,
+                currentUserId(),
+            ) * 60_000L
             val delayMs = RingBackgroundCollectionPolicy.nextDelayMillis(now, lastAttempt, intervalMs)
             if (delayMs > 0L) {
                 updateNotification("Next local ring collection is scheduled")
@@ -90,7 +98,7 @@ class RingForegroundService : Service() {
             }
             updateNotification("Collecting ring data locally")
             val message = runLocalCollectionCycle()
-            RingBackgroundCollectionSettings.markAttempt(this, System.currentTimeMillis())
+            RingBackgroundCollectionSettings.markAttempt(this, currentUserId(), System.currentTimeMillis())
             updateNotification(message)
         }
     }
@@ -100,6 +108,11 @@ class RingForegroundService : Service() {
         val binding = app.activeWearableStore.activeBinding.value
         if (binding.vendor != WearableVendor.HBAND) {
             return "Active measurement paused: HBand binding required"
+        }
+        // The bound device must belong to the signed-in user; never collect from
+        // another account's binding or without a signed-in owner.
+        if (app.sessionStore.userId.isNullOrBlank() || !app.activeWearableStore.boundToCurrentUser()) {
+            return "Ring collection paused: bound device is not owned by the active user"
         }
         if (!RingBleGuards.hasCollectionPermission(this)) {
             return "Ring collection paused: Bluetooth permission required"
@@ -121,14 +134,14 @@ class RingForegroundService : Service() {
             add(RingMetricType.HEART_RATE)
             if (RingBackgroundCollectionPolicy.shouldMeasureBloodOxygen(
                     now,
-                    RingBackgroundCollectionSettings.lastBloodOxygenAt(this@RingForegroundService),
+                    RingBackgroundCollectionSettings.lastBloodOxygenAt(this@RingForegroundService, currentUserId()),
                 )
             ) {
                 add(RingMetricType.BLOOD_OXYGEN)
             }
             if (RingBackgroundCollectionPolicy.shouldMeasureBloodPressure(
                     now,
-                    RingBackgroundCollectionSettings.lastBloodPressureAt(this@RingForegroundService),
+                    RingBackgroundCollectionSettings.lastBloodPressureAt(this@RingForegroundService, currentUserId()),
                 )
             ) {
                 add(RingMetricType.BLOOD_PRESSURE)
@@ -154,13 +167,13 @@ class RingForegroundService : Service() {
                     metric == RingMetricType.BLOOD_PRESSURE && result.recordsWritten > 0
                 }
             ) {
-                RingBackgroundCollectionSettings.markBloodPressureSuccess(this, completedAt)
+                RingBackgroundCollectionSettings.markBloodPressureSuccess(this, currentUserId(), completedAt)
             }
             if (results.any { (metric, result) ->
                     metric == RingMetricType.BLOOD_OXYGEN && result.recordsWritten > 0
                 }
             ) {
-                RingBackgroundCollectionSettings.markBloodOxygenSuccess(this, completedAt)
+                RingBackgroundCollectionSettings.markBloodOxygenSuccess(this, currentUserId(), completedAt)
             }
             ScheduledCollectionOutcome(recordsWritten, completedAt, scheduledMetrics.size, failures.size)
         }
@@ -169,7 +182,7 @@ class RingForegroundService : Service() {
                     val recordsWritten = outcome.recordsWritten
                     val completedAt = outcome.completedAt
                     if (recordsWritten > 0) {
-                        RingBackgroundCollectionSettings.markSuccess(this, completedAt)
+                        RingBackgroundCollectionSettings.markSuccess(this, currentUserId(), completedAt)
                         val device = repository.connectedDevice.value
                             ?: binding.address?.let { address ->
                                 com.rehealth.genie.ring.RingDevice(address, binding.deviceName, null)
@@ -197,7 +210,7 @@ class RingForegroundService : Service() {
     }
 
     private fun stopCollection() {
-        RingBackgroundCollectionSettings.setActive(this, false)
+        RingBackgroundCollectionSettings.setActive(this, currentUserId(), false)
         RingBackgroundRecoveryWorker.cancel(this)
         collectionJob?.cancel()
         collectionJob = null
@@ -215,7 +228,7 @@ class RingForegroundService : Service() {
             onSuccess = { true },
             onFailure = { error ->
                 Log.w(TAG, "unable to start ring foreground service", error)
-                RingBackgroundCollectionSettings.setActive(this, false)
+                RingBackgroundCollectionSettings.setActive(this, currentUserId(), false)
                 stopSelf()
                 false
             },
@@ -256,7 +269,8 @@ class RingForegroundService : Service() {
         }
 
         fun stop(context: Context) {
-            RingBackgroundCollectionSettings.setActive(context, false)
+            val userId = (context.applicationContext as? ReHealthApplication)?.sessionStore?.userId
+            RingBackgroundCollectionSettings.setActive(context, userId, false)
             RingBackgroundRecoveryWorker.cancel(context)
             context.startService(intent(context, ACTION_STOP, runImmediately = false))
         }

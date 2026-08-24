@@ -14,6 +14,10 @@ class ActiveWearableManager(
     val products: List<WearableProductProfile>
         get() = availableProducts
 
+    /** True when the stored binding address belongs to the currently signed-in user. */
+    val boundToCurrentUser: Boolean
+        get() = store.boundToCurrentUser()
+
     suspend fun switchProduct(productCode: String) {
         val profile = availableProducts.firstOrNull { it.productCode == productCode }
             ?: throw IllegalArgumentException("Unknown wearable productCode")

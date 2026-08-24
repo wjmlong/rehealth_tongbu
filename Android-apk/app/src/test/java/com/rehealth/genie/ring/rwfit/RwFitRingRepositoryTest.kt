@@ -180,6 +180,8 @@ private class TrackingBindingStore : ActiveWearableBindingStore {
     )
     override val activeBinding: StateFlow<ActiveWearableBinding> = mutableBinding
 
+    override fun boundToCurrentUser(): Boolean = true
+
     override fun activateProduct(profile: WearableProductProfile, changedAt: Long) {
         mutableBinding.value = mutableBinding.value.copy(productCode = profile.productCode, vendor = profile.vendor)
     }

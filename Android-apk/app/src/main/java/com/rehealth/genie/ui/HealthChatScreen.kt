@@ -76,6 +76,14 @@ fun HealthChatScreen(
     var inputText by remember { mutableStateOf("") }
     val messageListState = rememberLazyListState()
 
+    // The ViewModel survives logout/login (activity-scoped), so re-bind its
+    // user-scoped flows whenever the authenticated user changes. Without this,
+    // a second account would keep observing the previous account's conversation.
+    val sessionUserId = application.sessionStore.userId
+    LaunchedEffect(sessionUserId) {
+        chatViewModel.refresh()
+    }
+
     LaunchedEffect(messages.size, uiState.isLoading) {
         val totalItems = messageListState.layoutInfo.totalItemsCount
         val lastVisible = messageListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1

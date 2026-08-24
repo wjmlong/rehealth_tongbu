@@ -1,6 +1,5 @@
 package com.rehealth.genie.ui
 
-import com.rehealth.genie.data.sync.QueueState
 import com.rehealth.genie.network.AuthState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -19,19 +18,27 @@ class ReHealthAppNavigationTest {
     }
 
     @Test
-    fun `unauthorized paused main session returns to login`() {
+    fun `expired authorized main session returns to login`() {
         assertTrue(
             shouldReturnToLogin(
                 stage = AppStage.Main,
-                queueState = QueueState.Paused,
                 authState = AuthState.Unauthorized,
+                sessionExpired = true,
             ),
         )
         assertFalse(
             shouldReturnToLogin(
                 stage = AppStage.Login,
-                queueState = QueueState.Paused,
                 authState = AuthState.Unauthorized,
+                sessionExpired = true,
+            ),
+        )
+        assertFalse(
+            // Anonymous guest browsing Main is not an expired session.
+            shouldReturnToLogin(
+                stage = AppStage.Main,
+                authState = AuthState.Unauthorized,
+                sessionExpired = false,
             ),
         )
     }

@@ -16,9 +16,6 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_TYPE_DATA_SYNC" />
 
     <!-- ============================================================ -->
     <!-- 蓝牙 (Android 12+ 只需 SCAN/CONNECT/ADVERTISE)                    -->
@@ -48,8 +45,6 @@
     <uses-permission
         android:name="android.permission.ACCESS_COARSE_LOCATION"
         android:maxSdkVersion="30" />
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_LOCATION_EXTRA_COMMANDS" />
 
     <!-- ============================================================ -->
     <!-- 存储                                                           -->
@@ -62,15 +57,12 @@
         android:maxSdkVersion="32" />
 
     <!-- ============================================================ -->
-    <!-- 电话 / 通话 / 联系人 (来电通知推手环)                                -->
+    <!-- 电话 (仅设备标识用途；不实现通话/联系人功能)                             -->
     <!-- ============================================================ -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
-    <uses-permission android:name="android.permission.READ_CALL_LOG" />
-    <uses-permission android:name="android.permission.READ_CONTACTS" />
-    <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
 
     <!-- ============================================================ -->
-    <!-- 相机 (扫码绑定设备)                                                -->
+    <!-- 相机 (拍照行为记录/食物分析)                                        -->
     <!-- ============================================================ -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature
@@ -96,19 +88,12 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <!-- ============================================================ -->
-    <!-- 保活                                                           -->
+    <!-- 保活（恢复交给 WorkManager，不申请忽略电池优化/伴侣后台权限）                -->
     <!-- ============================================================ -->
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
-    <uses-permission android:name="android.permission.REQUEST_COMPANION_RUN_IN_BACKGROUND" />
-    <uses-permission android:name="android.permission.REQUEST_COMPANION_USE_DATA_IN_BACKGROUND" />
-    <uses-permission android:name="android.permission.REQUEST_OBSERVE_COMPANION_DEVICE_PRESENCE" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- ============================================================ -->
     <!-- 特殊 (G Band / RWfit 均有)                                      -->
     <!-- ============================================================ -->
-    <uses-permission android:name="android.permission.REORDER_TASKS" />
-    <uses-permission android:name="android.permission.GET_TASKS" />
 
     <!-- ============================================================ -->
     <!-- Hardware Features                                              -->

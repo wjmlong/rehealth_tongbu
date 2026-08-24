@@ -131,7 +131,11 @@ class ViomiCloudRingRepository(
     }
 
     private fun savedDevice(): RingDevice? = bindingStore.activeBinding.value
-        .takeIf { it.vendor == WearableVendor.VIOMI_CLOUD && !it.address.isNullOrBlank() }
+        .takeIf {
+            it.vendor == WearableVendor.VIOMI_CLOUD &&
+                !it.address.isNullOrBlank() &&
+                bindingStore.boundToCurrentUser()
+        }
         ?.let { RingDevice(it.address!!, it.deviceName ?: "云米云端手表", null) }
 }
 

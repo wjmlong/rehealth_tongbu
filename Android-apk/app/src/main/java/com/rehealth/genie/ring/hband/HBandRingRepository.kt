@@ -84,6 +84,8 @@ class HBandRingRepository internal constructor(
         if (gateway.transportConnected) return true
         val binding = activeWearableStore.activeBinding.value
         if (binding.vendor != WearableVendor.HBAND || binding.address.isNullOrBlank()) return false
+        // Never reconnect a device that was bound by another account.
+        if (!activeWearableStore.boundToCurrentUser()) return false
         val device = RingDevice(binding.address, binding.deviceName, null)
         AUTO_CONNECT_RETRY_DELAYS_MILLIS.forEachIndexed { index, retryDelayMillis ->
             if (index > 0) delay(retryDelayMillis)

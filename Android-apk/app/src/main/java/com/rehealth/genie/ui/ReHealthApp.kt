@@ -1,4 +1,4 @@
-﻿package com.rehealth.genie.ui
+package com.rehealth.genie.ui
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
@@ -69,11 +69,11 @@ internal fun stageAfterAuthentication(requiresOnboarding: Boolean): AppStage =
 
 internal fun shouldReturnToLogin(
     stage: AppStage,
-    queueState: QueueState,
     authState: AuthState,
+    sessionExpired: Boolean,
 ): Boolean = stage == AppStage.Main &&
-    queueState == QueueState.Paused &&
-    authState == AuthState.Unauthorized
+    authState == AuthState.Unauthorized &&
+    sessionExpired
 
 private enum class Tab(val label: String, val icon: ImageVector) {
     Home("首页", Icons.Outlined.Home),
@@ -115,18 +115,19 @@ fun ReHealthApp() {
     )
     val ringState by ringViewModel.uiState.collectAsState()
     val queueState by application.syncRepository.queueState.collectAsState()
+    val sessionExpired by application.authenticatedApiClient.sessionExpired.collectAsState()
     val endSession: () -> Unit = {
         MeasurementSyncWorker.cancel(application)
         TelemetryUploadWorker.cancel(application)
         application.authenticatedApiClient.onLogout()
         application.syncRepository.pauseQueue()
-        ringViewModel.stopBackgroundCollection(application)
+        ringViewModel.stopBackgroundCollection(application, disableServerPlan = false)
         ringViewModel.disconnect()
         ringViewModel.clearPatientSession()
         stage = AppStage.Login
     }
-    LaunchedEffect(stage, queueState) {
-        if (shouldReturnToLogin(stage, queueState, application.authenticatedApiClient.authState)) {
+    LaunchedEffect(stage, sessionExpired) {
+        if (shouldReturnToLogin(stage, application.authenticatedApiClient.authState, sessionExpired)) {
             endSession()
         }
     }

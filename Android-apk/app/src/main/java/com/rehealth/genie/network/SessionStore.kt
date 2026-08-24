@@ -42,7 +42,18 @@ class SessionStore(context: Context) {
     val isLoggedIn: Boolean
         get() = !token.isNullOrBlank()
 
-    fun clear() = prefs.edit().clear().apply()
+    /**
+     * Clears authentication state only. `first_use_at` is a device-local anchor
+     * ("已陪伴 X 天") and must survive logout and 401-driven re-login.
+     */
+    fun clear() {
+        prefs.edit()
+            .remove(KEY_TOKEN)
+            .remove(KEY_USER_ID)
+            .remove(KEY_USERNAME)
+            .remove(KEY_REALNAME)
+            .apply()
+    }
 
     /** First time the app was launched (real local anchor for "已陪伴 X 天"). Recorded once, never reset. */
     var firstUseAt: Long?

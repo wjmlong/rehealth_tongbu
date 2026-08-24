@@ -367,7 +367,12 @@ fun RegisterScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(Icons.Outlined.Shield, null, tint = Mint, modifier = Modifier.size(17.dp))
-                Text("个人健康数据已加密保护", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(start = 7.dp))
+                Text(
+                    "登录凭证加密存储，健康数据仅保存在您的设备内",
+                    color = Muted,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 7.dp),
+                )
             }
         }
     }

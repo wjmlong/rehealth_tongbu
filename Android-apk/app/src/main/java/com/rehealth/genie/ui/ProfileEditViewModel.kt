@@ -6,7 +6,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.network.ApiResult
-import com.rehealth.genie.network.dto.PatientProfileDto
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -63,15 +62,28 @@ class ProfileEditViewModel(private val context: Context) : ViewModel() {
         viewModelScope.launch {
             _uiState.value = ProfileEditUiState(isSaving = true)
             // Merge into current remote profile so unrelated fields survive the PUT.
+            // A read failure that is not an explicit auth expiry must abort the save:
+            // falling back to an empty DTO would wipe server-side fields (diagnoses,
+            // medications, history flags) that this dialog does not display.
             val remote = when (val current = app.authenticatedApiClient.getProfile()) {
-                is ApiResult.Success -> current.data
+                is ApiResult.Success -> current.data ?: run {
+                    _uiState.value = ProfileEditUiState(
+                        errorMessage = "当前档案暂不可用，为保护已有数据已取消保存，请稍后重试",
+                    )
+                    return@launch
+                }
                 is ApiResult.Unauthorized -> {
                     _uiState.value = ProfileEditUiState(errorMessage = "登录已过期，请重新登录后再修改")
                     return@launch
                 }
-                else -> null
+                else -> {
+                    _uiState.value = ProfileEditUiState(
+                        errorMessage = "读取当前档案失败，为保护已有数据已取消保存，请稍后重试",
+                    )
+                    return@launch
+                }
             }
-            val request = (remote ?: PatientProfileDto()).copy(
+            val request = remote.copy(
                 name = input.name,
                 gender = input.gender,
                 age = input.age,

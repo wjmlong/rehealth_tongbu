@@ -227,6 +227,8 @@ private class FakeBindingStore(profile: WearableProductProfile) : ActiveWearable
     private val mutableBinding = MutableStateFlow(profile.toBinding())
     override val activeBinding: StateFlow<ActiveWearableBinding> = mutableBinding.asStateFlow()
 
+    override fun boundToCurrentUser(): Boolean = true
+
     override fun activateProduct(profile: WearableProductProfile, changedAt: Long) {
         mutableBinding.value = profile.toBinding(changedAt)
     }

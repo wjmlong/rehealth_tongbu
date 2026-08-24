@@ -124,7 +124,7 @@ class RegisterViewModel(private val context: Context) : ViewModel() {
                     app.healthChatRepository.createConversation()
                     app.syncRepository.resumeQueue()
                     MeasurementSyncWorker.schedule(context)
-                    TelemetryUploadWorker.schedule(context)
+                    TelemetryUploadWorker.schedule(context, resp.userInfo?.id)
                     MeasurementSyncWorker.triggerImmediate(context)
                     _uiState.value = RegisterUiState(isRegistered = true)
                 }

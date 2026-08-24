@@ -167,7 +167,6 @@ class RingViewModel(
         RingUiState(acquisitionMode = repository.acquisitionMode, supportedMetrics = repository.supportedMetrics),
     )
     val uiState: StateFlow<RingUiState> = mutableUiState.asStateFlow()
-    private var autoCollectionJob: Job? = null
     private var restoreConnectionJob: Job? = null
     private var patientRefreshJob: Job? = null
     private val activePatientUserId = MutableStateFlow(
@@ -190,7 +189,8 @@ class RingViewModel(
                     },
                     activeProductCode = manager.activeBinding.value.productCode,
                     hasBoundBluetoothDevice = manager.activeBinding.value.let { binding ->
-                        binding.vendor != WearableVendor.VIOMI_CLOUD && !binding.address.isNullOrBlank()
+                        binding.vendor != WearableVendor.VIOMI_CLOUD && !binding.address.isNullOrBlank() &&
+                            manager.boundToCurrentUser
                     },
                 )
             }
@@ -201,7 +201,8 @@ class RingViewModel(
                             activeProductCode = binding.productCode,
                             acquisitionMode = repository.acquisitionMode,
                             hasBoundBluetoothDevice =
-                                binding.vendor != WearableVendor.VIOMI_CLOUD && !binding.address.isNullOrBlank(),
+                                binding.vendor != WearableVendor.VIOMI_CLOUD && !binding.address.isNullOrBlank() &&
+                                    manager.boundToCurrentUser,
                             measurements = if (binding.vendor == WearableVendor.VIOMI_CLOUD) {
                                 emptyMap()
                             } else {
@@ -289,21 +290,15 @@ class RingViewModel(
         }
     }
 
-    fun startAutoCollection() {
-        if (repository.acquisitionMode == RingAcquisitionMode.CLOUD) return
-        if (autoCollectionJob?.isActive == true) return
-        autoCollectionJob = viewModelScope.launch {
-            delay(3_000)
-            while (true) {
-                runAutoCollectionCycle()
-                delay(AUTO_COLLECTION_INTERVAL_MS)
-            }
-        }
-    }
-
+    /**
+     * Page-level auto collection was intentionally removed: the Foreground
+     * Service is the single scheduler for unattended measurement (D2 §5). A
+     * second in-page loop would measure the same device twice and bypass the
+     * configured upload cadence.
+     */
     fun stopAutoCollection() {
-        autoCollectionJob?.cancel()
-        autoCollectionJob = null
+        // Retained as a lifecycle hook so stage transitions can stop any legacy
+        // collection job; the page loop itself no longer exists.
     }
 
     /** Explicitly opts into continuous local collection for the encrypted Bluetooth binding. */
@@ -348,8 +343,15 @@ class RingViewModel(
         }
     }
 
-    fun stopBackgroundCollection(context: Context) {
+    /**
+     * Stops collection. [disableServerPlan] controls whether a Viomi cloud plan
+     * is also disabled server-side. Logout/401 cleanup passes false: the cloud
+     * plan is account-level state and must only change when the user explicitly
+     * turns it off or unbinds the device (D2 §10), never silently on logout.
+     */
+    fun stopBackgroundCollection(context: Context, disableServerPlan: Boolean = true) {
         if (repository.acquisitionMode == RingAcquisitionMode.CLOUD) {
+            if (!disableServerPlan) return
             val planRepository = repository as? RingActiveMeasurementPlanRepository ?: return
             viewModelScope.launch {
                 runCatching { planRepository.configureActiveMeasurement(currentMeasurementInterval(), enabled = false) }
@@ -384,20 +386,26 @@ class RingViewModel(
             it.copy(
                 hasBoundBluetoothDevice = binding != null &&
                     binding.vendor != WearableVendor.VIOMI_CLOUD &&
-                    !binding.address.isNullOrBlank(),
+                    !binding.address.isNullOrBlank() &&
+                    (wearableManager?.boundToCurrentUser ?: false),
                 backgroundCollectionEnabled = if (repository.acquisitionMode == RingAcquisitionMode.CLOUD) {
                     RingBackgroundCollectionSettings.isCloudPlanActive(
                         context.applicationContext,
                         currentUserIdProvider(),
                     )
                 } else {
-                    RingBackgroundCollectionSettings.isActive(context.applicationContext)
+                    RingBackgroundCollectionSettings.isActive(
+                        context.applicationContext,
+                        currentUserIdProvider(),
+                    )
                 },
                 measurementIntervalMinutes = RingBackgroundCollectionSettings.measurementIntervalMinutes(
                     context.applicationContext,
+                    currentUserIdProvider(),
                 ),
                 uploadIntervalMinutes = RingBackgroundCollectionSettings.uploadIntervalMinutes(
                     context.applicationContext,
+                    currentUserIdProvider(),
                 ),
             )
         }
@@ -405,7 +413,13 @@ class RingViewModel(
 
     fun setMeasurementInterval(context: Context, minutes: Int) {
         val appContext = context.applicationContext
-        runCatching { RingBackgroundCollectionSettings.setMeasurementIntervalMinutes(appContext, minutes) }
+        runCatching {
+            RingBackgroundCollectionSettings.setMeasurementIntervalMinutes(
+                appContext,
+                currentUserIdProvider(),
+                minutes,
+            )
+        }
             .onSuccess {
                 if (repository.acquisitionMode == RingAcquisitionMode.CLOUD) {
                     val planRepository = repository as? RingActiveMeasurementPlanRepository
@@ -421,7 +435,10 @@ class RingViewModel(
                     }
                     return@onSuccess
                 }
-                val wasActive = RingBackgroundCollectionSettings.isActive(appContext)
+                val wasActive = RingBackgroundCollectionSettings.isActive(
+                    appContext,
+                    currentUserIdProvider(),
+                )
                 if (wasActive) {
                     RingForegroundService.stop(appContext)
                     RingForegroundService.start(appContext)
@@ -441,9 +458,18 @@ class RingViewModel(
 
     fun setUploadInterval(context: Context, minutes: Int) {
         val appContext = context.applicationContext
-        runCatching { RingBackgroundCollectionSettings.setUploadIntervalMinutes(appContext, minutes) }
+        runCatching {
+            RingBackgroundCollectionSettings.setUploadIntervalMinutes(
+                appContext,
+                currentUserIdProvider(),
+                minutes,
+            )
+        }
             .onSuccess {
-                com.rehealth.genie.work.TelemetryUploadWorker.schedule(appContext)
+                com.rehealth.genie.work.TelemetryUploadWorker.schedule(
+                    appContext,
+                    currentUserIdProvider(),
+                )
                 mutableUiState.update {
                     it.copy(uploadIntervalMinutes = minutes, message = "数据上传间隔已更新")
                 }
@@ -483,8 +509,10 @@ class RingViewModel(
         if (!allowWearableProductSwitch || productCode == mutableUiState.value.activeProductCode) return
         if (mutableUiState.value.isSyncing || mutableUiState.value.isScanning) return
         val appContext = context.applicationContext
-        val resumeBackground = RingBackgroundCollectionSettings.isActive(appContext)
-        val resumeAuto = autoCollectionJob?.isActive == true
+        val resumeBackground = RingBackgroundCollectionSettings.isActive(
+            appContext,
+            currentUserIdProvider(),
+        )
         if (resumeBackground) RingForegroundService.stop(appContext)
         stopAutoCollection()
         viewModelScope.launch {
@@ -507,83 +535,7 @@ class RingViewModel(
             mutableUiState.update {
                 it.copy(backgroundCollectionEnabled = resumeBackground && repository.acquisitionMode != RingAcquisitionMode.CLOUD)
             }
-            if (resumeAuto) startAutoCollection()
         }
-    }
-
-    private suspend fun runAutoCollectionCycle() {
-        if (mutableUiState.value.isSyncing) return
-        if (repository.acquisitionMode != RingAcquisitionMode.CLOUD) {
-            val connected = runCatching { repository.autoConnect() }.getOrDefault(false)
-            if (!connected) {
-                Log.i(TAG, "auto collection skipped because bound device reconnect failed")
-                return
-            }
-        }
-        if (repository.acquisitionMode == RingAcquisitionMode.CLOUD &&
-            repository.connectionState.value != RingConnectionState.CONNECTED
-        ) {
-            Log.i(TAG, "auto collection skipped because device is disconnected")
-            return
-        }
-        Log.i(TAG, "auto collection cycle start")
-        mutableUiState.update {
-            it.copy(isSyncing = true, measuringMetric = null, syncProgress = 12, message = "正在自动采集戒指数据")
-        }
-        val totalRecords = runCatching {
-            var records = repository.sync(DAILY_SYNC_METRICS).recordsWritten
-            listOf(
-                RingMetricType.HEART_RATE,
-                RingMetricType.BLOOD_OXYGEN,
-                RingMetricType.BLOOD_PRESSURE,
-                RingMetricType.TEMPERATURE,
-            ).forEachIndexed { index, type ->
-                mutableUiState.update { state ->
-                    state.copy(
-                        measuringMetric = type,
-                        syncProgress = 30 + index * 15,
-                        message = "正在自动采集${type.displayName()}",
-                    )
-                }
-                records += repository.measure(type).recordsWritten
-            }
-            records
-        }
-        totalRecords
-            .onSuccess { records ->
-                val now = System.currentTimeMillis()
-                val upload = if (records > 0) {
-                    uploadLatestSnapshot(now, "auto_collection")
-                } else {
-                    CloudUploadUiStatus("暂无新增数据，不创建上传批次")
-                }
-                mutableUiState.update {
-                    it.copy(
-                        isSyncing = false,
-                        measuringMetric = null,
-                        syncProgress = 100,
-                        lastSyncAt = now,
-                        cloudSnapshotId = upload.batchId ?: it.cloudSnapshotId,
-                        message = if (records > 0) {
-                            "自动采集完成，已保存 $records 条数据，${upload.message}"
-                        } else {
-                            "自动采集完成，暂无新数据"
-                        },
-                    )
-                }
-                Log.i(TAG, "auto collection cycle done records=$records")
-            }
-            .onFailure { error ->
-                mutableUiState.update {
-                    it.copy(
-                        isSyncing = false,
-                        measuringMetric = null,
-                        syncProgress = 0,
-                        message = error.message ?: "自动采集失败",
-                    )
-                }
-                Log.w(TAG, "auto collection cycle failed", error)
-            }
     }
 
     fun scan() {
@@ -1075,7 +1027,6 @@ private data class CloudUploadUiStatus(
 )
 
 private const val TAG = "RingViewModel"
-private const val AUTO_COLLECTION_INTERVAL_MS = 15 * 60 * 1000L
 private const val SYNC_PROGRESS_TICK_MILLIS = 180L
 private const val ECG_HISTORY_LIMIT = 10
 private val DAILY_SYNC_METRICS = setOf(

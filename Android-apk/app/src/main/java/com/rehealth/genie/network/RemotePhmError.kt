@@ -40,13 +40,10 @@ fun isTimeout(throwable: Throwable?): Boolean {
 }
 
 /** Maps arbitrary Retrofit/network failures into a [RemotePhmError]. */
-fun Throwable.toRemotePhmError(): RemotePhmError = when (this) {
-    is RemotePhmError -> this
-    else -> when {
-        isTimeout(this) -> RemotePhmError.Timeout(message ?: "Network timeout while contacting backend.")
-        this is IOException -> RemotePhmError.BackendUnavailable(message ?: "Backend is unavailable.")
-        else -> RemotePhmError.Unknown(message ?: "Unexpected remote PHM failure.")
-    }
+fun Throwable.toRemotePhmError(): RemotePhmError = when {
+    isTimeout(this) -> RemotePhmError.Timeout(message ?: "Network timeout while contacting backend.")
+    this is IOException -> RemotePhmError.BackendUnavailable(message ?: "Backend is unavailable.")
+    else -> RemotePhmError.Unknown(message ?: "Unexpected remote PHM failure.")
 }
 
 /** Known JeecgBoot/ReHealth backend error codes reported inside the 200 envelope. */
