@@ -30,13 +30,16 @@ public class InsuranceInterventionWorkbenchController {
     private static final String MANAGE_PERMISSION = "rehealth:insurance:intervention:manage";
 
     private final InsuranceInterventionWorkbenchService service;
+    private final InsuranceInterventionReportService reportService;
     private final InsuranceTenantAccessGuard tenantAccessGuard;
 
     public InsuranceInterventionWorkbenchController(
             InsuranceInterventionWorkbenchService service,
+            InsuranceInterventionReportService reportService,
             InsuranceTenantAccessGuard tenantAccessGuard
     ) {
         this.service = service;
+        this.reportService = reportService;
         this.tenantAccessGuard = tenantAccessGuard;
     }
 
@@ -80,6 +83,21 @@ public class InsuranceInterventionWorkbenchController {
             return service.subject(context.tenantId(), context.user().getId(), subjectId);
         });
     }
+
+    //update-begin---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】人群级干预效果评估报告数据聚合端点------------
+    @GetMapping("/interventions/report-data")
+    @RequiresPermissions(VIEW_PERMISSION)
+    @Operation(summary = "Aggregate population-level intervention effect report data for the assigned subject scope")
+    public ResponseEntity<Result<InsuranceInterventionReportResponse.ReportData>> interventionReportData(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantHeader,
+            @RequestParam(value = "periodDays", defaultValue = "30") int periodDays
+    ) {
+        return respond(() -> {
+            Context context = context(tenantHeader);
+            return reportService.reportData(context.tenantId(), context.user().getId(), periodDays);
+        });
+    }
+    //update-end---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】人群级干预效果评估报告数据聚合端点------------
 
     @PostMapping("/interventions/{subjectId}/actions")
     @RequiresPermissions(MANAGE_PERMISSION)

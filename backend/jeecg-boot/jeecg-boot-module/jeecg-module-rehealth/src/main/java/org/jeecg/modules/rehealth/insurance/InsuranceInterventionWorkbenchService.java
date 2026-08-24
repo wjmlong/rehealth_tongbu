@@ -368,7 +368,9 @@ public class InsuranceInterventionWorkbenchService {
         return after;
     }
 
-    private List<Identity> identities(int tenantId, String managerUserId, String keyword, int limit, int offset) {
+    //update-begin---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】包内可见,供人群报告服务复用负责关系范围------------
+    List<Identity> identities(int tenantId, String managerUserId, String keyword, int limit, int offset) {
+    //update-end---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】包内可见,供人群报告服务复用负责关系范围------------
         String like = keyword == null || keyword.isBlank() ? null : "%" + keyword.trim() + "%";
         return jdbc.query("""
                 SELECT subject.subject_ref, subject.rehealth_user_id, profile.name,
@@ -392,7 +394,9 @@ public class InsuranceInterventionWorkbenchService {
                 .orElseThrow(() -> InsuranceApiException.notFound("assigned insurance subject was not found"));
     }
 
-    private InsuranceInterventionWorkbenchResponse.SubjectSummary summary(int tenantId, Identity identity) {
+    //update-begin---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】包内可见,供人群报告服务复用主体摘要聚合------------
+    InsuranceInterventionWorkbenchResponse.SubjectSummary summary(int tenantId, Identity identity) {
+    //update-end---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】包内可见,供人群报告服务复用主体摘要聚合------------
         RiskSnapshot risk = latestRisk(identity.userId());
         RhiSnapshot rhi = latestRhi(identity.userId());
         RdiSnapshot rdi = latestRdi(identity.userId());
@@ -444,7 +448,9 @@ public class InsuranceInterventionWorkbenchService {
         return "pending_review";
     }
 
-    private RiskSnapshot latestRisk(String userId) {
+    //update-begin---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】包内可见,供人群报告服务读取主体最新风险------------
+    RiskSnapshot latestRisk(String userId) {
+    //update-end---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】包内可见,供人群报告服务读取主体最新风险------------
         return jdbc.query("""
                 SELECT risk_score, risk_level, is_mock, response_json, evaluated_at
                 FROM rehealth_cvd_risk_result WHERE user_id=?
@@ -896,7 +902,9 @@ public class InsuranceInterventionWorkbenchService {
         catch (Exception e) { throw new IllegalStateException("SHA-256 is unavailable", e); }
     }
 
-    private static String normalizeLevel(String value) {
+    //update-begin---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】包内可见,供人群报告服务归一化风险等级------------
+    static String normalizeLevel(String value) {
+    //update-end---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】包内可见,供人群报告服务归一化风险等级------------
         if (value == null) return null;
         String level = value.trim().toLowerCase();
         if (Set.of("high", "very_high", "severe").contains(level)) return "high";
@@ -939,7 +947,9 @@ public class InsuranceInterventionWorkbenchService {
 
     private static String uuid() { return UUID.randomUUID().toString().replace("-", ""); }
 
-    private record Identity(String subjectRef, String userId, String name, Integer age, String gender, BigDecimal bmi) {}
+    //update-begin---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】包内可见,供人群报告服务读取负责关系主体------------
+    record Identity(String subjectRef, String userId, String name, Integer age, String gender, BigDecimal bmi) {}
+    //update-end---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】包内可见,供人群报告服务读取负责关系主体------------
     private record RiskSnapshot(Double score, String level, Boolean isMock, String responseJson, Timestamp evaluatedAt) {}
     private record RhiSnapshot(Double score, Double confidence, String updatedAt) {}
     private record RdiSnapshot(Double score, Double confidence, String status, Boolean isMock,

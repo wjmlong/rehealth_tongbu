@@ -24,6 +24,10 @@ class InsuranceInterventionWorkbenchControllerContractTest {
                 "subjects", String.class, int.class, int.class, String.class, String.class);
         assertPermission("rehealth:insurance:risk:view", GetMapping.class,
                 "subject", String.class, String.class);
+        //update-begin---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】人群报告端点沿用保险风险只读权限------------
+        assertPermission("rehealth:insurance:risk:view", GetMapping.class,
+                "interventionReportData", String.class, int.class);
+        //update-end---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】人群报告端点沿用保险风险只读权限------------
         assertPermission("rehealth:insurance:intervention:manage", PostMapping.class,
                 "createAction", String.class, String.class, InsuranceInterventionWorkbenchRequest.CreateAction.class);
         assertPermission("rehealth:insurance:intervention:manage", PostMapping.class,
