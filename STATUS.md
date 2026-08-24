@@ -1,7 +1,16 @@
 # ReHealth 当前状态
 
-> 最后核对：2026-08-23。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
+> 最后核对：2026-08-24。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
 > `docs/archive/acceptance/`，不得作为当前实现或发布状态的依据。
+
+## 2026-08-24 本地运维备注
+
+- 健康问答曾返回 `provider_unavailable`：原因是 JeecgBoot 被手动启动（非受管脚本），进程缺少
+  `REHEALTH_LLM_API_KEY_FILE`/`REHEALTH_LLM_BASE_URL`/`REHEALTH_LLM_MODEL` 环境变量。
+  已停止手动进程并按 `backend/deploy/rehealth/start-local-apps.ps1` 的完整环境块用
+  `jeecg-system-cloud-start-3.9.2.jar` 重启（PID 已写回 `.local-runtime/jeecg.pid`），
+  聊天接口复测 `status=ok`。**本地启动 JeecgBoot 必须走受管脚本**，手动 `mvn spring-boot:run`
+  不注入 Provider 密钥文件会导致健康问答/视觉分析不可用。
 
 ## 2026-08-23 Android 客户端审查修复批次（P0–P3）
 
