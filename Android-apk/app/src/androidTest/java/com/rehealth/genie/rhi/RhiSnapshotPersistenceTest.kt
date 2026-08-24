@@ -175,6 +175,7 @@ class RhiSnapshotPersistenceTest {
         syncRepository = SyncRepository(
             dao = syncDatabase.uploadQueueDao(),
             apiClient = stubUploadClient,
+            userIdProvider = { userId },
         ),
         userIdProvider = { userId },
         zoneId = zoneId,
@@ -193,7 +194,7 @@ class RhiSnapshotPersistenceTest {
 
         repository.refreshPeriod(periodDays = 7, scoredOn = today)
 
-        val queued = syncDatabase.uploadQueueDao().observeOutstanding().first()
+        val queued = syncDatabase.uploadQueueDao().observeOutstanding(userId).first()
         val rhiItems = queued.filter { it.kind == "rhi_daily_snapshot" }
         assertTrue("a rhi_daily_snapshot item must be enqueued", rhiItems.isNotEmpty())
         val payload = rhiItems.first()

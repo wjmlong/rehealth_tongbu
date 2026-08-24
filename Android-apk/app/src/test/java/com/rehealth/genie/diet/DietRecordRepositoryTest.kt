@@ -248,15 +248,28 @@ private class FakeUploadQueueDao : UploadQueueDao {
         rows += item
     }
 
-    override suspend fun pending(now: Long): List<UploadQueueEntity> = rows
-    override suspend fun pendingByKind(now: Long, kind: String): List<UploadQueueEntity> =
+    override suspend fun pending(now: Long, ownerUserId: String): List<UploadQueueEntity> = rows
+    override suspend fun pendingByKind(now: Long, kind: String, ownerUserId: String): List<UploadQueueEntity> =
         rows.filter { it.kind == kind }
-    override suspend fun pendingExcludingKind(now: Long, excludedKind: String): List<UploadQueueEntity> =
-        rows.filter { it.kind != excludedKind }
-    override fun observeOutstanding(): Flow<List<UploadQueueEntity>> = flowOf(rows)
+    override suspend fun pendingExcludingKind(
+        now: Long,
+        excludedKind: String,
+        ownerUserId: String,
+    ): List<UploadQueueEntity> = rows.filter { it.kind != excludedKind }
+    override fun observeOutstanding(ownerUserId: String): Flow<List<UploadQueueEntity>> = flowOf(rows)
     override suspend fun pruneDone(before: Long) = Unit
     override suspend fun getById(id: String): UploadQueueEntity? = rows.firstOrNull { it.id == id }
-    override suspend fun getPendingByKind(kind: String): List<UploadQueueEntity> = rows.filter { it.kind == kind }
+    override suspend fun getPendingByKind(kind: String, ownerUserId: String): List<UploadQueueEntity> =
+        rows.filter { it.kind == kind }
+    override suspend fun nextByKind(now: Long, kind: String, ownerUserId: String): UploadQueueEntity? = null
+    override suspend fun nextExcludingKind(
+        now: Long,
+        excludedKind: String,
+        ownerUserId: String,
+    ): UploadQueueEntity? = null
+    override suspend fun claim(id: String, claimedAt: Long): Int = 0
+    override suspend fun releaseClaim(id: String): Int = 0
+    override suspend fun releaseStaleClaims(before: Long): Int = 0
 }
 
 private class FakeMeasurementUploadClient : MeasurementUploadClient {

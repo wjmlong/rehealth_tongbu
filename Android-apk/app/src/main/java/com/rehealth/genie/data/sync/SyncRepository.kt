@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flowOf
 
 /**
  * D3 upload queue repository with 401-aware pause/resume.
@@ -37,6 +38,7 @@ class SyncRepository(
     private val apiClient: MeasurementUploadClient,
     private val gson: Gson = Gson(),
     private val nowProvider: () -> Long = System::currentTimeMillis,
+    private val userIdProvider: () -> String? = { null },
     private val healthInterviewClient: HealthInterviewUploadClient? = apiClient as? HealthInterviewUploadClient,
     private val rhiSnapshotClient: RhiSnapshotUploadClient? = apiClient as? RhiSnapshotUploadClient,
     private val rdiSnapshotClient: RdiSnapshotUploadClient? = apiClient as? RdiSnapshotUploadClient,
@@ -47,21 +49,74 @@ class SyncRepository(
     private val _queueState = MutableStateFlow<QueueState>(QueueState.Active)
     val queueState: StateFlow<QueueState> = _queueState.asStateFlow()
 
-    suspend fun enqueue(item: UploadQueueEntity) = dao.insert(item)
+    /**
+     * Current authenticated owner. Queue items are stamped at enqueue time and
+     * every pending read is owner-scoped, so an account switch can never upload
+     * another user's rows or expose them to the UI.
+     */
+    private fun currentOwner(): String? = userIdProvider()?.takeIf(String::isNotBlank)
+
+    suspend fun enqueue(item: UploadQueueEntity) =
+        dao.insert(item.copy(ownerUserId = item.ownerUserId ?: currentOwner()))
 
     suspend fun queuedItem(id: String): UploadQueueEntity? = dao.getById(id)
 
     suspend fun save(item: UploadQueueEntity) = dao.update(item)
 
-    suspend fun pending(): List<UploadQueueEntity> = dao.pending(nowProvider())
+    suspend fun pending(): List<UploadQueueEntity> {
+        val owner = currentOwner() ?: return emptyList()
+        return dao.pending(nowProvider(), owner)
+    }
 
-    suspend fun pendingByKind(kind: String): List<UploadQueueEntity> =
-        dao.pendingByKind(nowProvider(), kind)
+    suspend fun pendingByKind(kind: String): List<UploadQueueEntity> {
+        val owner = currentOwner() ?: return emptyList()
+        return dao.pendingByKind(nowProvider(), kind, owner)
+    }
 
-    suspend fun pendingExcludingKind(kind: String): List<UploadQueueEntity> =
-        dao.pendingExcludingKind(nowProvider(), kind)
+    suspend fun pendingExcludingKind(kind: String): List<UploadQueueEntity> {
+        val owner = currentOwner() ?: return emptyList()
+        return dao.pendingExcludingKind(nowProvider(), kind, owner)
+    }
 
-    fun observeOutstanding(): Flow<List<UploadQueueEntity>> = dao.observeOutstanding()
+    fun observeOutstanding(): Flow<List<UploadQueueEntity>> {
+        val owner = currentOwner() ?: return flowOf(emptyList())
+        return dao.observeOutstanding(owner)
+    }
+
+    /**
+     * Atomically claims the next due item of [kind] for the current owner so
+     * concurrent workers (periodic + immediate trigger) never upload the same
+     * batch twice. Returns null when nothing is due. Stale in-flight rows left
+     * by a crashed worker are recovered once the lease expires.
+     */
+    suspend fun claimNextByKind(kind: String): UploadQueueEntity? {
+        val owner = currentOwner() ?: return null
+        val now = nowProvider()
+        dao.releaseStaleClaims(now - CLAIM_LEASE_MILLIS)
+        val item = dao.nextByKind(now, kind, owner) ?: return null
+        return if (dao.claim(item.id, now) > 0) {
+            item.copy(status = "uploading", claimTime = now)
+        } else {
+            null
+        }
+    }
+
+    suspend fun claimNextExcludingKind(excludedKind: String): UploadQueueEntity? {
+        val owner = currentOwner() ?: return null
+        val now = nowProvider()
+        dao.releaseStaleClaims(now - CLAIM_LEASE_MILLIS)
+        val item = dao.nextExcludingKind(now, excludedKind, owner) ?: return null
+        return if (dao.claim(item.id, now) > 0) {
+            item.copy(status = "uploading", claimTime = now)
+        } else {
+            null
+        }
+    }
+
+    /** Returns a claimed-but-not-finished row to pending (e.g. after a 401). */
+    suspend fun releaseClaim(id: String) {
+        dao.releaseClaim(id)
+    }
 
     suspend fun pruneDone() = dao.pruneDone(nowProvider() - 7 * 86_400_000L)
 
@@ -246,47 +301,28 @@ class SyncRepository(
     }
 
     /**
-     * Handle API result and return whether item should be retried.
-     * Returns null if unauthorized (queue paused), otherwise returns updated item.
+     * Exponential backoff: 30s, 60s, 120s ... capped at 32 minutes. Permanent
+     * business rejections and exhausted retries move to `dead_letter` instead
+     * of retrying forever, matching the intervention-feedback policy.
      */
-    suspend fun <T> handleResult(
-        item: UploadQueueEntity,
-        result: ApiResult<T>,
-    ): UploadQueueEntity? {
-        return when (result) {
-            is ApiResult.Success -> {
-                item.copy(status = "done", lastError = null)
-            }
-            is ApiResult.Unauthorized -> {
-                pauseQueue()
-                null // Don't retry, wait for re-login
-            }
-            is ApiResult.Forbidden -> {
-                // Forbidden means the item is invalid (e.g., wrong user), mark as failed
-                item.copy(status = "failed", lastError = "Forbidden: ${result.message}")
-            }
-            is ApiResult.InvalidRequest,
-            is ApiResult.InvalidResponse -> {
-                // Permanent failure, don't retry
-                item.copy(status = "failed", lastError = result.toString())
-            }
-            is ApiResult.NetworkError,
-            is ApiResult.ServiceUnavailable -> {
-                // Transient failure, retry with backoff
-                item.nextBackoff(error = result.toString())
-            }
-        }
-    }
-
-    /** Exponential backoff: 30s, 60s, 120s ... capped at 30 minutes. */
     private fun UploadQueueEntity.nextBackoff(error: String?): UploadQueueEntity {
-        val delayMs = (30_000L * (1 shl attempts.coerceAtMost(6)))
-        return copy(
-            status = "failed",
-            attempts = attempts + 1,
-            lastError = error,
-            nextRetryAt = nowProvider() + delayMs,
-        )
+        val attemptCount = attempts + 1
+        return if (attemptCount >= MAX_UPLOAD_ATTEMPTS) {
+            copy(
+                status = "dead_letter",
+                attempts = attemptCount,
+                lastError = error,
+                nextRetryAt = nowProvider(),
+            )
+        } else {
+            val delayMs = 30_000L * (1 shl attempts.coerceAtMost(6))
+            copy(
+                status = "failed",
+                attempts = attemptCount,
+                lastError = error,
+                nextRetryAt = nowProvider() + delayMs,
+            )
+        }
     }
 
     private suspend fun handleDurableSuccess(
@@ -327,6 +363,8 @@ class SyncRepository(
         const val RHI_SNAPSHOT_KIND = "rhi_daily_snapshot"
         const val RDI_SNAPSHOT_KIND = "rdi_daily_snapshot"
         const val RHI_MANUAL_INPUT_KIND = "rhi_manual_health_input"
+        const val CLAIM_LEASE_MILLIS = 10 * 60_000L
+        const val MAX_UPLOAD_ATTEMPTS = 10
     }
 }
 

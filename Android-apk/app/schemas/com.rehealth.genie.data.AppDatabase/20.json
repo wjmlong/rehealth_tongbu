@@ -1,8 +1,8 @@
 {
   "formatVersion": 1,
   "database": {
-    "version": 12,
-    "identityHash": "1557b75b62a552f24112eebd3d09132b",
+    "version": 20,
+    "identityHash": "cba1ef032821755a2428a40648dac710",
     "entities": [
       {
         "tableName": "health_records",
@@ -96,7 +96,7 @@
       },
       {
         "tableName": "ring_measurements",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `metric_type` TEXT NOT NULL, `measured_at` INTEGER NOT NULL, `primary_value` REAL NOT NULL, `secondary_value` REAL, `unit` TEXT NOT NULL, `quality` INTEGER, `source` TEXT NOT NULL, `raw_payload` TEXT, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `metric_type` TEXT NOT NULL, `measured_at` INTEGER NOT NULL, `primary_value` REAL NOT NULL, `secondary_value` REAL, `unit` TEXT NOT NULL, `quality` INTEGER, `source` TEXT NOT NULL, `raw_payload` TEXT, `owner_user_id` TEXT, `device_id` TEXT, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -148,6 +148,16 @@
             "fieldPath": "rawPayload",
             "columnName": "raw_payload",
             "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ownerUserId",
+            "columnName": "owner_user_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "device_id",
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -166,12 +176,25 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_ring_measurements_metric_type_measured_at` ON `${TABLE_NAME}` (`metric_type`, `measured_at`)"
+          },
+          {
+            "name": "index_ring_measurements_owner_user_id_device_id_source_metric_type_measured_at",
+            "unique": false,
+            "columnNames": [
+              "owner_user_id",
+              "device_id",
+              "source",
+              "metric_type",
+              "measured_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ring_measurements_owner_user_id_device_id_source_metric_type_measured_at` ON `${TABLE_NAME}` (`owner_user_id`, `device_id`, `source`, `metric_type`, `measured_at`)"
           }
         ]
       },
       {
         "tableName": "ring_sleep_sessions",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `started_at` INTEGER NOT NULL, `ended_at` INTEGER NOT NULL, `deep_minutes` INTEGER NOT NULL, `light_minutes` INTEGER NOT NULL, `awake_minutes` INTEGER NOT NULL, `rem_minutes` INTEGER NOT NULL, `interruption_minutes` INTEGER NOT NULL, `source` TEXT NOT NULL, `raw_payload` TEXT, `total_sleep_minutes` INTEGER, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `started_at` INTEGER NOT NULL, `ended_at` INTEGER NOT NULL, `deep_minutes` INTEGER NOT NULL, `light_minutes` INTEGER NOT NULL, `awake_minutes` INTEGER NOT NULL, `rem_minutes` INTEGER NOT NULL, `interruption_minutes` INTEGER NOT NULL, `source` TEXT NOT NULL, `raw_payload` TEXT, `total_sleep_minutes` INTEGER, `owner_user_id` TEXT, `device_id` TEXT, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -236,6 +259,16 @@
             "fieldPath": "totalSleepMinutes",
             "columnName": "total_sleep_minutes",
             "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "ownerUserId",
+            "columnName": "owner_user_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "device_id",
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -243,11 +276,23 @@
           "columnNames": [
             "id"
           ]
-        }
+        },
+        "indices": [
+          {
+            "name": "index_ring_sleep_sessions_owner_user_id_ended_at",
+            "unique": false,
+            "columnNames": [
+              "owner_user_id",
+              "ended_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ring_sleep_sessions_owner_user_id_ended_at` ON `${TABLE_NAME}` (`owner_user_id`, `ended_at`)"
+          }
+        ]
       },
       {
         "tableName": "ring_activities",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `started_at` INTEGER NOT NULL, `ended_at` INTEGER, `activity_type` TEXT NOT NULL, `steps` INTEGER NOT NULL, `distance_meters` REAL NOT NULL, `calories_kcal` REAL NOT NULL, `duration_minutes` INTEGER NOT NULL, `average_heart_rate` REAL, `source` TEXT NOT NULL, `raw_payload` TEXT, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `started_at` INTEGER NOT NULL, `ended_at` INTEGER, `activity_type` TEXT NOT NULL, `steps` INTEGER NOT NULL, `distance_meters` REAL NOT NULL, `calories_kcal` REAL NOT NULL, `duration_minutes` INTEGER NOT NULL, `average_heart_rate` REAL, `source` TEXT NOT NULL, `raw_payload` TEXT, `owner_user_id` TEXT, `device_id` TEXT, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -311,6 +356,16 @@
             "fieldPath": "rawPayload",
             "columnName": "raw_payload",
             "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ownerUserId",
+            "columnName": "owner_user_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "device_id",
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -318,11 +373,23 @@
           "columnNames": [
             "id"
           ]
-        }
+        },
+        "indices": [
+          {
+            "name": "index_ring_activities_owner_user_id_started_at",
+            "unique": false,
+            "columnNames": [
+              "owner_user_id",
+              "started_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ring_activities_owner_user_id_started_at` ON `${TABLE_NAME}` (`owner_user_id`, `started_at`)"
+          }
+        ]
       },
       {
         "tableName": "ring_signal_chunks",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `signal_type` TEXT NOT NULL, `started_at` INTEGER NOT NULL, `sample_rate_hz` INTEGER, `sample_count` INTEGER NOT NULL, `encoding` TEXT NOT NULL, `payload` BLOB NOT NULL, `source` TEXT NOT NULL, `draw_frequency_hz` INTEGER, `duration_seconds` INTEGER, `lead_type` TEXT, `ecg_type` INTEGER, `calibration_type` TEXT, `average_heart_rate` INTEGER, `contact_quality` TEXT, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `signal_type` TEXT NOT NULL, `started_at` INTEGER NOT NULL, `sample_rate_hz` INTEGER, `sample_count` INTEGER NOT NULL, `encoding` TEXT NOT NULL, `payload` BLOB NOT NULL, `source` TEXT NOT NULL, `draw_frequency_hz` INTEGER, `duration_seconds` INTEGER, `lead_type` TEXT, `ecg_type` INTEGER, `calibration_type` TEXT, `average_heart_rate` INTEGER, `contact_quality` TEXT, `owner_user_id` TEXT, `device_id` TEXT, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -405,6 +472,16 @@
             "fieldPath": "contactQuality",
             "columnName": "contact_quality",
             "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ownerUserId",
+            "columnName": "owner_user_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "device_id",
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -423,12 +500,23 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_ring_signal_chunks_signal_type_started_at` ON `${TABLE_NAME}` (`signal_type`, `started_at`)"
+          },
+          {
+            "name": "index_ring_signal_chunks_owner_user_id_signal_type_started_at",
+            "unique": false,
+            "columnNames": [
+              "owner_user_id",
+              "signal_type",
+              "started_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ring_signal_chunks_owner_user_id_signal_type_started_at` ON `${TABLE_NAME}` (`owner_user_id`, `signal_type`, `started_at`)"
           }
         ]
       },
       {
         "tableName": "sync_upload_queue",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `kind` TEXT NOT NULL, `payload_json` TEXT NOT NULL, `status` TEXT NOT NULL, `attempts` INTEGER NOT NULL, `last_error` TEXT, `created_at` INTEGER NOT NULL, `next_retry_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `kind` TEXT NOT NULL, `payload_json` TEXT NOT NULL, `status` TEXT NOT NULL, `attempts` INTEGER NOT NULL, `last_error` TEXT, `created_at` INTEGER NOT NULL, `next_retry_at` INTEGER NOT NULL, `owner_user_id` TEXT, `claim_time` INTEGER, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -476,6 +564,16 @@
             "columnName": "next_retry_at",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "ownerUserId",
+            "columnName": "owner_user_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "claimTime",
+            "columnName": "claim_time",
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -487,7 +585,7 @@
       },
       {
         "tableName": "intervention_feedback_queue",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `intervention_id` TEXT NOT NULL, `status` TEXT NOT NULL, `note` TEXT, `checked_at` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, `upload_status` TEXT NOT NULL, `upload_attempts` INTEGER NOT NULL, `last_error` TEXT, `next_retry_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `owner_user_id` TEXT, `intervention_id` TEXT NOT NULL, `binding_id` TEXT, `tenant_id` INTEGER, `plan_item_id` TEXT, `occurrence_id` TEXT, `status` TEXT NOT NULL, `note` TEXT, `expected_count` REAL, `completed_count` REAL, `verification_type` TEXT NOT NULL, `checked_at` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, `upload_status` TEXT NOT NULL, `upload_attempts` INTEGER NOT NULL, `last_error` TEXT, `next_retry_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -496,10 +594,35 @@
             "notNull": true
           },
           {
+            "fieldPath": "ownerUserId",
+            "columnName": "owner_user_id",
+            "affinity": "TEXT"
+          },
+          {
             "fieldPath": "interventionId",
             "columnName": "intervention_id",
             "affinity": "TEXT",
             "notNull": true
+          },
+          {
+            "fieldPath": "bindingId",
+            "columnName": "binding_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "tenantId",
+            "columnName": "tenant_id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "planItemId",
+            "columnName": "plan_item_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "occurrenceId",
+            "columnName": "occurrence_id",
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "status",
@@ -511,6 +634,22 @@
             "fieldPath": "note",
             "columnName": "note",
             "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "expectedCount",
+            "columnName": "expected_count",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "completedCount",
+            "columnName": "completed_count",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "verificationType",
+            "columnName": "verification_type",
+            "affinity": "TEXT",
+            "notNull": true
           },
           {
             "fieldPath": "checkedAt",
@@ -1119,6 +1258,203 @@
         ]
       },
       {
+        "tableName": "rdi_confirmed_labs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `user_id` TEXT NOT NULL, `marker_code` TEXT NOT NULL, `measured_value` REAL NOT NULL, `unit` TEXT NOT NULL, `measured_at` TEXT NOT NULL, `normalized_point` REAL, `control_trend` REAL NOT NULL, `source` TEXT NOT NULL, `confidence` REAL NOT NULL, `algorithm_version` TEXT NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "user_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "markerCode",
+            "columnName": "marker_code",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "measuredValue",
+            "columnName": "measured_value",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unit",
+            "columnName": "unit",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "measuredAt",
+            "columnName": "measured_at",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "normalizedPoint",
+            "columnName": "normalized_point",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "controlTrend",
+            "columnName": "control_trend",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "source",
+            "columnName": "source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confidence",
+            "columnName": "confidence",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "algorithmVersion",
+            "columnName": "algorithm_version",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "rdi_confirmed_meals",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `user_id` TEXT NOT NULL, `meal_type` TEXT NOT NULL, `kcal_low` REAL NOT NULL, `kcal_high` REAL NOT NULL, `protein_low` REAL NOT NULL, `protein_high` REAL NOT NULL, `fat_low` REAL NOT NULL, `fat_high` REAL NOT NULL, `sodium_low` REAL NOT NULL, `sodium_high` REAL NOT NULL, `meal_impact` REAL NOT NULL, `reason_text` TEXT NOT NULL, `recorded_at` TEXT NOT NULL, `confidence` REAL NOT NULL, `algorithm_version` TEXT NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "user_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mealType",
+            "columnName": "meal_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kcalLow",
+            "columnName": "kcal_low",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kcalHigh",
+            "columnName": "kcal_high",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "proteinLow",
+            "columnName": "protein_low",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "proteinHigh",
+            "columnName": "protein_high",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fatLow",
+            "columnName": "fat_low",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fatHigh",
+            "columnName": "fat_high",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sodiumLow",
+            "columnName": "sodium_low",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sodiumHigh",
+            "columnName": "sodium_high",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mealImpact",
+            "columnName": "meal_impact",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reasonText",
+            "columnName": "reason_text",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recordedAt",
+            "columnName": "recorded_at",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confidence",
+            "columnName": "confidence",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "algorithmVersion",
+            "columnName": "algorithm_version",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
         "tableName": "rhi_manual_health_inputs",
         "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`user_id` TEXT NOT NULL, `sedentary_hours_per_day` REAL, `waist_circumference_cm` REAL, `vo2_max_ml_kg_min` REAL, `hba1c_percent` REAL, `egfr_ml_min_1_73m2` REAL, `cuff_sbp_7d_mean` REAL, `cuff_dbp_7d_mean` REAL, `cuff_valid_days` INTEGER, `cuff_confirmed` INTEGER NOT NULL, `fasting_glucose_mmol_l` REAL, `total_cholesterol_mmol_l` REAL, `ldl_mmol_l` REAL, `hdl_mmol_l` REAL, `triglycerides_mmol_l` REAL, `lab_confirmed` INTEGER NOT NULL, `lab_recorded_at` INTEGER, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`user_id`))",
         "fields": [
@@ -1223,6 +1559,414 @@
             "user_id"
           ]
         }
+      },
+      {
+        "tableName": "rhi_daily_health_index",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `user_id` TEXT NOT NULL, `scored_on` TEXT NOT NULL, `raw_score` REAL NOT NULL, `display_score` REAL NOT NULL, `data_confidence` REAL NOT NULL, `status` TEXT NOT NULL, `product_tier` TEXT NOT NULL, `available_days` INTEGER NOT NULL, `available_feature_count` INTEGER NOT NULL, `smoothing_alpha` REAL NOT NULL, `algorithm_version` TEXT NOT NULL, `calculation_source` TEXT NOT NULL, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "user_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scoredOn",
+            "columnName": "scored_on",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawScore",
+            "columnName": "raw_score",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayScore",
+            "columnName": "display_score",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dataConfidence",
+            "columnName": "data_confidence",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "productTier",
+            "columnName": "product_tier",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "availableDays",
+            "columnName": "available_days",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "availableFeatureCount",
+            "columnName": "available_feature_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "smoothingAlpha",
+            "columnName": "smoothing_alpha",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "algorithmVersion",
+            "columnName": "algorithm_version",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "calculationSource",
+            "columnName": "calculation_source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_rhi_daily_health_index_user_id_scored_on",
+            "unique": true,
+            "columnNames": [
+              "user_id",
+              "scored_on"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_rhi_daily_health_index_user_id_scored_on` ON `${TABLE_NAME}` (`user_id`, `scored_on`)"
+          },
+          {
+            "name": "index_rhi_daily_health_index_user_id_updated_at",
+            "unique": false,
+            "columnNames": [
+              "user_id",
+              "updated_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_rhi_daily_health_index_user_id_updated_at` ON `${TABLE_NAME}` (`user_id`, `updated_at`)"
+          }
+        ]
+      },
+      {
+        "tableName": "rhi_daily_domain_score",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `index_id` TEXT NOT NULL, `user_id` TEXT NOT NULL, `scored_on` TEXT NOT NULL, `domain` TEXT NOT NULL, `score` REAL, `weight` REAL NOT NULL, `created_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "indexId",
+            "columnName": "index_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "user_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scoredOn",
+            "columnName": "scored_on",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "domain",
+            "columnName": "domain",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "score",
+            "columnName": "score",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "weight",
+            "columnName": "weight",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_rhi_daily_domain_score_index_id",
+            "unique": false,
+            "columnNames": [
+              "index_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_rhi_daily_domain_score_index_id` ON `${TABLE_NAME}` (`index_id`)"
+          },
+          {
+            "name": "index_rhi_daily_domain_score_user_id_scored_on_domain",
+            "unique": true,
+            "columnNames": [
+              "user_id",
+              "scored_on",
+              "domain"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_rhi_daily_domain_score_user_id_scored_on_domain` ON `${TABLE_NAME}` (`user_id`, `scored_on`, `domain`)"
+          }
+        ]
+      },
+      {
+        "tableName": "rhi_daily_feature_snapshot",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `index_id` TEXT NOT NULL, `user_id` TEXT NOT NULL, `scored_on` TEXT NOT NULL, `feature` TEXT NOT NULL, `value` REAL NOT NULL, `confidence` REAL NOT NULL, `baseline_median` REAL, `baseline_mad` REAL, `baseline_sample_count` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "indexId",
+            "columnName": "index_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "user_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scoredOn",
+            "columnName": "scored_on",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "feature",
+            "columnName": "feature",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "value",
+            "columnName": "value",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confidence",
+            "columnName": "confidence",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "baselineMedian",
+            "columnName": "baseline_median",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "baselineMad",
+            "columnName": "baseline_mad",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "baselineSampleCount",
+            "columnName": "baseline_sample_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_rhi_daily_feature_snapshot_index_id",
+            "unique": false,
+            "columnNames": [
+              "index_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_rhi_daily_feature_snapshot_index_id` ON `${TABLE_NAME}` (`index_id`)"
+          },
+          {
+            "name": "index_rhi_daily_feature_snapshot_user_id_scored_on_feature",
+            "unique": true,
+            "columnNames": [
+              "user_id",
+              "scored_on",
+              "feature"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_rhi_daily_feature_snapshot_user_id_scored_on_feature` ON `${TABLE_NAME}` (`user_id`, `scored_on`, `feature`)"
+          }
+        ]
+      },
+      {
+        "tableName": "rhi_data_quality_snapshot",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `index_id` TEXT NOT NULL, `user_id` TEXT NOT NULL, `scored_on` TEXT NOT NULL, `confidence_score` REAL NOT NULL, `confidence_grade` TEXT NOT NULL, `missing_fields` TEXT NOT NULL, `low_confidence_fields` TEXT NOT NULL, `warning_codes` TEXT NOT NULL, `warning_messages` TEXT NOT NULL, `device_change_detected` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "indexId",
+            "columnName": "index_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "user_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scoredOn",
+            "columnName": "scored_on",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confidenceScore",
+            "columnName": "confidence_score",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confidenceGrade",
+            "columnName": "confidence_grade",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "missingFields",
+            "columnName": "missing_fields",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lowConfidenceFields",
+            "columnName": "low_confidence_fields",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "warningCodes",
+            "columnName": "warning_codes",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "warningMessages",
+            "columnName": "warning_messages",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceChangeDetected",
+            "columnName": "device_change_detected",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_rhi_data_quality_snapshot_index_id",
+            "unique": false,
+            "columnNames": [
+              "index_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_rhi_data_quality_snapshot_index_id` ON `${TABLE_NAME}` (`index_id`)"
+          },
+          {
+            "name": "index_rhi_data_quality_snapshot_user_id_scored_on",
+            "unique": true,
+            "columnNames": [
+              "user_id",
+              "scored_on"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_rhi_data_quality_snapshot_user_id_scored_on` ON `${TABLE_NAME}` (`user_id`, `scored_on`)"
+          }
+        ]
       },
       {
         "tableName": "diet_records",
@@ -1334,11 +2078,74 @@
             "createSql": "CREATE INDEX IF NOT EXISTS `index_diet_records_upload_batch_id` ON `${TABLE_NAME}` (`upload_batch_id`)"
           }
         ]
+      },
+      {
+        "tableName": "pias_attribution_cache",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`user_id` TEXT NOT NULL, `status` TEXT, `history_days` INTEGER, `payload_json` TEXT NOT NULL, `is_mock` INTEGER NOT NULL, `model_version` TEXT NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`user_id`))",
+        "fields": [
+          {
+            "fieldPath": "userId",
+            "columnName": "user_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "historyDays",
+            "columnName": "history_days",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "payloadJson",
+            "columnName": "payload_json",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isMock",
+            "columnName": "is_mock",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modelVersion",
+            "columnName": "model_version",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "user_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_pias_attribution_cache_updated_at",
+            "unique": false,
+            "columnNames": [
+              "updated_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_pias_attribution_cache_updated_at` ON `${TABLE_NAME}` (`updated_at`)"
+          }
+        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '1557b75b62a552f24112eebd3d09132b')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'cba1ef032821755a2428a40648dac710')"
     ]
   }
 }

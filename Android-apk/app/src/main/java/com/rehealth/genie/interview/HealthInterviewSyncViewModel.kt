@@ -11,7 +11,6 @@ import com.rehealth.genie.network.dto.HealthInterviewBaselineItemDto
 import com.rehealth.genie.network.dto.HealthInterviewSubmitRequestDto
 import com.rehealth.genie.network.dto.PatientProfileDto
 import com.rehealth.genie.work.MeasurementSyncWorker
-import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,11 +39,21 @@ class HealthInterviewSyncViewModel(
         viewModelScope.launch {
             mutableUiState.value = HealthInterviewSyncUiState(isSaving = true)
             runCatching {
+                // Deterministic queue id: an identical resubmission (e.g. after a
+                // crash between enqueue and upload) replaces the same row instead
+                // of duplicating the interview upload.
+                val payloadJson = gson.toJson(request)
+                val userId = application.sessionStore.userId?.takeIf(String::isNotBlank)
+                val identity = "$userId|$payloadJson".toByteArray(Charsets.UTF_8)
+                val digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(identity)
+                    .joinToString("") { "%02x".format(it) }
+                    .take(24)
                 application.syncRepository.enqueue(
                     UploadQueueEntity(
-                        id = UUID.randomUUID().toString(),
+                        id = "interview-$digest",
                         kind = "health_interview",
-                        payloadJson = gson.toJson(request),
+                        payloadJson = payloadJson,
                         status = "pending",
                         createdAt = now,
                         nextRetryAt = now,

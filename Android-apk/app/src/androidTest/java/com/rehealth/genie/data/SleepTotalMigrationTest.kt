@@ -11,6 +11,13 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
+/**
+ * Guards the nullable `total_sleep_minutes` column that the entity declares on
+ * `ring_sleep_sessions`. The column is carried forward by the 9→10 migration
+ * (the first schema snapshot that contains it is v10), so this test walks the
+ * whole 7→8→9→10 chain and validates the resulting schema against Room's
+ * exported v10 expectation while preserving an existing sleep row.
+ */
 @RunWith(AndroidJUnit4::class)
 class SleepTotalMigrationTest {
     @get:Rule
@@ -30,7 +37,7 @@ class SleepTotalMigrationTest {
     }
 
     @Test
-    fun migration7To8PreservesSleepAndAddsNullableVendorTotal() {
+    fun migrationChain7To10PreservesSleepAndAddsNullableVendorTotal() {
         helper.createDatabase(TEST_DATABASE, 7).apply {
             execSQL(
                 """
@@ -47,9 +54,11 @@ class SleepTotalMigrationTest {
 
         helper.runMigrationsAndValidate(
             TEST_DATABASE,
-            8,
+            10,
             true,
             AppDatabase.Migration7To8,
+            AppDatabase.Migration8To9,
+            AppDatabase.Migration9To10,
         ).apply {
             query(
                 "SELECT id, deep_minutes, total_sleep_minutes FROM ring_sleep_sessions",

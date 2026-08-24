@@ -48,7 +48,13 @@ class InterventionFeedbackRepository(
         val feedbackId = UUID.randomUUID().toString()
         val now = nowProvider()
         if (occurrenceId != null) {
-            dao.supersedeDeadLetters(ownerUserId, occurrenceId)
+            // A newer submission for the same task supersedes every older row
+            // (pending/retry/failed/dead_letter) so only one attempt uploads.
+            dao.supersedeForOccurrence(ownerUserId, occurrenceId)
+        } else {
+            // Generic plan feedback: clear a stale failure banner when the user
+            // resubmits the same intervention.
+            dao.supersedeDeadLettersForIntervention(ownerUserId, interventionId)
         }
         val feedback = InterventionFeedbackEntity(
             id = feedbackId,
@@ -188,7 +194,12 @@ class InterventionFeedbackRepository(
     suspend fun getLatestForIntervention(interventionId: String): InterventionFeedbackEntity? =
         userIdProvider()?.takeIf(String::isNotBlank)?.let { dao.getLatestForIntervention(it, interventionId) }
 
-    suspend fun pruneDone() = dao.pruneDone(nowProvider() - 7 * 86_400_000L)
+    suspend fun pruneDone() {
+        dao.pruneDone(nowProvider() - 7 * 86_400_000L)
+        // Failure rows stay visible for 30 days, then are pruned so the queue
+        // and the failure banner cannot accumulate forever.
+        dao.pruneDeadLetters(nowProvider() - 30 * 86_400_000L)
+    }
 
     suspend fun countPending(): Int =
         userIdProvider()?.takeIf(String::isNotBlank)?.let { dao.countPending(it) } ?: 0

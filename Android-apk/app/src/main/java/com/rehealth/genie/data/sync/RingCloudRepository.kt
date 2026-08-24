@@ -83,7 +83,16 @@ class RingCloudRepository(
                     .thenBy { it.steps }
                     .thenBy { it.endedAt ?: it.startedAt },
             )
-        val request = telemetryBatchPayload(device, collectedAt, trigger, measurements, sleep, activity, vendor)
+        val request = telemetryBatchPayload(
+            device,
+            collectedAt,
+            trigger,
+            measurements,
+            sleep,
+            activity,
+            vendor,
+            sessionStore.userId,
+        )
         val now = nowProvider()
         syncRepository.enqueue(
             UploadQueueEntity(
@@ -252,6 +261,7 @@ class RingCloudRepository(
         sleep: RingSleepSessionEntity?,
         activity: RingActivityEntity?,
         vendor: WearableVendor = WearableVendor.MRD,
+        ownerUserId: String? = null,
     ): TelemetryBatchRequestDto {
         require(measurements.isNotEmpty() || sleep != null || activity != null) {
             "没有可上传的本地健康记录。"
@@ -271,8 +281,18 @@ class RingCloudRepository(
             activity?.source?.equals("ring_sim", true) == true ||
             activity?.source?.let { it.contains("mock", true) || it.contains("synthetic", true) } == true
         val provenance = runtimeTelemetryProvenance(vendor, containsNonProductionInput)
+        // Deterministic batch identity: owner hash + device + source + schema +
+        // collection time + trigger. Rebuilding after a crash yields the same id,
+        // and the owner/source components prevent cross-account collisions.
+        val ownerKey = ownerUserId?.takeIf(String::isNotBlank)?.let { userId ->
+            java.security.MessageDigest.getInstance("SHA-256")
+                .digest(userId.toByteArray(StandardCharsets.UTF_8))
+                .joinToString("") { "%02x".format(it) }
+                .take(24)
+        } ?: "unbound"
         val batchId = UUID.nameUUIDFromBytes(
-            "$effectiveDeviceId|$collectedAt|$trigger".toByteArray(StandardCharsets.UTF_8),
+            "$ownerKey|$effectiveDeviceId|$provenance|telemetry-v2|$collectedAt|$trigger"
+                .toByteArray(StandardCharsets.UTF_8),
         ).toString()
         return TelemetryBatchRequestDto(
             schemaVersion = "telemetry-v2",

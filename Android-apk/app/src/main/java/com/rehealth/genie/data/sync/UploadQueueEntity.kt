@@ -23,4 +23,6 @@ data class UploadQueueEntity(
     @ColumnInfo(name = "last_error") val lastError: String? = null,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "next_retry_at") val nextRetryAt: Long,
+    @ColumnInfo(name = "owner_user_id") val ownerUserId: String? = null,
+    @ColumnInfo(name = "claim_time") val claimTime: Long? = null,
 )

@@ -82,7 +82,7 @@ data class AttributionLogEntity(
         DietRecordEntity::class,
         PiasAttributionCacheEntity::class,
     ],
-    version = 19,
+    version = 20,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -100,6 +100,27 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun piasAttributionCacheDao(): PiasAttributionCacheDao
 
     companion object {
+        /**
+         * Adds owner scope to the generic upload queue so pending rows can never
+         * be uploaded under another account's session after a switch.
+         * Legacy null-owner rows are retained but excluded from owner-scoped reads.
+         */
+        val Migration19To20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE sync_upload_queue ADD COLUMN owner_user_id TEXT")
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_sync_upload_queue_owner_status_retry " +
+                        "ON sync_upload_queue(owner_user_id, status, next_retry_at)",
+                )
+                // In-flight claim timestamp guards against concurrent workers
+                // uploading the same batch twice.
+                db.execSQL("ALTER TABLE sync_upload_queue ADD COLUMN claim_time INTEGER")
+                // Lab contributions must come from the model-service normalization
+                // service; raw measured values are never used as point scores.
+                db.execSQL("ALTER TABLE rdi_confirmed_labs ADD COLUMN normalized_point REAL")
+            }
+        }
+
         /** Adds the server-issued versioned task identity used by institution care-plan feedback. */
         val Migration18To19 = object : Migration(18, 19) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -198,6 +219,15 @@ abstract class AppDatabase : RoomDatabase() {
          */
         val Migration13To14 = object : Migration(13, 14) {
             override fun migrate(db: SupportSQLiteDatabase) {
+                // The v14 entity re-adds `total_sleep_minutes` to ring_sleep_sessions.
+                // Databases created fresh at v11–v13 never received the column, while
+                // those upgraded through 9→10 already own it, so the ALTER is guarded.
+                addColumnIfMissing(
+                    db,
+                    "ring_sleep_sessions",
+                    "total_sleep_minutes",
+                    "total_sleep_minutes INTEGER",
+                )
                 db.execSQL(
                     """
                     CREATE TABLE IF NOT EXISTS rhi_daily_health_index (
@@ -401,6 +431,12 @@ abstract class AppDatabase : RoomDatabase() {
 
         val Migration9To10 = object : Migration(9, 10) {
             override fun migrate(db: SupportSQLiteDatabase) {
+                // The v10 entity added `total_sleep_minutes` to ring_sleep_sessions,
+                // but no historical migration carried the ALTER forward. Databases
+                // created at <= v9 would otherwise fail Room's schema validation
+                // after upgrading. A plain ALTER is safe here: no <= v9 database
+                // can already own this column.
+                db.execSQL("ALTER TABLE ring_sleep_sessions ADD COLUMN total_sleep_minutes INTEGER")
                 db.execSQL("ALTER TABLE rhi_manual_health_inputs ADD COLUMN cuff_sbp_7d_mean REAL")
                 db.execSQL("ALTER TABLE rhi_manual_health_inputs ADD COLUMN cuff_dbp_7d_mean REAL")
                 db.execSQL("ALTER TABLE rhi_manual_health_inputs ADD COLUMN cuff_valid_days INTEGER")
@@ -753,6 +789,31 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Adds a column only when it is absent. Historical migration chains lost
+         * some ALTERs, and real databases can reach a version through different
+         * paths, so a plain ALTER would fail with "duplicate column name".
+         */
+        private fun addColumnIfMissing(
+            db: SupportSQLiteDatabase,
+            table: String,
+            column: String,
+            definition: String,
+        ) {
+            val exists = db.query("PRAGMA table_info(`$table`)").use { cursor ->
+                val nameIndex = cursor.getColumnIndexOrThrow("name")
+                var found = false
+                while (cursor.moveToNext()) {
+                    if (cursor.getString(nameIndex) == column) {
+                        found = true
+                        break
+                    }
+                }
+                found
+            }
+            if (!exists) db.execSQL("ALTER TABLE `$table` ADD COLUMN $definition")
+        }
+
         fun create(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, "rehealth-local.db")
                 .addMigrations(
@@ -774,6 +835,7 @@ abstract class AppDatabase : RoomDatabase() {
                     Migration16To17,
                     Migration17To18,
                     Migration18To19,
+                    Migration19To20,
                 )
                 .build()
     }

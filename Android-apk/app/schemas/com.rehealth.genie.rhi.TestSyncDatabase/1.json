@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "920fd0d64e9400ebc58419bc36b95df1",
+    "identityHash": "a0fb6e82115053247b58afd9b399fa2a",
     "entities": [
       {
         "tableName": "sync_upload_queue",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `kind` TEXT NOT NULL, `payload_json` TEXT NOT NULL, `status` TEXT NOT NULL, `attempts` INTEGER NOT NULL, `last_error` TEXT, `created_at` INTEGER NOT NULL, `next_retry_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `kind` TEXT NOT NULL, `payload_json` TEXT NOT NULL, `status` TEXT NOT NULL, `attempts` INTEGER NOT NULL, `last_error` TEXT, `created_at` INTEGER NOT NULL, `next_retry_at` INTEGER NOT NULL, `owner_user_id` TEXT, `claim_time` INTEGER, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -54,6 +54,16 @@
             "columnName": "next_retry_at",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "ownerUserId",
+            "columnName": "owner_user_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "claimTime",
+            "columnName": "claim_time",
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -66,7 +76,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '920fd0d64e9400ebc58419bc36b95df1')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a0fb6e82115053247b58afd9b399fa2a')"
     ]
   }
 }

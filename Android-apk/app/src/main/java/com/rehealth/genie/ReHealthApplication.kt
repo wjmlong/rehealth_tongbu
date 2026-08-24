@@ -67,6 +67,7 @@ class ReHealthApplication : Application() {
         SyncRepository(
             dao = database.uploadQueueDao(),
             apiClient = authenticatedApiClient,
+            userIdProvider = { sessionStore.userId },
         )
     }
 
@@ -194,6 +195,7 @@ class ReHealthApplication : Application() {
             defaultVendor = vendor,
             forceDefaultSelection = shouldForceRuntimeWearableSelection(),
             allowedVendors = runtimeAllowedWearableVendors(),
+            userIdProvider = { sessionStore.userId },
         )
     }
     val ringProviderRegistry by lazy {
@@ -234,13 +236,13 @@ class ReHealthApplication : Application() {
         super.onCreate()
         RingNotificationChannels.ensure(this)
 
-        if (RingBackgroundCollectionSettings.isActive(this)) {
+        if (RingBackgroundCollectionSettings.isActive(this, sessionStore.userId)) {
             RingBackgroundRecoveryWorker.schedule(this)
         }
         // D3: if a session was restored, schedule the feedback sync worker
         if (sessionStore.isLoggedIn) {
             MeasurementSyncWorker.schedule(this)
-            TelemetryUploadWorker.schedule(this)
+            TelemetryUploadWorker.schedule(this, sessionStore.userId)
         }
         if (BuildConfig.DEBUG && BuildConfig.SEED_FAKE_HEALTH_DATA) {
             applicationScope.launch {

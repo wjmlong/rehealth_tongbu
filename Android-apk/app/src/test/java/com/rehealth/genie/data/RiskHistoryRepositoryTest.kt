@@ -91,9 +91,11 @@ private class FakeFeedbackDao : InterventionFeedbackDao {
         flowOf(rows.find { it.ownerUserId == ownerUserId && it.id == feedbackId })
     override suspend fun getLatestForIntervention(ownerUserId: String, interventionId: String): InterventionFeedbackEntity? = null
     override fun observePendingFeedback(ownerUserId: String): Flow<List<InterventionFeedbackEntity>> = flowOf(emptyList())
-    override suspend fun supersedeDeadLetters(ownerUserId: String, occurrenceId: String) = Unit
+    override suspend fun supersedeForOccurrence(ownerUserId: String, occurrenceId: String) = Unit
+    override suspend fun supersedeDeadLettersForIntervention(ownerUserId: String, interventionId: String) = Unit
     override suspend fun completedFeedbackSince(ownerUserId: String, since: Long): List<InterventionFeedbackEntity> =
         rows.filter { it.ownerUserId == ownerUserId && it.checkedAt >= since }
     override suspend fun pruneDone(cutoffTimestamp: Long) = Unit
+    override suspend fun pruneDeadLetters(cutoffTimestamp: Long) = Unit
     override suspend fun countPending(ownerUserId: String): Int = 0
 }

@@ -27,10 +27,17 @@ class TelemetryUploadWorker(
         val repository = (applicationContext as ReHealthApplication).syncRepository
         if (!repository.canUpload()) return@withContext Result.success()
         runCatching {
-            for (item in repository.pendingByKind(TELEMETRY_BATCH_KIND)) {
+            while (true) {
+                val item = repository.claimNextByKind(TELEMETRY_BATCH_KIND) ?: break
                 when (measurementWorkerAction(repository.uploadQueuedItem(item))) {
-                    MeasurementWorkerAction.RETRY -> return@withContext Result.retry()
-                    MeasurementWorkerAction.STOP_SUCCESS -> return@withContext Result.success()
+                    MeasurementWorkerAction.RETRY -> {
+                        repository.releaseClaim(item.id)
+                        return@withContext Result.retry()
+                    }
+                    MeasurementWorkerAction.STOP_SUCCESS -> {
+                        repository.releaseClaim(item.id)
+                        return@withContext Result.success()
+                    }
                     MeasurementWorkerAction.CONTINUE -> Unit
                 }
             }
@@ -47,8 +54,11 @@ class TelemetryUploadWorker(
         private const val WORK_NAME = "telemetry_upload"
         private const val TELEMETRY_BATCH_KIND = "telemetry_batch"
 
-        fun schedule(context: Context) {
-            val minutes = RingBackgroundCollectionSettings.uploadIntervalMinutes(context).toLong()
+        fun schedule(context: Context, ownerUserId: String? = null) {
+            val minutes = RingBackgroundCollectionSettings.uploadIntervalMinutes(
+                context,
+                ownerUserId,
+            ).toLong()
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .setRequiresBatteryNotLow(true)

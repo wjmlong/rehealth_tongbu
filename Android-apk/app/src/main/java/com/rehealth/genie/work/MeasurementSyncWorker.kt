@@ -48,10 +48,17 @@ class MeasurementSyncWorker(
         }
 
         try {
-            for (item in syncRepo.pendingExcludingKind(TELEMETRY_BATCH_KIND)) {
+            while (true) {
+                val item = syncRepo.claimNextExcludingKind(TELEMETRY_BATCH_KIND) ?: break
                 when (measurementWorkerAction(syncRepo.uploadQueuedItem(item))) {
-                    MeasurementWorkerAction.RETRY -> return@withContext Result.retry()
-                    MeasurementWorkerAction.STOP_SUCCESS -> return@withContext Result.success()
+                    MeasurementWorkerAction.RETRY -> {
+                        syncRepo.releaseClaim(item.id)
+                        return@withContext Result.retry()
+                    }
+                    MeasurementWorkerAction.STOP_SUCCESS -> {
+                        syncRepo.releaseClaim(item.id)
+                        return@withContext Result.success()
+                    }
                     MeasurementWorkerAction.CONTINUE -> Unit
                 }
             }
@@ -136,7 +143,7 @@ class MeasurementSyncWorker(
             WorkManager.getInstance(context)
                 .enqueueUniquePeriodicWork(
                     WORK_NAME,
-                    ExistingPeriodicWorkPolicy.KEEP,
+                    ExistingPeriodicWorkPolicy.UPDATE,
                     request,
                 )
 
