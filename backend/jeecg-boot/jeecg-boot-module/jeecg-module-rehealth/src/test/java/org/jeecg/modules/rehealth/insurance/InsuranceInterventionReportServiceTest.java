@@ -212,6 +212,33 @@ class InsuranceInterventionReportServiceTest {
     }
 
     @Test
+    void includeMockFlagIncludesMockSnapshotsButKeepsCoverageLabel() {
+        InsuranceInterventionReportService includeMockService = new InsuranceInterventionReportService(
+                workbench,
+                jdbc,
+                Clock.fixed(Instant.parse("2026-08-24T04:00:00Z"), ZONE),
+                ZONE,
+                true
+        );
+        stubWorkbench(List.of(identity("subject-1", "user-1")), Map.of(
+                "user-1", summary("pending_review", "medium", 0.3, 60.0, 40.0, 0.5, false, true, null)
+        ));
+        rdi("rdi-base", "user-1", "2026-07-01", 40.0, 1);
+        rdi("rdi-latest", "user-1", "2026-08-20", 30.0, 1);
+        contribution("c-1", "rdi-latest", "steps", "activity", -3.0);
+        contribution("c-2", "rdi-latest", "sleep_duration", "sleep", 2.0);
+
+        InsuranceInterventionReportResponse.ReportData data = includeMockService.reportData(TENANT, MANAGER, 30);
+
+        assertEquals(2, data.factors().size());
+        assertEquals("步数", data.factors().get(0).name());
+        assertEquals("-3.00", data.factors().get(0).contribution());
+        assertEquals("RDI 近期风险负荷", data.outcomes().get(1).name());
+        assertEquals("-10.0 分", data.outcomes().get(1).change());
+        assertTrue(data.dataStatusLabel().contains("演练数据"));
+    }
+
+    @Test
     void reportDataUsesTenantAndManagerScope() {
         stubWorkbench(List.of(), Map.of());
         service.reportData(9102, "manager-2", 30);

@@ -2,6 +2,7 @@ package org.jeecg.modules.rehealth.insurance;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -43,7 +44,9 @@ import static org.jeecg.modules.rehealth.insurance.InsuranceInterventionReportRe
  *   <li>依从性漏斗基于近 28 天版本化计划执行事实;</li>
  *   <li>"完成客观复测"复用工作台改善判定(非演练、证据充分);</li>
  *   <li>收缩压/LDL-C/月均赔付未形成人群前后对比口径时输出占位文案,不伪造数据;</li>
- *   <li>范围内存在演练/合成数据时封面强制标注数据状态标签。</li>
+ *   <li>范围内存在演练/合成数据时封面强制标注数据状态标签;</li>
+ *   <li>演练快照默认不进入因素贡献与 RDI 差值统计,仅本地联调可经
+ *       {@code rehealth.insurance.report.include-mock=true} 放开,封面演练标签不受影响。</li>
  * </ul>
  */
 @Service
@@ -63,13 +66,17 @@ public class InsuranceInterventionReportService {
     private final JdbcTemplate jdbc;
     private final Clock clock;
     private final ZoneId zoneId;
+    //update-begin---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】本地联调可经配置纳入演练快照,生产默认排除------------
+    private final boolean includeMock;
+    //update-end---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】本地联调可经配置纳入演练快照,生产默认排除------------
 
     @Autowired
     public InsuranceInterventionReportService(
             InsuranceInterventionWorkbenchService workbench,
-            @Qualifier("rehealthSoftwareJdbcTemplate") JdbcTemplate jdbc
+            @Qualifier("rehealthSoftwareJdbcTemplate") JdbcTemplate jdbc,
+            @Value("${rehealth.insurance.report.include-mock:false}") boolean includeMock
     ) {
-        this(workbench, jdbc, Clock.systemUTC(), DEFAULT_ZONE);
+        this(workbench, jdbc, Clock.systemUTC(), DEFAULT_ZONE, includeMock);
     }
 
     InsuranceInterventionReportService(
@@ -78,10 +85,21 @@ public class InsuranceInterventionReportService {
             Clock clock,
             ZoneId zoneId
     ) {
+        this(workbench, jdbc, clock, zoneId, false);
+    }
+
+    InsuranceInterventionReportService(
+            InsuranceInterventionWorkbenchService workbench,
+            JdbcTemplate jdbc,
+            Clock clock,
+            ZoneId zoneId,
+            boolean includeMock
+    ) {
         this.workbench = workbench;
         this.jdbc = jdbc;
         this.clock = clock;
         this.zoneId = zoneId;
+        this.includeMock = includeMock;
     }
 
     public ReportData reportData(int tenantId, String managerUserId, int periodDays) {
@@ -356,7 +374,7 @@ public class InsuranceInterventionReportService {
                 "display_score", userIds, windowStart, false, window, "整体健康状态向好"));
         Outcome rdiOutcome = meanDeltaOutcome("RDI 近期风险负荷", "rehealth_rdi_daily_snapshot",
                 "display_score", userIds, windowStart, true, window, "近期可干预风险负荷下降");
-        if (mockPresent && "数据不足".equals(rdiOutcome.change())) {
+        if (mockPresent && !includeMock && "数据不足".equals(rdiOutcome.change())) {
             rdiOutcome = new Outcome(rdiOutcome.name(), rdiOutcome.change(),
                     "演练快照不计入统计,当前无真实样本(" + rdiOutcome.meaning() + ")");
         }
@@ -384,7 +402,9 @@ public class InsuranceInterventionReportService {
         }
         String marks = placeholders(userIds.size());
         Object[] ids = userIds.toArray();
-        String mockFilter = excludeMock ? " AND is_mock=0" : "";
+        //update-begin---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】本地联调放开演练快照,生产默认排除------------
+        String mockFilter = excludeMock && !includeMock ? " AND is_mock=0" : "";
+        //update-end---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】本地联调放开演练快照,生产默认排除------------
         String currentSql = """
                 SELECT AVG(current.%s)
                 FROM %s current
@@ -428,6 +448,10 @@ public class InsuranceInterventionReportService {
         }
         String marks = placeholders(userIds.size());
         Object[] ids = userIds.toArray();
+        //update-begin---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】本地联调放开演练快照,生产默认排除------------
+        String rdiMockFilter = includeMock ? "" : " AND snapshot.is_mock=0";
+        String latestMockFilter = includeMock ? "" : " AND latest.is_mock=0";
+        //update-end---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】本地联调放开演练快照,生产默认排除------------
         List<Factor> factors = jdbc.query("""
                         SELECT contribution.factor_code, contribution.domain_code,
                                AVG(contribution.final_points) AS mean_points
@@ -435,17 +459,17 @@ public class InsuranceInterventionReportService {
                         WHERE contribution.snapshot_id IN (
                           SELECT snapshot.id
                           FROM rehealth_rdi_daily_snapshot snapshot
-                          WHERE snapshot.user_id IN (%s) AND snapshot.is_mock=0
+                          WHERE snapshot.user_id IN (%s)%s
                             AND snapshot.scored_on = (
                               SELECT MAX(latest.scored_on)
                               FROM rehealth_rdi_daily_snapshot latest
-                              WHERE latest.user_id=snapshot.user_id AND latest.is_mock=0
+                              WHERE latest.user_id=snapshot.user_id%s
                             )
                         )
                         GROUP BY contribution.factor_code, contribution.domain_code
                         ORDER BY ABS(AVG(contribution.final_points)) DESC, contribution.factor_code
                         LIMIT %d
-                        """.formatted(marks, MAX_FACTOR_ROWS),
+                        """.formatted(marks, rdiMockFilter, latestMockFilter, MAX_FACTOR_ROWS),
                 (rs, row) -> new Factor(
                         factorName(rs.getString(1)),
                         signed(nullableDoubleOrZero(rs, 3), 2),
@@ -453,11 +477,11 @@ public class InsuranceInterventionReportService {
                 ),
                 ids);
         if (factors.isEmpty()) {
-            //update-begin---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】演练数据不进入贡献统计时输出占位说明------------
-            return List.of(new Factor("暂无贡献数据", "—", mockPresent
+            return List.of(new Factor("暂无贡献数据", "—", includeMock
+                    ? "范围内暂无 RDI 贡献数据(需 RDI 每日快照与结构化贡献)"
+                    : (mockPresent
                     ? "当前范围内 RDI 快照均为演练数据,按口径不纳入贡献统计;真实快照上传后自动填充"
-                    : "范围内暂无满足口径的 RDI 贡献数据(需非演练 RDI 每日快照与结构化贡献)"));
-            //update-end---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】演练数据不进入贡献统计时输出占位说明------------
+                    : "范围内暂无满足口径的 RDI 贡献数据(需非演练 RDI 每日快照与结构化贡献)")));
         }
         return factors;
     }

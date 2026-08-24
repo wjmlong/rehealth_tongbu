@@ -65,6 +65,9 @@ $env:REHEALTH_DEVICE_SERVICE_ENABLED = 'false'
 $env:REHEALTH_TIMESCALE_ENABLED = 'false'
 $env:REHEALTH_KAFKA_CONSUMER_ENABLED = 'false'
 $env:REHEALTH_INSURANCE_TENANT_MEMBERSHIP_DEV_SCOPE_ENABLED = 'true'
+#update-begin---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】本地联调放开演练快照,生产默认排除------------
+$env:REHEALTH_INSURANCE_REPORT_INCLUDE_MOCK = 'true'
+#update-end---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】本地联调放开演练快照,生产默认排除------------
 
 $arguments = @(
     '-Xms512m',
