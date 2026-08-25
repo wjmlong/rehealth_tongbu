@@ -55,7 +55,7 @@ public class InsuranceAssignmentService {
             LEFT JOIN rehealth_insurance_project p ON p.id = e.project_id
             LEFT JOIN sys_user u ON u.id = CONVERT(e.rehealth_user_id USING utf8mb3) COLLATE utf8mb3_general_ci
             LEFT JOIN rehealth_patient_profile profile ON profile.user_id = e.rehealth_user_id COLLATE utf8mb4_0900_ai_ci
-            LEFT JOIN sys_user emp ON emp.id = a.employee_id
+            LEFT JOIN sys_user emp ON emp.id = CONVERT(a.employee_id USING utf8mb3) COLLATE utf8mb3_general_ci
             """;
 
     private final JdbcTemplate jdbc;
@@ -202,7 +202,7 @@ public class InsuranceAssignmentService {
                 LEFT JOIN rehealth_patient_profile profile ON profile.user_id = e.rehealth_user_id COLLATE utf8mb4_0900_ai_ci
                 LEFT JOIN rehealth_insurance_user_assignment a
                   ON a.enrollment_id = e.id AND a.status = 'active' AND a.role_type = 'PRIMARY'
-                LEFT JOIN sys_user emp ON emp.id = a.employee_id
+                LEFT JOIN sys_user emp ON emp.id = CONVERT(a.employee_id USING utf8mb3) COLLATE utf8mb3_general_ci
                 WHERE e.tenant_id = ?
                 """;
         StringBuilder where = new StringBuilder();
@@ -276,7 +276,7 @@ public class InsuranceAssignmentService {
                     FROM rehealth_insurance_user_assignment a
                     JOIN rehealth_insurance_enrollment e ON e.id = a.enrollment_id
                     LEFT JOIN rehealth_insurance_project p ON p.id = e.project_id
-                    LEFT JOIN sys_user emp ON emp.id = a.employee_id
+                    LEFT JOIN sys_user emp ON emp.id = CONVERT(a.employee_id USING utf8mb3) COLLATE utf8mb3_general_ci
                     WHERE e.rehealth_user_id = ? AND a.status = 'active'
                     ORDER BY CASE WHEN a.role_type = 'PRIMARY' THEN 0 ELSE 1 END, a.start_time DESC, a.id DESC
                     LIMIT 1
@@ -307,7 +307,7 @@ public class InsuranceAssignmentService {
             if (scope.team()) {
                 sql.append(" OR EXISTS (SELECT 1 FROM sys_user_depart my_dept")
                         .append(" JOIN sys_user_depart assignee_dept ON assignee_dept.dep_id = my_dept.dep_id")
-                        .append(" WHERE my_dept.user_id = ? AND assignee_dept.user_id = a.employee_id)");
+                        .append(" WHERE my_dept.user_id = ? AND assignee_dept.user_id = CONVERT(a.employee_id USING utf8mb3) COLLATE utf8mb3_general_ci)");
                 args.add(scope.userId());
             }
             sql.append(")");
@@ -341,7 +341,8 @@ public class InsuranceAssignmentService {
             throw InsuranceApiException.conflict("该参与记录已存在活跃主负责人");
         }
         logChange(tenantId, operatorId, enrollment.id(), id, changeReason,
-                null, assignmentJson(id, employeeId, roleType, now, null, "active", changeReason), contextReason, now);
+                null, assignmentJson(id, employeeId, roleType, now, null, "active", changeReason),
+                contextReason == null ? changeReason : contextReason, now);
         audit(tenantId, operatorId, "assignment_" + changeReason, id,
                 metadata(enrollment.subjectRef(), employeeId, roleType));
         return new InsuranceAssignmentResponse.Assignment(
@@ -431,7 +432,7 @@ public class InsuranceAssignmentService {
                       OR EXISTS (
                           SELECT 1 FROM sys_user_depart my_dept
                           JOIN sys_user_depart assignee_dept ON assignee_dept.dep_id = my_dept.dep_id
-                          WHERE my_dept.user_id = ? AND assignee_dept.user_id = a.employee_id
+                          WHERE my_dept.user_id = ? AND assignee_dept.user_id = CONVERT(a.employee_id USING utf8mb3) COLLATE utf8mb3_general_ci
                       )
                   )
                 """, Integer.class, tenantId, enrollmentId, scope.userId(), scope.userId());

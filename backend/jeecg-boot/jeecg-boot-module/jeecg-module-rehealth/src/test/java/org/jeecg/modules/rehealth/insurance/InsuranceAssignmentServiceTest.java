@@ -60,6 +60,8 @@ class InsuranceAssignmentServiceTest {
         verify(jdbc, org.mockito.Mockito.times(2)).update(anyString(), args.capture());
         assertTrue(args.getAllValues().stream().anyMatch(values -> values.length >= 7
                 && "emp-1".equals(values[3]) && "PRIMARY".equals(values[4])));
+        assertTrue(args.getAllValues().stream().anyMatch(values -> values.length == 10
+                && "assign".equals(values[4]) && values[7] != null));
     }
 
     @Test

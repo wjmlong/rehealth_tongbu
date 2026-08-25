@@ -67,6 +67,6 @@ class JdbcInsuranceRiskRepositoryContractTest {
         String query = sql.getValue();
         assertTrue(query.contains("? = 'TEAM'"));
         assertTrue(query.contains("sys_user_depart manager_depart"));
-        assertTrue(query.contains("assignee_depart.user_id = assignment.employee_id"));
+        assertTrue(query.contains("CONVERT(assignment.employee_id USING utf8mb3) COLLATE utf8mb3_general_ci"));
     }
 }

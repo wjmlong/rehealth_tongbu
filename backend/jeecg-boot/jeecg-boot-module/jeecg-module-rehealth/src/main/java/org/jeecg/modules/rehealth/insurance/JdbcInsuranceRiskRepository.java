@@ -61,7 +61,7 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
                                     JOIN sys_user_depart assignee_depart
                                         ON assignee_depart.dep_id = manager_depart.dep_id
                                     WHERE manager_depart.user_id = ?
-                                      AND assignee_depart.user_id = assignment.employee_id
+                                      AND assignee_depart.user_id = CONVERT(assignment.employee_id USING utf8mb3) COLLATE utf8mb3_general_ci
                                 )
                             )
                         )
