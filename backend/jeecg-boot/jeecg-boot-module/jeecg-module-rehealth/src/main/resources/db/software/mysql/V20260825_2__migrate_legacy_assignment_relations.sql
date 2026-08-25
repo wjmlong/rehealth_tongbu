@@ -33,7 +33,7 @@ INSERT INTO rehealth_insurance_enrollment
     (id, tenant_id, project_id, subject_ref, rehealth_user_id, enrollment_status,
      consent_status, consent_version, consented_at, source_system, source_record_id,
      metadata_json, created_at, updated_at)
-SELECT CONCAT('enr-legacy-', s.id),
+SELECT LEFT(CONCAT('enr-legacy-', s.id), 64),
        s.tenant_id,
        CONCAT('default-project-', s.tenant_id),
        s.subject_ref,
@@ -60,7 +60,7 @@ ON DUPLICATE KEY UPDATE
 INSERT INTO rehealth_insurance_user_assignment
     (id, tenant_id, enrollment_id, employee_id, role_type, start_time, end_time,
      status, start_time_source, change_reason, operator_id, created_at)
-SELECT CONCAT('asg-legacy-', sm.id),
+SELECT LEFT(CONCAT('asg-legacy-', sm.id), 64),
        sm.tenant_id,
        e.id,
        sm.manager_user_id,
@@ -90,7 +90,7 @@ ON DUPLICATE KEY UPDATE id = VALUES(id);
 INSERT INTO rehealth_insurance_user_assignment
     (id, tenant_id, enrollment_id, employee_id, role_type, start_time, end_time,
      status, start_time_source, change_reason, operator_id, created_at)
-SELECT CONCAT('asg-legacy-', sm.id),
+SELECT LEFT(CONCAT('asg-legacy-', sm.id), 64),
        sm.tenant_id,
        e.id,
        sm.manager_user_id,
@@ -123,7 +123,7 @@ ON DUPLICATE KEY UPDATE id = VALUES(id);
 INSERT INTO rehealth_insurance_assignment_change_log
     (id, tenant_id, enrollment_id, assignment_id, change_type,
      before_json, after_json, reason, operator_id, created_at)
-SELECT CONCAT('asglog-legacy-', a.id),
+SELECT LEFT(CONCAT('asglog-legacy-', a.id), 64),
        a.tenant_id,
        a.enrollment_id,
        a.id,
@@ -150,7 +150,7 @@ SELECT CONCAT('asglog-legacy-', a.id),
        a.created_at
 FROM rehealth_insurance_user_assignment a
 JOIN rehealth_insurance_subject_manager sm
-  ON a.id = CONCAT('asg-legacy-', sm.id)
+  ON a.id = LEFT(CONCAT('asg-legacy-', sm.id), 64)
 WHERE a.start_time_source = 'legacy'
   AND NOT EXISTS (
       SELECT 1

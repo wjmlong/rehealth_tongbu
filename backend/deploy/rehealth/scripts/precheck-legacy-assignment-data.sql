@@ -27,9 +27,10 @@ WHERE subject_ref NOT REGEXP '^[0-9a-f]{64}$';
 SELECT sm.id, sm.tenant_id, sm.manager_user_id, sm.subject_ref
 FROM rehealth_insurance_subject_manager sm
 LEFT JOIN sys_user_tenant ut
-  ON ut.user_id = sm.manager_user_id AND ut.tenant_id = sm.tenant_id AND ut.status = '1'
+  ON ut.user_id = CONVERT(sm.manager_user_id USING utf8mb3) COLLATE utf8mb3_general_ci
+ AND ut.tenant_id = sm.tenant_id AND ut.status = '1'
 LEFT JOIN sys_user u
-  ON u.id = sm.manager_user_id
+  ON u.id = CONVERT(sm.manager_user_id USING utf8mb3) COLLATE utf8mb3_general_ci
 WHERE ut.id IS NULL OR u.status <> 1 OR u.del_flag <> 0;
 
 -- 5. 信息展示：将参与迁移的总行数（含 active/disabled 与冲突行）
