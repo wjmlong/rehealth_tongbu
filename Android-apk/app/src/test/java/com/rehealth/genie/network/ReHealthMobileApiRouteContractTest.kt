@@ -464,6 +464,45 @@ class ReHealthMobileApiRouteContractTest {
         assertTrue(agentRequest.body.readUtf8().contains("\"timeZone\":\"Asia/Shanghai\""))
     }
 
+    @Test
+    fun `reads the current insurance service contact or a null result`() = runTest {
+        server.start()
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"success":true,"code":200,"result":{"tenantId":1000,"projectName":"默认服务项目","employeeName":"李四","roleType":"PRIMARY","startTime":"2026-08-25T08:00:00"}}""",
+            ),
+        )
+        val api = ReHealthMobileApi(
+            baseUrl = server.url("/jeecg-boot/").toString(),
+            httpClient = OkHttpClient(),
+            apiToken = "synthetic-test-token",
+        )
+
+        val result = assertIs<RemotePhmOutcome.Success<*>>(api.getServiceContact())
+        val contact = result.data as com.rehealth.genie.network.dto.InsuranceServiceContactDto
+
+        assertEquals("李四", contact.employeeName)
+        assertEquals("PRIMARY", contact.roleType)
+        assertEquals("默认服务项目", contact.projectName)
+        assertRequest("/jeecg-boot/rehealth/mobile/insurance/assignments/current", "GET")
+    }
+
+    @Test
+    fun `service contact tolerates a null result envelope without a service relationship`() = runTest {
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"success":true,"code":200,"result":null}"""))
+        val api = ReHealthMobileApi(
+            baseUrl = server.url("/jeecg-boot/").toString(),
+            httpClient = OkHttpClient(),
+            apiToken = "synthetic-test-token",
+        )
+
+        val result = assertIs<RemotePhmOutcome.Success<*>>(api.getServiceContact())
+
+        assertEquals(null, result.data)
+        assertRequest("/jeecg-boot/rehealth/mobile/insurance/assignments/current", "GET")
+    }
+
     private fun assertRequest(expectedPath: String, expectedMethod: String): okhttp3.mockwebserver.RecordedRequest {
         val request = server.takeRequest()
         assertEquals(expectedPath, request.path)

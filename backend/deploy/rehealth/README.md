@@ -29,7 +29,7 @@ Do not interpret a static pass as a deployed-service health result.
 
 ## Local insurer workflow
 
-Apply the non-destructive MySQL migrations through `V20260821_1` before testing
+Apply the non-destructive MySQL migrations through `V20260825_2` before testing
 the insurer website. They add import/job/plan-feedback tables, workflow
 permissions, insurance organization settings, tenant-scoped department codes and
 local-admin acceptance grants, read-only organization/member settings, insurer
@@ -39,7 +39,14 @@ tables and separates plan view, draft edit and publish permissions; `V20260819_2
 adds immutable occurrence execution facts used by the App's rolling 28-day adherence;
 `V20260821_1` adds the employee password-status table and the tenant-scoped member
 password-reset permission (`rehealth:insurance:member:password:reset`).
-Production must assign
+`V20260825_1` creates the insurance project, enrollment, interval-based
+user-assignment (with the unique active-PRIMARY constraint) and assignment change
+log tables plus the `assignment:view`/`transfer` permissions; `V20260825_2`
+idempotently migrates legacy `rehealth_insurance_subject_manager` rows into the
+new table as first-PRIMARY history. Before applying `V20260825_2`, run
+`backend/deploy/rehealth/scripts/precheck-legacy-assignment-data.sql` against the
+software database and review the report manually (sections other than the final
+summary must return zero rows). Production must assign
 `insurer_viewer`, `insurer_analyst`, `insurance_operator` or `insurer_auditor`
 explicitly and must not rely on the local admin grant.
 

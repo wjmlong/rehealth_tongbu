@@ -69,10 +69,10 @@ public class InsuranceRiskService {
                 && "development".equals(runtimeMode.trim().toLowerCase(Locale.ROOT));
     }
 
-    public Dashboard dashboard(int tenantId, String managerUserId) {
+    //update-begin---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】风险查询接入三级范围-----------
+    public Dashboard dashboard(int tenantId, InsuranceAssignmentScope scope) {
         requireScopeEnabled();
-        InsuranceRiskRepository.DashboardSnapshot snapshot = query(() -> managerUserId == null
-                ? repository.dashboard(tenantId) : repository.dashboard(tenantId, managerUserId));
+        InsuranceRiskRepository.DashboardSnapshot snapshot = query(() -> dashboardSnapshot(tenantId, scope));
         InsuranceRiskRepository.BusinessSnapshot business = query(() -> businessRepository == null
                 ? new InsuranceRiskRepository.BusinessSnapshot(0, 0, 0, null, null, 0, "unknown", null)
                 : businessRepository.tenant(tenantId));
@@ -92,24 +92,31 @@ public class InsuranceRiskService {
         );
     }
 
+    private InsuranceRiskRepository.DashboardSnapshot dashboardSnapshot(int tenantId, InsuranceAssignmentScope scope) {
+        if (scope == null) {
+            return repository.dashboard(tenantId);
+        }
+        if (scope.team()) {
+            return repository.dashboard(tenantId, scope);
+        }
+        return repository.dashboard(tenantId, scope.userId());
+    }
+
+    public Dashboard dashboard(int tenantId, String managerUserId) {
+        return dashboard(tenantId, managerUserId == null
+                ? null
+                : new InsuranceAssignmentScope(managerUserId, InsuranceAssignmentScope.MODE_SELF));
+    }
+    //update-end---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】风险查询接入三级范围-----------
+
     public Dashboard dashboard(int tenantId) {
-        return dashboard(tenantId, null);
+        return dashboard(tenantId, (InsuranceAssignmentScope) null);
     }
 
+    //update-begin---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】风险查询接入三级范围-----------
     public InsuredPage insureds(
             int tenantId,
-            String managerUserId,
-            int pageNo,
-            int pageSize,
-            String keyword,
-            String riskLevel
-    ) {
-        return insureds(tenantId, managerUserId, pageNo, pageSize, keyword, riskLevel, null, null, null);
-    }
-
-    public InsuredPage insureds(
-            int tenantId,
-            String managerUserId,
+            InsuranceAssignmentScope scope,
             int pageNo,
             int pageSize,
             String keyword,
@@ -125,15 +132,9 @@ public class InsuranceRiskService {
         validateAgeRange(minAge, maxAge);
         requireScopeEnabled();
         boolean usesMemberFilters = normalizedChannel != null || minAge != null || maxAge != null;
-        InsuranceRiskRepository.SubjectPage page = query(() -> {
-            if (usesMemberFilters) {
-                return repository.subjects(tenantId, managerUserId, pageNo, pageSize, normalizedKeyword,
-                        normalizedRiskLevel, normalizedChannel, minAge, maxAge);
-            }
-            return managerUserId == null
-                    ? repository.subjects(tenantId, pageNo, pageSize, normalizedKeyword, normalizedRiskLevel)
-                    : repository.subjects(tenantId, managerUserId, pageNo, pageSize, normalizedKeyword, normalizedRiskLevel);
-        });
+        InsuranceRiskRepository.SubjectPage page = query(() -> subjectsPage(
+                tenantId, scope, pageNo, pageSize, normalizedKeyword, normalizedRiskLevel,
+                normalizedChannel, minAge, maxAge, usesMemberFilters));
         return new InsuredPage(
                 RESPONSIBILITY_SCOPE_MODE,
                 pageNo,
@@ -143,28 +144,113 @@ public class InsuranceRiskService {
         );
     }
 
-    public InsuredPage insureds(int tenantId, int pageNo, int pageSize, String keyword, String riskLevel) {
-        return insureds(tenantId, null, pageNo, pageSize, keyword, riskLevel);
+    private InsuranceRiskRepository.SubjectPage subjectsPage(
+            int tenantId, InsuranceAssignmentScope scope, int pageNo, int pageSize,
+            String keyword, String riskLevel, String channel, Integer minAge, Integer maxAge,
+            boolean usesMemberFilters
+    ) {
+        if (scope == null) {
+            return usesMemberFilters
+                    ? repository.subjects(tenantId, (String) null, pageNo, pageSize, keyword, riskLevel, channel, minAge, maxAge)
+                    : repository.subjects(tenantId, pageNo, pageSize, keyword, riskLevel);
+        }
+        if (scope.team()) {
+            return usesMemberFilters
+                    ? repository.subjects(tenantId, scope, pageNo, pageSize, keyword, riskLevel, channel, minAge, maxAge)
+                    : repository.subjects(tenantId, scope, pageNo, pageSize, keyword, riskLevel);
+        }
+        return usesMemberFilters
+                ? repository.subjects(tenantId, scope.userId(), pageNo, pageSize, keyword, riskLevel, channel, minAge, maxAge)
+                : repository.subjects(tenantId, scope.userId(), pageNo, pageSize, keyword, riskLevel);
     }
 
-    public InsuredFilterOptions filterOptions(int tenantId, String managerUserId) {
+    public InsuredPage insureds(
+            int tenantId,
+            InsuranceAssignmentScope scope,
+            int pageNo,
+            int pageSize,
+            String keyword,
+            String riskLevel
+    ) {
+        return insureds(tenantId, scope, pageNo, pageSize, keyword, riskLevel, null, null, null);
+    }
+
+    public InsuredFilterOptions filterOptions(int tenantId, InsuranceAssignmentScope scope) {
         requireScopeEnabled();
-        InsuranceRiskRepository.FilterOptions options = query(() -> repository.filterOptions(tenantId, managerUserId));
+        InsuranceRiskRepository.FilterOptions options = query(() -> {
+            if (scope == null) {
+                return repository.filterOptions(tenantId, (String) null);
+            }
+            if (scope.team()) {
+                return repository.filterOptions(tenantId, scope);
+            }
+            return repository.filterOptions(tenantId, scope.userId());
+        });
         return new InsuredFilterOptions(RESPONSIBILITY_SCOPE_MODE, options.channels(), options.minAge(), options.maxAge());
     }
 
-    public InsuredDetail insured(int tenantId, String managerUserId, String subjectId) {
+    public InsuredDetail insured(int tenantId, InsuranceAssignmentScope scope, String subjectId) {
         String normalizedSubjectId = normalizeSubjectId(subjectId);
         requireScopeEnabled();
-        InsuranceRiskRepository.SubjectSnapshot snapshot = query(() -> managerUserId == null
-                ? repository.subject(tenantId, normalizedSubjectId)
-                : repository.subject(tenantId, managerUserId, normalizedSubjectId))
+        InsuranceRiskRepository.SubjectSnapshot snapshot = query(() -> {
+            if (scope == null) {
+                return repository.subject(tenantId, normalizedSubjectId);
+            }
+            if (scope.team()) {
+                return repository.subject(tenantId, scope, normalizedSubjectId);
+            }
+            return repository.subject(tenantId, scope.userId(), normalizedSubjectId);
+        })
                 .orElseThrow(() -> InsuranceApiException.notFound("insured subject was not found in the requested tenant"));
         return new InsuredDetail(RESPONSIBILITY_SCOPE_MODE, subject(tenantId, snapshot));
     }
+    //update-end---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】风险查询接入三级范围-----------
+
+    public InsuredPage insureds(
+            int tenantId,
+            String managerUserId,
+            int pageNo,
+            int pageSize,
+            String keyword,
+            String riskLevel
+    ) {
+        return insureds(tenantId, selfScope(managerUserId), pageNo, pageSize, keyword, riskLevel, null, null, null);
+    }
+
+    public InsuredPage insureds(
+            int tenantId,
+            String managerUserId,
+            int pageNo,
+            int pageSize,
+            String keyword,
+            String riskLevel,
+            String channel,
+            Integer minAge,
+            Integer maxAge
+    ) {
+        return insureds(tenantId, selfScope(managerUserId), pageNo, pageSize, keyword, riskLevel, channel, minAge, maxAge);
+    }
+
+    public InsuredPage insureds(int tenantId, int pageNo, int pageSize, String keyword, String riskLevel) {
+        return insureds(tenantId, (InsuranceAssignmentScope) null, pageNo, pageSize, keyword, riskLevel);
+    }
+
+    public InsuredFilterOptions filterOptions(int tenantId, String managerUserId) {
+        return filterOptions(tenantId, selfScope(managerUserId));
+    }
+
+    public InsuredDetail insured(int tenantId, String managerUserId, String subjectId) {
+        return insured(tenantId, selfScope(managerUserId), subjectId);
+    }
 
     public InsuredDetail insured(int tenantId, String subjectId) {
-        return insured(tenantId, null, subjectId);
+        return insured(tenantId, (InsuranceAssignmentScope) null, subjectId);
+    }
+
+    private static InsuranceAssignmentScope selfScope(String managerUserId) {
+        return managerUserId == null
+                ? null
+                : new InsuranceAssignmentScope(managerUserId, InsuranceAssignmentScope.MODE_SELF);
     }
 
     private Subject subject(InsuranceRiskRepository.SubjectSnapshot snapshot) {

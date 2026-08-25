@@ -102,4 +102,51 @@ class InsuranceTenantAccessGuardTest {
 
         assertEquals(HttpStatus.FORBIDDEN, error.status());
     }
+
+    @Test
+    void organizationAdminReceivesUnrestrictedAssignmentScope() {
+        LoginUser user = new LoginUser().setId("org-admin");
+        when(jdbc.queryForObject(anyString(), eq(Integer.class), eq("org-admin"), eq(9101)))
+                .thenReturn(1);
+
+        assertEquals(null, guard.assignmentScope(user, 9101));
+    }
+
+    @Test
+    void departmentManagerReceivesTeamScope() {
+        LoginUser user = new LoginUser().setId("dept-manager");
+        when(jdbc.queryForObject(anyString(), eq(Integer.class), eq("dept-manager"), eq(9101)))
+                .thenReturn(0, 1, 1);
+
+        InsuranceAssignmentScope scope = guard.assignmentScope(user, 9101);
+
+        assertEquals("dept-manager", scope.userId());
+        assertEquals(InsuranceAssignmentScope.MODE_TEAM, scope.mode());
+    }
+
+    @Test
+    void operatorReceivesSelfScope() {
+        LoginUser user = new LoginUser().setId("operator");
+        when(jdbc.queryForObject(anyString(), eq(Integer.class), eq("operator"), eq(9101)))
+                .thenReturn(0, 0, 1);
+
+        InsuranceAssignmentScope scope = guard.assignmentScope(user, 9101);
+
+        assertEquals("operator", scope.userId());
+        assertEquals(InsuranceAssignmentScope.MODE_SELF, scope.mode());
+    }
+
+    @Test
+    void accountWithoutResponsibilityRoleCannotResolveAssignmentScope() {
+        LoginUser user = new LoginUser().setId("plain-member");
+        when(jdbc.queryForObject(anyString(), eq(Integer.class), eq("plain-member"), eq(9101)))
+                .thenReturn(0, 0, 0);
+
+        InsuranceApiException error = assertThrows(
+                InsuranceApiException.class,
+                () -> guard.assignmentScope(user, 9101)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, error.status());
+    }
 }

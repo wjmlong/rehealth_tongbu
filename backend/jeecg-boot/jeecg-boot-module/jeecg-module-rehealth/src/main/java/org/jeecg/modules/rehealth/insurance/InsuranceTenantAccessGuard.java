@@ -99,6 +99,61 @@ public class InsuranceTenantAccessGuard {
         return user.getId();
     }
 
+    //update-begin---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】新增三级数据范围解析-----------
+    /**
+     * Resolves the three-level assignment data scope for the current staff.
+     *
+     * <p>Organization administrators and auditors receive an unrestricted
+     * (null) scope; department managers receive a TEAM scope covering every
+     * employee in their departments; every other responsibility role receives
+     * a SELF scope. Accounts without an insurance responsibility role are
+     * rejected.
+     */
+    public InsuranceAssignmentScope assignmentScope(LoginUser user, int tenantId) {
+        if (user == null || user.getId() == null || user.getId().isBlank()) {
+            throw InsuranceApiException.forbidden("authenticated insurance staff account is required");
+        }
+        Integer orgWide = jdbc.queryForObject("""
+                SELECT COUNT(*)
+                FROM sys_user_role ur
+                JOIN sys_role r ON r.id = ur.role_id
+                WHERE ur.user_id = ? AND ur.tenant_id = ?
+                  AND r.role_code IN ('insurance_org_admin', 'insurer_auditor')
+                """, Integer.class, user.getId(), tenantId);
+        if (orgWide != null && orgWide > 0) {
+            return null;
+        }
+        Integer manager = jdbc.queryForObject("""
+                SELECT COUNT(*)
+                FROM sys_user_role ur
+                JOIN sys_role r ON r.id = ur.role_id
+                WHERE ur.user_id = ? AND ur.tenant_id = ?
+                  AND r.role_code = 'insurance_department_manager'
+                """, Integer.class, user.getId(), tenantId);
+        Integer responsible = jdbc.queryForObject("""
+                SELECT COUNT(*)
+                FROM sys_user_role ur
+                JOIN sys_role r ON r.id = ur.role_id
+                WHERE ur.user_id = ? AND ur.tenant_id = ?
+                  AND r.role_code IN (
+                      'insurance_org_admin',
+                      'insurance_department_manager',
+                      'insurer_analyst',
+                      'insurance_operator',
+                      'insurer_viewer',
+                      'insurer_auditor'
+                  )
+                """, Integer.class, user.getId(), tenantId);
+        if (responsible == null || responsible <= 0) {
+            throw InsuranceApiException.forbidden("current account has no insurance responsibility role in the requested tenant");
+        }
+        return new InsuranceAssignmentScope(
+                user.getId(),
+                manager != null && manager > 0 ? InsuranceAssignmentScope.MODE_TEAM : InsuranceAssignmentScope.MODE_SELF
+        );
+    }
+    //update-end---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】新增三级数据范围解析-----------
+
     private int parseTenant(String requestedTenant) {
         if (requestedTenant == null || requestedTenant.isBlank()) {
             throw InsuranceApiException.badRequest("X-Tenant-Id is required");

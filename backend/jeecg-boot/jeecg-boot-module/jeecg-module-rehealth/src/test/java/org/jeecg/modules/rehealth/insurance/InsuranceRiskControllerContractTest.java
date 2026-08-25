@@ -10,6 +10,7 @@ import org.jeecg.common.api.vo.Result;
 import org.jeecg.common.system.vo.LoginUser;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.http.HttpStatus;
@@ -45,7 +46,8 @@ class InsuranceRiskControllerContractTest {
         InsuranceRiskController controller = new InsuranceRiskController(service, guard);
         bindPrincipal();
         when(guard.requireTenant(any(LoginUser.class), eq("1000"))).thenReturn(1000);
-        when(service.dashboard(1000, null)).thenThrow(InsuranceApiException.serviceUnavailable("not connected"));
+        when(service.dashboard(eq(1000), ArgumentMatchers.<InsuranceAssignmentScope>isNull()))
+                .thenThrow(InsuranceApiException.serviceUnavailable("not connected"));
 
         ResponseEntity<Result<InsuranceRiskResponse.Dashboard>> response = controller.dashboard("1000");
 

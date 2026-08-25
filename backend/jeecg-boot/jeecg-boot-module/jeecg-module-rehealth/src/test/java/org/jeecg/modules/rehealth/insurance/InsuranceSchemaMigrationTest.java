@@ -300,4 +300,39 @@ class InsuranceSchemaMigrationTest {
         assertFalse(sql.toLowerCase().contains("raw_ppg"));
         assertFalse(sql.toLowerCase().contains("raw_rri"));
     }
+
+    @Test
+    void assignmentRelationsMigrationAddsIntervalRolesLogsAndUniquePrimaryConstraint() throws Exception {
+        String sql = read("db/software/mysql/V20260825_1__create_insurance_assignment_relations.sql");
+        for (String table : List.of(
+                "rehealth_insurance_project",
+                "rehealth_insurance_enrollment",
+                "rehealth_insurance_user_assignment",
+                "rehealth_insurance_assignment_change_log"
+        )) {
+            assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS " + table), table);
+            assertEveryTableAndColumnHasAComment(sql, table);
+        }
+        assertTrue(sql.contains("uk_assignment_primary_active (enrollment_id, role_type, active_marker)"));
+        assertTrue(sql.contains("GENERATED ALWAYS AS"));
+        assertTrue(sql.contains("rehealth:insurance:assignment:view"));
+        assertTrue(sql.contains("rehealth:insurance:assignment:transfer"));
+        assertFalse(sql.contains("sys_user_role"));
+        assertTrue(sql.contains("software-V20260825.1"));
+    }
+
+    @Test
+    void legacyAssignmentMigrationPreservesChainAsFirstPrimaryHistory() throws Exception {
+        String sql = read("db/software/mysql/V20260825_2__migrate_legacy_assignment_relations.sql");
+
+        assertTrue(sql.contains("default-project-"));
+        assertTrue(sql.contains("enr-legacy-"));
+        assertTrue(sql.contains("asg-legacy-"));
+        assertTrue(sql.contains("'legacy_migration'"));
+        assertTrue(sql.contains("'migration_conflict_resolved'"));
+        assertTrue(sql.contains("rehealth_insurance_assignment_change_log"));
+        assertTrue(sql.contains("ON DUPLICATE KEY UPDATE"));
+        assertFalse(sql.contains("DROP TABLE"));
+        assertTrue(sql.contains("software-V20260825.2"));
+    }
 }

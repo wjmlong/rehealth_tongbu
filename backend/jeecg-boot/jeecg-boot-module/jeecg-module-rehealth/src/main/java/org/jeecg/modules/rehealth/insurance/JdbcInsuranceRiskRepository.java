@@ -44,11 +44,27 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
                       )
                   )
                   AND (? IS NULL OR EXISTS (
-                      SELECT 1 FROM rehealth_insurance_subject_manager scope
-                      WHERE scope.tenant_id = insurance_subject.tenant_id
-                        AND scope.manager_user_id = ?
-                        AND scope.subject_ref = insurance_subject.subject_ref
-                        AND scope.status = 'active'
+                      SELECT 1
+                      FROM rehealth_insurance_user_assignment assignment
+                      JOIN rehealth_insurance_enrollment enrollment
+                          ON enrollment.id = assignment.enrollment_id
+                      WHERE assignment.tenant_id = insurance_subject.tenant_id
+                        AND enrollment.subject_ref = insurance_subject.subject_ref
+                        AND assignment.status = 'active'
+                        AND (
+                            assignment.employee_id = ?
+                            OR (
+                                ? = 'TEAM'
+                                AND EXISTS (
+                                    SELECT 1
+                                    FROM sys_user_depart manager_depart
+                                    JOIN sys_user_depart assignee_depart
+                                        ON assignee_depart.dep_id = manager_depart.dep_id
+                                    WHERE manager_depart.user_id = ?
+                                      AND assignee_depart.user_id = assignment.employee_id
+                                )
+                            )
+                        )
                   ))
             ), latest_risk AS (
                 SELECT r.user_id, r.is_mock, r.risk_score, r.risk_level, r.model_version,
@@ -127,12 +143,18 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
         return dashboardScoped(tenantId, null);
     }
 
+    //update-begin---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】范围查询改查新表并支持三级范围-----------
     @Override
-    public DashboardSnapshot dashboard(int tenantId, String managerUserId) {
-        return dashboardScoped(tenantId, managerUserId);
+    public DashboardSnapshot dashboard(int tenantId, InsuranceAssignmentScope scope) {
+        return dashboardScoped(tenantId, scope);
     }
 
-    private DashboardSnapshot dashboardScoped(int tenantId, String managerUserId) {
+    @Override
+    public DashboardSnapshot dashboard(int tenantId, String managerUserId) {
+        return dashboardScoped(tenantId, new InsuranceAssignmentScope(managerUserId, InsuranceAssignmentScope.MODE_SELF));
+    }
+
+    private DashboardSnapshot dashboardScoped(int tenantId, InsuranceAssignmentScope scope) {
         String sql = TENANT_AND_RISK_CTE + """
                 SELECT COUNT(*) AS total_insured,
                        COALESCE(SUM(CASE
@@ -167,7 +189,7 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
                 longValue(resultSet, "medium_risk"),
                 longValue(resultSet, "low_risk"),
                 resultSet.getTimestamp("latest_evaluated_at")
-                ), tenantId, managerUserId, managerUserId);
+                ), scopeArgs(tenantId, scope));
         return snapshot == null
                 ? new DashboardSnapshot(0, 0, 0, 0, 0, 0, 0, null)
                 : snapshot;
@@ -179,8 +201,22 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
     }
 
     @Override
+    public SubjectPage subjects(int tenantId, InsuranceAssignmentScope scope, int pageNo, int pageSize, String keyword, String riskLevel) {
+        return subjectsScoped(tenantId, scope, pageNo, pageSize, keyword, riskLevel, null, null, null);
+    }
+
+    @Override
     public SubjectPage subjects(int tenantId, String managerUserId, int pageNo, int pageSize, String keyword, String riskLevel) {
-        return subjectsScoped(tenantId, managerUserId, pageNo, pageSize, keyword, riskLevel, null, null, null);
+        return subjectsScoped(tenantId, new InsuranceAssignmentScope(managerUserId, InsuranceAssignmentScope.MODE_SELF),
+                pageNo, pageSize, keyword, riskLevel, null, null, null);
+    }
+
+    @Override
+    public SubjectPage subjects(
+            int tenantId, InsuranceAssignmentScope scope, int pageNo, int pageSize, String keyword, String riskLevel,
+            String channel, Integer minAge, Integer maxAge
+    ) {
+        return subjectsScoped(tenantId, scope, pageNo, pageSize, keyword, riskLevel, channel, minAge, maxAge);
     }
 
     @Override
@@ -188,11 +224,12 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
             int tenantId, String managerUserId, int pageNo, int pageSize, String keyword, String riskLevel,
             String channel, Integer minAge, Integer maxAge
     ) {
-        return subjectsScoped(tenantId, managerUserId, pageNo, pageSize, keyword, riskLevel, channel, minAge, maxAge);
+        return subjectsScoped(tenantId, new InsuranceAssignmentScope(managerUserId, InsuranceAssignmentScope.MODE_SELF),
+                pageNo, pageSize, keyword, riskLevel, channel, minAge, maxAge);
     }
 
     private SubjectPage subjectsScoped(
-            int tenantId, String managerUserId, int pageNo, int pageSize, String keyword, String riskLevel,
+            int tenantId, InsuranceAssignmentScope scope, int pageNo, int pageSize, String keyword, String riskLevel,
             String channel, Integer minAge, Integer maxAge
     ) {
         String keywordLike = keyword == null ? null : "%" + escapeLike(keyword) + "%";
@@ -209,20 +246,18 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
         Long total = jdbc.queryForObject(
                 countSql,
                 Long.class,
-                tenantId,
-                managerUserId,
-                managerUserId,
-                keyword,
-                keywordLike,
-                keyword,
-                riskLevel,
-                riskLevel,
-                channel,
-                channel,
-                minAge,
-                minAge,
-                maxAge,
-                maxAge
+                concat(scopeArgs(tenantId, scope),
+                        keyword,
+                        keywordLike,
+                        keyword,
+                        riskLevel,
+                        riskLevel,
+                        channel,
+                        channel,
+                        minAge,
+                        minAge,
+                        maxAge,
+                        maxAge)
         );
 
         String pageSql = SUBJECT_CTE + """
@@ -254,35 +289,33 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
         List<SubjectSnapshot> records = jdbc.query(
                 pageSql,
                 (resultSet, rowNum) -> mapSubject(resultSet),
-                tenantId,
-                managerUserId,
-                managerUserId,
-                keyword,
-                keywordLike,
-                keyword,
-                riskLevel,
-                riskLevel,
-                channel,
-                channel,
-                minAge,
-                minAge,
-                maxAge,
-                maxAge,
-                pageSize,
-                (pageNo - 1) * pageSize
+                concat(scopeArgs(tenantId, scope),
+                        keyword,
+                        keywordLike,
+                        keyword,
+                        riskLevel,
+                        riskLevel,
+                        channel,
+                        channel,
+                        minAge,
+                        minAge,
+                        maxAge,
+                        maxAge,
+                        pageSize,
+                        (pageNo - 1) * pageSize)
         );
         return new SubjectPage(total == null ? 0 : total, records);
     }
 
     @Override
-    public FilterOptions filterOptions(int tenantId, String managerUserId) {
+    public FilterOptions filterOptions(int tenantId, InsuranceAssignmentScope scope) {
         List<String> channels = jdbc.query(SUBJECT_CTE + """
                 SELECT DISTINCT TRIM(policy.channel_name) AS channel_name
                 """ + SUBJECT_FROM + """
                 WHERE policy.channel_name IS NOT NULL AND TRIM(policy.channel_name) <> ''
                 ORDER BY channel_name
                 """, (resultSet, rowNum) -> resultSet.getString("channel_name"),
-                tenantId, managerUserId, managerUserId);
+                scopeArgs(tenantId, scope));
         return jdbc.queryForObject(SUBJECT_CTE + """
                 SELECT MIN(profile.age) AS min_age, MAX(profile.age) AS max_age
                 """ + SUBJECT_FROM,
@@ -290,7 +323,12 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
                         channels,
                         nullableInteger(resultSet, "min_age"),
                         nullableInteger(resultSet, "max_age")
-                ), tenantId, managerUserId, managerUserId);
+                ), scopeArgs(tenantId, scope));
+    }
+
+    @Override
+    public FilterOptions filterOptions(int tenantId, String managerUserId) {
+        return filterOptions(tenantId, new InsuranceAssignmentScope(managerUserId, InsuranceAssignmentScope.MODE_SELF));
     }
 
     @Override
@@ -299,11 +337,16 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
     }
 
     @Override
-    public Optional<SubjectSnapshot> subject(int tenantId, String managerUserId, String subjectId) {
-        return subjectScoped(tenantId, managerUserId, subjectId);
+    public Optional<SubjectSnapshot> subject(int tenantId, InsuranceAssignmentScope scope, String subjectId) {
+        return subjectScoped(tenantId, scope, subjectId);
     }
 
-    private Optional<SubjectSnapshot> subjectScoped(int tenantId, String managerUserId, String subjectId) {
+    @Override
+    public Optional<SubjectSnapshot> subject(int tenantId, String managerUserId, String subjectId) {
+        return subjectScoped(tenantId, new InsuranceAssignmentScope(managerUserId, InsuranceAssignmentScope.MODE_SELF), subjectId);
+    }
+
+    private Optional<SubjectSnapshot> subjectScoped(int tenantId, InsuranceAssignmentScope scope, String subjectId) {
         String sql = SUBJECT_CTE + """
                 SELECT ts.subject_id, profile.name, profile.age, profile.gender, profile.bmi,
                        policy.product_name, policy.channel_name,
@@ -316,10 +359,26 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
                 WHERE ts.subject_id = ?
                 LIMIT 1
                 """;
-        return jdbc.query(sql, (resultSet, rowNum) -> mapSubject(resultSet), tenantId, managerUserId, managerUserId, subjectId)
+        return jdbc.query(sql, (resultSet, rowNum) -> mapSubject(resultSet),
+                        concat(scopeArgs(tenantId, scope), subjectId))
                 .stream()
                 .findFirst();
     }
+
+    private static Object[] scopeArgs(int tenantId, InsuranceAssignmentScope scope) {
+        if (scope == null) {
+            return new Object[]{tenantId, null, null, null, null};
+        }
+        return new Object[]{tenantId, scope.userId(), scope.userId(), scope.mode(), scope.userId()};
+    }
+
+    private static Object[] concat(Object[] head, Object... tail) {
+        Object[] result = new Object[head.length + tail.length];
+        System.arraycopy(head, 0, result, 0, head.length);
+        System.arraycopy(tail, 0, result, head.length, tail.length);
+        return result;
+    }
+    //update-end---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】范围查询改查新表并支持三级范围-----------
 
     private SubjectSnapshot mapSubject(ResultSet resultSet) throws SQLException {
         return new SubjectSnapshot(

@@ -45,7 +45,7 @@ public class InsuranceRiskController {
         return respond(() -> {
             LoginUser user = currentUser();
             int tenant = tenantAccessGuard.requireTenant(user, tenantId);
-            return service.dashboard(tenant, tenantAccessGuard.responsibilityScope(user, tenant));
+            return service.dashboard(tenant, tenantAccessGuard.assignmentScope(user, tenant));
         });
     }
 
@@ -65,7 +65,7 @@ public class InsuranceRiskController {
         return respond(() -> {
             LoginUser user = currentUser();
             int tenant = tenantAccessGuard.requireTenant(user, tenantId);
-            return service.insureds(tenant, tenantAccessGuard.responsibilityScope(user, tenant), pageNo, pageSize,
+            return service.insureds(tenant, tenantAccessGuard.assignmentScope(user, tenant), pageNo, pageSize,
                     keyword, riskLevel, channel, minAge, maxAge);
         });
     }
@@ -79,7 +79,7 @@ public class InsuranceRiskController {
         return respond(() -> {
             LoginUser user = currentUser();
             int tenant = tenantAccessGuard.requireTenant(user, tenantId);
-            return service.filterOptions(tenant, tenantAccessGuard.responsibilityScope(user, tenant));
+            return service.filterOptions(tenant, tenantAccessGuard.assignmentScope(user, tenant));
         });
     }
 
@@ -93,7 +93,7 @@ public class InsuranceRiskController {
         return respond(() -> {
             LoginUser user = currentUser();
             int tenant = tenantAccessGuard.requireTenant(user, tenantId);
-            return service.insured(tenant, tenantAccessGuard.responsibilityScope(user, tenant), subjectId);
+            return service.insured(tenant, tenantAccessGuard.assignmentScope(user, tenant), subjectId);
         });
     }
 

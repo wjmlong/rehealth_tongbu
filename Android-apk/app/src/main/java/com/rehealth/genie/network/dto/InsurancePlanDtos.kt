@@ -30,6 +30,19 @@ data class InsurancePlanBindingDto(
     val boundAt: String,
 )
 
+/**
+ * 当前 App 用户的服务专员信息（保险侧服务关系）。
+ * 无服务关系时服务端返回 null，客户端展示“暂无专属服务专员”。
+ */
+@JsonClass(generateAdapter = true)
+data class InsuranceServiceContactDto(
+    val tenantId: Int,
+    val projectName: String? = null,
+    val employeeName: String? = null,
+    val roleType: String? = null,
+    val startTime: String? = null,
+)
+
 @JsonClass(generateAdapter = true)
 data class InsurancePlanFeedbackRequestDto(
     val feedbackType: String,

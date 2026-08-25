@@ -206,6 +206,8 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 - `V20260819_1__create_versioned_care_plans.sql`：通用机构计划、不可变发布版本、版本化项目、任务实例和审计表；增加保险计划查看、草稿编辑和发布权限。
 - `V20260819_2__create_care_plan_execution_facts.sql`：按任务实例保存不可变执行事实、计分值、验证类型和幂等来源；所有表和字段均带注释。
 - `V20260821_1__add_password_management.sql`：员工密码强制修改状态表与保险机构管理员重置成员密码权限（`rehealth:insurance:member:password:reset`）。
+- `V20260825_1__create_insurance_assignment_relations.sql`：保险服务项目、用户参与关系（enrollment）、区间化服务关系（user_assignment，含"同一参与记录同一时刻至多一条活跃 PRIMARY"的生成列唯一索引）与服务关系变更日志；新增 `rehealth:insurance:assignment:view` / `transfer` 权限。
+- `V20260825_2__migrate_legacy_assignment_relations.sql`：把旧 `rehealth_insurance_subject_manager` 幂等迁移为新表首条 PRIMARY 历史（每个 subject 的 updated_at 最新 active 行延续为 active PRIMARY，其余记为 ended 历史），并逐行写入变更日志。执行前必须先跑 `backend/deploy/rehealth/scripts/precheck-legacy-assignment-data.sql` 体检。
 
 迁移均为向前兼容的非破坏性变更，不删除既有保险数据。完整逐表结构见 `backend/docs/REHEALTH_DB_SCHEMA.md`。
 
@@ -224,3 +226,23 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 为覆盖“已评估风险”和 PSM 候选筛选，合成风险记录的 `is_mock=0`，但 `model_version=local-qa-seeded-nonclinical-v1`、`scorer_mode=local_qa_fixture`、`artifact_name=LOCAL_INSURANCE_QA_NOT_A_MODEL`，质量警告及响应体也明确禁止临床和业务决策。该脚本只允许在本地开发环境使用。
 
 安全基线覆盖：正确登录、错误密码、缺少权限、浏览器伪造租户头，以及直接 Jeecg 跨租户访问返回 `403`。正式环境仍需用真实角色账号和两个独立真实租户复跑相同用例。
+
+## 9. 用户服务关系（区间化负责人）API
+
+核心原则：用户归属于保险机构/项目，员工只是阶段性的服务负责人。换负责人=结束旧关系+新建新关系，历史责任链不覆盖、不丢失；同一 `enrollment` 同一时刻最多一条 `active PRIMARY`（数据库唯一索引兜底）。
+
+| 方法 | 路径 | 权限 | 说明 |
+| --- | --- | --- | --- |
+| `POST` | `/rehealth/insurance/v1/assignments/claim` | `rehealth:insurance:assignment:manage` | 员工按手机号认领已参保用户（唯一一期入口） |
+| `POST` | `/rehealth/insurance/v1/assignments/invite-codes` | `rehealth:insurance:assignment:manage` | 预留契约，一期返回 `501`（二期实现） |
+| `POST` | `/rehealth/insurance/v1/assignments/transfer` | `rehealth:insurance:assignment:transfer` | 单/批量转移：结束旧行+新建行+逐行日志 |
+| `POST` | `/rehealth/insurance/v1/assignments/{assignmentId}/end` | `rehealth:insurance:assignment:manage` | 结束单条活跃关系（原因必填） |
+| `GET` | `/rehealth/insurance/v1/assignments/mine` | `rehealth:insurance:assignment:view` | 我的客户（按当前员工过滤） |
+| `GET` | `/rehealth/insurance/v1/assignments/department` | `rehealth:insurance:assignment:view` | 团队视图（主管：本部门所有员工负责的用户） |
+| `GET` | `/rehealth/insurance/v1/assignments/{enrollmentId}/history` | `rehealth:insurance:assignment:view` | 责任链 + 变更日志 |
+| `GET` | `/rehealth/mobile/insurance/assignments/current` | App 登录态 | 当前 App 用户的活跃服务专员（脱敏展示） |
+| `POST` | `/rehealth/mobile/insurance/assignments/redeem`、`/scan` | App 登录态 | 预留契约，一期返回 `501`（二期实现） |
+
+数据范围（SQL 层强制）：普通员工只看自己名下的关系（SELF）；部门主管看本部门所有员工负责的用户（TEAM）；机构管理员与审计员全机构（审计员只读+脱敏+日志可见）。风险接口（`/rehealth/insurance/v1/dashboard/risk`、`/insureds`）的负责人过滤已切到 `rehealth_insurance_user_assignment` + `rehealth_insurance_enrollment`；旧 `rehealth_insurance_subject_manager` 保留只读过渡，其写接口 `PUT /settings/assignments/{subjectRef}` 已停用（返回 `501` 引导使用新接口）。
+
+官网 BFF 透传路径：`/api/insurer/assignments/mine|department|claim|transfer|{id}/end|{enrollmentId}/history`（`frontend/insurer_assignments.html` 为"我的客户"页）。App 在"我的"页展示服务专员卡片，只读、不落 Room。

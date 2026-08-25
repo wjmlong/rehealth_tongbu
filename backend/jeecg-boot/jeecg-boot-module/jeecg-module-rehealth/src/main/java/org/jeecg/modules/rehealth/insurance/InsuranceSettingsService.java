@@ -421,31 +421,14 @@ public class InsuranceSettingsService {
 
     @Transactional
     public Assignment upsertAssignment(int tenantId, String operatorId, String subjectRef, AssignmentRequest request) {
-        if (subjectRef == null || !SUBJECT_REF.matcher(subjectRef.trim()).matches()) {
-            throw InsuranceApiException.badRequest("subjectRef must be a 64-character pseudonymous reference");
-        }
-        String managerId = required(request.managerUserId(), "managerUserId");
-        String departmentId = required(request.departmentId(), "departmentId");
-        Integer valid = jdbc.queryForObject("""
-                SELECT COUNT(*) FROM sys_user_tenant ut
-                JOIN sys_user_depart ud ON ud.user_id = ut.user_id AND ud.dep_id = ?
-                JOIN sys_depart d ON d.id = ud.dep_id AND d.tenant_id = ut.tenant_id
-                JOIN sys_user u ON u.id = ut.user_id
-                WHERE ut.tenant_id = ? AND ut.user_id = ? AND ut.status = '1' AND u.status = 1 AND u.del_flag = 0
-                """ + EXCLUDE_PLATFORM_ADMINS, Integer.class, departmentId, tenantId, managerId);
-        if (valid == null || valid < 1) {
-            throw InsuranceApiException.badRequest("managerUserId is not an active member of departmentId");
-        }
-        String status = request.status() == null || request.status().isBlank() ? "active" : request.status().trim();
-        jdbc.update("""
-                INSERT INTO rehealth_insurance_subject_manager
-                    (id, tenant_id, manager_user_id, department_id, subject_ref, status, source_system, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, 'rehealth_settings', ?, ?)
-                ON DUPLICATE KEY UPDATE department_id = VALUES(department_id), status = VALUES(status), updated_at = VALUES(updated_at)
-                """, UUID.randomUUID().toString().replace("-", ""), tenantId, managerId, departmentId,
-                subjectRef.trim().toLowerCase(), status, LocalDateTime.now(), LocalDateTime.now());
-        return assignments(tenantId).stream().filter(item -> item.subjectRef().equalsIgnoreCase(subjectRef.trim())).findFirst()
-                .orElseThrow(() -> InsuranceApiException.serviceUnavailable("assignment was not persisted"));
+        //update-begin---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】旧归属表停止写入，避免与新服务关系双写-----------
+        // Legacy single-row assignment writes are retired after the V20260825
+        // migration. All responsibility changes must go through the interval
+        // based service relationship API so the responsibility chain, unique
+        // active PRIMARY constraint and change log stay authoritative.
+        throw InsuranceApiException.notImplemented(
+                "旧归属写入已停用，请使用服务关系接口 /rehealth/insurance/v1/assignments/claim 或 /transfer");
+        //update-end---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】旧归属表停止写入，避免与新服务关系双写-----------
     }
 
     private String required(String value, String field) {

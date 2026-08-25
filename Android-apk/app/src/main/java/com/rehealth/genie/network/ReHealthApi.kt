@@ -41,6 +41,7 @@ import com.rehealth.genie.network.dto.BehaviorRecordDto
 import com.rehealth.genie.network.dto.InsurancePlanBindRequestDto
 import com.rehealth.genie.network.dto.InsurancePlanBindingDto
 import com.rehealth.genie.network.dto.InsurancePlanFeedbackRequestDto
+import com.rehealth.genie.network.dto.InsuranceServiceContactDto
 import com.rehealth.genie.network.dto.InstitutionCarePlanDto
 import com.rehealth.genie.network.dto.InstitutionCarePlanFeedbackRequestDto
 import okhttp3.MultipartBody
@@ -147,6 +148,9 @@ interface ReHealthApi {
 
     @GET("rehealth/mobile/insurance/plans/current")
     suspend fun getCurrentInsurancePlan(): Response<JeecgResult<InsurancePlanBindingDto?>>
+
+    @GET("rehealth/mobile/insurance/assignments/current")
+    suspend fun getServiceContact(): Response<JeecgResult<InsuranceServiceContactDto?>>
 
     @GET("rehealth/mobile/insurance/plans/active")
     suspend fun getActiveInsurancePlans(): Response<JeecgResult<List<InsurancePlanBindingDto>>>

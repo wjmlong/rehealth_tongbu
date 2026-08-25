@@ -143,9 +143,14 @@ internal fun ProfileScreen(
         factory = RhiManualInputViewModel.Factory(context),
     )
     val rhiInputState by rhiInputViewModel.uiState.collectAsState()
+    val serviceContactViewModel: ServiceContactViewModel = viewModel(
+        factory = ServiceContactViewModel.Factory(context),
+    )
+    val serviceContactState by serviceContactViewModel.uiState.collectAsState()
     LaunchedEffect(Unit) {
         onRefreshProfile()
         rhiInputViewModel.observeCurrentUser()
+        serviceContactViewModel.loadForCurrentUser()
     }
     LaunchedEffect(editState.saved) {
         if (editState.saved) {
@@ -219,6 +224,43 @@ internal fun ProfileScreen(
                             .padding(top = 8.dp),
                     )
                 }
+            }
+            ReHealthCardBlock {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("我的服务专员", color = Ink, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    if (serviceContactState.loading) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Mint, strokeWidth = 2.dp)
+                    }
+                }
+                val contact = serviceContactState.contact
+                if (contact == null) {
+                    Text(
+                        if (serviceContactState.loading) "正在获取服务关系…" else "暂无专属服务专员",
+                        color = Muted,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                } else {
+                    StatusRow("服务专员", contact.employeeName ?: "未命名员工")
+                    StatusRow("所属项目", contact.projectName ?: "默认服务项目")
+                    StatusRow(
+                        "服务角色",
+                        when (contact.roleType) {
+                            "PRIMARY" -> "主负责人"
+                            "BACKUP" -> "协作者"
+                            "TEMPORARY" -> "临时代理"
+                            "SUPERVISOR" -> "主管"
+                            else -> contact.roleType ?: "—"
+                        },
+                    )
+                    contact.startTime?.let { StatusRow("开始服务", it.take(10)) }
+                }
+                Text(
+                    "服务关系由保险机构管理，如需变更负责人请联系您的保险服务人员",
+                    color = Muted,
+                    fontSize = 9.sp,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
             }
             ReHealthCardBlock {
                 Row(verticalAlignment = Alignment.CenterVertically) {

@@ -30,6 +30,12 @@ public final class InsuranceApiException extends RuntimeException {
         return new InsuranceApiException(HttpStatus.CONFLICT, message);
     }
 
+    //update-begin---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】预留接口返回501-----------
+    public static InsuranceApiException notImplemented(String message) {
+        return new InsuranceApiException(HttpStatus.NOT_IMPLEMENTED, message);
+    }
+    //update-end---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】预留接口返回501-----------
+
     public static InsuranceApiException serviceUnavailable(String message) {
         return new InsuranceApiException(HttpStatus.SERVICE_UNAVAILABLE, message);
     }
