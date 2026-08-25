@@ -134,6 +134,23 @@ public class InsuranceAssignmentController {
         });
     }
 
+    @GetMapping("/enrollments")
+    @RequiresPermissions(VIEW_PERMISSION)
+    @Operation(summary = "List the tenant enrollment pool with current PRIMARY owners for claiming")
+    public ResponseEntity<Result<InsuranceAssignmentResponse.EnrollmentPage>> enrollments(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
+            @RequestParam(defaultValue = "1") int pageNo,
+            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(required = false) String keyword
+    ) {
+        return respond(() -> {
+            LoginUser user = currentUser();
+            int tenant = tenantAccessGuard.requireTenant(user, tenantId);
+            tenantAccessGuard.assignmentScope(user, tenant);
+            return service.enrollmentPool(tenant, pageNo, pageSize, keyword);
+        });
+    }
+
     @GetMapping("/{enrollmentId}/history")
     @RequiresPermissions(VIEW_PERMISSION)
     @Operation(summary = "Get one enrollment's responsibility chain and change log")

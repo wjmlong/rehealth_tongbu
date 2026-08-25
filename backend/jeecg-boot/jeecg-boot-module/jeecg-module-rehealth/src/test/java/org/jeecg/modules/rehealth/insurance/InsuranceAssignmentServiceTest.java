@@ -29,7 +29,7 @@ class InsuranceAssignmentServiceTest {
     void claimRejectsUnknownRoleTypeBeforeTouchingTheDatabase() {
         InsuranceApiException error = org.junit.jupiter.api.Assertions.assertThrows(
                 InsuranceApiException.class,
-                () -> service.claim(1001, "emp-1", new InsuranceAssignmentRequest.Claim("13800000000", "OWNER"))
+                () -> service.claim(1001, "emp-1", new InsuranceAssignmentRequest.Claim("13800000000", null, "OWNER"))
         );
         assertEquals(HttpStatus.BAD_REQUEST, error.status());
     }
@@ -49,7 +49,7 @@ class InsuranceAssignmentServiceTest {
         when(jdbc.queryForObject(anyString(), eq(String.class), eq("emp-1"))).thenReturn("李四");
 
         InsuranceAssignmentResponse.Claimed claimed = service.claim(
-                1001, "emp-1", new InsuranceAssignmentRequest.Claim("13800000000", null));
+                1001, "emp-1", new InsuranceAssignmentRequest.Claim("13800000000", null, null));
 
         assertTrue(claimed.created());
         assertEquals("PRIMARY", claimed.assignment().roleType());
@@ -82,7 +82,7 @@ class InsuranceAssignmentServiceTest {
                 "emp-1", "李四", "PRIMARY", "2026-08-25T08:00:00", null, "active", "system", "assign")));
 
         InsuranceAssignmentResponse.Claimed claimed = service.claim(
-                1001, "emp-1", new InsuranceAssignmentRequest.Claim("13800000000", null));
+                1001, "emp-1", new InsuranceAssignmentRequest.Claim("13800000000", null, null));
 
         assertFalse(claimed.created());
         assertEquals("asg-1", claimed.assignment().id());
@@ -104,9 +104,34 @@ class InsuranceAssignmentServiceTest {
 
         InsuranceApiException error = org.junit.jupiter.api.Assertions.assertThrows(
                 InsuranceApiException.class,
-                () -> service.claim(1001, "emp-1", new InsuranceAssignmentRequest.Claim("13800000000", null))
+                () -> service.claim(1001, "emp-1", new InsuranceAssignmentRequest.Claim("13800000000", null, null))
         );
         assertEquals(HttpStatus.CONFLICT, error.status());
+    }
+
+    @Test
+    void enrollmentPoolListsUnownedUsersFirstAndMarksCurrentOwners() {
+        when(jdbc.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
+        when(jdbc.query(anyString(),
+                ArgumentMatchers.<RowMapper<InsuranceAssignmentResponse.Enrollment>>any(),
+                any(Object[].class))).thenReturn(List.of(
+                new InsuranceAssignmentResponse.Enrollment(
+                        "enr-1", "proj-1", "默认服务项目", SUBJECT_REF, "张三", "active", null, null),
+                new InsuranceAssignmentResponse.Enrollment(
+                        "enr-2", "proj-1", "默认服务项目", SUBJECT_REF, "李四", "active", "emp-1", "王五")));
+
+        InsuranceAssignmentResponse.EnrollmentPage page = service.enrollmentPool(1001, 1, 20, "张");
+
+        assertEquals(0, page.total());
+        assertEquals(2, page.records().size());
+        assertEquals(null, page.records().get(0).ownerEmployeeId());
+        assertEquals("王五", page.records().get(1).ownerEmployeeName());
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbc).query(sql.capture(),
+                ArgumentMatchers.<RowMapper<InsuranceAssignmentResponse.Enrollment>>any(),
+                any(Object[].class));
+        assertTrue(sql.getValue().contains("a.status = 'active' AND a.role_type = 'PRIMARY'"));
+        assertTrue(sql.getValue().contains("CASE WHEN a.id IS NULL THEN 0 ELSE 1 END"));
     }
 
     @Test

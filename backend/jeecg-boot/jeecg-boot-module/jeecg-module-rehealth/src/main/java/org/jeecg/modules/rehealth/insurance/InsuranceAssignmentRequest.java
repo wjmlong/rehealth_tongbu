@@ -10,8 +10,8 @@ public final class InsuranceAssignmentRequest {
     private InsuranceAssignmentRequest() {
     }
 
-    /** Claim an enrolled user as the current employee by the user's phone number. */
-    public record Claim(String phone, String roleType) {
+    /** Claim an enrolled user as the current employee by phone or enrollment id. */
+    public record Claim(String phone, String enrollmentId, String roleType) {
     }
 
     /** Transfer one or more enrollments from one employee to another. */

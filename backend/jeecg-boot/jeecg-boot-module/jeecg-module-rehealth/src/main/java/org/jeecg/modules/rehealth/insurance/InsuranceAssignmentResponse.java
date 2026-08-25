@@ -42,6 +42,24 @@ public final class InsuranceAssignmentResponse {
     ) {
     }
 
+    public record Enrollment(
+            String id,
+            String projectId,
+            String projectName,
+            String subjectRef,
+            String userName,
+            String enrollmentStatus,
+            String ownerEmployeeId,
+            String ownerEmployeeName
+    ) {
+    }
+
+    public record EnrollmentPage(
+            long total,
+            List<Enrollment> records
+    ) {
+    }
+
     public record TransferResult(
             int requested,
             int transferred,

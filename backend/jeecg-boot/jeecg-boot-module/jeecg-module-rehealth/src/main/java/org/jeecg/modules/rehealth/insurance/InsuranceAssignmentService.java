@@ -77,11 +77,16 @@ public class InsuranceAssignmentService {
 
     @Transactional
     public InsuranceAssignmentResponse.Claimed claim(int tenantId, String operatorId, InsuranceAssignmentRequest.Claim request) {
-        String phone = required(request.phone(), "phone", 45);
         String roleType = roleType(request.roleType());
-        String userId = userIdByPhone(phone);
-        requireActiveTenantMember(tenantId, userId, "该账号不是当前保险租户的活跃成员");
-        EnrollmentRow enrollment = activeEnrollment(tenantId, userId);
+        EnrollmentRow enrollment;
+        if (request.enrollmentId() != null && !request.enrollmentId().isBlank()) {
+            enrollment = requireEnrollment(tenantId, required(request.enrollmentId(), "enrollmentId", 64));
+        } else {
+            String phone = required(request.phone(), "phone", 45);
+            String userId = userIdByPhone(phone);
+            requireActiveTenantMember(tenantId, userId, "该账号不是当前保险租户的活跃成员");
+            enrollment = activeEnrollment(tenantId, userId);
+        }
 
         ActivePrimary existing = activePrimary(enrollment.id());
         if (existing != null) {
@@ -170,6 +175,64 @@ public class InsuranceAssignmentService {
             throw InsuranceApiException.forbidden("部门视图需要主管或管理员权限");
         }
         return page(tenantId, scope, pageNo, pageSize, true);
+    }
+
+    /**
+     * Tenant enrollment pool: every project enrollment with its current active
+     * PRIMARY owner (if any). Staff use this list to claim unowned users.
+     */
+    public InsuranceAssignmentResponse.EnrollmentPage enrollmentPool(
+            int tenantId, int pageNo, int pageSize, String keyword
+    ) {
+        int normalizedPageNo = Math.max(1, pageNo);
+        int normalizedPageSize = Math.min(Math.max(1, pageSize), MAX_PAGE_SIZE);
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+        if (normalizedKeyword.length() > 100) {
+            throw InsuranceApiException.badRequest("keyword must not exceed 100 characters");
+        }
+        boolean hasKeyword = !normalizedKeyword.isEmpty();
+        String poolSelect = """
+                SELECT e.id, e.project_id, p.name AS project_name, e.subject_ref,
+                       COALESCE(profile.name, u.realname, '未命名用户') AS user_name,
+                       e.enrollment_status,
+                       a.employee_id AS owner_employee_id, emp.realname AS owner_employee_name
+                FROM rehealth_insurance_enrollment e
+                LEFT JOIN rehealth_insurance_project p ON p.id = e.project_id
+                LEFT JOIN sys_user u ON u.id = CONVERT(e.rehealth_user_id USING utf8mb3) COLLATE utf8mb3_general_ci
+                LEFT JOIN rehealth_patient_profile profile ON profile.user_id = e.rehealth_user_id COLLATE utf8mb4_0900_ai_ci
+                LEFT JOIN rehealth_insurance_user_assignment a
+                  ON a.enrollment_id = e.id AND a.status = 'active' AND a.role_type = 'PRIMARY'
+                LEFT JOIN sys_user emp ON emp.id = a.employee_id
+                WHERE e.tenant_id = ?
+                """;
+        StringBuilder where = new StringBuilder();
+        List<Object> args = new ArrayList<>();
+        args.add(tenantId);
+        if (hasKeyword) {
+            where.append(" AND (LOWER(COALESCE(profile.name, u.realname, '')) LIKE ? OR e.subject_ref = ?)");
+            args.add("%" + normalizedKeyword.toLowerCase(Locale.ROOT) + "%");
+            args.add(normalizedKeyword);
+        }
+        Long total = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM (" + poolSelect + where + ") scoped_pool", Long.class, args.toArray());
+        List<Object> pageArgs = new ArrayList<>(args);
+        pageArgs.add(normalizedPageSize);
+        pageArgs.add((normalizedPageNo - 1) * normalizedPageSize);
+        List<InsuranceAssignmentResponse.Enrollment> records = jdbc.query(
+                poolSelect + where
+                        + " ORDER BY CASE WHEN a.id IS NULL THEN 0 ELSE 1 END, e.created_at DESC, e.id DESC LIMIT ? OFFSET ?",
+                (rs, rowNum) -> new InsuranceAssignmentResponse.Enrollment(
+                        rs.getString("id"),
+                        rs.getString("project_id"),
+                        rs.getString("project_name"),
+                        rs.getString("subject_ref"),
+                        rs.getString("user_name"),
+                        rs.getString("enrollment_status"),
+                        rs.getString("owner_employee_id"),
+                        rs.getString("owner_employee_name")
+                ),
+                pageArgs.toArray());
+        return new InsuranceAssignmentResponse.EnrollmentPage(total == null ? 0 : total, records);
     }
 
     public InsuranceAssignmentResponse.History history(

@@ -50,6 +50,8 @@ class InsuranceAssignmentControllerContractTest {
                 String.class, int.class, int.class);
         assertPermission("department", "rehealth:insurance:assignment:view", GetMapping.class,
                 String.class, int.class, int.class);
+        assertPermission("enrollments", "rehealth:insurance:assignment:view", GetMapping.class,
+                String.class, int.class, int.class, String.class);
         assertPermission("history", "rehealth:insurance:assignment:view", GetMapping.class,
                 String.class, String.class);
     }
@@ -71,7 +73,7 @@ class InsuranceAssignmentControllerContractTest {
                         true));
 
         ResponseEntity<Result<InsuranceAssignmentResponse.Claimed>> response = controller.claim(
-                "1000", new InsuranceAssignmentRequest.Claim("13800000000", null));
+                "1000", new InsuranceAssignmentRequest.Claim("13800000000", null, null));
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());

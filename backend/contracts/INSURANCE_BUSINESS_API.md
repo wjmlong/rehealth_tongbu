@@ -239,6 +239,7 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 | `POST` | `/rehealth/insurance/v1/assignments/{assignmentId}/end` | `rehealth:insurance:assignment:manage` | 结束单条活跃关系（原因必填） |
 | `GET` | `/rehealth/insurance/v1/assignments/mine` | `rehealth:insurance:assignment:view` | 我的客户（按当前员工过滤） |
 | `GET` | `/rehealth/insurance/v1/assignments/department` | `rehealth:insurance:assignment:view` | 团队视图（主管：本部门所有员工负责的用户） |
+| `GET` | `/rehealth/insurance/v1/assignments/enrollments` | `rehealth:insurance:assignment:view` | 被保人池：租户内全部参与记录及当前主负责人，供员工认领（支持 keyword 搜索；`claim` 可直接按 `enrollmentId` 认领） |
 | `GET` | `/rehealth/insurance/v1/assignments/{enrollmentId}/history` | `rehealth:insurance:assignment:view` | 责任链 + 变更日志 |
 | `GET` | `/rehealth/mobile/insurance/assignments/current` | App 登录态 | 当前 App 用户的活跃服务专员（脱敏展示） |
 | `POST` | `/rehealth/mobile/insurance/assignments/redeem`、`/scan` | App 登录态 | 预留契约，一期返回 `501`（二期实现） |
