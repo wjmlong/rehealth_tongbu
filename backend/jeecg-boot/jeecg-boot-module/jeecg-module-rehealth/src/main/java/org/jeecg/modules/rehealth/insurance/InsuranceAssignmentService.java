@@ -12,7 +12,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -32,6 +36,7 @@ public class InsuranceAssignmentService {
     private static final int MAX_PAGE_SIZE = 100;
     private static final int MAX_BATCH_SIZE = 200;
     private static final int MAX_HISTORY_LOGS = 200;
+    private static final String LEFT_ENROLLMENT_PREFIX = "enr-";
     private static final Set<String> ROLE_TYPES = Set.of("PRIMARY", "BACKUP", "TEMPORARY", "SUPERVISOR");
 
     private static final String EXCLUDE_PLATFORM_ADMINS = """
@@ -248,6 +253,83 @@ public class InsuranceAssignmentService {
                 ),
                 pageArgs.toArray());
         return new InsuranceAssignmentResponse.EnrollmentPage(total == null ? 0 : total, records);
+    }
+
+    /**
+     * Enroll registered APP users into the tenant by phone. For each phone this
+     * upserts the insurance subject (pseudonym {@code sha256(tenantId:userId)})
+     * and an active project enrollment, so the user appears in the enrollment
+     * pool and can be claimed afterwards. Already-enrolled users are updated,
+     * never duplicated.
+     */
+    @Transactional
+    public InsuranceAssignmentResponse.EnrollResult enrollUsers(
+            int tenantId, String operatorId, InsuranceAssignmentRequest.Enroll request
+    ) {
+        List<String> phones = request.phones();
+        if (phones == null || phones.isEmpty()) {
+            throw InsuranceApiException.badRequest("phones must contain at least one phone");
+        }
+        if (phones.size() > MAX_BATCH_SIZE) {
+            throw InsuranceApiException.badRequest("phones must not exceed " + MAX_BATCH_SIZE + " records");
+        }
+        String projectId = request.projectId() == null || request.projectId().isBlank()
+                ? ensureDefaultProject(tenantId)
+                : requireActiveProject(tenantId, request.projectId());
+        List<InsuranceAssignmentResponse.EnrollRecord> records = new ArrayList<>();
+        for (String rawPhone : phones) {
+            try {
+                String phone = required(rawPhone, "phone", 45);
+                String userId = userIdByPhone(phone);
+                String subjectRef = sha256(tenantId + ":" + userId);
+                LocalDateTime now = LocalDateTime.now();
+                jdbc.update("""
+                        INSERT INTO rehealth_insurance_subject
+                            (id, tenant_id, subject_ref, rehealth_user_id, enrollment_status, consent_status,
+                             consent_version, consented_at, source_system, source_record_id, metadata_json,
+                             created_at, updated_at)
+                        VALUES (?, ?, ?, ?, 'active', 'pending', NULL, NULL, 'rehealth_website', NULL, NULL, ?, ?)
+                        ON DUPLICATE KEY UPDATE
+                            enrollment_status = 'active', updated_at = VALUES(updated_at)
+                        """, uuid(), tenantId, subjectRef, userId, now, now);
+                String enrollmentId = LEFT_ENROLLMENT_PREFIX + subjectRef.substring(0, 60);
+                jdbc.update("""
+                        INSERT INTO rehealth_insurance_enrollment
+                            (id, tenant_id, project_id, subject_ref, rehealth_user_id, enrollment_status,
+                             consent_status, consent_version, consented_at, source_system, source_record_id,
+                             metadata_json, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, 'active', 'pending', NULL, NULL, 'rehealth_website', NULL, NULL, ?, ?)
+                        ON DUPLICATE KEY UPDATE
+                            project_id = VALUES(project_id), enrollment_status = 'active', updated_at = VALUES(updated_at)
+                        """, enrollmentId, tenantId, projectId, subjectRef, userId, now, now);
+                records.add(new InsuranceAssignmentResponse.EnrollRecord(phone, enrollmentId, "created", null));
+            } catch (InsuranceApiException e) {
+                records.add(new InsuranceAssignmentResponse.EnrollRecord(rawPhone, null, "error", e.getMessage()));
+            }
+        }
+        return new InsuranceAssignmentResponse.EnrollResult(phones.size(), records);
+    }
+
+    private String ensureDefaultProject(int tenantId) {
+        String projectId = "default-project-" + tenantId;
+        jdbc.update("""
+                INSERT INTO rehealth_insurance_project
+                    (id, tenant_id, project_no, name, status, start_date, end_date, created_at, updated_at)
+                VALUES (?, ?, ?, '默认服务项目', 'active', NULL, NULL, ?, ?)
+                ON DUPLICATE KEY UPDATE name = VALUES(name)
+                """, projectId, tenantId, "DEFAULT-" + tenantId, LocalDateTime.now(), LocalDateTime.now());
+        return projectId;
+    }
+
+    private String requireActiveProject(int tenantId, String projectId) {
+        Integer valid = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM rehealth_insurance_project
+                WHERE id = ? AND tenant_id = ? AND status = 'active'
+                """, Integer.class, projectId, tenantId);
+        if (valid == null || valid < 1) {
+            throw InsuranceApiException.badRequest("projectId 不是当前租户的有效项目");
+        }
+        return projectId.trim();
     }
 
     public InsuranceAssignmentResponse.History history(
@@ -641,6 +723,15 @@ public class InsuranceAssignmentService {
 
     private static String uuid() {
         return UUID.randomUUID().toString().replace("-", "");
+    }
+
+    private static String sha256(String value) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException("SHA-256 is unavailable", impossible);
+        }
     }
 
     private static String ts(java.sql.Timestamp timestamp) {

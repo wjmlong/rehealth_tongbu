@@ -28,6 +28,10 @@ public final class InsuranceAssignmentRequest {
     public record End(String reason) {
     }
 
+    /** Enroll one or more registered APP users into the tenant by phone. */
+    public record Enroll(List<String> phones, String projectId) {
+    }
+
     /** Reserved contract for the phase-2 invite-code flow. */
     public record InviteCode(String phone, Integer expiresInMinutes) {
     }

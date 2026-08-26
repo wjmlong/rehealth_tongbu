@@ -125,6 +125,37 @@ class InsuranceAssignmentServiceTest {
     }
 
     @Test
+    void enrollUsersCreatesSubjectAndEnrollmentPerPhone() {
+        when(jdbc.queryForObject(anyString(), eq(String.class), eq("13800000000"))).thenReturn("user-1");
+
+        InsuranceAssignmentResponse.EnrollResult result = service.enrollUsers(1001, "emp-1",
+                new InsuranceAssignmentRequest.Enroll(List.of("13800000000"), null));
+
+        assertEquals(1, result.requested());
+        assertEquals(1, result.records().size());
+        assertEquals("created", result.records().get(0).status());
+        assertTrue(result.records().get(0).enrollmentId().startsWith("enr-"));
+        ArgumentCaptor<Object[]> args = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbc, org.mockito.Mockito.times(3)).update(anyString(), args.capture());
+        List<Object[]> all = args.getAllValues();
+        assertTrue(all.stream().anyMatch(values -> values.length == 6 && "user-1".equals(values[3])));
+        assertTrue(all.stream().anyMatch(values -> values.length == 7 && "user-1".equals(values[4])));
+    }
+
+    @Test
+    void enrollUsersReportsUnknownPhonesAsPerRowErrors() {
+        when(jdbc.queryForObject(anyString(), eq(String.class), eq("13900000000")))
+                .thenThrow(new org.springframework.dao.EmptyResultDataAccessException(1));
+
+        InsuranceAssignmentResponse.EnrollResult result = service.enrollUsers(1001, "emp-1",
+                new InsuranceAssignmentRequest.Enroll(List.of("13900000000"), null));
+
+        assertEquals(1, result.requested());
+        assertEquals("error", result.records().get(0).status());
+        assertEquals("没有注册账号与该手机号匹配", result.records().get(0).message());
+    }
+
+    @Test
     void enrollmentPoolListsUnownedUsersFirstAndMarksCurrentOwners() {
         when(jdbc.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
         when(jdbc.query(anyString(),

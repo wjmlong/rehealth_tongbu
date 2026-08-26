@@ -150,6 +150,19 @@ public class InsuranceAssignmentController {
         });
     }
 
+    @PostMapping("/enrollments")
+    @RequiresPermissions(MANAGE_PERMISSION)
+    @Operation(summary = "Enroll registered APP users into the tenant by phone")
+    public ResponseEntity<Result<InsuranceAssignmentResponse.EnrollResult>> enrollUsers(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
+            @RequestBody InsuranceAssignmentRequest.Enroll request
+    ) {
+        return respond(() -> {
+            LoginUser user = currentUser();
+            return service.enrollUsers(tenantAccessGuard.requireTenant(user, tenantId), user.getId(), request);
+        });
+    }
+
     @GetMapping("/{enrollmentId}/history")
     @RequiresPermissions(VIEW_PERMISSION)
     @Operation(summary = "Get one enrollment's responsibility chain and change log")

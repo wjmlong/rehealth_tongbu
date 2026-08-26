@@ -60,6 +60,20 @@ public final class InsuranceAssignmentResponse {
     ) {
     }
 
+    public record EnrollRecord(
+            String phone,
+            String enrollmentId,
+            String status,
+            String message
+    ) {
+    }
+
+    public record EnrollResult(
+            int requested,
+            List<EnrollRecord> records
+    ) {
+    }
+
     public record TransferResult(
             int requested,
             int transferred,
