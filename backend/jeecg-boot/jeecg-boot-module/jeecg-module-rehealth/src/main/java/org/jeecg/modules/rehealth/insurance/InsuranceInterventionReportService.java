@@ -103,13 +103,26 @@ public class InsuranceInterventionReportService {
     }
 
     public ReportData reportData(int tenantId, String managerUserId, int periodDays) {
+        List<InsuranceInterventionWorkbenchService.Identity> identities =
+                workbench.identities(tenantId, managerUserId, null, Integer.MAX_VALUE, 0);
+        return reportData(tenantId, periodDays, identities);
+    }
+
+    //update-begin---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】人群报告范围切到新服务关系表-----------
+    public ReportData reportData(int tenantId, InsuranceAssignmentScope scope, int periodDays) {
+        List<InsuranceInterventionWorkbenchService.Identity> identities =
+                workbench.identities(tenantId, scope, null, Integer.MAX_VALUE, 0);
+        return reportData(tenantId, periodDays, identities);
+    }
+
+    private ReportData reportData(
+            int tenantId, int periodDays, List<InsuranceInterventionWorkbenchService.Identity> identities
+    ) {
+        //update-end---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】人群报告范围切到新服务关系表-----------
         int window = Math.min(MAX_PERIOD_DAYS, Math.max(MIN_PERIOD_DAYS, periodDays <= 0 ? DEFAULT_PERIOD_DAYS : periodDays));
         LocalDate today = LocalDate.ofInstant(clock.instant(), zoneId);
         LocalDate windowStart = today.minusDays(window);
         LocalDate funnelStart = today.minusDays(FUNNEL_WINDOW_DAYS);
-
-        List<InsuranceInterventionWorkbenchService.Identity> identities =
-                workbench.identities(tenantId, managerUserId, null, Integer.MAX_VALUE, 0);
         List<InsuranceInterventionWorkbenchResponse.SubjectSummary> summaries = identities.stream()
                 .map(identity -> workbench.summary(tenantId, identity))
                 .toList();

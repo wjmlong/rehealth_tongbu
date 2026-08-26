@@ -41,18 +41,47 @@ import java.util.UUID;
 @ConditionalOnProperty(name = "rehealth.software-db.enabled", havingValue = "true")
 public class InsuranceInterventionWorkbenchService {
     private static final ZoneId DEFAULT_ZONE = ZoneId.of("Asia/Shanghai");
-    private static final String SCOPE_SQL = """
-            FROM rehealth_insurance_subject subject
-            INNER JOIN rehealth_insurance_subject_manager scope
-              ON scope.tenant_id = subject.tenant_id
-             AND scope.subject_ref = subject.subject_ref
-             AND scope.manager_user_id = ?
-             AND scope.status = 'active'
-            LEFT JOIN rehealth_patient_profile profile
-              ON profile.user_id = subject.rehealth_user_id COLLATE utf8mb4_0900_ai_ci
-            WHERE subject.tenant_id = ? AND subject.enrollment_status = 'active'
-              AND subject.consent_status = 'granted'
-            """;
+    //update-begin---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】工作台范围切到新服务关系表并支持三级范围-----------
+    private static String scopeSql(InsuranceAssignmentScope scope) {
+        StringBuilder sql = new StringBuilder("""
+                FROM rehealth_insurance_subject subject
+                INNER JOIN rehealth_insurance_enrollment enrollment
+                  ON enrollment.tenant_id = subject.tenant_id
+                 AND enrollment.subject_ref = subject.subject_ref
+                INNER JOIN rehealth_insurance_user_assignment assignment
+                  ON assignment.enrollment_id = enrollment.id
+                 AND assignment.status = 'active'
+                """);
+        if (scope != null) {
+            sql.append("""
+                      AND (assignment.employee_id = ?
+                           OR (? = 'TEAM' AND EXISTS (
+                               SELECT 1 FROM sys_user_depart my_dept
+                               JOIN sys_user_depart assignee_dept ON assignee_dept.dep_id = my_dept.dep_id
+                               WHERE my_dept.user_id = ? AND assignee_dept.user_id = CONVERT(assignment.employee_id USING utf8mb3) COLLATE utf8mb3_general_ci
+                           )))
+                    """);
+        }
+        sql.append("""
+                LEFT JOIN rehealth_patient_profile profile
+                  ON profile.user_id = subject.rehealth_user_id COLLATE utf8mb4_0900_ai_ci
+                WHERE subject.tenant_id = ? AND subject.enrollment_status = 'active'
+                  AND subject.consent_status = 'granted'
+                """);
+        return sql.toString();
+    }
+
+    private static Object[] scopeArgs(int tenantId, InsuranceAssignmentScope scope) {
+        if (scope == null) {
+            return new Object[]{tenantId};
+        }
+        return new Object[]{scope.userId(), scope.mode(), scope.userId(), tenantId};
+    }
+
+    private static InsuranceAssignmentScope selfScope(String managerUserId) {
+        return managerUserId == null ? null : new InsuranceAssignmentScope(managerUserId, InsuranceAssignmentScope.MODE_SELF);
+    }
+    //update-end---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】工作台范围切到新服务关系表并支持三级范围-----------
     private static final Set<String> ACTION_STATUSES = Set.of("pending", "in_progress", "completed", "cancelled");
     static final int MIN_INTERVENTION_DAYS = 7;
 
@@ -98,8 +127,8 @@ public class InsuranceInterventionWorkbenchService {
         this.zoneId = zoneId;
     }
 
-    public InsuranceInterventionWorkbenchResponse.Dashboard dashboard(int tenantId, String managerUserId) {
-        List<Identity> identities = identities(tenantId, managerUserId, null, Integer.MAX_VALUE, 0);
+    public InsuranceInterventionWorkbenchResponse.Dashboard dashboard(int tenantId, InsuranceAssignmentScope scope) {
+        List<Identity> identities = identities(tenantId, scope, null, Integer.MAX_VALUE, 0);
         List<InsuranceInterventionWorkbenchResponse.SubjectSummary> summaries = identities.stream()
                 .map(value -> summary(tenantId, value)).toList();
         long pendingAction = summaries.stream().filter(v -> "pending_action".equals(v.workflowStatus())).count();
@@ -121,12 +150,16 @@ public class InsuranceInterventionWorkbenchService {
                 improved, adherence, updated);
     }
 
+    public InsuranceInterventionWorkbenchResponse.Dashboard dashboard(int tenantId, String managerUserId) {
+        return dashboard(tenantId, selfScope(managerUserId));
+    }
+
     public InsuranceInterventionWorkbenchResponse.SubjectPage subjects(
-            int tenantId, String managerUserId, int pageNo, int pageSize, String keyword, String workflowStatus
+            int tenantId, InsuranceAssignmentScope scope, int pageNo, int pageSize, String keyword, String workflowStatus
     ) {
         int safePage = Math.max(1, pageNo);
         int safeSize = Math.min(100, Math.max(1, pageSize));
-        List<Identity> all = identities(tenantId, managerUserId, keyword, Integer.MAX_VALUE, 0);
+        List<Identity> all = identities(tenantId, scope, keyword, Integer.MAX_VALUE, 0);
         List<InsuranceInterventionWorkbenchResponse.SubjectSummary> summaries = all.stream()
                 .map(value -> summary(tenantId, value))
                 .filter(value -> workflowStatus == null || workflowStatus.isBlank()
@@ -140,10 +173,16 @@ public class InsuranceInterventionWorkbenchService {
                 "assigned_subjects", safePage, safeSize, summaries.size(), summaries.subList(from, to));
     }
 
-    public InsuranceInterventionWorkbenchResponse.SubjectDetail subject(
-            int tenantId, String managerUserId, String subjectId
+    public InsuranceInterventionWorkbenchResponse.SubjectPage subjects(
+            int tenantId, String managerUserId, int pageNo, int pageSize, String keyword, String workflowStatus
     ) {
-        Identity identity = requireIdentity(tenantId, managerUserId, subjectId);
+        return subjects(tenantId, selfScope(managerUserId), pageNo, pageSize, keyword, workflowStatus);
+    }
+
+    public InsuranceInterventionWorkbenchResponse.SubjectDetail subject(
+            int tenantId, InsuranceAssignmentScope scope, String subjectId
+    ) {
+        Identity identity = requireIdentity(tenantId, scope, subjectId);
         InsuranceInterventionWorkbenchResponse.SubjectSummary summary = summary(tenantId, identity);
         RiskSnapshot latestRisk = latestRisk(identity.userId());
         InsuranceInterventionWorkbenchResponse.Attribution attribution = attribution(identity.userId());
@@ -157,6 +196,12 @@ public class InsuranceInterventionWorkbenchService {
                         ? "当前风险或干预包含演练数据，不可作为真实改善结论。"
                         : evidenceNotice(attribution)
         );
+    }
+
+    public InsuranceInterventionWorkbenchResponse.SubjectDetail subject(
+            int tenantId, String managerUserId, String subjectId
+    ) {
+        return subject(tenantId, selfScope(managerUserId), subjectId);
     }
 
     List<InsuranceInterventionWorkbenchResponse.HealthMetric> healthMetrics(String userId) {
@@ -267,12 +312,19 @@ public class InsuranceInterventionWorkbenchService {
         return (userId, limit) -> new RecentTelemetryResponseDto();
     }
 
+    private static Object[] concat(Object[] head, Object... tail) {
+        Object[] result = new Object[head.length + tail.length];
+        System.arraycopy(head, 0, result, 0, head.length);
+        System.arraycopy(tail, 0, result, head.length, tail.length);
+        return result;
+    }
+
     @Transactional
     public InsuranceInterventionWorkbenchResponse.Action createAction(
-            int tenantId, String managerUserId, String actorUserId, String subjectId,
+            int tenantId, InsuranceAssignmentScope scope, String actorUserId, String subjectId,
             InsuranceInterventionWorkbenchRequest.CreateAction request
     ) {
-        Identity identity = requireIdentity(tenantId, managerUserId, subjectId);
+        Identity identity = requireIdentity(tenantId, scope, subjectId);
         if (request == null) throw InsuranceApiException.badRequest("action request is required");
         String type = required(request.actionType(), "action_type", 32);
         String title = required(request.title(), "title", 255);
@@ -304,8 +356,16 @@ public class InsuranceInterventionWorkbenchService {
     }
 
     @Transactional
+    public InsuranceInterventionWorkbenchResponse.Action createAction(
+            int tenantId, String managerUserId, String actorUserId, String subjectId,
+            InsuranceInterventionWorkbenchRequest.CreateAction request
+    ) {
+        return createAction(tenantId, selfScope(managerUserId), actorUserId, subjectId, request);
+    }
+
+    @Transactional
     public InsuranceInterventionWorkbenchResponse.BatchActions createActions(
-            int tenantId, String managerUserId, String actorUserId,
+            int tenantId, InsuranceAssignmentScope scope, String actorUserId,
             InsuranceInterventionWorkbenchRequest.BatchCreateAction request
     ) {
         if (request == null) throw InsuranceApiException.badRequest("batch action request is required");
@@ -320,7 +380,7 @@ public class InsuranceInterventionWorkbenchService {
             throw InsuranceApiException.badRequest("subject_ids must not contain more than 100 subjects");
         }
         String requestId = required(request.requestId(), "request_id", 100);
-        subjectIds.forEach(subjectId -> requireIdentity(tenantId, managerUserId, subjectId));
+        subjectIds.forEach(subjectId -> requireIdentity(tenantId, scope, subjectId));
 
         List<InsuranceInterventionWorkbenchResponse.Action> actions = new ArrayList<>(subjectIds.size());
         for (int index = 0; index < subjectIds.size(); index++) {
@@ -333,14 +393,22 @@ public class InsuranceInterventionWorkbenchService {
                     request.dueAt(),
                     requestId + "-" + (index + 1)
             );
-            actions.add(createAction(tenantId, managerUserId, actorUserId, subjectIds.get(index), action));
+            actions.add(createAction(tenantId, scope, actorUserId, subjectIds.get(index), action));
         }
         return new InsuranceInterventionWorkbenchResponse.BatchActions(subjectIds.size(), actions.size(), actions);
     }
 
     @Transactional
+    public InsuranceInterventionWorkbenchResponse.BatchActions createActions(
+            int tenantId, String managerUserId, String actorUserId,
+            InsuranceInterventionWorkbenchRequest.BatchCreateAction request
+    ) {
+        return createActions(tenantId, selfScope(managerUserId), actorUserId, request);
+    }
+
+    @Transactional
     public InsuranceInterventionWorkbenchResponse.Action updateAction(
-            int tenantId, String managerUserId, String actorUserId, String actionId,
+            int tenantId, InsuranceAssignmentScope scope, String actorUserId, String actionId,
             InsuranceInterventionWorkbenchRequest.UpdateAction request
     ) {
         String subjectRef = jdbc.query("""
@@ -348,7 +416,7 @@ public class InsuranceInterventionWorkbenchService {
                 WHERE tenant_id=? AND id=? LIMIT 1
                 """, (rs, row) -> rs.getString(1), tenantId, required(actionId, "actionId", 64))
                 .stream().findFirst().orElseThrow(() -> InsuranceApiException.notFound("intervention action was not found"));
-        requireIdentity(tenantId, managerUserId, subjectRef);
+        requireIdentity(tenantId, scope, subjectRef);
         if (request == null) throw InsuranceApiException.badRequest("action request is required");
         String status = required(request.status(), "status", 32).toLowerCase();
         if (!ACTION_STATUSES.contains(status)) throw InsuranceApiException.badRequest("unsupported action status");
@@ -368,30 +436,46 @@ public class InsuranceInterventionWorkbenchService {
         return after;
     }
 
+    @Transactional
+    public InsuranceInterventionWorkbenchResponse.Action updateAction(
+            int tenantId, String managerUserId, String actorUserId, String actionId,
+            InsuranceInterventionWorkbenchRequest.UpdateAction request
+    ) {
+        return updateAction(tenantId, selfScope(managerUserId), actorUserId, actionId, request);
+    }
+
     //update-begin---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】包内可见,供人群报告服务复用负责关系范围------------
-    List<Identity> identities(int tenantId, String managerUserId, String keyword, int limit, int offset) {
+    List<Identity> identities(int tenantId, InsuranceAssignmentScope scope, String keyword, int limit, int offset) {
     //update-end---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】包内可见,供人群报告服务复用负责关系范围------------
         String like = keyword == null || keyword.isBlank() ? null : "%" + keyword.trim() + "%";
         return jdbc.query("""
                 SELECT subject.subject_ref, subject.rehealth_user_id, profile.name,
                        profile.age, profile.gender, profile.bmi
-                """ + SCOPE_SQL + """
-                  AND (? IS NULL OR profile.name LIKE ? OR subject.subject_ref = ?)
+                """ + scopeSql(scope) + """
+                  AND (? IS NULL OR profile.name LIKE ?)
                 ORDER BY profile.name, subject.subject_ref LIMIT ? OFFSET ?
                 """, (rs, row) -> new Identity(rs.getString(1), rs.getString(2), rs.getString(3),
                         nullableInteger(rs, 4), rs.getString(5), rs.getBigDecimal(6)),
-                managerUserId, tenantId, like, like, keyword, limit, offset);
+                concat(scopeArgs(tenantId, scope), like, like, limit, offset));
     }
 
-    private Identity requireIdentity(int tenantId, String managerUserId, String subjectId) {
+    List<Identity> identities(int tenantId, String managerUserId, String keyword, int limit, int offset) {
+        return identities(tenantId, selfScope(managerUserId), keyword, limit, offset);
+    }
+
+    private Identity requireIdentity(int tenantId, InsuranceAssignmentScope scope, String subjectId) {
         String normalized = required(subjectId, "subjectId", 64);
         return jdbc.query("SELECT subject.subject_ref, subject.rehealth_user_id, profile.name, "
-                        + "profile.age, profile.gender, profile.bmi " + SCOPE_SQL
+                        + "profile.age, profile.gender, profile.bmi " + scopeSql(scope)
                         + " AND subject.subject_ref = ? LIMIT 1",
                 (rs, row) -> new Identity(rs.getString(1), rs.getString(2), rs.getString(3),
                         nullableInteger(rs, 4), rs.getString(5), rs.getBigDecimal(6)),
-                managerUserId, tenantId, normalized).stream().findFirst()
+                concat(scopeArgs(tenantId, scope), normalized)).stream().findFirst()
                 .orElseThrow(() -> InsuranceApiException.notFound("assigned insurance subject was not found"));
+    }
+
+    private Identity requireIdentity(int tenantId, String managerUserId, String subjectId) {
+        return requireIdentity(tenantId, selfScope(managerUserId), subjectId);
     }
 
     //update-begin---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】包内可见,供人群报告服务复用主体摘要聚合------------
@@ -616,17 +700,21 @@ public class InsuranceInterventionWorkbenchService {
     }
 
     private Owner owner(int tenantId, String subjectRef) {
+        //update-begin---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】负责人展示改读新服务关系表-----------
         return jdbc.query("""
                 SELECT account.realname, department.depart_name
-                FROM rehealth_insurance_subject_manager manager
+                FROM rehealth_insurance_user_assignment assignment
+                JOIN rehealth_insurance_enrollment enrollment ON enrollment.id = assignment.enrollment_id
                 LEFT JOIN sys_user account
-                  ON account.id = CONVERT(manager.manager_user_id USING utf8mb3) COLLATE utf8mb3_general_ci
-                LEFT JOIN sys_depart department
-                  ON department.id = CONVERT(manager.department_id USING utf8mb3) COLLATE utf8mb3_general_ci
-                WHERE manager.tenant_id=? AND manager.subject_ref=? AND manager.status='active'
-                ORDER BY manager.updated_at DESC LIMIT 1
+                  ON account.id = CONVERT(assignment.employee_id USING utf8mb3) COLLATE utf8mb3_general_ci
+                LEFT JOIN sys_user_depart membership ON membership.user_id = CONVERT(assignment.employee_id USING utf8mb3) COLLATE utf8mb3_general_ci
+                LEFT JOIN sys_depart department ON department.id = membership.dep_id AND department.tenant_id = assignment.tenant_id
+                WHERE assignment.tenant_id=? AND enrollment.subject_ref=? AND assignment.status='active'
+                  AND assignment.role_type='PRIMARY'
+                ORDER BY assignment.start_time DESC LIMIT 1
                 """, (rs, row) -> new Owner(rs.getString(1), rs.getString(2)), tenantId, subjectRef)
                 .stream().findFirst().orElse(null);
+        //update-end---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】负责人展示改读新服务关系表-----------
     }
 
     private CurrentIntervention currentIntervention(int tenantId, Identity identity) {

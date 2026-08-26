@@ -51,7 +51,7 @@ public class InsuranceInterventionWorkbenchController {
     ) {
         return respond(() -> {
             Context context = context(tenantHeader);
-            return service.dashboard(context.tenantId(), context.user().getId());
+            return service.dashboard(context.tenantId(), context.scope());
         });
     }
 
@@ -67,7 +67,7 @@ public class InsuranceInterventionWorkbenchController {
     ) {
         return respond(() -> {
             Context context = context(tenantHeader);
-            return service.subjects(context.tenantId(), context.user().getId(), pageNo, pageSize, keyword, workflowStatus);
+            return service.subjects(context.tenantId(), context.scope(), pageNo, pageSize, keyword, workflowStatus);
         });
     }
 
@@ -80,7 +80,7 @@ public class InsuranceInterventionWorkbenchController {
     ) {
         return respond(() -> {
             Context context = context(tenantHeader);
-            return service.subject(context.tenantId(), context.user().getId(), subjectId);
+            return service.subject(context.tenantId(), context.scope(), subjectId);
         });
     }
 
@@ -94,7 +94,7 @@ public class InsuranceInterventionWorkbenchController {
     ) {
         return respond(() -> {
             Context context = context(tenantHeader);
-            return reportService.reportData(context.tenantId(), context.user().getId(), periodDays);
+            return reportService.reportData(context.tenantId(), context.scope(), periodDays);
         });
     }
     //update-end---author:rehealth ---date:2026-08-24  for：【需求:干预效果评估报告】人群级干预效果评估报告数据聚合端点------------
@@ -109,7 +109,7 @@ public class InsuranceInterventionWorkbenchController {
     ) {
         return respond(() -> {
             Context context = context(tenantHeader);
-            return service.createAction(context.tenantId(), context.user().getId(), context.user().getId(), subjectId, request);
+            return service.createAction(context.tenantId(), context.scope(), context.user().getId(), subjectId, request);
         });
     }
 
@@ -122,7 +122,7 @@ public class InsuranceInterventionWorkbenchController {
     ) {
         return respond(() -> {
             Context context = context(tenantHeader);
-            return service.createActions(context.tenantId(), context.user().getId(), context.user().getId(), request);
+            return service.createActions(context.tenantId(), context.scope(), context.user().getId(), request);
         });
     }
 
@@ -136,15 +136,15 @@ public class InsuranceInterventionWorkbenchController {
     ) {
         return respond(() -> {
             Context context = context(tenantHeader);
-            return service.updateAction(context.tenantId(), context.user().getId(), context.user().getId(), actionId, request);
+            return service.updateAction(context.tenantId(), context.scope(), context.user().getId(), actionId, request);
         });
     }
 
     private Context context(String tenantHeader) {
         LoginUser user = currentUser();
         int tenantId = tenantAccessGuard.requireTenant(user, tenantHeader);
-        tenantAccessGuard.responsibilityScope(user, tenantId);
-        return new Context(tenantId, user);
+        InsuranceAssignmentScope scope = tenantAccessGuard.assignmentScope(user, tenantId);
+        return new Context(tenantId, user, scope);
     }
 
     private LoginUser currentUser() {
@@ -161,5 +161,5 @@ public class InsuranceInterventionWorkbenchController {
         }
     }
 
-    private record Context(int tenantId, LoginUser user) {}
+    private record Context(int tenantId, LoginUser user, InsuranceAssignmentScope scope) {}
 }

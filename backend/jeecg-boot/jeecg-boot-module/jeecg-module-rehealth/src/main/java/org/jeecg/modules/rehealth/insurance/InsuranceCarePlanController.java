@@ -59,7 +59,7 @@ public class InsuranceCarePlanController {
         return respond(() -> {
             Context context = context(tenantHeader);
             InsuranceCarePlanSubjectAccess.Subject subject = subjectAccess.requireAssigned(
-                    context.tenantId(), context.user().getId(), subjectId);
+                    context.tenantId(), context.scope(), subjectId);
             return versionService.list(context.tenantId(), OWNER_TYPE, subject.subjectRef());
         });
     }
@@ -75,7 +75,7 @@ public class InsuranceCarePlanController {
         return respond(() -> {
             Context context = context(tenantHeader);
             InsuranceCarePlanSubjectAccess.Subject subject = subjectAccess.requireAssigned(
-                    context.tenantId(), context.user().getId(), subjectId);
+                    context.tenantId(), context.scope(), subjectId);
             return versionService.createDraft(
                     context.tenantId(), OWNER_TYPE, Integer.toString(context.tenantId()),
                     subject.subjectRef(), subject.rehealthUserId(), context.user().getId(), request);
@@ -173,15 +173,15 @@ public class InsuranceCarePlanController {
     private Context authorizePlan(String tenantHeader, String planId) {
         Context context = context(tenantHeader);
         String subjectRef = versionService.subjectRef(context.tenantId(), OWNER_TYPE, planId);
-        subjectAccess.requireAssigned(context.tenantId(), context.user().getId(), subjectRef);
+        subjectAccess.requireAssigned(context.tenantId(), context.scope(), subjectRef);
         return context;
     }
 
     private Context context(String tenantHeader) {
         LoginUser user = currentUser();
         int tenantId = tenantAccessGuard.requireTenant(user, tenantHeader);
-        tenantAccessGuard.responsibilityScope(user, tenantId);
-        return new Context(tenantId, user);
+        InsuranceAssignmentScope scope = tenantAccessGuard.assignmentScope(user, tenantId);
+        return new Context(tenantId, user, scope);
     }
 
     private LoginUser currentUser() {
@@ -200,6 +200,6 @@ public class InsuranceCarePlanController {
         }
     }
 
-    private record Context(int tenantId, LoginUser user) {
+    private record Context(int tenantId, LoginUser user, InsuranceAssignmentScope scope) {
     }
 }
