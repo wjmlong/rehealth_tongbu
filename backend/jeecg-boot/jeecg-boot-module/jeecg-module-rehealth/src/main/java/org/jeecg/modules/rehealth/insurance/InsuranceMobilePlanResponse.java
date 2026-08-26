@@ -9,6 +9,7 @@ public record InsuranceMobilePlanResponse(
         String policyId,
         String policyNo,
         String planId,
+        String planName,
         String consentId,
         String consentVersion,
         String status,

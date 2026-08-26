@@ -180,7 +180,7 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | `POST` | `/rehealth/mobile/insurance/plans/bind` | 授权并绑定保险计划。**零输入**：`tenantId/policyNo/planId` 均可省略——服务端按当前用户自动选参保租户、自动选有效保单、按保单 `default_plan_id` 自动选计划；多租户/多保单时要求显式指定。`consentVersion` 必填（用户勾选同意的证据） |
-| `GET` | `/rehealth/mobile/insurance/plans/bindable-policies` | 当前用户可绑定的候选保单（保单号脱敏、含 default_plan_id 与 hasPlan 标记），供 App 一键绑定界面展示 |
+| `GET` | `/rehealth/mobile/insurance/plans/bindable-policies` | 当前用户可绑定的候选保单（保单号脱敏、含 default_plan_id 与计划名称 planName），供 App 一键绑定界面展示 |
 | `GET` | `/rehealth/mobile/insurance/plans/current` | 查询当前有效计划 |
 | `GET` | `/rehealth/mobile/insurance/plans/active` | 返回当前 APP 用户在所有有效保险服务关系中的有效绑定数组（每条含 `tenantId`） |
 | `POST` | `/rehealth/mobile/insurance/plans/{bindingId}/feedback` | 幂等回传完成率、依从性和有界结果摘要 |
@@ -250,3 +250,15 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 数据范围（SQL 层强制）：普通员工只看自己名下的关系（SELF）；部门主管看本部门所有员工负责的用户（TEAM）；机构管理员与审计员全机构（审计员只读+脱敏+日志可见）。风险接口（`/rehealth/insurance/v1/dashboard/risk`、`/insureds`）的负责人过滤已切到 `rehealth_insurance_user_assignment` + `rehealth_insurance_enrollment`；旧 `rehealth_insurance_subject_manager` 保留只读过渡，其写接口 `PUT /settings/assignments/{subjectRef}` 已停用（返回 `501` 引导使用新接口）。
 
 官网 BFF 透传路径：`/api/insurer/assignments/mine|department|claim|transfer|{id}/end|{enrollmentId}/history`（`frontend/insurer_assignments.html` 为"我的客户"页）。App 在"我的"页展示服务专员卡片，只读、不落 Room。
+
+## 10. 计划目录 API
+
+产品级健康计划目录：保单导入时的 `default_plan_id` 引用 `plan_id`，App 绑定后展示计划名称（`planName`）。
+
+| 方法 | 路径 | 权限 | 说明 |
+| --- | --- | --- | --- |
+| `GET` | `/rehealth/insurance/v1/plans` | `rehealth:insurance:care-plan:view` | 列出当前租户计划目录（planId/名称/说明/状态） |
+| `POST` | `/rehealth/insurance/v1/plans` | `rehealth:insurance:care-plan:manage` | 新增计划（planId 租户内唯一） |
+
+官网 BFF 透传：`GET/POST /api/insurer/plans`（"我的客户"页顶部「计划目录」弹窗）。
+给用户挂计划的两种方式：① **产品级**——导入/编辑保单时指定 `default_plan_id`（目录中的计划），用户 App 一键绑定即生效；② **实例级**——对已授权用户创建并发布关怀计划（`POST /rehealth/insurance/v1/interventions/{subjectId}/care-plans` → `publish`）。

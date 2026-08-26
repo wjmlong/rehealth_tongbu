@@ -6,14 +6,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jeecg.modules.rehealth.insurance.entity.InsuranceConsentRecordEntity;
 import org.jeecg.modules.rehealth.insurance.entity.InsuranceInterventionFeedbackEntity;
 import org.jeecg.modules.rehealth.insurance.entity.InsurancePlanBindingEntity;
+import org.jeecg.modules.rehealth.insurance.entity.InsurancePlanCatalogEntity;
 import org.jeecg.modules.rehealth.insurance.entity.InsurancePolicyEntity;
 import org.jeecg.modules.rehealth.insurance.entity.InsuranceSubjectEntity;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceConsentRecordMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceInterventionFeedbackMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsurancePlanBindingMapper;
+import org.jeecg.modules.rehealth.insurance.mapper.InsurancePlanCatalogMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsurancePolicyMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceSubjectMapper;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,7 +47,28 @@ public class InsuranceMobilePlanService {
     private final InsurancePlanBindingMapper bindingMapper;
     private final InsuranceInterventionFeedbackMapper feedbackMapper;
     private final ObjectMapper objectMapper;
+    private final InsurancePlanCatalogMapper catalogMapper;
 
+    @Autowired
+    public InsuranceMobilePlanService(
+            InsuranceSubjectMapper subjectMapper,
+            InsurancePolicyMapper policyMapper,
+            InsuranceConsentRecordMapper consentMapper,
+            InsurancePlanBindingMapper bindingMapper,
+            InsuranceInterventionFeedbackMapper feedbackMapper,
+            ObjectMapper objectMapper,
+            InsurancePlanCatalogMapper catalogMapper
+    ) {
+        this.subjectMapper = subjectMapper;
+        this.policyMapper = policyMapper;
+        this.consentMapper = consentMapper;
+        this.bindingMapper = bindingMapper;
+        this.feedbackMapper = feedbackMapper;
+        this.objectMapper = objectMapper;
+        this.catalogMapper = catalogMapper;
+    }
+
+    /** Constructor kept for focused service tests without the plan catalog. */
     public InsuranceMobilePlanService(
             InsuranceSubjectMapper subjectMapper,
             InsurancePolicyMapper policyMapper,
@@ -53,12 +77,7 @@ public class InsuranceMobilePlanService {
             InsuranceInterventionFeedbackMapper feedbackMapper,
             ObjectMapper objectMapper
     ) {
-        this.subjectMapper = subjectMapper;
-        this.policyMapper = policyMapper;
-        this.consentMapper = consentMapper;
-        this.bindingMapper = bindingMapper;
-        this.feedbackMapper = feedbackMapper;
-        this.objectMapper = objectMapper;
+        this(subjectMapper, policyMapper, consentMapper, bindingMapper, feedbackMapper, objectMapper, null);
     }
 
     @Transactional
@@ -221,6 +240,7 @@ public class InsuranceMobilePlanService {
                         masked,
                         policy.getProductName(),
                         policy.getDefaultPlanId(),
+                        planName(subject.getTenantId(), policy.getDefaultPlanId()),
                         policy.getDefaultPlanId() != null && !policy.getDefaultPlanId().isBlank()));
             }
         }
@@ -393,9 +413,24 @@ public class InsuranceMobilePlanService {
             InsurancePlanBindingEntity binding, InsurancePolicyEntity policy, InsuranceConsentRecordEntity consent
     ) {
         return new InsuranceMobilePlanResponse(binding.getTenantId(), binding.getId(), binding.getSubjectRef(), binding.getPolicyId(),
-                policy == null ? null : policy.getPolicyNo(), binding.getPlanId(), binding.getConsentId(),
+                policy == null ? null : policy.getPolicyNo(), binding.getPlanId(),
+                planName(binding.getTenantId(), binding.getPlanId()), binding.getConsentId(),
                 consent == null ? null : consent.getConsentVersion(), binding.getStatus(), binding.getBoundAt());
     }
+
+    //update-begin---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】绑定展示计划名称-----------
+    private String planName(Integer tenantId, String planId) {
+        if (catalogMapper == null || tenantId == null || planId == null || planId.isBlank()) {
+            return null;
+        }
+        InsurancePlanCatalogEntity entity = catalogMapper.selectOne(
+                new LambdaQueryWrapper<InsurancePlanCatalogEntity>()
+                        .eq(InsurancePlanCatalogEntity::getTenantId, tenantId)
+                        .eq(InsurancePlanCatalogEntity::getPlanId, planId)
+                        .last("LIMIT 1"));
+        return entity == null ? null : entity.getName();
+    }
+    //update-end---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】绑定展示计划名称-----------
 
     private void requireActiveTenant(int tenantId) {
         if (subjectMapper.countActiveTenant(tenantId) < 1) {

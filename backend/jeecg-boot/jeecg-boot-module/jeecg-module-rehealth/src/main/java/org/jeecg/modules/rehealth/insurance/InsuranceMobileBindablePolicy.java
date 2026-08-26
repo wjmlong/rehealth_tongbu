@@ -11,6 +11,7 @@ public record InsuranceMobileBindablePolicy(
         String policyNoMasked,
         String productName,
         String defaultPlanId,
+        String planName,
         boolean hasPlan
 ) {
 }

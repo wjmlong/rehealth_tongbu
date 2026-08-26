@@ -16,7 +16,7 @@ data class InsurancePlanBindRequestDto(
     val metadata: Map<String, String> = emptyMap(),
 )
 
-/** 零输入绑定的候选保单（服务端按当前用户聚合，保单号已脱敏）。 */
+/** 零输入绑定的候选保单（服务端按当前用户聚合，保单号已脱敏，含计划名称）。 */
 @JsonClass(generateAdapter = true)
 data class InsuranceMobileBindablePolicyDto(
     val tenantId: Int,
@@ -24,6 +24,7 @@ data class InsuranceMobileBindablePolicyDto(
     val policyNoMasked: String,
     val productName: String? = null,
     val defaultPlanId: String? = null,
+    val planName: String? = null,
     val hasPlan: Boolean = false,
 )
 
@@ -35,6 +36,7 @@ data class InsurancePlanBindingDto(
     val policyId: String,
     val policyNo: String,
     val planId: String,
+    val planName: String? = null,
     val consentId: String,
     val consentVersion: String,
     val status: String,

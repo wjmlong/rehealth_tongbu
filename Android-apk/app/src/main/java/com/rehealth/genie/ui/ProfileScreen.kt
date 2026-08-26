@@ -277,8 +277,8 @@ internal fun ProfileScreen(
                 if (planBindingState.bindings.isNotEmpty()) {
                     Text("已加入的机构计划", color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
                     planBindingState.bindings.forEach { binding ->
-                        StatusRow("已加入计划", binding.policyNo.takeIf { it.isNotBlank() } ?: "健康管理计划")
-                        StatusRow("授权版本", binding.consentVersion)
+                        StatusRow("计划名称", binding.planName ?: binding.planId)
+                        StatusRow("保单", binding.policyNo.takeIf { it.isNotBlank() } ?: "—")
                         StatusRow("状态", if (binding.status == "ACTIVE") "生效中" else binding.status)
                     }
                 }
@@ -305,7 +305,7 @@ internal fun ProfileScreen(
                         ) {
                             Column(Modifier.weight(1f)) {
                                 Text(
-                                    candidate.productName ?: "健康保险",
+                                    candidate.planName ?: candidate.productName ?: "健康保险",
                                     color = Ink,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold,
