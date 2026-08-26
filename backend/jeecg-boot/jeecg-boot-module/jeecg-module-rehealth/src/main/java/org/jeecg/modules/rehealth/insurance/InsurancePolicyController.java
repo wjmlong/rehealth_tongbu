@@ -10,6 +10,8 @@ import org.jeecg.common.system.vo.LoginUser;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -73,6 +75,23 @@ public class InsurancePolicyController {
             return service.dispatchableSubjects(tenant, scope, keyword);
         });
     }
+
+    //update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧两步式保单派发】按手机号分配保单-----------
+    @PostMapping("/assign")
+    @RequiresPermissions(IMPORT_PERMISSION)
+    @Operation(summary = "Assign an unassigned policy to an APP user by phone")
+    public ResponseEntity<Result<InsurancePolicyResponse.AssignResult>> assign(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
+            @RequestBody InsurancePolicyResponse.AssignRequest request
+    ) {
+        return respond(() -> {
+            LoginUser user = currentUser();
+            int tenant = tenantAccessGuard.requireTenant(user, tenantId);
+            InsuranceAssignmentScope scope = tenantAccessGuard.assignmentScopeOrNull(user, tenant);
+            return service.assign(tenant, scope, request);
+        });
+    }
+    //update-end---author:ai-agent ---date:2026-08-26  for：【保险侧两步式保单派发】按手机号分配保单-----------
 
     private LoginUser currentUser() {
         Object principal = SecurityUtils.getSubject().getPrincipal();

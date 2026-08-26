@@ -31,6 +31,10 @@ public class InsurancePolicyEntity {
     private String policyholderSubjectRef;
     @TableField("insured_subject_ref")
     private String insuredSubjectRef;
+    //update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧两步式保单派发】分配时间-----------
+    @TableField("assigned_at")
+    private LocalDateTime assignedAt;
+    //update-end---author:ai-agent ---date:2026-08-26  for：【保险侧两步式保单派发】分配时间-----------
     @TableField("coverage_amount")
     private BigDecimal coverageAmount;
     @TableField("premium_amount")

@@ -1,14 +1,16 @@
 package org.jeecg.modules.rehealth.insurance;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
  * Responses for the insurance-side policy dispatch interface: the tenant
- * policy list (scoped to the current staff's responsibility range) and the
- * dispatchable subject candidates for the import dialog.
+ * policy list (scoped to the current staff's responsibility range), the
+ * dispatchable subject candidates for the import dialog, and the two-step
+ * assignment (assign an unassigned policy to an APP user by phone).
  */
-//update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧保单派发】官网保单列表与可派发被保人响应-----------
+//update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧两步式保单派发】响应结构-----------
 public final class InsurancePolicyResponse {
     private InsurancePolicyResponse() {
     }
@@ -25,7 +27,8 @@ public final class InsurancePolicyResponse {
             String insuredSubjectRef,
             String insuredUserName,
             String status,
-            LocalDate effectiveOn
+            LocalDate effectiveOn,
+            LocalDateTime assignedAt
     ) {
     }
 
@@ -36,5 +39,19 @@ public final class InsurancePolicyResponse {
             String employeeName
     ) {
     }
+
+    public record AssignRequest(
+            String policyNo,
+            String phone
+    ) {
+    }
+
+    public record AssignResult(
+            String policyNo,
+            String insuredSubjectRef,
+            String insuredUserName,
+            LocalDateTime assignedAt
+    ) {
+    }
 }
-//update-end---author:ai-agent ---date:2026-08-26  for：【保险侧保单派发】官网保单列表与可派发被保人响应-----------
+//update-end---author:ai-agent ---date:2026-08-26  for：【保险侧两步式保单派发】响应结构-----------

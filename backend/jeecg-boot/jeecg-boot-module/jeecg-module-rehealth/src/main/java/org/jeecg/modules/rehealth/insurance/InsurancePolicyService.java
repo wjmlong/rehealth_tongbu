@@ -2,33 +2,49 @@ package org.jeecg.modules.rehealth.insurance;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.sql.Date;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
 /**
- * Insurance-side policy dispatch queries: the tenant policy list and the
- * dispatchable subjects, both restricted to the current staff's assignment
- * scope (SELF / TEAM / null = whole organization).
+ * Insurance-side policy dispatch queries: the tenant policy list (unassigned
+ * pool policies are visible to every importer, assigned policies stay inside
+ * the staff's responsibility scope), the dispatchable subjects, and the
+ * two-step assignment by phone.
  */
-//update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧保单派发】官网保单列表与可派发被保人查询-----------
+//update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧两步式保单派发】保单列表与按手机号分配-----------
 @Service
 @ConditionalOnProperty(name = "rehealth.software-db.enabled", havingValue = "true")
 public class InsurancePolicyService {
     private static final int MAX_PAGE_SIZE = 50;
     private static final int MAX_CANDIDATES = 200;
 
+    private static final String EXCLUDE_PLATFORM_ADMINS = """
+            AND NOT EXISTS (
+                SELECT 1
+                FROM sys_user_role platform_user_role
+                INNER JOIN sys_role platform_role ON platform_role.id = platform_user_role.role_id
+                WHERE platform_user_role.user_id = u.id
+                  AND platform_role.role_code IN ('admin', 'super_admin')
+            )
+            """;
+
     private final JdbcTemplate jdbc;
+    private final InsuranceDispatchAccess dispatchAccess;
 
     public InsurancePolicyService(
-            @Qualifier("rehealthSoftwareJdbcTemplate") JdbcTemplate jdbc
+            @Qualifier("rehealthSoftwareJdbcTemplate") JdbcTemplate jdbc,
+            InsuranceDispatchAccess dispatchAccess
     ) {
         this.jdbc = jdbc;
+        this.dispatchAccess = dispatchAccess;
     }
 
     public InsurancePolicyResponse.PolicyPage list(
@@ -54,11 +70,30 @@ public class InsurancePolicyService {
             args.add(like);
             args.add(like);
         }
-        appendScope(where, args, scope);
+        // 未分配保单（被保人为空）属于机构保单库，对全部导入人可见；
+        // 已分配保单只对负责范围内的员工可见。
+        if (scope != null) {
+            where.append(" AND (p.insured_subject_ref IS NULL OR EXISTS (")
+                    .append("      SELECT 1 FROM rehealth_insurance_enrollment e")
+                    .append("      JOIN rehealth_insurance_user_assignment a")
+                    .append("        ON a.enrollment_id=e.id AND a.status='active'")
+                    .append("      WHERE e.tenant_id=p.tenant_id AND e.subject_ref=p.insured_subject_ref")
+                    .append("        AND (a.employee_id=?")
+                    .append("             OR (?='TEAM' AND EXISTS (")
+                    .append("                 SELECT 1 FROM sys_user_depart my_dept")
+                    .append("                 JOIN sys_user_depart assignee_dept ON assignee_dept.dep_id=my_dept.dep_id")
+                    .append("                 WHERE my_dept.user_id=?")
+                    .append("                   AND assignee_dept.user_id = CONVERT(a.employee_id USING utf8mb3) COLLATE utf8mb3_general_ci")
+                    .append("             )))")
+                    .append("  ))");
+            args.add(scope.userId());
+            args.add(scope.mode());
+            args.add(scope.userId());
+        }
 
         Long total = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM rehealth_insurance_policy p"
-                        + " JOIN rehealth_insurance_subject s ON s.tenant_id=p.tenant_id AND s.subject_ref=p.insured_subject_ref"
+                        + " LEFT JOIN rehealth_insurance_subject s ON s.tenant_id=p.tenant_id AND s.subject_ref=p.insured_subject_ref"
                         + " LEFT JOIN rehealth_patient_profile profile ON profile.user_id = s.rehealth_user_id COLLATE utf8mb4_0900_ai_ci"
                         + " WHERE " + where,
                 Long.class, args.toArray());
@@ -67,16 +102,16 @@ public class InsurancePolicyService {
         pageArgs.add((normalizedPageNo - 1) * normalizedPageSize);
         List<InsurancePolicyResponse.Item> items = jdbc.query(
                 "SELECT p.policy_no, p.product_name, p.policy_type, p.default_plan_id,"
-                        + " cat.name AS plan_name, p.insured_subject_ref, p.status, p.effective_on,"
-                        + " COALESCE(profile.name, u.realname, '未命名用户') AS user_name"
+                        + " cat.name AS plan_name, p.insured_subject_ref, p.status, p.effective_on, p.assigned_at,"
+                        + " COALESCE(profile.name, u.realname, '未分配') AS user_name"
                         + " FROM rehealth_insurance_policy p"
-                        + " JOIN rehealth_insurance_subject s ON s.tenant_id=p.tenant_id AND s.subject_ref=p.insured_subject_ref"
+                        + " LEFT JOIN rehealth_insurance_subject s ON s.tenant_id=p.tenant_id AND s.subject_ref=p.insured_subject_ref"
                         + " LEFT JOIN rehealth_insurance_plan_catalog cat"
                         + "   ON cat.tenant_id=p.tenant_id AND cat.plan_id=p.default_plan_id AND cat.status='active'"
                         + " LEFT JOIN sys_user u ON u.id = CONVERT(s.rehealth_user_id USING utf8mb3) COLLATE utf8mb3_general_ci"
                         + " LEFT JOIN rehealth_patient_profile profile ON profile.user_id = s.rehealth_user_id COLLATE utf8mb4_0900_ai_ci"
                         + " WHERE " + where
-                        + " ORDER BY p.effective_on DESC, p.created_at DESC"
+                        + " ORDER BY p.assigned_at IS NULL DESC, p.effective_on DESC, p.created_at DESC"
                         + " LIMIT ? OFFSET ?",
                 (rs, rowNum) -> new InsurancePolicyResponse.Item(
                         rs.getString("policy_no"),
@@ -87,7 +122,8 @@ public class InsurancePolicyService {
                         rs.getString("insured_subject_ref"),
                         rs.getString("user_name"),
                         rs.getString("status"),
-                        toLocalDate(rs.getDate("effective_on"))
+                        toLocalDate(rs.getDate("effective_on")),
+                        toLocalDateTime(rs.getTimestamp("assigned_at"))
                 ), pageArgs.toArray());
         return new InsurancePolicyResponse.PolicyPage(total == null ? 0 : total, items);
     }
@@ -142,32 +178,113 @@ public class InsurancePolicyService {
         ), args.toArray());
     }
 
-    private void appendScope(StringBuilder where, List<Object> args, InsuranceAssignmentScope scope) {
-        if (scope == null) {
-            return;
+    /**
+     * Two-step dispatch: assigns an (unassigned) policy to an APP user by
+     * phone. The user must be a registered APP account, enrolled in the
+     * tenant, and inside the caller's responsibility scope; a policy already
+     * assigned to another subject cannot be reassigned.
+     */
+    public InsurancePolicyResponse.AssignResult assign(
+            int tenantId, InsuranceAssignmentScope scope, InsurancePolicyResponse.AssignRequest request
+    ) {
+        String policyNo = required(request.policyNo(), "policyNo", 128);
+        String phone = required(request.phone(), "phone", 45);
+
+        PolicyRow policy = policyRow(tenantId, policyNo);
+        if (policy == null) {
+            throw InsuranceApiException.notFound("该保单号不存在于当前机构");
         }
-        where.append("""
-                  AND EXISTS (
-                      SELECT 1 FROM rehealth_insurance_enrollment e
-                      JOIN rehealth_insurance_user_assignment a
-                        ON a.enrollment_id=e.id AND a.status='active'
-                      WHERE e.tenant_id=p.tenant_id AND e.subject_ref=p.insured_subject_ref
-                        AND (a.employee_id=?
-                             OR (?='TEAM' AND EXISTS (
-                                 SELECT 1 FROM sys_user_depart my_dept
-                                 JOIN sys_user_depart assignee_dept ON assignee_dept.dep_id=my_dept.dep_id
-                                 WHERE my_dept.user_id=?
-                                   AND assignee_dept.user_id = CONVERT(a.employee_id USING utf8mb3) COLLATE utf8mb3_general_ci
-                             )))
-                  )
-                """);
-        args.add(scope.userId());
-        args.add(scope.mode());
-        args.add(scope.userId());
+        if (!"active".equalsIgnoreCase(policy.status())) {
+            throw InsuranceApiException.badRequest("该保单非生效状态，无法分配");
+        }
+        String userId = userIdByPhone(phone);
+        SubjectRef subject = activeSubject(tenantId, userId);
+        dispatchAccess.requireDispatchable(tenantId, scope, subject.subjectRef());
+        if (policy.insuredSubjectRef() != null && !policy.insuredSubjectRef().equals(subject.subjectRef())) {
+            throw InsuranceApiException.conflict("该保单已分配给其他被保人，不能重复分配");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (policy.insuredSubjectRef() == null) {
+            jdbc.update("""
+                    UPDATE rehealth_insurance_policy
+                    SET insured_subject_ref = ?, assigned_at = ?, updated_at = ?
+                    WHERE tenant_id = ? AND policy_no = ?
+                    """, subject.subjectRef(), now, now, tenantId, policyNo);
+        }
+        return new InsurancePolicyResponse.AssignResult(
+                policyNo, subject.subjectRef(), subject.userName(), now);
+    }
+
+    private PolicyRow policyRow(int tenantId, String policyNo) {
+        try {
+            return jdbc.queryForObject("""
+                    SELECT insured_subject_ref, status
+                    FROM rehealth_insurance_policy
+                    WHERE tenant_id = ? AND policy_no = ?
+                    LIMIT 1
+                    """, (rs, rowNum) -> new PolicyRow(rs.getString(1), rs.getString(2)),
+                    tenantId, policyNo);
+        } catch (EmptyResultDataAccessException ignored) {
+            return null;
+        }
+    }
+
+    private String userIdByPhone(String phone) {
+        try {
+            return jdbc.queryForObject("""
+                    SELECT u.id
+                    FROM sys_user u
+                    WHERE u.phone = ? AND u.del_flag = 0
+                    """ + EXCLUDE_PLATFORM_ADMINS + " LIMIT 1",
+                    String.class, phone);
+        } catch (EmptyResultDataAccessException ignored) {
+            throw InsuranceApiException.notFound("没有注册账号与该手机号匹配，请确认用户已注册 App");
+        }
+    }
+
+    private SubjectRef activeSubject(int tenantId, String userId) {
+        try {
+            return jdbc.queryForObject("""
+                    SELECT subject.subject_ref,
+                           COALESCE(profile.name, u.realname, '未命名用户') AS user_name
+                    FROM rehealth_insurance_subject subject
+                    LEFT JOIN sys_user u ON u.id = CONVERT(subject.rehealth_user_id USING utf8mb3) COLLATE utf8mb3_general_ci
+                    LEFT JOIN rehealth_patient_profile profile ON profile.user_id = subject.rehealth_user_id COLLATE utf8mb4_0900_ai_ci
+                    WHERE subject.tenant_id = ? AND subject.rehealth_user_id = ?
+                      AND subject.enrollment_status = 'active'
+                    LIMIT 1
+                    """, (rs, rowNum) -> new SubjectRef(rs.getString(1), rs.getString(2)),
+                    tenantId, userId);
+        } catch (EmptyResultDataAccessException ignored) {
+            throw InsuranceApiException.badRequest("该手机号用户尚未在贵机构参保，请先通过「导入参保人」建立参保关系");
+        }
+    }
+
+    private static String required(String value, String field, int maxLength) {
+        if (value == null || value.isBlank()) {
+            throw InsuranceApiException.badRequest(field + " is required");
+        }
+        String normalized = value.trim();
+        if (normalized.length() > maxLength) {
+            throw InsuranceApiException.badRequest(field + " must be at most " + maxLength + " characters");
+        }
+        return normalized;
     }
 
     private static LocalDate toLocalDate(Date value) {
         return value == null ? null : value.toLocalDate();
     }
+
+    private static LocalDateTime toLocalDateTime(java.sql.Timestamp value) {
+        return value == null ? null : value.toLocalDateTime();
+    }
+
+    /** Package-visible for focused unit tests. */
+    record PolicyRow(String insuredSubjectRef, String status) {
+    }
+
+    /** Package-visible for focused unit tests. */
+    record SubjectRef(String subjectRef, String userName) {
+    }
 }
-//update-end---author:ai-agent ---date:2026-08-26  for：【保险侧保单派发】官网保单列表与可派发被保人查询-----------
+//update-end---author:ai-agent ---date:2026-08-26  for：【保险侧两步式保单派发】保单列表与按手机号分配-----------

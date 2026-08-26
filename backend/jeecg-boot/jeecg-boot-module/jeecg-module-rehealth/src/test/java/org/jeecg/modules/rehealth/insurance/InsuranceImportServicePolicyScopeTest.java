@@ -101,4 +101,26 @@ class InsuranceImportServicePolicyScopeTest {
         assertEquals("completed", result.status());
         assertEquals(1, result.records().size());
     }
+
+    @Test
+    void policyWithoutInsuredSubjectEntersThePoolWithoutScopeChecks() {
+        LoginUser manager = new LoginUser().setId("mgr-1");
+        when(tenantAccessGuard.assignmentScopeOrNull(manager, 1000)).thenReturn(TEAM_SCOPE);
+        InsuranceImportRequest.PolicyBatch unassigned = new InsuranceImportRequest.PolicyBatch(
+                "rehealth_website",
+                "idem-2",
+                List.of(new InsuranceImportRequest.PolicyRow(
+                        "POL-POOL-001", "PROD-1", "安心医疗", "医疗险", null, null,
+                        null, null, null, null, LocalDate.of(2026, 9, 1), null,
+                        "active", null, null, null))
+        );
+
+        InsuranceImportResponse.BatchResult result = service.importPolicies(1000, manager, unassigned);
+
+        verify(dispatchAccess, never()).requireDispatchable(any(Integer.class), any(), any());
+        assertEquals("completed", result.status());
+        assertEquals(1, result.records().size());
+        assertEquals("created", result.records().get(0).status());
+        assertEquals(null, result.records().get(0).subjectRef());
+    }
 }

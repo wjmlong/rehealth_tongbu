@@ -134,10 +134,14 @@ public class InsuranceImportService {
         for (InsuranceImportRequest.PolicyRow row : request.records()) {
             rowNumber++;
             String policyNo = required(row.policyNo(), "records[" + rowNumber + "].policyNo", 128);
-            String subjectRef = subjectRef(tenantId, row.insuredSubjectRef(), rowNumber);
-            //update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧保单派发】保单只能派发给当前员工负责的被保人-----------
-            dispatchAccess.requireDispatchable(tenantId, scope, subjectRef);
-            //update-end---author:ai-agent ---date:2026-08-26  for：【保险侧保单派发】保单只能派发给当前员工负责的被保人-----------
+            //update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧两步式保单派发】被保人可选：未指定则先入库待分配-----------
+            String subjectRef = row.insuredSubjectRef() == null || row.insuredSubjectRef().isBlank()
+                    ? null
+                    : subjectRef(tenantId, row.insuredSubjectRef(), rowNumber);
+            if (subjectRef != null) {
+                dispatchAccess.requireDispatchable(tenantId, scope, subjectRef);
+            }
+            //update-end---author:ai-agent ---date:2026-08-26  for：【保险侧两步式保单派发】被保人可选：未指定则先入库待分配-----------
             InsurancePolicyEntity entity = policyMapper.selectOne(new LambdaQueryWrapper<InsurancePolicyEntity>()
                     .eq(InsurancePolicyEntity::getTenantId, tenantId)
                     .eq(InsurancePolicyEntity::getPolicyNo, policyNo)
@@ -159,7 +163,15 @@ public class InsuranceImportService {
             //update-end---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】保单导入指定默认健康计划-----------
             entity.setPolicyholderSubjectRef(row.policyholderSubjectRef() == null || row.policyholderSubjectRef().isBlank()
                     ? null : normalizedHash(row.policyholderSubjectRef(), "policyholderSubjectRef"));
-            entity.setInsuredSubjectRef(subjectRef);
+            //update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧两步式保单派发】被保人可空：仅当本次指定时写入，避免覆盖既有分配-----------
+            if (subjectRef != null) {
+                entity.setInsuredSubjectRef(subjectRef);
+                entity.setAssignedAt(now);
+            } else if (created) {
+                entity.setInsuredSubjectRef(null);
+                entity.setAssignedAt(null);
+            }
+            //update-end---author:ai-agent ---date:2026-08-26  for：【保险侧两步式保单派发】被保人可空：仅当本次指定时写入，避免覆盖既有分配-----------
             entity.setCoverageAmount(amount(row.coverageAmount(), "coverageAmount"));
             entity.setPremiumAmount(amount(row.premiumAmount(), "premiumAmount"));
             entity.setDeductibleAmount(amount(row.deductibleAmount(), "deductibleAmount"));
