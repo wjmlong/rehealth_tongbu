@@ -275,20 +275,30 @@ internal fun ProfileScreen(
                     }
                 }
                 if (planBindingState.bindings.isNotEmpty()) {
+                    Text("已加入的机构计划", color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
                     planBindingState.bindings.forEach { binding ->
                         StatusRow("已加入计划", binding.policyNo.takeIf { it.isNotBlank() } ?: "健康管理计划")
                         StatusRow("授权版本", binding.consentVersion)
                         StatusRow("状态", if (binding.status == "ACTIVE") "生效中" else binding.status)
                     }
-                } else if (!planBindingState.loading && planBindingState.candidates.isEmpty()) {
+                }
+                val boundPolicyNos = planBindingState.bindings.map { it.policyNo }.toSet()
+                val unboundCandidates = planBindingState.candidates.filterNot { it.policyNo in boundPolicyNos }
+                if (unboundCandidates.isEmpty() && planBindingState.bindings.isEmpty() && !planBindingState.loading) {
                     Text(
                         planBindingState.message ?: "未发现可绑定的保单",
                         color = Muted,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(top = 8.dp),
                     )
-                } else {
-                    planBindingState.candidates.forEach { candidate ->
+                } else if (unboundCandidates.isNotEmpty()) {
+                    Text(
+                        if (planBindingState.bindings.isNotEmpty()) "还可加入的机构保单" else "检测到可绑定的保单",
+                        color = Muted,
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                    unboundCandidates.forEach { candidate ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
@@ -326,7 +336,7 @@ internal fun ProfileScreen(
                         Text("我已阅读并同意《健康数据授权协议》", color = Muted, fontSize = 11.sp)
                     }
                 }
-                planBindingState.message?.takeIf { planBindingState.bindings.isNotEmpty() || planBindingState.candidates.isEmpty() }?.let { message ->
+                planBindingState.message?.takeIf { planBindingState.bindings.isNotEmpty() }?.let { message ->
                     Text(message, color = Mint, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
                 }
             }
