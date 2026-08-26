@@ -179,7 +179,7 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| `POST` | `/rehealth/mobile/insurance/plans/bind` | 授权并绑定保险计划。**零输入**：`tenantId/policyNo/planId` 均可省略——服务端按当前用户自动选参保租户、自动选有效保单、按保单 `default_plan_id` 自动选计划；多租户/多保单时要求显式指定。`consentVersion` 必填（用户勾选同意的证据）；响应携带计划目录 `planName` 供 App 展示 |
+| `POST` | `/rehealth/mobile/insurance/plans/bind` | 授权并绑定保险计划。**零输入**：`tenantId/policyNo/planId` 均可省略——服务端按当前用户自动选参保租户、自动选有效保单、按保单 `default_plan_id` 自动选计划；多租户/多保单时要求显式指定。保单未指定计划时绑定照常成功，`planId='NONE'` 占位（仅授权、不挂计划，`planName` 为空）。`consentVersion` 必填（用户勾选同意的证据）；响应携带计划目录 `planName` 供 App 展示 |
 | `GET` | `/rehealth/mobile/insurance/plans/bindable-policies` | 当前用户可绑定的候选保单（保单号脱敏、含 default_plan_id 与计划名称 planName），供 App 一键绑定界面展示 |
 | `GET` | `/rehealth/mobile/insurance/plans/current` | 查询当前有效计划 |
 | `GET` | `/rehealth/mobile/insurance/plans/active` | 返回当前 APP 用户在所有有效保险服务关系中的有效绑定数组（每条含 `tenantId`） |

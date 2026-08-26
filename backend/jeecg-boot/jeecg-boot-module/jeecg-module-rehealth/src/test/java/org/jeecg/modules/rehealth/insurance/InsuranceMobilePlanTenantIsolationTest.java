@@ -160,6 +160,33 @@ class InsuranceMobilePlanTenantIsolationTest {
         assertEquals(List.of(1001, 1002), result.stream().map(InsuranceMobilePlanResponse::tenantId).toList());
     }
 
+    @Test
+    void policyWithoutDefaultPlanStillBindsWithNonePlaceholderAuthorization() {
+        InsuranceSubjectEntity subject = subject(1001, "subject-1");
+        subject.setConsentStatus("pending");
+        InsurancePolicyEntity policy = new InsurancePolicyEntity();
+        policy.setId("policy-1");
+        policy.setTenantId(1001);
+        policy.setPolicyNo("POL-NOPLAN");
+        policy.setStatus("active");
+        policy.setDefaultPlanId(null);
+        when(subjects.countActiveTenant(1001)).thenReturn(1);
+        when(subjects.selectOne(any())).thenReturn(subject);
+        when(policies.selectOne(any())).thenReturn(policy);
+        when(consents.selectOne(any())).thenReturn(null);
+        when(bindings.selectOne(any())).thenReturn(null);
+
+        InsuranceMobilePlanResponse result = service.bind("app-user", new InsuranceMobilePlanRequest.Bind(
+                "1001", "POL-NOPLAN", null, "v1.0", null, null, null, "source-1", Map.of()));
+
+        assertEquals("NONE", result.planId());
+        assertEquals(null, result.planName());
+        var captor = org.mockito.ArgumentCaptor.forClass(InsurancePlanBindingEntity.class);
+        verify(bindings).insert(captor.capture());
+        assertEquals("NONE", captor.getValue().getPlanId());
+        assertEquals("granted", subject.getConsentStatus());
+    }
+
     private static InsuranceSubjectEntity subject(int tenantId, String subjectRef) {
         InsuranceSubjectEntity value = new InsuranceSubjectEntity();
         value.setTenantId(tenantId);

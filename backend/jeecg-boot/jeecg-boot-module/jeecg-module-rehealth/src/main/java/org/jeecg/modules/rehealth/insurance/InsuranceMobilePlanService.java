@@ -35,6 +35,7 @@ import java.util.UUID;
 @ConditionalOnProperty(name = "rehealth.software-db.enabled", havingValue = "true")
 public class InsuranceMobilePlanService {
     private static final String ADHERENCE_CALCULATION_VERSION = "insurance-adherence-event-v1";
+    private static final String NONE_PLAN_ID = "NONE";
     private static final Set<String> FEEDBACK_TYPES = Set.of(
             "completed", "partially_completed", "skipped", "not_applicable"
     );
@@ -94,12 +95,13 @@ public class InsuranceMobilePlanService {
             throw InsuranceApiException.forbidden("current user is not enrolled in the requested insurance tenant");
         }
         InsurancePolicyEntity policy = resolveBindPolicy(tenantId, subject.getSubjectRef(), request.policyNo());
+        //update-begin---author:ai-agent ---date:2026-08-26  for：【折中方案】允许无计划的纯授权绑定：无计划时绑定 NONE-----------
         String planId = request.planId() == null || request.planId().isBlank()
-                ? policy.getDefaultPlanId()
+                ? (policy.getDefaultPlanId() == null || policy.getDefaultPlanId().isBlank()
+                        ? NONE_PLAN_ID
+                        : policy.getDefaultPlanId().trim())
                 : request.planId().trim();
-        if (planId == null || planId.isBlank()) {
-            throw InsuranceApiException.badRequest("该保单未配置健康计划，请联系保险机构");
-        }
+        //update-end---author:ai-agent ---date:2026-08-26  for：【折中方案】允许无计划的纯授权绑定：无计划时绑定 NONE-----------
         //update-end---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】零输入绑定：自动选租户/保单/计划-----------
         String consentType = optional(request.consentType(), "insurance_program", 64);
         String consentVersion = required(request.consentVersion(), "consentVersion", 64);
@@ -420,7 +422,7 @@ public class InsuranceMobilePlanService {
 
     //update-begin---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】绑定展示计划名称-----------
     private String planName(Integer tenantId, String planId) {
-        if (catalogMapper == null || tenantId == null || planId == null || planId.isBlank()) {
+        if (catalogMapper == null || tenantId == null || planId == null || planId.isBlank() || NONE_PLAN_ID.equals(planId)) {
             return null;
         }
         InsurancePlanCatalogEntity entity = catalogMapper.selectOne(

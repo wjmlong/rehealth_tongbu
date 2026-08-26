@@ -287,7 +287,7 @@ internal fun ProfileScreen(
                                 .padding(12.dp),
                         ) {
                             Text(
-                                binding.planName ?: binding.planId,
+                                binding.planName ?: binding.planId.takeUnless { it == "NONE" } ?: "健康管理授权",
                                 color = Ink,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -342,7 +342,7 @@ internal fun ProfileScreen(
                                 )
                                 Text(
                                     "保单 ${candidate.policyNoMasked}" +
-                                        (if (candidate.hasPlan) " · 含健康计划" else " · 暂未配置健康计划"),
+                                        (if (candidate.hasPlan) " · 含健康计划" else " · 仅授权，暂无健康计划"),
                                     color = Muted,
                                     fontSize = 11.sp,
                                     modifier = Modifier.padding(top = 3.dp),
