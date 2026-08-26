@@ -170,6 +170,18 @@ public class InsuranceAssignmentService {
                 pageNo, pageSize, true);
     }
 
+    /**
+     * "My customers" for the current account. Unrestricted accounts
+     * (organization administrator / auditor) see every active relationship in
+     * the tenant; every other account sees only its own.
+     */
+    public InsuranceAssignmentResponse.Page mine(int tenantId, InsuranceAssignmentScope scope, int pageNo, int pageSize) {
+        InsuranceAssignmentScope self = scope == null
+                ? null
+                : new InsuranceAssignmentScope(scope.userId(), InsuranceAssignmentScope.MODE_SELF);
+        return page(tenantId, self, pageNo, pageSize, true);
+    }
+
     public InsuranceAssignmentResponse.Page department(int tenantId, InsuranceAssignmentScope scope, int pageNo, int pageSize) {
         if (scope != null && !scope.team()) {
             throw InsuranceApiException.forbidden("部门视图需要主管或管理员权限");
@@ -209,9 +221,11 @@ public class InsuranceAssignmentService {
         List<Object> args = new ArrayList<>();
         args.add(tenantId);
         if (hasKeyword) {
-            where.append(" AND (LOWER(COALESCE(profile.name, u.realname, '')) LIKE ? OR e.subject_ref = ?)");
+            // Name-only search against the utf8mb4 profile column: mixing the
+            // utf8mb3 sys_user.realname into the same expression raises MySQL
+            // collation errors with Chinese parameters.
+            where.append(" AND LOWER(COALESCE(profile.name, '')) LIKE ?");
             args.add("%" + normalizedKeyword.toLowerCase(Locale.ROOT) + "%");
-            args.add(normalizedKeyword);
         }
         Long total = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM (" + poolSelect + where + ") scoped_pool", Long.class, args.toArray());

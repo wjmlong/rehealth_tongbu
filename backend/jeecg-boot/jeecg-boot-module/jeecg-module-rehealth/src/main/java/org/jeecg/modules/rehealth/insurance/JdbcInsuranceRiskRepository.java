@@ -233,8 +233,11 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
             String channel, Integer minAge, Integer maxAge
     ) {
         String keywordLike = keyword == null ? null : "%" + escapeLike(keyword) + "%";
+        // The keyword filter intentionally matches the display name only: the
+        // subject pseudonym column is ascii_bin and comparing it against a
+        // Chinese parameter raises MySQL error 1267.
         String filters = """
-                WHERE (? IS NULL OR profile.name LIKE ? ESCAPE '!' OR ts.subject_id = ?)
+                WHERE (? IS NULL OR profile.name LIKE ? ESCAPE '!')
                   AND (? IS NULL OR (r.is_mock = 0 AND
                 """ + NORMALIZED_RISK_LEVEL + """
                       = ?))
@@ -249,7 +252,6 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
                 concat(scopeArgs(tenantId, scope),
                         keyword,
                         keywordLike,
-                        keyword,
                         riskLevel,
                         riskLevel,
                         channel,
@@ -292,7 +294,6 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
                 concat(scopeArgs(tenantId, scope),
                         keyword,
                         keywordLike,
-                        keyword,
                         riskLevel,
                         riskLevel,
                         channel,

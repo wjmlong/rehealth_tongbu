@@ -113,8 +113,7 @@ public class InsuranceAssignmentController {
         return respond(() -> {
             LoginUser user = currentUser();
             int tenant = tenantAccessGuard.requireTenant(user, tenantId);
-            tenantAccessGuard.assignmentScope(user, tenant);
-            return service.mine(tenant, user.getId(), pageNo, pageSize);
+            return service.mine(tenant, tenantAccessGuard.assignmentScope(user, tenant), pageNo, pageSize);
         });
     }
 

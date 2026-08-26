@@ -12,6 +12,9 @@
 --      唯一索引 uk_assignment_primary_active 兜底并发/重复风险。
 -- 执行前必须先跑 backend/deploy/rehealth/scripts/precheck-legacy-assignment-data.sql
 -- 体检并人工确认报告；迁移后执行脚本末尾的人工校验语句。
+-- 强制客户端字符集，避免管道执行时中文被 latin1 双重编码。
+
+SET NAMES utf8mb4;
 
 -- 1. 默认服务项目（确定性 ID，幂等）
 INSERT INTO rehealth_insurance_project

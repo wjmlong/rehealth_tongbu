@@ -2302,8 +2302,8 @@ INSERT INTO tmp_mhqa_guard (ok)
 SELECT IF(
     EXISTS (
         SELECT 1 FROM sys_tenant
-        WHERE (id = 9261 AND name <> '睿禾滨江心血管健康管理中心（测试）')
-           OR (id = 9262 AND name <> '睿禾南山慢病管理中心（测试）')
+        WHERE (id = 9261 AND name <> '睿禾滨江心血管健康管理中心')
+           OR (id = 9262 AND name <> '睿禾南山慢病管理中心')
     ) OR EXISTS (
         SELECT 1 FROM sys_permission
         WHERE (id = '2030500000000000001' AND name <> 'ReHealth患者数据')
@@ -2339,16 +2339,16 @@ INSERT INTO tmp_mhqa_staff (
     tenant_id, staff_no, username, realname, password_hash, role_code,
     department_code, phone, email
 ) VALUES
-    (9261, 1, 'local_medical_admin', '滨江机构管理员（测试）',
+    (9261, 1, 'local_medical_admin', '滨江机构管理员',
      'd0631a538d2cf21a6ff88c2986345feecc9f80a9c1b49ca0', 'hospital_admin',
      'MHQA9261', '00092610001', 'admin.bj@medical.qa.invalid'),
-    (9261, 2, 'local_medical_doctor', '王医生（测试）',
+    (9261, 2, 'local_medical_doctor', '王医生',
      'd0631a538d2cf21a075dc16e21ae8117836c8abaed847645', 'hospital_doctor',
      'MHQA9261A01', '00092610002', 'doctor.bj@medical.qa.invalid'),
-    (9262, 1, 'local_medical_admin_nanshan', '南山机构管理员（测试）',
+    (9262, 1, 'local_medical_admin_nanshan', '南山机构管理员',
      'd0631a538d2cf21a6ff88c2986345feefb97146009fff27561e2eaa49b974bae', 'hospital_admin',
      'MHQA9262', '00092620001', 'admin.ns@medical.qa.invalid'),
-    (9262, 2, 'local_medical_doctor_nanshan', '李医生（测试）',
+    (9262, 2, 'local_medical_doctor_nanshan', '李医生',
      'd0631a538d2cf21a075dc16e21ae8117bdb3ace413741de7b645688906b3389e', 'hospital_doctor',
      'MHQA9262A01', '00092620002', 'doctor.ns@medical.qa.invalid');
 
@@ -2380,30 +2380,30 @@ INSERT INTO tmp_mhqa_patient (
     height_cm, weight_kg, bmi, phone, email, risk_score, risk_level,
     device_bound, action_status, user_status, del_flag, scenario_code
 ) VALUES
-    (1, 9261, 'local_medical_patient_001', '张明远（测试）', 1, 'male', 68, 172.00, 82.40, 27.85, '00093000001', 'patient001@medical.qa.invalid', 0.820000, 'high',   1, 'pending',   1, 0, 'hypertension_smoking'),
-    (2, 9261, 'local_medical_patient_002', '李慧敏（测试）', 2, 'female', 64, 160.00, 74.20, 28.98, '00093000002', 'patient002@medical.qa.invalid', 0.780000, 'high',   1, 'pending',   1, 0, 'diabetes_weight'),
-    (3, 9261, 'local_medical_patient_003', '王建国（测试）', 1, 'male', 61, 174.00, 81.00, 26.75, '00093000003', 'patient003@medical.qa.invalid', 0.750000, 'high',   1, 'pending',   1, 0, 'lipid_family_history'),
-    (4, 9261, 'local_medical_patient_004', '陈玉兰（测试）', 2, 'female', 59, 158.00, 70.40, 28.20, '00093000004', 'patient004@medical.qa.invalid', 0.720000, 'high',   1, 'pending',   1, 0, 'sleep_hypertension'),
-    (5, 9261, 'local_medical_patient_005', '刘志强（测试）', 1, 'male', 57, 176.00, 86.10, 27.80, '00093000005', 'patient005@medical.qa.invalid', 0.710000, 'high',   1, 'pending',   1, 0, 'metabolic_activity'),
-    (6, 9261, 'local_medical_patient_006', '周婉婷（测试）', 2, 'female', 55, 162.00, 72.50, 27.63, '00093000006', 'patient006@medical.qa.invalid', 0.700000, 'high',   1, 'pending',   1, 0, 'glucose_sleep'),
-    (7, 9261, 'local_medical_patient_007', '赵国庆（测试）', 1, 'male', 58, 170.00, 78.30, 27.09, '00093000007', 'patient007@medical.qa.invalid', 0.650000, 'medium', 1, 'pending',   1, 0, 'blood_pressure_review'),
-    (8, 9261, 'local_medical_patient_008', '孙晓梅（测试）', 2, 'female', 52, 161.00, 65.60, 25.31, '00093000008', 'patient008@medical.qa.invalid', 0.610000, 'medium', 1, 'confirmed', 1, 0, 'lipid_followup'),
-    (9, 9261, 'local_medical_patient_009', '吴志远（测试）', 1, 'male', 50, 178.00, 79.20, 25.00, '00093000009', 'patient009@medical.qa.invalid', 0.580000, 'medium', 1, 'confirmed', 1, 0, 'activity_plan'),
-    (10,9261, 'local_medical_patient_010', '郑丽华（测试）', 2, 'female', 49, 164.00, 66.20, 24.61, '00093000010', 'patient010@medical.qa.invalid', 0.540000, 'medium', 1, 'confirmed', 1, 0, 'sleep_plan'),
-    (11,9261, 'local_medical_patient_011', '胡建新（测试）', 1, 'male', 47, 173.00, 76.40, 25.53, '00093000011', 'patient011@medical.qa.invalid', 0.510000, 'medium', 1, 'confirmed', 1, 0, 'weight_management'),
-    (12,9261, 'local_medical_patient_012', '林秀珍（测试）', 2, 'female', 46, 159.00, 63.10, 24.96, '00093000012', 'patient012@medical.qa.invalid', 0.470000, 'medium', 1, 'confirmed', 1, 0, 'diet_followup'),
-    (13,9261, 'local_medical_patient_013', '何俊杰（测试）', 1, 'male', 45, 175.00, 74.30, 24.26, '00093000013', 'patient013@medical.qa.invalid', 0.430000, 'medium', 1, 'confirmed', 1, 0, 'exercise_followup'),
-    (14,9261, 'local_medical_patient_014', '高雅琴（测试）', 2, 'female', 43, 163.00, 60.20, 22.66, '00093000014', 'patient014@medical.qa.invalid', 0.380000, 'low',    1, 'confirmed', 1, 0, 'maintenance'),
-    (15,9262, 'local_medical_patient_015', '马文博（测试）', 1, 'male', 42, 177.00, 72.50, 23.14, '00093000015', 'patient015@medical.qa.invalid', 0.350000, 'low',    1, 'confirmed', 1, 0, 'maintenance'),
-    (16,9262, 'local_medical_patient_016', '罗静怡（测试）', 2, 'female', 40, 165.00, 59.80, 21.97, '00093000016', 'patient016@medical.qa.invalid', 0.310000, 'low',    1, 'confirmed', 1, 0, 'maintenance'),
-    (17,9262, 'local_medical_patient_017', '唐建华（测试）', 1, 'male', 39, 174.00, 70.10, 23.15, '00093000017', 'patient017@medical.qa.invalid', 0.280000, 'low',    1, 'confirmed', 1, 0, 'maintenance'),
-    (18,9262, 'local_medical_patient_018', '许美玲（测试）', 2, 'female', 38, 162.00, 57.50, 21.91, '00093000018', 'patient018@medical.qa.invalid', 0.240000, 'low',    1, 'confirmed', 2, 0, 'disabled_account'),
-    (19,9262, 'local_medical_patient_019', '郭志鹏（测试）', 1, 'male', 37, 176.00, 69.20, 22.34, '00093000019', 'patient019@medical.qa.invalid', 0.180000, 'low',    0, 'confirmed', 1, 0, 'unbound_device'),
-    (20,9262, 'local_medical_patient_020', '梁雪琴（测试）', 2, 'female', 36, 164.00, 58.90, 21.90, '00093000020', 'patient020@medical.qa.invalid', 0.120000, 'low',    0, 'confirmed', 1, 0, 'unbound_device'),
-    (21,9262, 'local_medical_patient_021', '方晨宇（测试）', 1, 'male', 54, 171.00, 75.00, 25.65, '00093000021', 'patient021@medical.qa.invalid', NULL, NULL, 0, 'none', 1, 0, 'missing_risk'),
-    (22,9262, 'local_medical_patient_022', '蒋月华（测试）', 2, 'female', 51, 160.00, 64.30, 25.12, '00093000022', 'patient022@medical.qa.invalid', NULL, NULL, 0, 'none', 2, 0, 'disabled_account_no_risk'),
-    (23,9262, 'local_medical_patient_023', '谢宏伟（测试）', 1, 'male', 48, 173.00, 73.60, 24.59, '00093000023', 'patient023@medical.qa.invalid', NULL, NULL, 0, 'none', 1, 1, 'logically_deleted'),
-    (24,9262, 'local_medical_patient_024', '杜佳宁（测试）', 2, 'female', 44, 166.00, 61.40, 22.28, '00093000024', 'patient024@medical.qa.invalid', NULL, NULL, 0, 'none', 1, 0, 'multi_tenant_fail_closed');
+    (1, 9261, 'local_medical_patient_001', '张明远', 1, 'male', 68, 172.00, 82.40, 27.85, '00093000001', 'patient001@medical.qa.invalid', 0.820000, 'high',   1, 'pending',   1, 0, 'hypertension_smoking'),
+    (2, 9261, 'local_medical_patient_002', '李慧敏', 2, 'female', 64, 160.00, 74.20, 28.98, '00093000002', 'patient002@medical.qa.invalid', 0.780000, 'high',   1, 'pending',   1, 0, 'diabetes_weight'),
+    (3, 9261, 'local_medical_patient_003', '王建国', 1, 'male', 61, 174.00, 81.00, 26.75, '00093000003', 'patient003@medical.qa.invalid', 0.750000, 'high',   1, 'pending',   1, 0, 'lipid_family_history'),
+    (4, 9261, 'local_medical_patient_004', '陈玉兰', 2, 'female', 59, 158.00, 70.40, 28.20, '00093000004', 'patient004@medical.qa.invalid', 0.720000, 'high',   1, 'pending',   1, 0, 'sleep_hypertension'),
+    (5, 9261, 'local_medical_patient_005', '刘志强', 1, 'male', 57, 176.00, 86.10, 27.80, '00093000005', 'patient005@medical.qa.invalid', 0.710000, 'high',   1, 'pending',   1, 0, 'metabolic_activity'),
+    (6, 9261, 'local_medical_patient_006', '周婉婷', 2, 'female', 55, 162.00, 72.50, 27.63, '00093000006', 'patient006@medical.qa.invalid', 0.700000, 'high',   1, 'pending',   1, 0, 'glucose_sleep'),
+    (7, 9261, 'local_medical_patient_007', '赵国庆', 1, 'male', 58, 170.00, 78.30, 27.09, '00093000007', 'patient007@medical.qa.invalid', 0.650000, 'medium', 1, 'pending',   1, 0, 'blood_pressure_review'),
+    (8, 9261, 'local_medical_patient_008', '孙晓梅', 2, 'female', 52, 161.00, 65.60, 25.31, '00093000008', 'patient008@medical.qa.invalid', 0.610000, 'medium', 1, 'confirmed', 1, 0, 'lipid_followup'),
+    (9, 9261, 'local_medical_patient_009', '吴志远', 1, 'male', 50, 178.00, 79.20, 25.00, '00093000009', 'patient009@medical.qa.invalid', 0.580000, 'medium', 1, 'confirmed', 1, 0, 'activity_plan'),
+    (10,9261, 'local_medical_patient_010', '郑丽华', 2, 'female', 49, 164.00, 66.20, 24.61, '00093000010', 'patient010@medical.qa.invalid', 0.540000, 'medium', 1, 'confirmed', 1, 0, 'sleep_plan'),
+    (11,9261, 'local_medical_patient_011', '胡建新', 1, 'male', 47, 173.00, 76.40, 25.53, '00093000011', 'patient011@medical.qa.invalid', 0.510000, 'medium', 1, 'confirmed', 1, 0, 'weight_management'),
+    (12,9261, 'local_medical_patient_012', '林秀珍', 2, 'female', 46, 159.00, 63.10, 24.96, '00093000012', 'patient012@medical.qa.invalid', 0.470000, 'medium', 1, 'confirmed', 1, 0, 'diet_followup'),
+    (13,9261, 'local_medical_patient_013', '何俊杰', 1, 'male', 45, 175.00, 74.30, 24.26, '00093000013', 'patient013@medical.qa.invalid', 0.430000, 'medium', 1, 'confirmed', 1, 0, 'exercise_followup'),
+    (14,9261, 'local_medical_patient_014', '高雅琴', 2, 'female', 43, 163.00, 60.20, 22.66, '00093000014', 'patient014@medical.qa.invalid', 0.380000, 'low',    1, 'confirmed', 1, 0, 'maintenance'),
+    (15,9262, 'local_medical_patient_015', '马文博', 1, 'male', 42, 177.00, 72.50, 23.14, '00093000015', 'patient015@medical.qa.invalid', 0.350000, 'low',    1, 'confirmed', 1, 0, 'maintenance'),
+    (16,9262, 'local_medical_patient_016', '罗静怡', 2, 'female', 40, 165.00, 59.80, 21.97, '00093000016', 'patient016@medical.qa.invalid', 0.310000, 'low',    1, 'confirmed', 1, 0, 'maintenance'),
+    (17,9262, 'local_medical_patient_017', '唐建华', 1, 'male', 39, 174.00, 70.10, 23.15, '00093000017', 'patient017@medical.qa.invalid', 0.280000, 'low',    1, 'confirmed', 1, 0, 'maintenance'),
+    (18,9262, 'local_medical_patient_018', '许美玲', 2, 'female', 38, 162.00, 57.50, 21.91, '00093000018', 'patient018@medical.qa.invalid', 0.240000, 'low',    1, 'confirmed', 2, 0, 'disabled_account'),
+    (19,9262, 'local_medical_patient_019', '郭志鹏', 1, 'male', 37, 176.00, 69.20, 22.34, '00093000019', 'patient019@medical.qa.invalid', 0.180000, 'low',    0, 'confirmed', 1, 0, 'unbound_device'),
+    (20,9262, 'local_medical_patient_020', '梁雪琴', 2, 'female', 36, 164.00, 58.90, 21.90, '00093000020', 'patient020@medical.qa.invalid', 0.120000, 'low',    0, 'confirmed', 1, 0, 'unbound_device'),
+    (21,9262, 'local_medical_patient_021', '方晨宇', 1, 'male', 54, 171.00, 75.00, 25.65, '00093000021', 'patient021@medical.qa.invalid', NULL, NULL, 0, 'none', 1, 0, 'missing_risk'),
+    (22,9262, 'local_medical_patient_022', '蒋月华', 2, 'female', 51, 160.00, 64.30, 25.12, '00093000022', 'patient022@medical.qa.invalid', NULL, NULL, 0, 'none', 2, 0, 'disabled_account_no_risk'),
+    (23,9262, 'local_medical_patient_023', '谢宏伟', 1, 'male', 48, 173.00, 73.60, 24.59, '00093000023', 'patient023@medical.qa.invalid', NULL, NULL, 0, 'none', 1, 1, 'logically_deleted'),
+    (24,9262, 'local_medical_patient_024', '杜佳宁', 2, 'female', 44, 166.00, 61.40, 22.28, '00093000024', 'patient024@medical.qa.invalid', NULL, NULL, 0, 'none', 1, 0, 'multi_tenant_fail_closed');
 
 DROP TEMPORARY TABLE IF EXISTS tmp_mhqa_day;
 CREATE TEMPORARY TABLE tmp_mhqa_day (days_ago INT NOT NULL PRIMARY KEY);
@@ -2415,12 +2415,12 @@ INSERT INTO sys_tenant (
     id, name, create_time, create_by, begin_date, end_date, status, trade,
     company_size, company_address, del_flag, update_by, update_time, apply_status
 ) VALUES
-    (9261, '睿禾滨江心血管健康管理中心（测试）', @seed_time, @seed_actor,
+    (9261, '睿禾滨江心血管健康管理中心', @seed_time, @seed_actor,
      @anchor_date, DATE_ADD(@anchor_date, INTERVAL 3 YEAR), 1, 'medical', '100-499',
-     '浙江省杭州市滨江区（测试地址）', 0, @seed_actor, @seed_time, 1),
-    (9262, '睿禾南山慢病管理中心（测试）', @seed_time, @seed_actor,
+     '浙江省杭州市滨江区', 0, @seed_actor, @seed_time, 1),
+    (9262, '睿禾南山慢病管理中心', @seed_time, @seed_actor,
      @anchor_date, DATE_ADD(@anchor_date, INTERVAL 3 YEAR), 1, 'medical', '50-99',
-     '广东省深圳市南山区（测试地址）', 0, @seed_actor, @seed_time, 1)
+     '广东省深圳市南山区', 0, @seed_actor, @seed_time, 1)
 ON DUPLICATE KEY UPDATE
     status = 1, del_flag = 0, update_by = VALUES(update_by), update_time = VALUES(update_time);
 
@@ -2476,18 +2476,18 @@ INSERT INTO sys_depart (
     org_code, address, status, del_flag, create_by, create_time, update_by,
     update_time, tenant_id, iz_leaf
 ) VALUES
-    (LOWER(MD5('LOCAL_MEDICAL_TEST_SEED:depart:9261:root')), NULL, '滨江心血管健康管理中心（测试）', 1,
-     'LOCAL_MEDICAL_TEST_SEED', '1', '1', 'MHQA9261', '浙江省杭州市滨江区（测试地址）', '1', '0', @seed_actor, @seed_time, @seed_actor, @seed_time, 9261, 0),
+    (LOWER(MD5('LOCAL_MEDICAL_TEST_SEED:depart:9261:root')), NULL, '滨江心血管健康管理中心', 1,
+     'LOCAL_MEDICAL_TEST_SEED', '1', '1', 'MHQA9261', '浙江省杭州市滨江区', '1', '0', @seed_actor, @seed_time, @seed_actor, @seed_time, 9261, 0),
     (LOWER(MD5('LOCAL_MEDICAL_TEST_SEED:depart:9261:cardiology')), LOWER(MD5('LOCAL_MEDICAL_TEST_SEED:depart:9261:root')), '心血管管理组（测试）', 1,
-     'LOCAL_MEDICAL_TEST_SEED', '2', '2', 'MHQA9261A01', '浙江省杭州市滨江区（测试地址）', '1', '0', @seed_actor, @seed_time, @seed_actor, @seed_time, 9261, 1),
+     'LOCAL_MEDICAL_TEST_SEED', '2', '2', 'MHQA9261A01', '浙江省杭州市滨江区', '1', '0', @seed_actor, @seed_time, @seed_actor, @seed_time, 9261, 1),
     (LOWER(MD5('LOCAL_MEDICAL_TEST_SEED:depart:9261:health')), LOWER(MD5('LOCAL_MEDICAL_TEST_SEED:depart:9261:root')), '健康管理组（测试）', 2,
-     'LOCAL_MEDICAL_TEST_SEED', '2', '2', 'MHQA9261A02', '浙江省杭州市滨江区（测试地址）', '1', '0', @seed_actor, @seed_time, @seed_actor, @seed_time, 9261, 1),
+     'LOCAL_MEDICAL_TEST_SEED', '2', '2', 'MHQA9261A02', '浙江省杭州市滨江区', '1', '0', @seed_actor, @seed_time, @seed_actor, @seed_time, 9261, 1),
     (LOWER(MD5('LOCAL_MEDICAL_TEST_SEED:depart:9262:root')), NULL, '南山慢病管理中心（测试）', 1,
-     'LOCAL_MEDICAL_TEST_SEED', '1', '1', 'MHQA9262', '广东省深圳市南山区（测试地址）', '1', '0', @seed_actor, @seed_time, @seed_actor, @seed_time, 9262, 0),
+     'LOCAL_MEDICAL_TEST_SEED', '1', '1', 'MHQA9262', '广东省深圳市南山区', '1', '0', @seed_actor, @seed_time, @seed_actor, @seed_time, 9262, 0),
     (LOWER(MD5('LOCAL_MEDICAL_TEST_SEED:depart:9262:cardiology')), LOWER(MD5('LOCAL_MEDICAL_TEST_SEED:depart:9262:root')), '慢病门诊组（测试）', 1,
-     'LOCAL_MEDICAL_TEST_SEED', '2', '2', 'MHQA9262A01', '广东省深圳市南山区（测试地址）', '1', '0', @seed_actor, @seed_time, @seed_actor, @seed_time, 9262, 1),
+     'LOCAL_MEDICAL_TEST_SEED', '2', '2', 'MHQA9262A01', '广东省深圳市南山区', '1', '0', @seed_actor, @seed_time, @seed_actor, @seed_time, 9262, 1),
     (LOWER(MD5('LOCAL_MEDICAL_TEST_SEED:depart:9262:health')), LOWER(MD5('LOCAL_MEDICAL_TEST_SEED:depart:9262:root')), '随访管理组（测试）', 2,
-     'LOCAL_MEDICAL_TEST_SEED', '2', '2', 'MHQA9262A02', '广东省深圳市南山区（测试地址）', '1', '0', @seed_actor, @seed_time, @seed_actor, @seed_time, 9262, 1)
+     'LOCAL_MEDICAL_TEST_SEED', '2', '2', 'MHQA9262A02', '广东省深圳市南山区', '1', '0', @seed_actor, @seed_time, @seed_actor, @seed_time, 9262, 1)
 ON DUPLICATE KEY UPDATE depart_name=VALUES(depart_name), status='1', del_flag='0', update_time=VALUES(update_time);
 
 INSERT INTO sys_user (

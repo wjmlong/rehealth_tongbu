@@ -2,6 +2,8 @@
 -- 使可登录的经理账号能完整体验"认领 → 我的客户 → 转移 → 责任链"闭环。
 -- 仅限本地 QA 使用，不得用于生产。
 
+SET NAMES utf8mb4;
+
 INSERT INTO sys_user_tenant (id, user_id, tenant_id, status, create_by, create_time)
 SELECT LOWER(REPLACE(UUID(), '-', '')), u.id, 1000, '1', 'local-qa-setup', NOW(3)
 FROM sys_user u
