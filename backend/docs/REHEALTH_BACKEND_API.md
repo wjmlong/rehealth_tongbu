@@ -49,11 +49,13 @@ GET  /rehealth/mobile/agent/conversations/latest
 POST /rehealth/mobile/behavior-records/analyze-photo
 GET  /rehealth/mobile/behavior-records/today
 POST /rehealth/mobile/insurance/plans/bind
+GET  /rehealth/mobile/insurance/plans/bindable-policies
 GET  /rehealth/mobile/insurance/plans/current
 GET  /rehealth/mobile/insurance/plans/active
 POST /rehealth/mobile/insurance/plans/{bindingId}/feedback
 GET  /rehealth/mobile/insurance/care-plans/current
 POST /rehealth/mobile/insurance/care-plan-occurrences/{occurrenceId}/feedback
+GET  /rehealth/mobile/insurance/assignments/current
 ```
 
 其他 ReHealth 模块端点：
@@ -61,12 +63,17 @@ POST /rehealth/mobile/insurance/care-plan-occurrences/{occurrenceId}/feedback
 ```text
 POST /rehealth/viomi/report                        （云米主动上报回调，JWT HS256 验签）
 POST /rehealth/website/v1/{resource} 及 GET/{id}、DELETE/{id}   （官网 BFF 业务记录）
-GET/POST/PUT /rehealth/insurance/v1/**             （保险风险、干预工作台、机构计划、导入、研究、报告、结算、机构设置）
+GET/POST/PUT /rehealth/insurance/v1/**             （保险风险、干预工作台、机构计划、导入、研究、报告、结算、机构设置、服务关系与计划目录）
 POST /rehealth/internal/v1/identity/authorize-device （Device Service 内部设备授权）
 GET  /rehealth/account/password/status             （员工密码状态）
 PUT  /rehealth/account/password                    （当前账号自助修改密码）
 GET  /rehealth/admin/v1/patients、/patients/{patientId} （官网患者只读聚合，位于 jeecg-system-biz）
 ```
+
+其中保险侧 `GET/POST /rehealth/insurance/v1/plans` 为计划目录（`InsurancePlanCatalogController`，权限
+`rehealth:insurance:care-plan:view/manage`）；服务关系端点
+（`/rehealth/insurance/v1/assignments/*`）与移动端 `plans/bindable-policies`、`assignments/current`
+的逐字段契约见 [`INSURANCE_BUSINESS_API.md`](../contracts/INSURANCE_BUSINESS_API.md)。
 
 ## Website BFF business records
 

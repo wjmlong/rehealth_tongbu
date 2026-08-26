@@ -1,7 +1,31 @@
 # ReHealth 当前状态
 
-> 最后核对：2026-08-24。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
+> 最后核对：2026-08-26。本文档是仓库唯一的当前状态入口；历史验收记录只保存在
 > `docs/archive/acceptance/`，不得作为当前实现或发布状态的依据。
+
+## 2026-08-25/26 保险侧用户服务关系一期与计划目录
+
+- 区间化服务关系（`V20260825_1`）：新增 `rehealth_insurance_project`、`rehealth_insurance_enrollment`、
+  `rehealth_insurance_user_assignment`、`rehealth_insurance_assignment_change_log` 四表；
+  `active_marker` 生成列 + 唯一索引保证同一参与记录同一时刻至多一条活跃 PRIMARY。
+  `V20260825_2` 把旧 `rehealth_insurance_subject_manager` 幂等迁移为新表首条 PRIMARY 历史
+  （执行前先跑 `backend/deploy/rehealth/scripts/precheck-legacy-assignment-data.sql` 体检）；
+  风险、干预工作台、机构计划与报告范围统一切到新服务关系，旧表写接口停用（返回 `501` 引导新接口）。
+- 官网“我的客户”页（`frontend/insurer_assignments.html` + BFF `/api/insurer/assignments`）：
+  我的客户/团队视图、被保人池（keyword 搜索）、导入参保人（手机号批量纳入、幂等）、认领
+  （手机号或 `enrollmentId`）、转移（结束旧行+新建行+逐行日志）、单条结束与责任链历史；
+  权限 `rehealth:insurance:assignment:view/manage/transfer`，SELF/TEAM/全机构数据范围在 SQL 层强制。
+- App 侧：零输入一键绑定已上线——`bindable-policies` 返回脱敏保单、产品名与计划名称，
+  `bind` 可按保单 `default_plan_id` 自动选租户/保单/计划（`consentVersion` 必填）；“我的”页展示
+  “已加入的机构计划”与计划名称，并新增只读服务专员卡片（`GET /rehealth/mobile/insurance/assignments/current`，
+  不落 Room）；已修复绑定后剩余未绑定候选保单的展示。
+- 计划目录（`V20260825_4`）：`rehealth_insurance_plan_catalog`（`tenant_id + plan_id` 唯一，
+  预置 `PLAN-CHRONIC-2026`、`PLAN-CVD-2025`）；JeecgBoot `GET/POST /rehealth/insurance/v1/plans`
+  （权限 `rehealth:insurance:care-plan:view/manage`）；官网“我的客户”页顶部「计划目录」弹窗
+  （BFF `/api/insurer/plans`）可查看/新增计划；App 绑定候选与绑定结果展示目录 `planName`。
+- 提交状态：计划目录 Java 端点与迁移已随 `48f0a6cd` 入库，Android 计划卡分块展示计划名称随
+  `c0d711f1` 入库；本次文档同步（契约、OpenAPI、数据库口径、状态与流程文档）随 `7cf1f4f9` 入库，
+  OpenAPI 升级到 `v1.7.0` 且 `validate_contracts.py` 全部 74 项门禁通过。
 
 ## 2026-08-24 本地运维备注
 

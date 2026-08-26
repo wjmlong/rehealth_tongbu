@@ -1,6 +1,6 @@
 # 保险业务、PSM、RWE 与结算契约
 
-状态：本地 MVP 实现，2026-08-21。权威业务库为 JeecgBoot `software_db`（MySQL）；官网 FastAPI 是受控 BFF 和 PSM 执行器，不直接连接数据库。
+状态：本地 MVP 实现，2026-08-26。权威业务库为 JeecgBoot `software_db`（MySQL）；官网 FastAPI 是受控 BFF 和 PSM 执行器，不直接连接数据库。
 
 ## 1. 边界与租户安全
 
@@ -179,7 +179,7 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| `POST` | `/rehealth/mobile/insurance/plans/bind` | 授权并绑定保险计划。**零输入**：`tenantId/policyNo/planId` 均可省略——服务端按当前用户自动选参保租户、自动选有效保单、按保单 `default_plan_id` 自动选计划；多租户/多保单时要求显式指定。`consentVersion` 必填（用户勾选同意的证据） |
+| `POST` | `/rehealth/mobile/insurance/plans/bind` | 授权并绑定保险计划。**零输入**：`tenantId/policyNo/planId` 均可省略——服务端按当前用户自动选参保租户、自动选有效保单、按保单 `default_plan_id` 自动选计划；多租户/多保单时要求显式指定。`consentVersion` 必填（用户勾选同意的证据）；响应携带计划目录 `planName` 供 App 展示 |
 | `GET` | `/rehealth/mobile/insurance/plans/bindable-policies` | 当前用户可绑定的候选保单（保单号脱敏、含 default_plan_id 与计划名称 planName），供 App 一键绑定界面展示 |
 | `GET` | `/rehealth/mobile/insurance/plans/current` | 查询当前有效计划 |
 | `GET` | `/rehealth/mobile/insurance/plans/active` | 返回当前 APP 用户在所有有效保险服务关系中的有效绑定数组（每条含 `tenantId`） |
@@ -191,7 +191,7 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 
 计划绑定、当前计划查询和干预反馈还会实时检查 `sys_user_tenant`、用户账号及保险租户均处于启用状态。撤销租户成员关系或停用租户后，即使旧的投保人映射、计划绑定或 App 登录令牌仍存在，也必须拒绝继续访问；读取计划关联的保单和授权记录必须同时包含 `tenant_id`，不能使用裸主键跨租户读取。
 
-版本化计划依从性采用滚动 28 个自然日：窗口内已经到期的有效任务进入分母；当天已反馈任务即使尚未到期也进入统计。项目 `scoring_weight` 同时作用于分子、分母，完成计 1、部分完成计 0.5、跳过计 0，不适用排除。无有效分母时返回空分数，不显示 0%。Android 已接入类型化 DTO、Room v19 离线队列和归因页展示；计划绑定 UI、用户撤回授权入口和真机产品验收仍待完成。
+版本化计划依从性采用滚动 28 个自然日：窗口内已经到期的有效任务进入分母；当天已反馈任务即使尚未到期也进入统计。项目 `scoring_weight` 同时作用于分子、分母，完成计 1、部分完成计 0.5、跳过计 0，不适用排除。无有效分母时返回空分数，不显示 0%。Android 已接入类型化 DTO、Room v19 离线队列和归因页展示；零输入一键绑定 UI 已完成（“我的”页展示候选保单、计划名称与服务专员卡片，绑定成功后显示“已加入的机构计划”），用户撤回授权入口和真机产品验收仍待完成。
 
 ## 7. 数据库迁移
 
@@ -210,6 +210,7 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 - `V20260825_1__create_insurance_assignment_relations.sql`：保险服务项目、用户参与关系（enrollment）、区间化服务关系（user_assignment，含"同一参与记录同一时刻至多一条活跃 PRIMARY"的生成列唯一索引）与服务关系变更日志；新增 `rehealth:insurance:assignment:view` / `transfer` 权限。
 - `V20260825_2__migrate_legacy_assignment_relations.sql`：把旧 `rehealth_insurance_subject_manager` 幂等迁移为新表首条 PRIMARY 历史（每个 subject 的 updated_at 最新 active 行延续为 active PRIMARY，其余记为 ended 历史），并逐行写入变更日志。执行前必须先跑 `backend/deploy/rehealth/scripts/precheck-legacy-assignment-data.sql` 体检。
 - `V20260825_3__add_policy_default_plan.sql`：保单表增加 `default_plan_id`（保险侧导入保单时指定默认健康计划），支撑 App 零输入一键绑定。
+- `V20260825_4__create_plan_catalog.sql`：保险健康计划目录表 `rehealth_insurance_plan_catalog`（`tenant_id + plan_id` 唯一，保存计划名称/说明/状态），并为本地验收租户预置 `PLAN-CHRONIC-2026`、`PLAN-CVD-2025` 两条计划；保单 `default_plan_id` 引用该目录，App 绑定与官网计划目录弹窗展示计划名称。
 
 迁移均为向前兼容的非破坏性变更，不删除既有保险数据。完整逐表结构见 `backend/docs/REHEALTH_DB_SCHEMA.md`。
 
@@ -249,7 +250,7 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 
 数据范围（SQL 层强制）：普通员工只看自己名下的关系（SELF）；部门主管看本部门所有员工负责的用户（TEAM）；机构管理员与审计员全机构（审计员只读+脱敏+日志可见）。风险接口（`/rehealth/insurance/v1/dashboard/risk`、`/insureds`）的负责人过滤已切到 `rehealth_insurance_user_assignment` + `rehealth_insurance_enrollment`；旧 `rehealth_insurance_subject_manager` 保留只读过渡，其写接口 `PUT /settings/assignments/{subjectRef}` 已停用（返回 `501` 引导使用新接口）。
 
-官网 BFF 透传路径：`/api/insurer/assignments/mine|department|claim|transfer|{id}/end|{enrollmentId}/history`（`frontend/insurer_assignments.html` 为"我的客户"页）。App 在"我的"页展示服务专员卡片，只读、不落 Room。
+官网 BFF 透传路径：`/api/insurer/assignments/mine|department|enrollments(GET/POST)|claim|transfer|{id}/end|{enrollmentId}/history`（`frontend/insurer_assignments.html` 为"我的客户"页）。App 在"我的"页展示服务专员卡片，只读、不落 Room。
 
 ## 10. 计划目录 API
 

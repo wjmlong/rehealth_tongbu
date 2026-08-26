@@ -2,6 +2,9 @@
 
 > 最后生成：2026-08-19。
 > 2026-08-21 修订：ReHealth 迁移口径更新至 `software-V20260821.1`；逐表附录仍为 2026-08-19 快照，尚未包含该迁移新增的 1 张 MySQL 表（见第 2 节）。
+> 2026-08-26 修订：迁移口径更新至 `software-V20260825.4`；自快照后累计新增 7 张 MySQL 表
+> （`rehealth_user_password_state`、`rehealth_viomi_measurement_plan`、4 张服务关系表与 `rehealth_insurance_plan_catalog`），
+> 运行库合计 235 张基础表、software_db 201 张（按迁移脚本口径；附录重新生成前以第 2 节口径为准）。
 > 结构基线来自当前运行中的本地开发数据库 catalog、Room v19 导出 schema、SQL 迁移和业务代码。
 > 本文档不包含账号、密码、业务数据明细、原始健康值或直接身份信息。
 
@@ -25,7 +28,7 @@ ReHealth 不是单库系统，而是三个相互隔离的关系型存储域：
 | 软件业务库 | `rehealth_software`（逻辑名 `software_db`） | MySQL 8.4.6 | 194 | 0 | Jeecg 用户权限及 ReHealth 业务权威数据 |
 | 硬件时序库 | `rehealth_hardware`（逻辑名 `hardware_db`） | PostgreSQL 17.5 + TimescaleDB 2.21.1 | 11 | 0 个业务普通视图 | 规范化硬件时序数据、Outbox 和对账 |
 
-总计 **228 张基础表**（2026-08-19 快照口径）。其中 ReHealth 专属业务域表 **87 张**：Room 23 张、MySQL ReHealth 业务表 54 张、TimescaleDB 业务表 10 张。Kafka 是事件传递系统、Redis 是短期状态存储，均不计入关系表总数。2026-08-21 起 `software-V20260821.1` 新增 `rehealth_user_password_state`，运行库合计 **229 张基础表**；附录重新生成前以本节口径为准。
+总计 **228 张基础表**（2026-08-19 快照口径）。其中 ReHealth 专属业务域表 **87 张**：Room 23 张、MySQL ReHealth 业务表 54 张、TimescaleDB 业务表 10 张。Kafka 是事件传递系统、Redis 是短期状态存储，均不计入关系表总数。2026-08-21 起 `software-V20260821.1` 新增 `rehealth_user_password_state`；2026-08-22 `software-V20260822.1` 新增 `rehealth_viomi_measurement_plan`；2026-08-25 `software-V20260825.1` 新增 4 张服务关系表（`rehealth_insurance_project` / `rehealth_insurance_enrollment` / `rehealth_insurance_user_assignment` / `rehealth_insurance_assignment_change_log`），`software-V20260825.4` 新增 `rehealth_insurance_plan_catalog`。按迁移脚本口径运行库合计 **235 张基础表**（software_db 201 张，比快照多 7 张）；附录重新生成前以本节口径为准。
 
 明确可识别的特殊表类别：
 
@@ -38,7 +41,7 @@ ReHealth 不是单库系统，而是三个相互隔离的关系型存储域：
 | 迁移元数据表 | 3 | Room 使用 schema JSON；MySQL 2 张、TimescaleDB 1 张迁移表 |
 | 历史/备份/年/月分表 | 0 | 未发现 `*_history` 之外的物理历史/备份或按年月命名分表；`cvd_risk_history` 是业务历史表，不是备份表 |
 
-MySQL `flyway_schema_history` 当前存在 `3.9.2.0 all upgrade` 失败记录；ReHealth 自定义迁移已到 `software-V20260821.1`。
+MySQL `flyway_schema_history` 当前存在 `3.9.2.0 all upgrade` 失败记录；ReHealth 自定义迁移已到 `software-V20260825.4`。
 
 ## 3. 数据库表清单与模块划分
 
@@ -77,6 +80,8 @@ MySQL `flyway_schema_history` 当前存在 `3.9.2.0 all upgrade` 失败记录；
 
 完整 228 表清单及逐字段说明见三个逐表附录。MySQL 中还保留 6 张旧 `hardware_*` 兼容表；当前硬件遥测权威写入已经属于 Device Service/TimescaleDB，旧表只能作为迁移来源或兼容遗留，不能形成双写权威。
 
+快照后新增表归属（不计入上表快照数字）：`rehealth_user_password_state`、`rehealth_viomi_measurement_plan` 归 ReHealth 核心业务（30 → 32）；4 张服务关系表与 `rehealth_insurance_plan_catalog` 归 ReHealth 保险业务（21 → 26）。
+
 ## 4. 核心业务表
 
 | 核心聚合 | 主表/表组 | 业务作用 |
@@ -95,7 +100,7 @@ MySQL `flyway_schema_history` 当前存在 `3.9.2.0 all upgrade` 失败记录；
 | 健康问答 | `rehealth_ai_conversation`、`rehealth_ai_message` | 服务端权威完整聊天历史；Room 保存本地副本 |
 | RHI/RDI | Room `rhi_*`、`rdi_*`；MySQL `rehealth_rhi_manual_health_input` | 保存本地透明评分、证据及手工健康输入云端副本 |
 | 饮食/行为 | Room `diet_records`、Timescale `hardware_diet_record`、MySQL `rehealth_behavior_record` | 连接手工/拍照行为、本地队列、硬件域事实和结构化业务记录 |
-| 保险/RWE | `rehealth_insurance_*` 14 表 | 支持去标识主体、保单、理赔、研究、RWE、结算和审计；当前本地实例均为空表 |
+| 保险/RWE | `rehealth_insurance_*` 表组 | 支持去标识主体、保单、理赔、研究、RWE、结算和审计；`V20260825_1/4` 起增加项目/参与/区间化服务关系/变更日志 4 表与计划目录表，服务关系与计划名称由此承载 |
 
 ## 5. 主要表关系
 
@@ -113,7 +118,7 @@ Room v19 没有声明 SQLite FOREIGN KEY，关系由复合主键、唯一索引�
 - MySQL/Timescale `tenant_id` → `sys_tenant.id`，跨库只做逻辑关联，不做跨库事务。
 - Room `owner_user_id/user_id` → 当前认证用户；`device_id` → 服务端设备绑定。
 - Room RHI/RDI 子表通过 `index_id/snapshot_id` 逻辑关联日快照主表。
-- 保险 14 表使用 `tenant_id + subject_ref/policy_id/study_id/snapshot_id/package_id` 维护逻辑关系，当前没有数据库 FOREIGN KEY。
+- 保险表组使用 `tenant_id + subject_ref/policy_id/study_id/snapshot_id/package_id` 维护逻辑关系，当前没有数据库 FOREIGN KEY。服务关系链为 `rehealth_insurance_project → enrollment → user_assignment`（`active_marker` 生成列唯一索引保证同一参与记录同一时刻至多一条活跃 PRIMARY），变更日志按 `enrollment_id` 关联；计划目录按 `tenant_id + plan_id` 唯一，保单 `default_plan_id` 逻辑引用其 `plan_id`。
 - 机构计划通过 `plan_id + revision_id + plan_item_id + occurrence_id` 绑定版本、任务和执行事实；`logical_item_id` 只用于跨版本追踪同一业务项目。
 
 ## 6. ER 关系图
