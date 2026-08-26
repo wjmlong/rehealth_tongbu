@@ -83,9 +83,10 @@ public class InsuranceAssignmentService {
             enrollment = requireEnrollment(tenantId, required(request.enrollmentId(), "enrollmentId", 64));
         } else {
             String phone = required(request.phone(), "phone", 45);
-            String userId = userIdByPhone(phone);
-            requireActiveTenantMember(tenantId, userId, "该账号不是当前保险租户的活跃成员");
-            enrollment = activeEnrollment(tenantId, userId);
+            // APP users are enrolled through insurance subjects, not through
+            // sys_user_tenant membership, so the phone path authorizes purely
+            // on an active enrollment inside the requested tenant.
+            enrollment = activeEnrollment(tenantId, userIdByPhone(phone));
         }
 
         ActivePrimary existing = activePrimary(enrollment.id());
@@ -495,7 +496,7 @@ public class InsuranceAssignmentService {
                     LIMIT 1
                     """, tenantId, userId);
         } catch (EmptyResultDataAccessException ignored) {
-            throw InsuranceApiException.notFound("该用户没有活跃的保险项目参与记录");
+            throw InsuranceApiException.notFound("该手机号用户尚未加入当前保险租户的保险项目，请先导入参保人");
         }
     }
 

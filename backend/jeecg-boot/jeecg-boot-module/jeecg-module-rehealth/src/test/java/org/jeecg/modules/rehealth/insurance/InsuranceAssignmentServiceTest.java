@@ -37,7 +37,6 @@ class InsuranceAssignmentServiceTest {
     @Test
     void claimCreatesPrimaryAssignmentWhenTheEnrollmentHasNoActiveOwner() {
         when(jdbc.queryForObject(anyString(), eq(String.class), eq("13800000000"))).thenReturn("user-1");
-        when(jdbc.queryForObject(anyString(), eq(Integer.class), eq(1001), eq("user-1"))).thenReturn(1);
         var enrollment = new InsuranceAssignmentService.EnrollmentRow(
                 "enr-1", "proj-1", "默认服务项目", SUBJECT_REF, "user-1", "张三");
         when(jdbc.queryForObject(anyString(),
@@ -67,7 +66,6 @@ class InsuranceAssignmentServiceTest {
     @Test
     void claimReturnsExistingRelationshipWhenAlreadyOwned() {
         when(jdbc.queryForObject(anyString(), eq(String.class), eq("13800000000"))).thenReturn("user-1");
-        when(jdbc.queryForObject(anyString(), eq(Integer.class), eq(1001), eq("user-1"))).thenReturn(1);
         var enrollment = new InsuranceAssignmentService.EnrollmentRow(
                 "enr-1", "proj-1", "默认服务项目", SUBJECT_REF, "user-1", "张三");
         when(jdbc.queryForObject(anyString(),
@@ -93,7 +91,6 @@ class InsuranceAssignmentServiceTest {
     @Test
     void claimConflictsWhenAnotherEmployeeIsTheActivePrimary() {
         when(jdbc.queryForObject(anyString(), eq(String.class), eq("13800000000"))).thenReturn("user-1");
-        when(jdbc.queryForObject(anyString(), eq(Integer.class), eq(1001), eq("user-1"))).thenReturn(1);
         var enrollment = new InsuranceAssignmentService.EnrollmentRow(
                 "enr-1", "proj-1", "默认服务项目", SUBJECT_REF, "user-1", "张三");
         when(jdbc.queryForObject(anyString(),
@@ -109,6 +106,22 @@ class InsuranceAssignmentServiceTest {
                 () -> service.claim(1001, "emp-1", new InsuranceAssignmentRequest.Claim("13800000000", null, null))
         );
         assertEquals(HttpStatus.CONFLICT, error.status());
+    }
+
+    @Test
+    void claimByPhoneRejectsUsersWithoutAnEnrollmentInTheRequestedTenant() {
+        when(jdbc.queryForObject(anyString(), eq(String.class), eq("13800000000"))).thenReturn("user-1");
+        when(jdbc.queryForObject(anyString(),
+                ArgumentMatchers.<RowMapper<InsuranceAssignmentService.EnrollmentRow>>any(),
+                eq(1001), eq("user-1")))
+                .thenThrow(new org.springframework.dao.EmptyResultDataAccessException(1));
+
+        InsuranceApiException error = org.junit.jupiter.api.Assertions.assertThrows(
+                InsuranceApiException.class,
+                () -> service.claim(1001, "emp-1", new InsuranceAssignmentRequest.Claim("13800000000", null, null))
+        );
+        assertEquals(HttpStatus.NOT_FOUND, error.status());
+        assertEquals("该手机号用户尚未加入当前保险租户的保险项目，请先导入参保人", error.getMessage());
     }
 
     @Test
