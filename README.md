@@ -259,6 +259,14 @@ Android Room
 分母，以完成 100%、部分完成 50%、跳过 0%、不适用排除计算。旧 `insurance_plan_binding` 仅作为
 既有保险计划兼容链路保留，不替代版本化机构计划。
 
+保险侧用户服务关系一期（2026-08-25）已上线：官网“我的客户”页支持导入参保人、被保人池认领、
+服务关系转移与责任链历史；App 保单绑定改为零输入一键绑定——`bindable-policies` 返回脱敏保单、
+产品名与计划目录 `planName`，`bind` 可按保单 `default_plan_id` 自动选租户/保单/计划（用户只需勾选
+同意授权），绑定后“我的”页展示“已加入的机构计划”与计划名称，并新增只读服务专员卡片
+（`GET /rehealth/mobile/insurance/assignments/current`，不落 Room）。计划目录由
+`GET/POST /rehealth/insurance/v1/plans` 维护（官网 BFF `/api/insurer/plans`），保单
+`default_plan_id` 引用目录中的计划标识。
+
 保险侧“干预改善工作台”详情复用同一个当前生效发布版本，并把版本化计划项目逐项展示在
 “应该采取什么行动”；保险员工创建的人工行动作为独立补充行动展示并保留自己的状态与审计，
 不会反向覆盖机构计划。计划项按 APP 最新反馈展示待反馈、部分完成、已完成、未完成或不适用，
@@ -388,6 +396,8 @@ unknown 记录计入临床风险。
 | Android 手工饮食记录 | Room v11 | 先本地持久化，再通过 durable queue 以 `telemetry-v2 dietRecords` 上传；显式 10→11 迁移保留既有健康数据 |
 | Android PIAS 展示缓存 | Room v17 | 按登录用户保存最新响应 JSON、模型版本与 `is_mock`；Mock 行只允许显式全量 Mock Debug 读取，不是云端权威归因结果 |
 | Android 机构干预反馈队列 | Room v19 + MySQL `rehealth_insurance_intervention_feedback` / `rehealth_care_plan_execution` | 旧绑定反馈按登录用户、租户、绑定和计划项隔离；版本化机构计划另按稳定 `occurrence_id` 幂等上传，服务端以 28 日到期任务为分母计算权威依从性；不把通用反馈自动复制给所有机构 |
+| 保险用户服务关系 | MySQL `rehealth_insurance_project` / `rehealth_insurance_enrollment` / `rehealth_insurance_user_assignment` / `rehealth_insurance_assignment_change_log` | 区间化负责人关系：换负责人=结束旧行+新建行+逐行日志，生成列唯一索引保证同一参与记录同一时刻至多一条活跃 PRIMARY；旧 `subject_manager` 幂等迁移为历史 |
+| 保险计划目录 | MySQL `rehealth_insurance_plan_catalog` | 产品级计划名称目录（`tenant_id + plan_id` 唯一）；保单 `default_plan_id` 引用，App 绑定与官网计划目录展示 `planName` |
 | 规范化硬件时序数据 | TimescaleDB | Device Service 独占写入和读取 |
 | 用户、档案、绑定、风险、干预、反馈、健康问答历史 | MySQL `software_db` | JeecgBoot 业务权威；聊天按用户+租户隔离 |
 | 遥测持久化/质量事件 | Kafka | 事件通知，不存原始健康值 |
@@ -496,7 +506,7 @@ python backend/qa/rehealth_stack_gate.py topology `
 | `backend/contracts/INSURANCE_BUSINESS_API.md` | 保险数据导入、PSM、RWE、结算和 App 授权契约 | 保险 API、状态机、角色权限、隐私或幂等语义变化时 |
 | `backend/contracts/INSURANCE_STAFF_APP_USER_MATCHING_ANALYSIS.md` | 保险员工、平台 APP 用户、多机构服务、后台角色、现有表复用和负责人匹配的持续分析 | 机构员工权限、APP 领域服务关系、后台角色、负责人范围、多机构服务或相关产品决策变化时 |
 | `backend/docs/保险干预依从性完整链路.md` | 保险计划反馈从 APP 本地队列、服务端计分到工作台 28 天聚合的完整链路、当前口径和演进计划 | 反馈类型、依从性公式、统计窗口、任务分母、多源证据、多机构复用或展示语义变化时 |
-| `backend/docs/REHEALTH_DB_SCHEMA.md` | Room、MySQL 与 TimescaleDB 数据库结构总览及逐表附录入口（2026-08-19 快照 228 张，运行库 229 张） | Room/MySQL/TimescaleDB Schema、索引、关系或字段语义变化时 |
+| `backend/docs/REHEALTH_DB_SCHEMA.md` | Room、MySQL 与 TimescaleDB 数据库结构总览及逐表附录入口（2026-08-19 快照 228 张，运行库按迁移口径 235 张） | Room/MySQL/TimescaleDB Schema、索引、关系或字段语义变化时 |
 | `sql/README.md` | 多数据库当前结构快照、中文注释、基础数据、测试数据与执行顺序 | 统一 SQL 资产、初始化边界或空库验证方式变化时 |
 | `backend/deploy/rehealth/README.md` | 部署拓扑和运行方式 | 服务、端口、环境变量、secret、容器变化时 |
 | `model-service/docs/API_CONTRACT.md` | 模型服务接口 | 模型请求/响应、版本或就绪语义变化时 |
