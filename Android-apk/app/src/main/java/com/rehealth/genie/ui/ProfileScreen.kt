@@ -5,6 +5,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -277,9 +278,33 @@ internal fun ProfileScreen(
                 if (planBindingState.bindings.isNotEmpty()) {
                     Text("已加入的机构计划", color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
                     planBindingState.bindings.forEach { binding ->
-                        StatusRow("计划名称", binding.planName ?: binding.planId)
-                        StatusRow("保单", binding.policyNo.takeIf { it.isNotBlank() } ?: "—")
-                        StatusRow("状态", if (binding.status == "ACTIVE") "生效中" else binding.status)
+                        Column(
+                            Modifier.fillMaxWidth()
+                                .padding(top = 8.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(MintSoft.copy(alpha = 0.35f))
+                                .border(1.dp, Line, RoundedCornerShape(10.dp))
+                                .padding(12.dp),
+                        ) {
+                            Text(
+                                binding.planName ?: binding.planId,
+                                color = Ink,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                "保单 ${binding.policyNo.takeIf { it.isNotBlank() } ?: "—"}",
+                                color = Muted,
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(top = 3.dp),
+                            )
+                            Text(
+                                if (binding.status == "ACTIVE") "生效中" else binding.status,
+                                color = Mint,
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(top = 3.dp),
+                            )
+                        }
                     }
                 }
                 val boundPolicyNos = planBindingState.bindings.map { it.policyNo }.toSet()
@@ -296,18 +321,23 @@ internal fun ProfileScreen(
                         if (planBindingState.bindings.isNotEmpty()) "还可加入的机构保单" else "检测到可绑定的保单",
                         color = Muted,
                         fontSize = 11.sp,
-                        modifier = Modifier.padding(top = 6.dp),
+                        modifier = Modifier.padding(top = 10.dp),
                     )
                     unboundCandidates.forEach { candidate ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                                .padding(top = 8.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(MintSoft.copy(alpha = 0.35f))
+                                .border(1.dp, Line, RoundedCornerShape(10.dp))
+                                .padding(12.dp),
                         ) {
                             Column(Modifier.weight(1f)) {
                                 Text(
                                     candidate.planName ?: candidate.productName ?: "健康保险",
                                     color = Ink,
-                                    fontSize = 13.sp,
+                                    fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold,
                                 )
                                 Text(
@@ -315,6 +345,7 @@ internal fun ProfileScreen(
                                         (if (candidate.hasPlan) " · 含健康计划" else " · 暂未配置健康计划"),
                                     color = Muted,
                                     fontSize = 11.sp,
+                                    modifier = Modifier.padding(top = 3.dp),
                                 )
                             }
                             Button(
