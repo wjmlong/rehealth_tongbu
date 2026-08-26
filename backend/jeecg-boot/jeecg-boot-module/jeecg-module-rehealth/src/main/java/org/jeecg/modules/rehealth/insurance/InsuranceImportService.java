@@ -141,6 +141,9 @@ public class InsuranceImportService {
             entity.setProductCode(trim(row.productCode(), 64));
             entity.setProductName(trim(row.productName(), 255));
             entity.setPolicyType(required(row.policyType(), "records[" + rowNumber + "].policyType", 64));
+            //update-begin---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】保单导入指定默认健康计划-----------
+            entity.setDefaultPlanId(trim(row.defaultPlanId(), 128));
+            //update-end---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】保单导入指定默认健康计划-----------
             entity.setPolicyholderSubjectRef(row.policyholderSubjectRef() == null || row.policyholderSubjectRef().isBlank()
                     ? null : normalizedHash(row.policyholderSubjectRef(), "policyholderSubjectRef"));
             entity.setInsuredSubjectRef(subjectRef);

@@ -179,7 +179,8 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| `POST` | `/rehealth/mobile/insurance/plans/bind` | 当前登录用户按租户、有效保单和授权版本绑定保险计划 |
+| `POST` | `/rehealth/mobile/insurance/plans/bind` | 授权并绑定保险计划。**零输入**：`tenantId/policyNo/planId` 均可省略——服务端按当前用户自动选参保租户、自动选有效保单、按保单 `default_plan_id` 自动选计划；多租户/多保单时要求显式指定。`consentVersion` 必填（用户勾选同意的证据） |
+| `GET` | `/rehealth/mobile/insurance/plans/bindable-policies` | 当前用户可绑定的候选保单（保单号脱敏、含 default_plan_id 与 hasPlan 标记），供 App 一键绑定界面展示 |
 | `GET` | `/rehealth/mobile/insurance/plans/current` | 查询当前有效计划 |
 | `GET` | `/rehealth/mobile/insurance/plans/active` | 返回当前 APP 用户在所有有效保险服务关系中的有效绑定数组（每条含 `tenantId`） |
 | `POST` | `/rehealth/mobile/insurance/plans/{bindingId}/feedback` | 幂等回传完成率、依从性和有界结果摘要 |
@@ -208,6 +209,7 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 - `V20260821_1__add_password_management.sql`：员工密码强制修改状态表与保险机构管理员重置成员密码权限（`rehealth:insurance:member:password:reset`）。
 - `V20260825_1__create_insurance_assignment_relations.sql`：保险服务项目、用户参与关系（enrollment）、区间化服务关系（user_assignment，含"同一参与记录同一时刻至多一条活跃 PRIMARY"的生成列唯一索引）与服务关系变更日志；新增 `rehealth:insurance:assignment:view` / `transfer` 权限。
 - `V20260825_2__migrate_legacy_assignment_relations.sql`：把旧 `rehealth_insurance_subject_manager` 幂等迁移为新表首条 PRIMARY 历史（每个 subject 的 updated_at 最新 active 行延续为 active PRIMARY，其余记为 ended 历史），并逐行写入变更日志。执行前必须先跑 `backend/deploy/rehealth/scripts/precheck-legacy-assignment-data.sql` 体检。
+- `V20260825_3__add_policy_default_plan.sql`：保单表增加 `default_plan_id`（保险侧导入保单时指定默认健康计划），支撑 App 零输入一键绑定。
 
 迁移均为向前兼容的非破坏性变更，不删除既有保险数据。完整逐表结构见 `backend/docs/REHEALTH_DB_SCHEMA.md`。
 

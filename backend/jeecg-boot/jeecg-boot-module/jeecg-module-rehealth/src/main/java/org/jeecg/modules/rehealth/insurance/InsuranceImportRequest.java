@@ -51,6 +51,7 @@ public final class InsuranceImportRequest {
             LocalDate expiresOn,
             String status,
             String sourceRecordId,
+            String defaultPlanId,
             Map<String, Object> metadata
     ) {
     }

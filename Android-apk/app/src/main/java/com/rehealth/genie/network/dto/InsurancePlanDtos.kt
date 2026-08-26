@@ -5,15 +5,26 @@ import com.squareup.moshi.JsonClass
 /** Privacy-safe insurance-plan DTOs. Raw health measurements never cross this boundary. */
 @JsonClass(generateAdapter = true)
 data class InsurancePlanBindRequestDto(
-    val tenantId: String,
-    val policyNo: String,
-    val planId: String,
-    val consentVersion: String,
+    val tenantId: String? = null,
+    val policyNo: String? = null,
+    val planId: String? = null,
+    val consentVersion: String = "v1.0",
     val consentType: String = "insurance_health_program",
     val evidenceRef: String? = null,
     val evidenceHash: String? = null,
     val sourceRecordId: String,
     val metadata: Map<String, String> = emptyMap(),
+)
+
+/** 零输入绑定的候选保单（服务端按当前用户聚合，保单号已脱敏）。 */
+@JsonClass(generateAdapter = true)
+data class InsuranceMobileBindablePolicyDto(
+    val tenantId: Int,
+    val policyNo: String,
+    val policyNoMasked: String,
+    val productName: String? = null,
+    val defaultPlanId: String? = null,
+    val hasPlan: Boolean = false,
 )
 
 @JsonClass(generateAdapter = true)

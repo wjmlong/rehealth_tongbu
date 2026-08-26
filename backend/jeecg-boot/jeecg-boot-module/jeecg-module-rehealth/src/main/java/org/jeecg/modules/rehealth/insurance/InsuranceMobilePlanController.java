@@ -45,6 +45,12 @@ public class InsuranceMobilePlanController {
         return respond(() -> service.bind(currentUserId(), request));
     }
 
+    @GetMapping("/plans/bindable-policies")
+    @Operation(summary = "List the current user's active policies available for zero-input binding")
+    public ResponseEntity<Result<java.util.List<InsuranceMobileBindablePolicy>>> bindablePolicies() {
+        return respond(() -> service.bindablePolicies(currentUserId()));
+    }
+
     @GetMapping("/plans/current")
     @Operation(summary = "Get the current user's active insurance plan binding")
     public ResponseEntity<Result<InsuranceMobilePlanResponse>> current(

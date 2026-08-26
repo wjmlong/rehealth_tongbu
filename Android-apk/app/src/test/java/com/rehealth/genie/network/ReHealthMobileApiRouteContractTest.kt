@@ -503,6 +503,30 @@ class ReHealthMobileApiRouteContractTest {
         assertRequest("/jeecg-boot/rehealth/mobile/insurance/assignments/current", "GET")
     }
 
+    @Test
+    fun `lists bindable insurance policies for zero input binding`() = runTest {
+        server.start()
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"success":true,"code":200,"result":[{"tenantId":1000,"policyNo":"8850882026080003712","policyNoMasked":"尾号 3712","productName":"睿禾慢病管理医疗保险","defaultPlanId":"PLAN-CHRONIC-2026","hasPlan":true}]}""",
+            ),
+        )
+        val api = ReHealthMobileApi(
+            baseUrl = server.url("/jeecg-boot/").toString(),
+            httpClient = OkHttpClient(),
+            apiToken = "synthetic-test-token",
+        )
+
+        val result = assertIs<RemotePhmOutcome.Success<*>>(api.getBindableInsurancePolicies())
+        val policies = result.data as List<com.rehealth.genie.network.dto.InsuranceMobileBindablePolicyDto>
+
+        assertEquals(1, policies.size)
+        assertEquals("尾号 3712", policies[0].policyNoMasked)
+        assertEquals("PLAN-CHRONIC-2026", policies[0].defaultPlanId)
+        assertEquals(true, policies[0].hasPlan)
+        assertRequest("/jeecg-boot/rehealth/mobile/insurance/plans/bindable-policies", "GET")
+    }
+
     private fun assertRequest(expectedPath: String, expectedMethod: String): okhttp3.mockwebserver.RecordedRequest {
         val request = server.takeRequest()
         assertEquals(expectedPath, request.path)

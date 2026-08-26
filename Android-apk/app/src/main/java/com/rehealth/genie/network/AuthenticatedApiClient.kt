@@ -160,6 +160,10 @@ class AuthenticatedApiClient(
         mobileApi.bindInsurancePlan(request)
     }
 
+    suspend fun getBindableInsurancePolicies(): ApiResult<List<InsuranceMobileBindablePolicyDto>> = executeWithAuth {
+        mobileApi.getBindableInsurancePolicies()
+    }
+
     suspend fun getCurrentInsurancePlan(): ApiResult<InsurancePlanBindingDto?> = executeWithAuth {
         mobileApi.getCurrentInsurancePlan()
     }

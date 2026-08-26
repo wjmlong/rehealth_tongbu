@@ -25,6 +25,8 @@ public class InsurancePolicyEntity {
     private String productName;
     @TableField("policy_type")
     private String policyType;
+    @TableField("default_plan_id")
+    private String defaultPlanId;
     @TableField("policyholder_subject_ref")
     private String policyholderSubjectRef;
     @TableField("insured_subject_ref")

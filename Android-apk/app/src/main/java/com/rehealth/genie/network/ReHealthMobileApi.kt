@@ -11,6 +11,7 @@ import com.rehealth.genie.network.dto.InterventionFeedbackResponse
 import com.rehealth.genie.network.dto.InterventionPlanDto
 import com.rehealth.genie.network.dto.InsurancePlanBindRequestDto
 import com.rehealth.genie.network.dto.InsurancePlanBindingDto
+import com.rehealth.genie.network.dto.InsuranceMobileBindablePolicyDto
 import com.rehealth.genie.network.dto.InsuranceServiceContactDto
 import com.rehealth.genie.network.dto.InsurancePlanFeedbackRequestDto
 import com.rehealth.genie.network.dto.InstitutionCarePlanDto
@@ -189,6 +190,9 @@ suspend fun uploadRhiSnapshot(
         request: InsurancePlanBindRequestDto,
     ): RemotePhmOutcome<InsurancePlanBindingDto> =
         unwrap { api.bindInsurancePlan(request) }
+
+    suspend fun getBindableInsurancePolicies(): RemotePhmOutcome<List<InsuranceMobileBindablePolicyDto>> =
+        unwrap { api.getBindableInsurancePolicies() }
 
     suspend fun getCurrentInsurancePlan(): RemotePhmOutcome<InsurancePlanBindingDto?> =
         unwrapNullable { api.getCurrentInsurancePlan() }

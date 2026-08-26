@@ -39,6 +39,7 @@ import com.rehealth.genie.network.dto.ViomiMeasurementPlanRequestDto
 import com.rehealth.genie.network.dto.ViomiMeasurementPlanResponseDto
 import com.rehealth.genie.network.dto.BehaviorRecordDto
 import com.rehealth.genie.network.dto.InsurancePlanBindRequestDto
+import com.rehealth.genie.network.dto.InsuranceMobileBindablePolicyDto
 import com.rehealth.genie.network.dto.InsurancePlanBindingDto
 import com.rehealth.genie.network.dto.InsurancePlanFeedbackRequestDto
 import com.rehealth.genie.network.dto.InsuranceServiceContactDto
@@ -145,6 +146,9 @@ interface ReHealthApi {
     suspend fun bindInsurancePlan(
         @Body request: InsurancePlanBindRequestDto,
     ): Response<JeecgResult<InsurancePlanBindingDto>>
+
+    @GET("rehealth/mobile/insurance/plans/bindable-policies")
+    suspend fun getBindableInsurancePolicies(): Response<JeecgResult<List<InsuranceMobileBindablePolicyDto>>>
 
     @GET("rehealth/mobile/insurance/plans/current")
     suspend fun getCurrentInsurancePlan(): Response<JeecgResult<InsurancePlanBindingDto?>>

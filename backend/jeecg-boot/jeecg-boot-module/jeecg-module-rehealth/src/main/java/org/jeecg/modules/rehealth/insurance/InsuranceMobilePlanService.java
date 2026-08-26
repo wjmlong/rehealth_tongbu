@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -62,7 +63,8 @@ public class InsuranceMobilePlanService {
 
     @Transactional
     public InsuranceMobilePlanResponse bind(String userId, InsuranceMobilePlanRequest.Bind request) {
-        int tenantId = positiveTenant(request.tenantId());
+        //update-begin---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】零输入绑定：自动选租户/保单/计划-----------
+        int tenantId = resolveBindTenant(userId, request.tenantId());
         requireActiveTenant(tenantId);
         InsuranceSubjectEntity subject = subjectMapper.selectOne(new LambdaQueryWrapper<InsuranceSubjectEntity>()
                 .eq(InsuranceSubjectEntity::getTenantId, tenantId)
@@ -72,15 +74,14 @@ public class InsuranceMobilePlanService {
         if (subject == null || !"active".equals(subject.getEnrollmentStatus())) {
             throw InsuranceApiException.forbidden("current user is not enrolled in the requested insurance tenant");
         }
-        InsurancePolicyEntity policy = policyMapper.selectOne(new LambdaQueryWrapper<InsurancePolicyEntity>()
-                .eq(InsurancePolicyEntity::getTenantId, tenantId)
-                .eq(InsurancePolicyEntity::getPolicyNo, required(request.policyNo(), "policyNo", 128))
-                .eq(InsurancePolicyEntity::getInsuredSubjectRef, subject.getSubjectRef())
-                .eq(InsurancePolicyEntity::getStatus, "active")
-                .last("LIMIT 1"));
-        if (policy == null) {
-            throw InsuranceApiException.notFound("active policy was not found for the current user");
+        InsurancePolicyEntity policy = resolveBindPolicy(tenantId, subject.getSubjectRef(), request.policyNo());
+        String planId = request.planId() == null || request.planId().isBlank()
+                ? policy.getDefaultPlanId()
+                : request.planId().trim();
+        if (planId == null || planId.isBlank()) {
+            throw InsuranceApiException.badRequest("该保单未配置健康计划，请联系保险机构");
         }
+        //update-end---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】零输入绑定：自动选租户/保单/计划-----------
         String consentType = optional(request.consentType(), "insurance_program", 64);
         String consentVersion = required(request.consentVersion(), "consentVersion", 64);
         LocalDateTime now = LocalDateTime.now();
@@ -115,7 +116,7 @@ public class InsuranceMobilePlanService {
                 .eq(InsurancePlanBindingEntity::getTenantId, tenantId)
                 .eq(InsurancePlanBindingEntity::getSubjectRef, subject.getSubjectRef())
                 .eq(InsurancePlanBindingEntity::getPolicyId, policy.getId())
-                .eq(InsurancePlanBindingEntity::getPlanId, required(request.planId(), "planId", 128))
+                .eq(InsurancePlanBindingEntity::getPlanId, planId)
                 .last("LIMIT 1"));
         if (binding == null) {
             binding = new InsurancePlanBindingEntity();
@@ -123,7 +124,7 @@ public class InsuranceMobilePlanService {
             binding.setTenantId(tenantId);
             binding.setSubjectRef(subject.getSubjectRef());
             binding.setPolicyId(policy.getId());
-            binding.setPlanId(request.planId().trim());
+            binding.setPlanId(planId);
             binding.setCreatedAt(now);
         }
         binding.setConsentId(consent.getId());
@@ -143,6 +144,89 @@ public class InsuranceMobilePlanService {
         subjectMapper.updateById(subject);
         return response(binding, policy, consent);
     }
+
+    //update-begin---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】零输入绑定：自动选租户/保单/计划-----------
+    /** Zero-input binding helpers: resolve tenant, policy and plan automatically. */
+    private int resolveBindTenant(String userId, String tenantValue) {
+        if (tenantValue != null && !tenantValue.isBlank()) {
+            return positiveTenant(tenantValue);
+        }
+        List<InsuranceSubjectEntity> subjects = subjectMapper.selectList(
+                new LambdaQueryWrapper<InsuranceSubjectEntity>()
+                        .eq(InsuranceSubjectEntity::getRehealthUserId, userId)
+                        .eq(InsuranceSubjectEntity::getEnrollmentStatus, "active"));
+        List<Integer> tenants = subjects.stream()
+                .map(InsuranceSubjectEntity::getTenantId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (tenants.isEmpty()) {
+            throw InsuranceApiException.forbidden("当前用户没有有效的保险参保关系");
+        }
+        if (tenants.size() > 1) {
+            throw InsuranceApiException.badRequest("当前用户关联多个保险机构，请先选择机构");
+        }
+        return tenants.get(0);
+    }
+
+    private InsurancePolicyEntity resolveBindPolicy(int tenantId, String subjectRef, String policyNo) {
+        LambdaQueryWrapper<InsurancePolicyEntity> query = new LambdaQueryWrapper<InsurancePolicyEntity>()
+                .eq(InsurancePolicyEntity::getTenantId, tenantId)
+                .eq(InsurancePolicyEntity::getInsuredSubjectRef, subjectRef)
+                .eq(InsurancePolicyEntity::getStatus, "active");
+        if (policyNo != null && !policyNo.isBlank()) {
+            query.eq(InsurancePolicyEntity::getPolicyNo, policyNo.trim()).last("LIMIT 1");
+            InsurancePolicyEntity policy = policyMapper.selectOne(query);
+            if (policy == null) {
+                throw InsuranceApiException.notFound("active policy was not found for the current user");
+            }
+            return policy;
+        }
+        List<InsurancePolicyEntity> candidates = policyMapper.selectList(
+                query.orderByDesc(InsurancePolicyEntity::getEffectiveOn).last("LIMIT 10"));
+        if (candidates.isEmpty()) {
+            throw InsuranceApiException.notFound("当前用户没有有效保单，请联系保险机构");
+        }
+        if (candidates.size() > 1) {
+            throw InsuranceApiException.badRequest("存在多张有效保单，请先选择保单");
+        }
+        return candidates.get(0);
+    }
+
+    public List<InsuranceMobileBindablePolicy> bindablePolicies(String userId) {
+        if (userId == null || userId.isBlank()) {
+            return List.of();
+        }
+        List<InsuranceMobileBindablePolicy> result = new ArrayList<>();
+        List<InsuranceSubjectEntity> subjects = subjectMapper.selectList(
+                new LambdaQueryWrapper<InsuranceSubjectEntity>()
+                        .eq(InsuranceSubjectEntity::getRehealthUserId, userId)
+                        .eq(InsuranceSubjectEntity::getEnrollmentStatus, "active"));
+        for (InsuranceSubjectEntity subject : subjects) {
+            if (subject.getTenantId() == null || subjectMapper.countActiveTenant(subject.getTenantId()) < 1) {
+                continue;
+            }
+            List<InsurancePolicyEntity> policies = policyMapper.selectList(
+                    new LambdaQueryWrapper<InsurancePolicyEntity>()
+                            .eq(InsurancePolicyEntity::getTenantId, subject.getTenantId())
+                            .eq(InsurancePolicyEntity::getInsuredSubjectRef, subject.getSubjectRef())
+                            .eq(InsurancePolicyEntity::getStatus, "active")
+                            .orderByDesc(InsurancePolicyEntity::getEffectiveOn));
+            for (InsurancePolicyEntity policy : policies) {
+                String policyNo = policy.getPolicyNo() == null ? "" : policy.getPolicyNo();
+                String masked = policyNo.length() > 4 ? "尾号 " + policyNo.substring(policyNo.length() - 4) : policyNo;
+                result.add(new InsuranceMobileBindablePolicy(
+                        subject.getTenantId(),
+                        policyNo,
+                        masked,
+                        policy.getProductName(),
+                        policy.getDefaultPlanId(),
+                        policy.getDefaultPlanId() != null && !policy.getDefaultPlanId().isBlank()));
+            }
+        }
+        return result;
+    }
+    //update-end---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】零输入绑定：自动选租户/保单/计划-----------
 
     public InsuranceMobilePlanResponse current(String userId, String tenantValue) {
         int tenantId = positiveTenant(tenantValue);

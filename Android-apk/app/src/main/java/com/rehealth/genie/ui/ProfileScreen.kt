@@ -147,10 +147,15 @@ internal fun ProfileScreen(
         factory = ServiceContactViewModel.Factory(context),
     )
     val serviceContactState by serviceContactViewModel.uiState.collectAsState()
+    val planBindingViewModel: InsurancePlanBindingViewModel = viewModel(
+        factory = InsurancePlanBindingViewModel.Factory(context),
+    )
+    val planBindingState by planBindingViewModel.uiState.collectAsState()
     LaunchedEffect(Unit) {
         onRefreshProfile()
         rhiInputViewModel.observeCurrentUser()
         serviceContactViewModel.loadForCurrentUser()
+        planBindingViewModel.loadForCurrentUser()
     }
     LaunchedEffect(editState.saved) {
         if (editState.saved) {
@@ -261,6 +266,69 @@ internal fun ProfileScreen(
                     fontSize = 9.sp,
                     modifier = Modifier.padding(top = 6.dp),
                 )
+            }
+            ReHealthCardBlock {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("保险计划", color = Ink, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    if (planBindingState.loading || planBindingState.binding) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Mint, strokeWidth = 2.dp)
+                    }
+                }
+                if (planBindingState.bindings.isNotEmpty()) {
+                    planBindingState.bindings.forEach { binding ->
+                        StatusRow("已加入计划", binding.policyNo.takeIf { it.isNotBlank() } ?: "健康管理计划")
+                        StatusRow("授权版本", binding.consentVersion)
+                        StatusRow("状态", if (binding.status == "ACTIVE") "生效中" else binding.status)
+                    }
+                } else if (!planBindingState.loading && planBindingState.candidates.isEmpty()) {
+                    Text(
+                        planBindingState.message ?: "未发现可绑定的保单",
+                        color = Muted,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                } else {
+                    planBindingState.candidates.forEach { candidate ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    candidate.productName ?: "健康保险",
+                                    color = Ink,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(
+                                    "保单 ${candidate.policyNoMasked}" +
+                                        (if (candidate.hasPlan) " · 含健康计划" else " · 暂未配置健康计划"),
+                                    color = Muted,
+                                    fontSize = 11.sp,
+                                )
+                            }
+                            Button(
+                                onClick = { planBindingViewModel.bindSelected(candidate) },
+                                enabled = planBindingState.agreed && !planBindingState.binding,
+                            ) {
+                                Text("加入", fontSize = 12.sp)
+                            }
+                        }
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    ) {
+                        Checkbox(
+                            checked = planBindingState.agreed,
+                            onCheckedChange = planBindingViewModel::setAgreed,
+                        )
+                        Text("我已阅读并同意《健康数据授权协议》", color = Muted, fontSize = 11.sp)
+                    }
+                }
+                planBindingState.message?.takeIf { planBindingState.bindings.isNotEmpty() || planBindingState.candidates.isEmpty() }?.let { message ->
+                    Text(message, color = Mint, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
+                }
             }
             ReHealthCardBlock {
                 Row(verticalAlignment = Alignment.CenterVertically) {
