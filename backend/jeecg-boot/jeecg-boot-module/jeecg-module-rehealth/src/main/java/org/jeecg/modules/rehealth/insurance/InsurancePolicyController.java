@@ -9,68 +9,68 @@ import org.jeecg.common.constant.CommonConstant;
 import org.jeecg.common.system.vo.LoginUser;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.function.Supplier;
 
-@Tag(name = "ReHealth Insurance Business Import API")
+/**
+ * Insurance-side policy dispatch interface: the scoped policy list and the
+ * dispatchable subject candidates used by the website import dialog.
+ * Both endpoints share the policy import permission.
+ */
+//update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧保单派发】官网保单列表与可派发被保人接口-----------
+@Tag(name = "ReHealth Insurance Policy Dispatch API")
 @RestController
-@RequestMapping("/rehealth/insurance/v1/imports")
+@RequestMapping("/rehealth/insurance/v1/policies")
 @ConditionalOnProperty(name = "rehealth.software-db.enabled", havingValue = "true")
-public class InsuranceImportController {
+public class InsurancePolicyController {
     private static final String IMPORT_PERMISSION = "rehealth:insurance:business:import";
 
-    private final InsuranceImportService service;
+    private final InsurancePolicyService service;
     private final InsuranceTenantAccessGuard tenantAccessGuard;
 
-    public InsuranceImportController(
-            InsuranceImportService service,
+    public InsurancePolicyController(
+            InsurancePolicyService service,
             InsuranceTenantAccessGuard tenantAccessGuard
     ) {
         this.service = service;
         this.tenantAccessGuard = tenantAccessGuard;
     }
 
-    @PostMapping("/subjects")
+    @GetMapping
     @RequiresPermissions(IMPORT_PERMISSION)
-    @Operation(summary = "Idempotently bind ReHealth users to insurer subject references")
-    public ResponseEntity<Result<InsuranceImportResponse.BatchResult>> subjects(
+    @Operation(summary = "List tenant policies inside the current staff responsibility scope")
+    public ResponseEntity<Result<InsurancePolicyResponse.PolicyPage>> list(
             @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
-            @RequestBody InsuranceImportRequest.SubjectBatch request
+            @RequestParam(defaultValue = "1") int pageNo,
+            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(required = false) String keyword
     ) {
         return respond(() -> {
             LoginUser user = currentUser();
-            return service.importSubjects(tenantAccessGuard.requireTenant(user, tenantId), user.getId(), request);
+            int tenant = tenantAccessGuard.requireTenant(user, tenantId);
+            InsuranceAssignmentScope scope = tenantAccessGuard.assignmentScopeOrNull(user, tenant);
+            return service.list(tenant, scope, pageNo, pageSize, keyword);
         });
     }
 
-    @PostMapping("/policies")
+    @GetMapping("/dispatchable-subjects")
     @RequiresPermissions(IMPORT_PERMISSION)
-    @Operation(summary = "Idempotently import tenant-scoped insurance policies")
-    public ResponseEntity<Result<InsuranceImportResponse.BatchResult>> policies(
+    @Operation(summary = "List subjects the current staff may dispatch policies to")
+    public ResponseEntity<Result<List<InsurancePolicyResponse.DispatchableSubject>>> dispatchableSubjects(
             @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
-            @RequestBody InsuranceImportRequest.PolicyBatch request
+            @RequestParam(required = false) String keyword
     ) {
         return respond(() -> {
             LoginUser user = currentUser();
-            return service.importPolicies(tenantAccessGuard.requireTenant(user, tenantId), user, request);
-        });
-    }
-
-    @PostMapping("/claims")
-    @RequiresPermissions(IMPORT_PERMISSION)
-    @Operation(summary = "Idempotently import claims and validate policy/insured relations")
-    public ResponseEntity<Result<InsuranceImportResponse.BatchResult>> claims(
-            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
-            @RequestBody InsuranceImportRequest.ClaimBatch request
-    ) {
-        return respond(() -> {
-            LoginUser user = currentUser();
-            return service.importClaims(tenantAccessGuard.requireTenant(user, tenantId), user.getId(), request);
+            int tenant = tenantAccessGuard.requireTenant(user, tenantId);
+            InsuranceAssignmentScope scope = tenantAccessGuard.assignmentScopeOrNull(user, tenant);
+            return service.dispatchableSubjects(tenant, scope, keyword);
         });
     }
 
@@ -90,3 +90,4 @@ public class InsuranceImportController {
         }
     }
 }
+//update-end---author:ai-agent ---date:2026-08-26  for：【保险侧保单派发】官网保单列表与可派发被保人接口-----------

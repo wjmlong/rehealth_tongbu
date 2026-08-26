@@ -130,7 +130,39 @@ public class InsuranceTenantAccessGuard {
                 WHERE ur.user_id = ? AND ur.tenant_id = ?
                   AND r.role_code = 'insurance_department_manager'
                 """, Integer.class, user.getId(), tenantId);
-        Integer responsible = jdbc.queryForObject("""
+        Integer responsible = responsibleRoleCount(user.getId(), tenantId);
+        if (responsible == null || responsible <= 0) {
+            throw InsuranceApiException.forbidden("current account has no insurance responsibility role in the requested tenant");
+        }
+        return new InsuranceAssignmentScope(
+                user.getId(),
+                manager != null && manager > 0 ? InsuranceAssignmentScope.MODE_TEAM : InsuranceAssignmentScope.MODE_SELF
+        );
+    }
+
+    //update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧保单派发】导入侧数据范围：无保险责任角色的服务账号不受限-----------
+    /**
+     * Resolves the assignment data scope for policy import/dispatch callers.
+     *
+     * <p>Accounts holding an insurance responsibility role receive the same
+     * three-level scope as {@link #assignmentScope(LoginUser, int)}; accounts
+     * without one (core-system service accounts and platform admins) receive
+     * {@code null}, i.e. unrestricted tenant-level imports, so existing
+     * server-to-server integrations keep working.
+     */
+    public InsuranceAssignmentScope assignmentScopeOrNull(LoginUser user, int tenantId) {
+        if (user == null || user.getId() == null || user.getId().isBlank()) {
+            return null;
+        }
+        Integer responsible = responsibleRoleCount(user.getId(), tenantId);
+        if (responsible == null || responsible <= 0) {
+            return null;
+        }
+        return assignmentScope(user, tenantId);
+    }
+
+    private Integer responsibleRoleCount(String userId, int tenantId) {
+        return jdbc.queryForObject("""
                 SELECT COUNT(*)
                 FROM sys_user_role ur
                 JOIN sys_role r ON r.id = ur.role_id
@@ -143,15 +175,9 @@ public class InsuranceTenantAccessGuard {
                       'insurer_viewer',
                       'insurer_auditor'
                   )
-                """, Integer.class, user.getId(), tenantId);
-        if (responsible == null || responsible <= 0) {
-            throw InsuranceApiException.forbidden("current account has no insurance responsibility role in the requested tenant");
-        }
-        return new InsuranceAssignmentScope(
-                user.getId(),
-                manager != null && manager > 0 ? InsuranceAssignmentScope.MODE_TEAM : InsuranceAssignmentScope.MODE_SELF
-        );
+                """, Integer.class, userId, tenantId);
     }
+    //update-end---author:ai-agent ---date:2026-08-26  for：【保险侧保单派发】导入侧数据范围：无保险责任角色的服务账号不受限-----------
     //update-end---author:ai-agent ---date:2026-08-25  for：【保险侧用户服务关系一期】新增三级数据范围解析-----------
 
     private int parseTenant(String requestedTenant) {

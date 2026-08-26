@@ -29,7 +29,7 @@
 | 保险运营员（`insurance_operator`） | 风险只读；业务数据导入；研究只读；报告与结算操作 |
 | 保险审计员（`insurer_auditor`） | 风险、研究、报告和审计证据只读 |
 | 保险机构管理员（`insurance_org_admin`） | 机构、员工、角色和负责人管理；读取本人负责用户 |
-| 保险部门经理（`insurance_department_manager`） | 读取本人负责用户及本部门负责人关系 |
+| 保险部门经理（`insurance_department_manager`） | 读取本人负责用户及本部门负责人关系；**保单导入/派发（2026-08-26 起，含官网「导入保单」界面，范围限于本部门）** |
 
 对应权限码为：
 
@@ -141,6 +141,14 @@ JeecgBoot 基础路径：`/jeecg-boot/rehealth/insurance/v1`。
 | `POST` | `/imports/subjects` | 关联当前租户成员，生成不可逆 `subject_ref` 并记录保险授权状态 |
 | `POST` | `/imports/policies` | 按 `insuredSubjectRef` 关联投保人 |
 | `POST` | `/imports/claims` | 按 `policyNo`、`subjectRef` 关联保单和理赔事件 |
+| `GET` | `/policies` | 保单派发列表：按当前员工三级数据范围（SELF/TEAM/null）分页返回保单（保单号、产品、计划名、被保人、状态、生效日期），支持 keyword 搜索保单号/产品名/被保人姓名 |
+| `GET` | `/policies/dispatchable-subjects` | 当前员工可派发保单的被保人列表（SELF=自己负责，TEAM=本部门，管理员=全机构；最多 200 条，支持姓名搜索），供官网「导入保单」弹窗下拉使用 |
+
+保单派发范围约束（2026-08-26 起）：`POST /imports/policies` 逐行校验被保人假名必须落在
+调用者的三级数据范围内（员工=自己的客户，主管=本部门，管理员=全机构），越权行返回 403
+「该被保人不在您的负责范围内」；无保险责任角色的核心系统服务账号不受限，保持服务端
+批量对接兼容。保单列表与被保人下拉同口径过滤。官网 BFF 对应路由为
+`GET/POST /api/insurer/policies`、`GET /api/insurer/policies/dispatchable-subjects`。
 
 官网 BFF 另提供 `/api/insurer/workflow/imports/{subjects|policies|claims}` 的 JSON 与 `/file` 文件入口。文件支持 CSV/XLSX，单文件不超过 10 MB、单批 1–2000 行。日期格式为 `yyyy-MM-dd`，日期时间格式为 `yyyy-MM-dd HH:mm:ss`。
 
@@ -211,6 +219,7 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 - `V20260825_2__migrate_legacy_assignment_relations.sql`：把旧 `rehealth_insurance_subject_manager` 幂等迁移为新表首条 PRIMARY 历史（每个 subject 的 updated_at 最新 active 行延续为 active PRIMARY，其余记为 ended 历史），并逐行写入变更日志。执行前必须先跑 `backend/deploy/rehealth/scripts/precheck-legacy-assignment-data.sql` 体检。
 - `V20260825_3__add_policy_default_plan.sql`：保单表增加 `default_plan_id`（保险侧导入保单时指定默认健康计划），支撑 App 零输入一键绑定。
 - `V20260825_4__create_plan_catalog.sql`：保险健康计划目录表 `rehealth_insurance_plan_catalog`（`tenant_id + plan_id` 唯一，保存计划名称/说明/状态），并为本地验收租户预置 `PLAN-CHRONIC-2026`、`PLAN-CVD-2025` 两条计划；保单 `default_plan_id` 引用该目录，App 绑定与官网计划目录弹窗展示计划名称。
+- `V20260826_1__grant_policy_import_to_manager.sql`：把 `rehealth:insurance:business:import` 授予 `insurance_department_manager`（保险经理），使经理可在官网「导入保单」为自己负责范围内的用户派发保单。
 
 迁移均为向前兼容的非破坏性变更，不删除既有保险数据。完整逐表结构见 `backend/docs/REHEALTH_DB_SCHEMA.md`。
 

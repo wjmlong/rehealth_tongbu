@@ -149,4 +149,31 @@ class InsuranceTenantAccessGuardTest {
 
         assertEquals(HttpStatus.FORBIDDEN, error.status());
     }
+
+    @Test
+    void assignmentScopeOrNullStaysUnrestrictedForServiceAccountsWithoutResponsibilityRole() {
+        LoginUser user = new LoginUser().setId("service-user");
+        when(jdbc.queryForObject(anyString(), eq(Integer.class), eq("service-user"), eq(9101)))
+                .thenReturn(0);
+
+        assertEquals(null, guard.assignmentScopeOrNull(user, 9101));
+    }
+
+    @Test
+    void assignmentScopeOrNullResolvesTeamScopeForDepartmentManager() {
+        LoginUser user = new LoginUser().setId("dept-manager");
+        when(jdbc.queryForObject(anyString(), eq(Integer.class), eq("dept-manager"), eq(9101)))
+                .thenReturn(1, 0, 1, 1);
+
+        InsuranceAssignmentScope scope = guard.assignmentScopeOrNull(user, 9101);
+
+        assertEquals("dept-manager", scope.userId());
+        assertEquals(InsuranceAssignmentScope.MODE_TEAM, scope.mode());
+    }
+
+    @Test
+    void assignmentScopeOrNullIsNullForBlankCallers() {
+        assertEquals(null, guard.assignmentScopeOrNull(null, 9101));
+        assertEquals(null, guard.assignmentScopeOrNull(new LoginUser(), 9101));
+    }
 }

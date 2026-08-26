@@ -3,6 +3,7 @@ package org.jeecg.modules.rehealth.insurance;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.jeecg.common.system.vo.LoginUser;
 import org.jeecg.modules.rehealth.insurance.entity.InsuranceClaimEntity;
 import org.jeecg.modules.rehealth.insurance.entity.InsuranceImportBatchEntity;
 import org.jeecg.modules.rehealth.insurance.entity.InsurancePolicyEntity;
@@ -37,19 +38,25 @@ public class InsuranceImportService {
     private final InsuranceClaimMapper claimMapper;
     private final InsuranceImportBatchMapper importBatchMapper;
     private final ObjectMapper objectMapper;
+    private final InsuranceTenantAccessGuard tenantAccessGuard;
+    private final InsuranceDispatchAccess dispatchAccess;
 
     public InsuranceImportService(
             InsuranceSubjectMapper subjectMapper,
             InsurancePolicyMapper policyMapper,
             InsuranceClaimMapper claimMapper,
             InsuranceImportBatchMapper importBatchMapper,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            InsuranceTenantAccessGuard tenantAccessGuard,
+            InsuranceDispatchAccess dispatchAccess
     ) {
         this.subjectMapper = subjectMapper;
         this.policyMapper = policyMapper;
         this.claimMapper = claimMapper;
         this.importBatchMapper = importBatchMapper;
         this.objectMapper = objectMapper;
+        this.tenantAccessGuard = tenantAccessGuard;
+        this.dispatchAccess = dispatchAccess;
     }
 
     @Transactional
@@ -111,20 +118,26 @@ public class InsuranceImportService {
     @Transactional
     public InsuranceImportResponse.BatchResult importPolicies(
             int tenantId,
-            String actorUserId,
+            LoginUser actor,
             InsuranceImportRequest.PolicyBatch request
     ) {
-        BatchContext batch = begin(tenantId, actorUserId, "policy", request.sourceSystem(),
+        BatchContext batch = begin(tenantId, actor.getId(), "policy", request.sourceSystem(),
                 request.idempotencyKey(), request.records());
         if (batch.replay()) {
             return replay(batch.entity());
         }
+        //update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧保单派发】保单只能派发给当前员工负责的被保人-----------
+        InsuranceAssignmentScope scope = tenantAccessGuard.assignmentScopeOrNull(actor, tenantId);
+        //update-end---author:ai-agent ---date:2026-08-26  for：【保险侧保单派发】保单只能派发给当前员工负责的被保人-----------
         List<InsuranceImportResponse.RecordResult> results = new ArrayList<>();
         int rowNumber = 0;
         for (InsuranceImportRequest.PolicyRow row : request.records()) {
             rowNumber++;
             String policyNo = required(row.policyNo(), "records[" + rowNumber + "].policyNo", 128);
             String subjectRef = subjectRef(tenantId, row.insuredSubjectRef(), rowNumber);
+            //update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧保单派发】保单只能派发给当前员工负责的被保人-----------
+            dispatchAccess.requireDispatchable(tenantId, scope, subjectRef);
+            //update-end---author:ai-agent ---date:2026-08-26  for：【保险侧保单派发】保单只能派发给当前员工负责的被保人-----------
             InsurancePolicyEntity entity = policyMapper.selectOne(new LambdaQueryWrapper<InsurancePolicyEntity>()
                     .eq(InsurancePolicyEntity::getTenantId, tenantId)
                     .eq(InsurancePolicyEntity::getPolicyNo, policyNo)
