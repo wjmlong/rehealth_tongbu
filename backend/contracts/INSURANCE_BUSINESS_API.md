@@ -28,7 +28,7 @@
 | 保险分析员（`insurer_analyst`） | 风险只读；创建研究、冻结快照、运行和审核 PSM；报告只读 |
 | 保险运营员（`insurance_operator`） | 风险只读；业务数据导入；研究只读；报告与结算操作 |
 | 保险审计员（`insurer_auditor`） | 风险、研究、报告和审计证据只读 |
-| 保险机构管理员（`insurance_org_admin`） | 机构、员工、角色和负责人管理；读取本人负责用户 |
+| 保险机构管理员（`insurance_org_admin`） | 机构、员工、角色和负责人管理；读取本人负责用户；**保单导入/派发（2026-08-26 起，范围=全机构）** |
 | 保险部门经理（`insurance_department_manager`） | 读取本人负责用户及本部门负责人关系；**保单导入/派发（2026-08-26 起，含官网「导入保单」界面，范围限于本部门）** |
 
 对应权限码为：
@@ -220,6 +220,7 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 - `V20260825_3__add_policy_default_plan.sql`：保单表增加 `default_plan_id`（保险侧导入保单时指定默认健康计划），支撑 App 零输入一键绑定。
 - `V20260825_4__create_plan_catalog.sql`：保险健康计划目录表 `rehealth_insurance_plan_catalog`（`tenant_id + plan_id` 唯一，保存计划名称/说明/状态），并为本地验收租户预置 `PLAN-CHRONIC-2026`、`PLAN-CVD-2025` 两条计划；保单 `default_plan_id` 引用该目录，App 绑定与官网计划目录弹窗展示计划名称。
 - `V20260826_1__grant_policy_import_to_manager.sql`：把 `rehealth:insurance:business:import` 授予 `insurance_department_manager`（保险经理），使经理可在官网「导入保单」为自己负责范围内的用户派发保单。
+- `V20260826_2__grant_policy_import_to_org_admin.sql`：把 `rehealth:insurance:business:import` 授予 `insurance_org_admin`（机构管理员），修复机构管理员在官网提示「缺少保单导入权限」的问题。官网 BFF 对机构管理员/平台管理员按角色放行（不依赖登录时的权限快照）；JeecgBoot Shiro 权限缓存过期后自动生效（本地可删除 `shiro:cache:*authorizationCache:<userId>` 立即刷新）。
 
 迁移均为向前兼容的非破坏性变更，不删除既有保险数据。完整逐表结构见 `backend/docs/REHEALTH_DB_SCHEMA.md`。
 
