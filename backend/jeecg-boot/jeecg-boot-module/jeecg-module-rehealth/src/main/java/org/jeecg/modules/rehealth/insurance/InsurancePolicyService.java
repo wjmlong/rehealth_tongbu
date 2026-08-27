@@ -207,6 +207,155 @@ public class InsurancePolicyService {
                 policyNo, subject.subjectRef(), subject.userName(), now);
     }
 
+    //update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧保单取消关联】取消保单与 App 用户的关联-----------
+    /**
+     * Cancels the link between a basic policy and an APP user. The link row
+     * is soft-cancelled ({@code status='removed'}, history kept). Any active
+     * plan binding the user holds on this policy is terminated
+     * ({@code status='unbound'}); when no other active binding remains for
+     * the subject in the tenant, the subject consent falls back to pending
+     * so the user leaves the insurer workbench queue.
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public InsurancePolicyResponse.UnlinkResult unlink(
+            int tenantId, InsuranceAssignmentScope scope,
+            InsurancePolicyResponse.UnlinkRequest request
+    ) {
+        String policyNo = required(request.policyNo(), "policyNo", 128);
+        String phone = trim(request.phone(), 45);
+        String enrollmentId = trim(request.enrollmentId(), 64);
+        String subjectRef = trim(request.subjectRef(), 64);
+        int provided = (phone == null ? 0 : 1) + (enrollmentId == null ? 0 : 1) + (subjectRef == null ? 0 : 1);
+        if (provided != 1) {
+            throw InsuranceApiException.badRequest("phone、enrollmentId、subjectRef 必须且只能提供一个");
+        }
+        if (policyRow(tenantId, policyNo) == null) {
+            throw InsuranceApiException.notFound("该保单号不存在于当前机构");
+        }
+        SubjectRef subject = subjectRef != null
+                ? subjectByRef(tenantId, subjectRef)
+                : enrollmentId != null
+                        ? subjectByEnrollment(tenantId, enrollmentId)
+                        : subjectByPhone(tenantId, userIdByPhone(phone));
+        dispatchAccess.requireDispatchable(tenantId, scope, subject.subjectRef());
+
+        InsurancePolicyLinkRow existing = linkRow(tenantId, policyNo, subject.subjectRef());
+        if (existing == null) {
+            throw InsuranceApiException.notFound("该保单尚未添加给该用户");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        boolean bindingCancelled = false;
+        if (!"removed".equals(existing.status())) {
+            jdbc.update("""
+                    UPDATE rehealth_insurance_policy_link
+                    SET status = 'removed', updated_at = ?
+                    WHERE tenant_id = ? AND policy_no = ? AND subject_ref = ?
+                    """, now, tenantId, policyNo, subject.subjectRef());
+            String policyId = policyId(tenantId, policyNo);
+            int terminated = jdbc.update("""
+                    UPDATE rehealth_insurance_plan_binding
+                    SET status = 'unbound', unbound_at = ?
+                    WHERE tenant_id = ? AND subject_ref = ? AND policy_id = ? AND status = 'active'
+                    """, now, tenantId, subject.subjectRef(), policyId);
+            bindingCancelled = terminated > 0;
+            Integer activeBindings = jdbc.queryForObject("""
+                    SELECT COUNT(*)
+                    FROM rehealth_insurance_plan_binding
+                    WHERE tenant_id = ? AND subject_ref = ? AND status = 'active'
+                    """, Integer.class, tenantId, subject.subjectRef());
+            if (activeBindings == null || activeBindings < 1) {
+                jdbc.update("""
+                        UPDATE rehealth_insurance_subject
+                        SET consent_status = 'pending', updated_at = ?
+                        WHERE tenant_id = ? AND subject_ref = ?
+                        """, now, tenantId, subject.subjectRef());
+            }
+        }
+        return new InsurancePolicyResponse.UnlinkResult(
+                policyNo, subject.subjectRef(), subject.userName(), now, bindingCancelled);
+    }
+
+    /** Linked users of a policy, filtered to the caller's responsibility scope. */
+    public List<InsurancePolicyResponse.PolicyLinkInfo> links(
+            int tenantId, InsuranceAssignmentScope scope, String policyNo
+    ) {
+        String normalizedPolicyNo = required(policyNo, "policyNo", 128);
+        StringBuilder sql = new StringBuilder("""
+                SELECT link.subject_ref, link.status, link.created_at, link.created_by,
+                       COALESCE(profile.name, u.realname, '未命名用户') AS user_name,
+                       emp.realname AS employee_name
+                FROM rehealth_insurance_policy_link link
+                JOIN rehealth_insurance_subject s ON s.tenant_id=link.tenant_id AND s.subject_ref=link.subject_ref
+                LEFT JOIN sys_user u ON u.id = CONVERT(s.rehealth_user_id USING utf8mb3) COLLATE utf8mb3_general_ci
+                LEFT JOIN rehealth_patient_profile profile ON profile.user_id = s.rehealth_user_id COLLATE utf8mb4_0900_ai_ci
+                LEFT JOIN sys_user emp ON emp.id = CONVERT(link.created_by USING utf8mb3) COLLATE utf8mb3_general_ci
+                WHERE link.tenant_id=? AND link.policy_no=?
+                """);
+        List<Object> args = new ArrayList<>();
+        args.add(tenantId);
+        args.add(normalizedPolicyNo);
+        if (scope != null) {
+            sql.append("""
+                      AND EXISTS (
+                          SELECT 1 FROM rehealth_insurance_enrollment e
+                          JOIN rehealth_insurance_user_assignment a
+                            ON a.enrollment_id=e.id AND a.status='active'
+                          WHERE e.tenant_id=link.tenant_id AND e.subject_ref=link.subject_ref
+                            AND (a.employee_id=?
+                                 OR (?='TEAM' AND EXISTS (
+                                     SELECT 1 FROM sys_user_depart my_dept
+                                     JOIN sys_user_depart assignee_dept ON assignee_dept.dep_id=my_dept.dep_id
+                                     WHERE my_dept.user_id=?
+                                       AND assignee_dept.user_id = CONVERT(a.employee_id USING utf8mb3) COLLATE utf8mb3_general_ci
+                                 )))
+                      )
+                    """);
+            args.add(scope.userId());
+            args.add(scope.mode());
+            args.add(scope.userId());
+        }
+        sql.append(" ORDER BY link.created_at DESC LIMIT 200");
+        return jdbc.query(sql.toString(), (rs, rowNum) -> new InsurancePolicyResponse.PolicyLinkInfo(
+                rs.getString("subject_ref"),
+                rs.getString("user_name"),
+                rs.getString("employee_name"),
+                rs.getString("status"),
+                toLocalDateTime(rs.getTimestamp("created_at"))
+        ), args.toArray());
+    }
+    //update-end---author:ai-agent ---date:2026-08-26  for：【保险侧保单取消关联】取消保单与 App 用户的关联-----------
+
+    private String policyId(int tenantId, String policyNo) {
+        try {
+            return jdbc.queryForObject("""
+                    SELECT id
+                    FROM rehealth_insurance_policy
+                    WHERE tenant_id = ? AND policy_no = ?
+                    LIMIT 1
+                    """, String.class, tenantId, policyNo);
+        } catch (EmptyResultDataAccessException ignored) {
+            throw InsuranceApiException.notFound("该保单号不存在于当前机构");
+        }
+    }
+
+    private SubjectRef subjectByRef(int tenantId, String subjectRef) {
+        try {
+            return jdbc.queryForObject("""
+                    SELECT subject.subject_ref,
+                           COALESCE(profile.name, u.realname, '未命名用户') AS user_name
+                    FROM rehealth_insurance_subject subject
+                    LEFT JOIN sys_user u ON u.id = CONVERT(subject.rehealth_user_id USING utf8mb3) COLLATE utf8mb3_general_ci
+                    LEFT JOIN rehealth_patient_profile profile ON profile.user_id = subject.rehealth_user_id COLLATE utf8mb4_0900_ai_ci
+                    WHERE subject.tenant_id = ? AND subject.subject_ref = ?
+                      AND subject.enrollment_status = 'active'
+                    LIMIT 1
+                    """, (rs, rowNum) -> new SubjectRef(rs.getString(1), rs.getString(2)),
+                    tenantId, subjectRef);
+        } catch (EmptyResultDataAccessException ignored) {
+            throw InsuranceApiException.notFound("该用户在本机构没有有效参保关系");
+        }
+    }
+
     private PolicyRow policyRow(int tenantId, String policyNo) {
         try {
             return jdbc.queryForObject("""
@@ -308,6 +457,10 @@ public class InsurancePolicyService {
 
     private static LocalDate toLocalDate(Date value) {
         return value == null ? null : value.toLocalDate();
+    }
+
+    private static LocalDateTime toLocalDateTime(java.sql.Timestamp value) {
+        return value == null ? null : value.toLocalDateTime();
     }
 
     /** Package-visible for focused unit tests. */

@@ -10,6 +10,7 @@ import org.jeecg.common.system.vo.LoginUser;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -91,6 +92,38 @@ public class InsurancePolicyController {
         });
     }
     //update-end---author:ai-agent ---date:2026-08-26  for：【保险侧基础保单库】员工为 App 用户添加保单-----------
+
+    //update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧保单取消关联】取消保单与 App 用户的关联-----------
+    @PostMapping("/unlink")
+    @RequiresPermissions(IMPORT_PERMISSION)
+    @Operation(summary = "Cancel the link between a basic policy and an APP user")
+    public ResponseEntity<Result<InsurancePolicyResponse.UnlinkResult>> unlink(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
+            @RequestBody InsurancePolicyResponse.UnlinkRequest request
+    ) {
+        return respond(() -> {
+            LoginUser user = currentUser();
+            int tenant = tenantAccessGuard.requireTenant(user, tenantId);
+            InsuranceAssignmentScope scope = tenantAccessGuard.assignmentScopeOrNull(user, tenant);
+            return service.unlink(tenant, scope, request);
+        });
+    }
+
+    @GetMapping("/{policyNo}/links")
+    @RequiresPermissions(IMPORT_PERMISSION)
+    @Operation(summary = "List the APP users linked to a policy inside the staff responsibility scope")
+    public ResponseEntity<Result<List<InsurancePolicyResponse.PolicyLinkInfo>>> links(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
+            @PathVariable String policyNo
+    ) {
+        return respond(() -> {
+            LoginUser user = currentUser();
+            int tenant = tenantAccessGuard.requireTenant(user, tenantId);
+            InsuranceAssignmentScope scope = tenantAccessGuard.assignmentScopeOrNull(user, tenant);
+            return service.links(tenant, scope, policyNo);
+        });
+    }
+    //update-end---author:ai-agent ---date:2026-08-26  for：【保险侧保单取消关联】取消保单与 App 用户的关联-----------
 
     private LoginUser currentUser() {
         Object principal = SecurityUtils.getSubject().getPrincipal();

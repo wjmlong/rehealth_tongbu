@@ -144,6 +144,8 @@ JeecgBoot 基础路径：`/jeecg-boot/rehealth/insurance/v1`。
 | `GET` | `/policies` | **基础保单库列表**：纯保单信息（保单号、产品、类型、计划名、状态、生效/失效日期、保额、保费、已添加用户数 linkCount），不包含任何被保人信息；keyword 搜索保单号/产品名 |
 | `GET` | `/policies/dispatchable-subjects` | 当前员工负责范围的被保人列表（SELF=自己负责，TEAM=本部门，管理员=全机构；最多 200 条，支持姓名搜索） |
 | `POST` | `/policies/link` | **为 App 用户添加保单**：`{policyNo, phone 或 enrollmentId 二选一}`。校验：保单存在且 active → 用户已注册 App（排除平台管理员）/参与记录有效 → 本机构已参保 → 在操作人负责范围内。写入 `rehealth_insurance_policy_link`，**同一保单可添加给多个用户**，同人重复添加幂等 |
+| `POST` | `/policies/unlink` | **取消保单与用户的关联**：`{policyNo, phone/enrollmentId/subjectRef 三选一}`。软取消（`link.status='removed'`，历史保留）；级联终止该用户在该保单上的 active `plan_binding`（置 `unbound` + `unbound_at`）；该用户在本租户再无 active 绑定时 `subject.consent_status` 回 `pending`（退出工作台队列）。范围校验同 link；重复取消幂等，无关联返回 404 |
+| `GET` | `/policies/{policyNo}/links` | 该保单已关联的用户列表（按操作人负责范围过滤；userName/添加员工/状态/时间，最多 200 条），供官网「已添加 N 人」弹窗与取消关联使用 |
 
 保单派发范围约束（2026-08-26 起）：`POST /imports/policies` 的 `insuredSubjectRef` 已**弃用**（保留兼容：
 指定时同步建立一条保单-用户关联，仍校验参保与负责范围）；官网新建基础保单不再携带该字段。

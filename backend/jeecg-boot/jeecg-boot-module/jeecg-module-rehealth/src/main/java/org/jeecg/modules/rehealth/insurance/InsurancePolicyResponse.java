@@ -55,5 +55,31 @@ public final class InsurancePolicyResponse {
             LocalDateTime linkedAt
     ) {
     }
+
+    public record UnlinkRequest(
+            String policyNo,
+            String phone,
+            String enrollmentId,
+            String subjectRef
+    ) {
+    }
+
+    public record UnlinkResult(
+            String policyNo,
+            String subjectRef,
+            String userName,
+            LocalDateTime unlinkedAt,
+            boolean bindingCancelled
+    ) {
+    }
+
+    public record PolicyLinkInfo(
+            String subjectRef,
+            String userName,
+            String employeeName,
+            String status,
+            LocalDateTime createdAt
+    ) {
+    }
 }
 //update-end---author:ai-agent ---date:2026-08-26  for：【保险侧基础保单库】响应结构-----------

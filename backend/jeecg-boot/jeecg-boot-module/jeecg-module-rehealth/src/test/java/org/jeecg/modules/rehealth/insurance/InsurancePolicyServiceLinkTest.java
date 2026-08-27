@@ -41,6 +41,8 @@ class InsurancePolicyServiceLinkTest {
                 .thenReturn("user-1");
         when(jdbc.queryForObject(anyString(), any(RowMapper.class), eq(1000), eq("user-1")))
                 .thenReturn(new InsurancePolicyService.SubjectRef(SUBJECT_REF, "王老五"));
+        when(jdbc.queryForObject(anyString(), any(RowMapper.class), eq(1000), eq(SUBJECT_REF)))
+                .thenReturn(new InsurancePolicyService.SubjectRef(SUBJECT_REF, "王老五"));
         when(jdbc.queryForObject(anyString(), any(RowMapper.class), eq(1000), eq("enr-1")))
                 .thenReturn(new InsurancePolicyService.SubjectRef(SUBJECT_REF, "王老五"));
         when(jdbc.queryForObject(anyString(), any(RowMapper.class), eq(1000), eq("POL-1"), eq(SUBJECT_REF)))
@@ -150,5 +152,101 @@ class InsurancePolicyServiceLinkTest {
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, error.status());
+    }
+
+    @Test
+    void unlinkMarksTheLinkRemovedAndTerminatesTheActiveBinding() {
+        when(jdbc.queryForObject(anyString(), any(RowMapper.class), eq(1000), eq("POL-1"), eq(SUBJECT_REF)))
+                .thenReturn(new InsurancePolicyService.InsurancePolicyLinkRow("assigned"));
+        when(jdbc.queryForObject(anyString(), eq(String.class), eq(1000), eq("POL-1")))
+                .thenReturn("policy-1");
+        when(jdbc.update(anyString(), any(), eq(1000), eq(SUBJECT_REF), eq("policy-1")))
+                .thenReturn(1);
+        when(jdbc.queryForObject(anyString(), eq(Integer.class), eq(1000), eq(SUBJECT_REF)))
+                .thenReturn(0);
+
+        InsurancePolicyResponse.UnlinkResult result = service.unlink(
+                1000, selfScope, new InsurancePolicyResponse.UnlinkRequest("POL-1", null, null, SUBJECT_REF));
+
+        assertEquals(SUBJECT_REF, result.subjectRef());
+        assertEquals(true, result.bindingCancelled());
+        verify(dispatchAccess).requireDispatchable(1000, selfScope, SUBJECT_REF);
+        verify(jdbc).update(anyString(), any(), eq(1000), eq("POL-1"), eq(SUBJECT_REF));
+        verify(jdbc).update(anyString(), any(), eq(1000), eq(SUBJECT_REF), eq("policy-1"));
+        verify(jdbc).update(anyString(), any(), eq(1000), eq(SUBJECT_REF));
+    }
+
+    @Test
+    void unlinkKeepsConsentGrantedWhenOtherActiveBindingsRemain() {
+        when(jdbc.queryForObject(anyString(), any(RowMapper.class), eq(1000), eq("POL-1"), eq(SUBJECT_REF)))
+                .thenReturn(new InsurancePolicyService.InsurancePolicyLinkRow("assigned"));
+        when(jdbc.queryForObject(anyString(), eq(String.class), eq(1000), eq("POL-1")))
+                .thenReturn("policy-1");
+        when(jdbc.update(anyString(), any(), eq(1000), eq(SUBJECT_REF), eq("policy-1")))
+                .thenReturn(1);
+        when(jdbc.queryForObject(anyString(), eq(Integer.class), eq(1000), eq(SUBJECT_REF)))
+                .thenReturn(1);
+
+        InsurancePolicyResponse.UnlinkResult result = service.unlink(
+                1000, selfScope, new InsurancePolicyResponse.UnlinkRequest("POL-1", null, null, SUBJECT_REF));
+
+        assertEquals(true, result.bindingCancelled());
+        verify(jdbc, never()).update(anyString(), any(), eq(1000), eq(SUBJECT_REF));
+    }
+
+    @Test
+    void unlinkOfAnAlreadyRemovedLinkIsIdempotent() {
+        when(jdbc.queryForObject(anyString(), any(RowMapper.class), eq(1000), eq("POL-1"), eq(SUBJECT_REF)))
+                .thenReturn(new InsurancePolicyService.InsurancePolicyLinkRow("removed"));
+
+        InsurancePolicyResponse.UnlinkResult result = service.unlink(
+                1000, selfScope, new InsurancePolicyResponse.UnlinkRequest("POL-1", null, null, SUBJECT_REF));
+
+        assertEquals(false, result.bindingCancelled());
+        verify(jdbc, never()).update(anyString(), any(), eq(1000), eq("POL-1"), eq(SUBJECT_REF));
+        verify(jdbc, never()).update(anyString(), any(), eq(1000), eq(SUBJECT_REF), any());
+    }
+
+    @Test
+    void unlinkOfAMissingLinkIsNotFound() {
+        InsuranceApiException error = assertThrows(
+                InsuranceApiException.class,
+                () -> service.unlink(1000, selfScope,
+                        new InsurancePolicyResponse.UnlinkRequest("POL-1", null, null, SUBJECT_REF))
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, error.status());
+    }
+
+    @Test
+    void unlinkRequiresExactlyOneLocator() {
+        assertEquals(
+                HttpStatus.BAD_REQUEST,
+                assertThrows(InsuranceApiException.class,
+                        () -> service.unlink(1000, selfScope,
+                                new InsurancePolicyResponse.UnlinkRequest("POL-1", "13800000000", null, SUBJECT_REF))).status()
+        );
+        assertEquals(
+                HttpStatus.BAD_REQUEST,
+                assertThrows(InsuranceApiException.class,
+                        () -> service.unlink(1000, selfScope,
+                                new InsurancePolicyResponse.UnlinkRequest("POL-1", null, null, null))).status()
+        );
+    }
+
+    @Test
+    void unlinkRejectsSubjectsOutsideTheResponsibilityRange() {
+        when(jdbc.queryForObject(anyString(), any(RowMapper.class), eq(1000), eq("POL-1"), eq(SUBJECT_REF)))
+                .thenReturn(new InsurancePolicyService.InsurancePolicyLinkRow("assigned"));
+        doThrow(InsuranceApiException.forbidden("该被保人不在您的负责范围内，请先认领该用户或选择您负责的用户"))
+                .when(dispatchAccess).requireDispatchable(1000, selfScope, SUBJECT_REF);
+
+        InsuranceApiException error = assertThrows(
+                InsuranceApiException.class,
+                () -> service.unlink(1000, selfScope,
+                        new InsurancePolicyResponse.UnlinkRequest("POL-1", null, null, SUBJECT_REF))
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, error.status());
     }
 }
