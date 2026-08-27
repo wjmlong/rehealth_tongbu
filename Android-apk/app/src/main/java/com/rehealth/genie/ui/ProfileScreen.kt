@@ -26,18 +26,22 @@ import androidx.compose.material.icons.outlined.Devices
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.NotificationsNone
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Timeline
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -48,6 +52,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.rehealth.genie.ReHealthApplication
 import com.rehealth.genie.data.profileAvatarStorageKey
 import com.rehealth.genie.network.PatientProfilePayload
@@ -158,6 +164,18 @@ internal fun ProfileScreen(
         factory = InsurancePlanBindingViewModel.Factory(context),
     )
     val planBindingState by planBindingViewModel.uiState.collectAsState()
+    // 机构侧可能随时变更（取消保单关联/换专员等），页面每次回到前台强制刷新保险数据。
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                serviceContactViewModel.loadForCurrentUser(force = true)
+                planBindingViewModel.refresh()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     LaunchedEffect(Unit) {
         onRefreshProfile()
         rhiInputViewModel.observeCurrentUser()
@@ -242,6 +260,13 @@ internal fun ProfileScreen(
                     Text("我的服务专员", color = Ink, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                     if (serviceContactState.loading) {
                         CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Mint, strokeWidth = 2.dp)
+                    } else {
+                        IconButton(
+                            onClick = { serviceContactViewModel.loadForCurrentUser(force = true) },
+                            modifier = Modifier.size(28.dp),
+                        ) {
+                            Icon(Icons.Outlined.Refresh, "刷新服务专员", tint = Muted, modifier = Modifier.size(16.dp))
+                        }
                     }
                 }
                 val contact = serviceContactState.contact
@@ -288,6 +313,13 @@ internal fun ProfileScreen(
                     Text("保险计划", color = Ink, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                     if (planBindingState.loading || planBindingState.binding) {
                         CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Mint, strokeWidth = 2.dp)
+                    } else {
+                        IconButton(
+                            onClick = { planBindingViewModel.refresh() },
+                            modifier = Modifier.size(28.dp),
+                        ) {
+                            Icon(Icons.Outlined.Refresh, "刷新保险计划", tint = Muted, modifier = Modifier.size(16.dp))
+                        }
                     }
                 }
                 if (planBindingState.bindings.isNotEmpty()) {
