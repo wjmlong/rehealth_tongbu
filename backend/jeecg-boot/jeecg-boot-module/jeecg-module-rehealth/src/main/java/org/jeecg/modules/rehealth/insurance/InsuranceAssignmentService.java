@@ -188,13 +188,6 @@ public class InsuranceAssignmentService {
         return page(tenantId, self, pageNo, pageSize, true);
     }
 
-    public InsuranceAssignmentResponse.Page department(int tenantId, InsuranceAssignmentScope scope, int pageNo, int pageSize) {
-        if (scope != null && !scope.team()) {
-            throw InsuranceApiException.forbidden("部门视图需要主管或管理员权限");
-        }
-        return page(tenantId, scope, pageNo, pageSize, true);
-    }
-
     /**
      * Tenant enrollment pool: every project enrollment with its current active
      * PRIMARY owner (if any). Staff use this list to claim unowned users.

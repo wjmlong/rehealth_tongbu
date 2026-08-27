@@ -225,32 +225,4 @@ class InsuranceAssignmentServiceTest {
         );
         assertEquals(HttpStatus.FORBIDDEN, error.status());
     }
-
-    @Test
-    void departmentRejectsSelfScope() {
-        InsuranceApiException error = org.junit.jupiter.api.Assertions.assertThrows(
-                InsuranceApiException.class,
-                () -> service.department(1001,
-                        new InsuranceAssignmentScope("emp-1", InsuranceAssignmentScope.MODE_SELF), 1, 20)
-        );
-        assertEquals(HttpStatus.FORBIDDEN, error.status());
-    }
-
-    @Test
-    void teamScopePageSqlIncludesTheSharedDepartmentSubquery() {
-        when(jdbc.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbc.query(anyString(),
-                ArgumentMatchers.<RowMapper<InsuranceAssignmentResponse.Assignment>>any(),
-                any(Object[].class))).thenReturn(List.of());
-
-        service.department(1001,
-                new InsuranceAssignmentScope("mgr-1", InsuranceAssignmentScope.MODE_TEAM), 1, 20);
-
-        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
-        verify(jdbc).query(sql.capture(),
-                ArgumentMatchers.<RowMapper<InsuranceAssignmentResponse.Assignment>>any(),
-                any(Object[].class));
-        assertTrue(sql.getValue().contains("assignee_dept.dep_id = my_dept.dep_id"));
-        assertTrue(sql.getValue().contains("a.status = 'active'"));
-    }
 }

@@ -117,22 +117,6 @@ public class InsuranceAssignmentController {
         });
     }
 
-    @GetMapping("/department")
-    @RequiresPermissions(VIEW_PERMISSION)
-    @Operation(summary = "List the department team's active service relationships (manager only)")
-    public ResponseEntity<Result<InsuranceAssignmentResponse.Page>> department(
-            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
-            @RequestParam(defaultValue = "1") int pageNo,
-            @RequestParam(defaultValue = "20") int pageSize
-    ) {
-        return respond(() -> {
-            LoginUser user = currentUser();
-            int tenant = tenantAccessGuard.requireTenant(user, tenantId);
-            InsuranceAssignmentScope scope = tenantAccessGuard.assignmentScope(user, tenant);
-            return service.department(tenant, scope, pageNo, pageSize);
-        });
-    }
-
     @GetMapping("/enrollments")
     @RequiresPermissions(VIEW_PERMISSION)
     @Operation(summary = "List the tenant enrollment pool with current PRIMARY owners for claiming")

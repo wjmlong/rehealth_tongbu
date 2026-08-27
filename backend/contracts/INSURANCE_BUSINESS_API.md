@@ -253,7 +253,6 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 | `POST` | `/rehealth/insurance/v1/assignments/transfer` | `rehealth:insurance:assignment:transfer` | 单/批量转移：结束旧行+新建行+逐行日志 |
 | `POST` | `/rehealth/insurance/v1/assignments/{assignmentId}/end` | `rehealth:insurance:assignment:manage` | 结束单条活跃关系（原因必填） |
 | `GET` | `/rehealth/insurance/v1/assignments/mine` | `rehealth:insurance:assignment:view` | 我的客户（按当前员工过滤） |
-| `GET` | `/rehealth/insurance/v1/assignments/department` | `rehealth:insurance:assignment:view` | 团队视图（主管：本部门所有员工负责的用户） |
 | `GET` | `/rehealth/insurance/v1/assignments/enrollments` | `rehealth:insurance:assignment:view` | 被保人池：租户内全部参与记录及当前主负责人，供员工认领（支持 keyword 搜索；`claim` 可直接按 `enrollmentId` 认领） |
 | `POST` | `/rehealth/insurance/v1/assignments/enrollments` | `rehealth:insurance:assignment:manage` | 按手机号批量纳入参保人：为已注册 App 用户幂等创建参保关系（subjectRef=sha256(tenant:userId)）与项目参与记录，导入后即可在被保人池认领 |
 | `GET` | `/rehealth/insurance/v1/assignments/{enrollmentId}/history` | `rehealth:insurance:assignment:view` | 责任链 + 变更日志 |
@@ -262,7 +261,7 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 
 数据范围（SQL 层强制）：普通员工只看自己名下的关系（SELF）；部门主管看本部门所有员工负责的用户（TEAM）；机构管理员与审计员全机构（审计员只读+脱敏+日志可见）。风险接口（`/rehealth/insurance/v1/dashboard/risk`、`/insureds`）的负责人过滤已切到 `rehealth_insurance_user_assignment` + `rehealth_insurance_enrollment`；旧 `rehealth_insurance_subject_manager` 保留只读过渡，其写接口 `PUT /settings/assignments/{subjectRef}` 已停用（返回 `501` 引导使用新接口）。
 
-官网 BFF 透传路径：`/api/insurer/assignments/mine|department|enrollments(GET/POST)|claim|transfer|{id}/end|{enrollmentId}/history`（`frontend/insurer_assignments.html` 为"我的客户"页）。App 在"我的"页展示服务专员卡片，只读、不落 Room。
+官网 BFF 透传路径：`/api/insurer/assignments/mine|enrollments(GET/POST)|claim|transfer|{id}/end|{enrollmentId}/history`（`frontend/insurer_assignments.html` 为"我的客户"页；团队视图已于 2026-08-26 下线，TEAM 数据范围仍用于风险池/工作台/保单添加给用户）。App 在"我的"页展示服务专员卡片，只读、不落 Room。
 
 ## 10. 计划目录 API
 

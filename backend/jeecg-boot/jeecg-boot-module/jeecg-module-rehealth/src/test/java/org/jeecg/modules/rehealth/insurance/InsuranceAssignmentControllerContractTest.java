@@ -48,8 +48,6 @@ class InsuranceAssignmentControllerContractTest {
                 String.class, String.class, InsuranceAssignmentRequest.End.class);
         assertPermission("mine", "rehealth:insurance:assignment:view", GetMapping.class,
                 String.class, int.class, int.class);
-        assertPermission("department", "rehealth:insurance:assignment:view", GetMapping.class,
-                String.class, int.class, int.class);
         assertPermission("enrollments", "rehealth:insurance:assignment:view", GetMapping.class,
                 String.class, int.class, int.class, String.class);
         assertPermission("enrollUsers", "rehealth:insurance:assignment:manage", PostMapping.class,
