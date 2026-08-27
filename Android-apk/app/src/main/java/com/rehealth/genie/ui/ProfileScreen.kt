@@ -560,7 +560,12 @@ internal fun ProfileScreen(
             onScan = scanLinkViewModel::scan,
             onConfirm = scanLinkViewModel::confirm,
             onBack = scanLinkViewModel::backToInput,
-            onOpenCamera = { showScanner = true },
+            // 相机页渲染在主内容层，AlertDialog 窗口会盖住它：打开相机前先收起弹窗，
+            // 扫码结束/关闭/拒绝权限后再恢复弹窗（状态保留）。
+            onOpenCamera = {
+                showScanLinkDialog = false
+                showScanner = true
+            },
             onDismiss = {
                 showScanLinkDialog = false
                 scanLinkViewModel.backToInput()
@@ -572,11 +577,18 @@ internal fun ProfileScreen(
         ScanCameraScreen(
             onCodeFound = { code ->
                 showScanner = false
+                showScanLinkDialog = true
                 scanLinkViewModel.updateCode(code)
                 scanLinkViewModel.scan()
             },
-            onClose = { showScanner = false },
-            onDenied = { showScanner = false },
+            onClose = {
+                showScanner = false
+                showScanLinkDialog = true
+            },
+            onDenied = {
+                showScanner = false
+                showScanLinkDialog = true
+            },
         )
     }
     if (showLogoutDialog) {
