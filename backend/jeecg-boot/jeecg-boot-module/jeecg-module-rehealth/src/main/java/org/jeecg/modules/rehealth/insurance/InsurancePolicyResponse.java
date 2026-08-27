@@ -1,16 +1,16 @@
 package org.jeecg.modules.rehealth.insurance;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * Responses for the insurance-side policy dispatch interface: the tenant
- * policy list (scoped to the current staff's responsibility range), the
- * dispatchable subject candidates for the import dialog, and the two-step
- * assignment (assign an unassigned policy to an APP user by phone).
+ * Responses for the insurance-side basic policy library: the tenant policy
+ * list (pure policy information + linked-user count), the dispatchable
+ * subject candidates, and the policy-to-user link result.
  */
-//update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧两步式保单派发】响应结构-----------
+//update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧基础保单库】响应结构-----------
 public final class InsurancePolicyResponse {
     private InsurancePolicyResponse() {
     }
@@ -24,11 +24,12 @@ public final class InsurancePolicyResponse {
             String policyType,
             String defaultPlanId,
             String planName,
-            String insuredSubjectRef,
-            String insuredUserName,
             String status,
             LocalDate effectiveOn,
-            LocalDateTime assignedAt
+            LocalDate expiresOn,
+            BigDecimal coverageAmount,
+            BigDecimal premiumAmount,
+            long linkCount
     ) {
     }
 
@@ -40,18 +41,19 @@ public final class InsurancePolicyResponse {
     ) {
     }
 
-    public record AssignRequest(
+    public record LinkRequest(
             String policyNo,
-            String phone
+            String phone,
+            String enrollmentId
     ) {
     }
 
-    public record AssignResult(
+    public record LinkResult(
             String policyNo,
-            String insuredSubjectRef,
-            String insuredUserName,
-            LocalDateTime assignedAt
+            String subjectRef,
+            String userName,
+            LocalDateTime linkedAt
     ) {
     }
 }
-//update-end---author:ai-agent ---date:2026-08-26  for：【保险侧两步式保单派发】响应结构-----------
+//update-end---author:ai-agent ---date:2026-08-26  for：【保险侧基础保单库】响应结构-----------

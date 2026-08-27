@@ -7,10 +7,12 @@ import org.jeecg.modules.rehealth.insurance.entity.InsuranceConsentEntity;
 import org.jeecg.modules.rehealth.insurance.entity.InsuranceCoverageEntity;
 import org.jeecg.modules.rehealth.insurance.entity.InsuranceInterventionEntity;
 import org.jeecg.modules.rehealth.insurance.entity.InsurancePolicyEntity;
+import org.jeecg.modules.rehealth.insurance.entity.InsurancePolicyLinkEntity;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceClaimMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceConsentMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceCoverageMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceInterventionMapper;
+import org.jeecg.modules.rehealth.insurance.mapper.InsurancePolicyLinkMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsurancePolicyMapper;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
@@ -28,6 +30,7 @@ public class MybatisPlusInsuranceBusinessRepository implements InsuranceBusiness
     private static final String ACTIVE = "active";
 
     private final InsurancePolicyMapper policyMapper;
+    private final InsurancePolicyLinkMapper policyLinkMapper;
     private final InsuranceCoverageMapper coverageMapper;
     private final InsuranceClaimMapper claimMapper;
     private final InsuranceInterventionMapper interventionMapper;
@@ -35,12 +38,14 @@ public class MybatisPlusInsuranceBusinessRepository implements InsuranceBusiness
 
     public MybatisPlusInsuranceBusinessRepository(
             InsurancePolicyMapper policyMapper,
+            InsurancePolicyLinkMapper policyLinkMapper,
             InsuranceCoverageMapper coverageMapper,
             InsuranceClaimMapper claimMapper,
             InsuranceInterventionMapper interventionMapper,
             InsuranceConsentMapper consentMapper
     ) {
         this.policyMapper = policyMapper;
+        this.policyLinkMapper = policyLinkMapper;
         this.coverageMapper = coverageMapper;
         this.claimMapper = claimMapper;
         this.interventionMapper = interventionMapper;
@@ -102,15 +107,17 @@ public class MybatisPlusInsuranceBusinessRepository implements InsuranceBusiness
         );
     }
 
+    //update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧基础保单库】保单统计改走保单-用户关联表-----------
     private long policyCount(int tenantId, String subjectRef) {
-        LambdaQueryWrapper<InsurancePolicyEntity> query = new LambdaQueryWrapper<InsurancePolicyEntity>()
-                .eq(InsurancePolicyEntity::getTenantId, tenantId)
-                .eq(InsurancePolicyEntity::getStatus, ACTIVE);
+        LambdaQueryWrapper<InsurancePolicyLinkEntity> query = new LambdaQueryWrapper<InsurancePolicyLinkEntity>()
+                .eq(InsurancePolicyLinkEntity::getTenantId, tenantId)
+                .eq(InsurancePolicyLinkEntity::getStatus, "assigned");
         if (subjectRef != null) {
-            query.eq(InsurancePolicyEntity::getInsuredSubjectRef, subjectRef);
+            query.eq(InsurancePolicyLinkEntity::getSubjectRef, subjectRef);
         }
-        return policyMapper.selectCount(query);
+        return policyLinkMapper.selectCount(query);
     }
+    //update-end---author:ai-agent ---date:2026-08-26  for：【保险侧基础保单库】保单统计改走保单-用户关联表-----------
 
     private long coverageCount(int tenantId, String subjectRef) {
         LambdaQueryWrapper<InsuranceCoverageEntity> query = new LambdaQueryWrapper<InsuranceCoverageEntity>()
@@ -164,14 +171,29 @@ public class MybatisPlusInsuranceBusinessRepository implements InsuranceBusiness
         return consent == null ? "unknown" : consent.getStatus();
     }
 
+    //update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧基础保单库】最新保单时间改走关联表-----------
     private Timestamp latestPolicy(int tenantId, String subjectRef) {
+        if (subjectRef != null) {
+            List<InsurancePolicyLinkEntity> links = policyLinkMapper.selectList(
+                    new LambdaQueryWrapper<InsurancePolicyLinkEntity>()
+                            .eq(InsurancePolicyLinkEntity::getTenantId, tenantId)
+                            .eq(InsurancePolicyLinkEntity::getSubjectRef, subjectRef)
+                            .eq(InsurancePolicyLinkEntity::getStatus, "assigned"));
+            if (links.isEmpty()) {
+                return null;
+            }
+            QueryWrapper<InsurancePolicyEntity> query = new QueryWrapper<>();
+            query.select("MAX(updated_at) AS latest_updated_at")
+                    .eq("tenant_id", tenantId)
+                    .eq("status", ACTIVE)
+                    .in("policy_no", links.stream().map(InsurancePolicyLinkEntity::getPolicyNo).toList());
+            return timestamp(first(policyMapper.selectMaps(query)), "latest_updated_at");
+        }
         QueryWrapper<InsurancePolicyEntity> query = new QueryWrapper<>();
         query.select("MAX(updated_at) AS latest_updated_at").eq("tenant_id", tenantId);
-        if (subjectRef != null) {
-            query.eq("insured_subject_ref", subjectRef);
-        }
         return timestamp(first(policyMapper.selectMaps(query)), "latest_updated_at");
     }
+    //update-end---author:ai-agent ---date:2026-08-26  for：【保险侧基础保单库】最新保单时间改走关联表-----------
 
     private Timestamp latestCoverage(int tenantId, String subjectRef) {
         QueryWrapper<InsuranceCoverageEntity> query = new QueryWrapper<>();

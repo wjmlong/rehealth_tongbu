@@ -4,6 +4,7 @@ import org.jeecg.modules.rehealth.insurance.mapper.InsuranceClaimMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceConsentMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceCoverageMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceInterventionMapper;
+import org.jeecg.modules.rehealth.insurance.mapper.InsurancePolicyLinkMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsurancePolicyMapper;
 import org.junit.jupiter.api.Test;
 
@@ -21,12 +22,13 @@ class MybatisPlusInsuranceBusinessRepositoryTest {
     @Test
     void tenantSummaryUsesMybatisPlusMappersAndMapsAggregates() {
         InsurancePolicyMapper policies = mock(InsurancePolicyMapper.class);
+        InsurancePolicyLinkMapper policyLinks = mock(InsurancePolicyLinkMapper.class);
         InsuranceCoverageMapper coverages = mock(InsuranceCoverageMapper.class);
         InsuranceClaimMapper claims = mock(InsuranceClaimMapper.class);
         InsuranceInterventionMapper interventions = mock(InsuranceInterventionMapper.class);
         InsuranceConsentMapper consents = mock(InsuranceConsentMapper.class);
 
-        when(policies.selectCount(any())).thenReturn(3L);
+        when(policyLinks.selectCount(any())).thenReturn(3L);
         when(coverages.selectCount(any())).thenReturn(4L);
         when(interventions.selectCount(any())).thenReturn(1L);
         when(claims.selectMaps(any())).thenReturn(List.of(Map.of(
@@ -46,7 +48,7 @@ class MybatisPlusInsuranceBusinessRepositoryTest {
         )));
 
         MybatisPlusInsuranceBusinessRepository repository = new MybatisPlusInsuranceBusinessRepository(
-                policies, coverages, claims, interventions, consents
+                policies, policyLinks, coverages, claims, interventions, consents
         );
 
         InsuranceRiskRepository.BusinessSnapshot summary = repository.tenant(1000);

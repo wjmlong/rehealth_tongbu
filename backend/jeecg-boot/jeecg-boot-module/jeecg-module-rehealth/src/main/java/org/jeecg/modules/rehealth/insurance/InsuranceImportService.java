@@ -7,9 +7,11 @@ import org.jeecg.common.system.vo.LoginUser;
 import org.jeecg.modules.rehealth.insurance.entity.InsuranceClaimEntity;
 import org.jeecg.modules.rehealth.insurance.entity.InsuranceImportBatchEntity;
 import org.jeecg.modules.rehealth.insurance.entity.InsurancePolicyEntity;
+import org.jeecg.modules.rehealth.insurance.entity.InsurancePolicyLinkEntity;
 import org.jeecg.modules.rehealth.insurance.entity.InsuranceSubjectEntity;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceClaimMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceImportBatchMapper;
+import org.jeecg.modules.rehealth.insurance.mapper.InsurancePolicyLinkMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsurancePolicyMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceSubjectMapper;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -40,6 +42,9 @@ public class InsuranceImportService {
     private final ObjectMapper objectMapper;
     private final InsuranceTenantAccessGuard tenantAccessGuard;
     private final InsuranceDispatchAccess dispatchAccess;
+    //update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧基础保单库】导入指定被保人时同步建立关联-----------
+    private final InsurancePolicyLinkMapper linkMapper;
+    //update-end---author:ai-agent ---date:2026-08-26  for：【保险侧基础保单库】导入指定被保人时同步建立关联-----------
 
     public InsuranceImportService(
             InsuranceSubjectMapper subjectMapper,
@@ -48,7 +53,8 @@ public class InsuranceImportService {
             InsuranceImportBatchMapper importBatchMapper,
             ObjectMapper objectMapper,
             InsuranceTenantAccessGuard tenantAccessGuard,
-            InsuranceDispatchAccess dispatchAccess
+            InsuranceDispatchAccess dispatchAccess,
+            InsurancePolicyLinkMapper linkMapper
     ) {
         this.subjectMapper = subjectMapper;
         this.policyMapper = policyMapper;
@@ -57,6 +63,7 @@ public class InsuranceImportService {
         this.objectMapper = objectMapper;
         this.tenantAccessGuard = tenantAccessGuard;
         this.dispatchAccess = dispatchAccess;
+        this.linkMapper = linkMapper;
     }
 
     @Transactional
@@ -191,11 +198,47 @@ public class InsuranceImportService {
             } else {
                 policyMapper.updateById(entity);
             }
+            //update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧基础保单库】指定被保人时同步建立保单-用户关联-----------
+            if (subjectRef != null) {
+                upsertLink(tenantId, policyNo, subjectRef, batch.entity().getSourceSystem(), now);
+            }
+            //update-end---author:ai-agent ---date:2026-08-26  for：【保险侧基础保单库】指定被保人时同步建立保单-用户关联-----------
             results.add(new InsuranceImportResponse.RecordResult(
                     rowNumber, entity.getId(), policyNo, subjectRef, created ? "created" : "updated"));
         }
         return complete(batch.entity(), results);
     }
+
+    //update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧基础保单库】指定被保人时同步建立保单-用户关联-----------
+    private void upsertLink(int tenantId, String policyNo, String subjectRef, String sourceSystem, LocalDateTime now) {
+        if (linkMapper == null) {
+            return;
+        }
+        InsurancePolicyLinkEntity existing = linkMapper.selectOne(new LambdaQueryWrapper<InsurancePolicyLinkEntity>()
+                .eq(InsurancePolicyLinkEntity::getTenantId, tenantId)
+                .eq(InsurancePolicyLinkEntity::getPolicyNo, policyNo)
+                .eq(InsurancePolicyLinkEntity::getSubjectRef, subjectRef)
+                .last("LIMIT 1"));
+        if (existing != null) {
+            if (!"assigned".equals(existing.getStatus())) {
+                existing.setStatus("assigned");
+                existing.setUpdatedAt(now);
+                linkMapper.updateById(existing);
+            }
+            return;
+        }
+        InsurancePolicyLinkEntity link = new InsurancePolicyLinkEntity();
+        link.setId(uuid());
+        link.setTenantId(tenantId);
+        link.setPolicyNo(policyNo);
+        link.setSubjectRef(subjectRef);
+        link.setStatus("assigned");
+        link.setSourceSystem(trim(sourceSystem, 64));
+        link.setCreatedAt(now);
+        link.setUpdatedAt(now);
+        linkMapper.insert(link);
+    }
+    //update-end---author:ai-agent ---date:2026-08-26  for：【保险侧基础保单库】指定被保人时同步建立保单-用户关联-----------
 
     @Transactional
     public InsuranceImportResponse.BatchResult importClaims(

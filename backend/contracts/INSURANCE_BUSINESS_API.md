@@ -141,16 +141,14 @@ JeecgBoot 基础路径：`/jeecg-boot/rehealth/insurance/v1`。
 | `POST` | `/imports/subjects` | 关联当前租户成员，生成不可逆 `subject_ref` 并记录保险授权状态 |
 | `POST` | `/imports/policies` | 按 `insuredSubjectRef` 关联投保人 |
 | `POST` | `/imports/claims` | 按 `policyNo`、`subjectRef` 关联保单和理赔事件 |
-| `GET` | `/policies` | 保单库列表：未分配保单（被保人为空）对全部导入人可见；已分配保单按当前员工三级数据范围（SELF/TEAM/null）过滤。分页返回保单号、产品、计划名、被保人、状态、生效日期、分配时间，支持 keyword 搜索保单号/产品名/被保人姓名 |
-| `GET` | `/policies/dispatchable-subjects` | 当前员工可派发保单的被保人列表（SELF=自己负责，TEAM=本部门，管理员=全机构；最多 200 条，支持姓名搜索），供官网「导入保单」弹窗下拉使用 |
-| `POST` | `/policies/assign` | **两步式分配**：`{policyNo, phone}` 把未分配保单分配给注册手机号对应的 App 用户。校验：保单存在且 active → 手机号已注册（排除平台管理员）→ 本机构已参保 → 在分配人负责范围内 → 未分配给他人（已分配他人 409）。写入 `insured_subject_ref` 与 `assigned_at`，分配后 App 端该用户可见保单 |
+| `GET` | `/policies` | **基础保单库列表**：纯保单信息（保单号、产品、类型、计划名、状态、生效/失效日期、保额、保费、已添加用户数 linkCount），不包含任何被保人信息；keyword 搜索保单号/产品名 |
+| `GET` | `/policies/dispatchable-subjects` | 当前员工负责范围的被保人列表（SELF=自己负责，TEAM=本部门，管理员=全机构；最多 200 条，支持姓名搜索） |
+| `POST` | `/policies/link` | **为 App 用户添加保单**：`{policyNo, phone 或 enrollmentId 二选一}`。校验：保单存在且 active → 用户已注册 App（排除平台管理员）/参与记录有效 → 本机构已参保 → 在操作人负责范围内。写入 `rehealth_insurance_policy_link`，**同一保单可添加给多个用户**，同人重复添加幂等 |
 
-保单派发范围约束（2026-08-26 起）：`POST /imports/policies` 的 `insuredSubjectRef` **改为可选**——
-留空则保单进入机构保单库（App 端不可见），未分配保单的重复导入不会清除既有分配；指定时
-逐行校验被保人假名落在调用者三级数据范围内（员工=自己的客户，主管=本部门，管理员=全机构），
-越权行返回 403「该被保人不在您的负责范围内」。无保险责任角色的核心系统服务账号不受限，
-保持服务端批量对接兼容。官网 BFF 对应路由为 `GET/POST /api/insurer/policies`、
-`GET /api/insurer/policies/dispatchable-subjects`、`POST /api/insurer/policies/assign`。
+保单派发范围约束（2026-08-26 起）：`POST /imports/policies` 的 `insuredSubjectRef` 已**弃用**（保留兼容：
+指定时同步建立一条保单-用户关联，仍校验参保与负责范围）；官网新建基础保单不再携带该字段。
+无保险责任角色的核心系统服务账号不受限，保持服务端批量对接兼容。官网 BFF 对应路由为
+`GET/POST /api/insurer/policies`、`GET /api/insurer/policies/dispatchable-subjects`、`POST /api/insurer/policies/link`。
 
 官网 BFF 另提供 `/api/insurer/workflow/imports/{subjects|policies|claims}` 的 JSON 与 `/file` 文件入口。文件支持 CSV/XLSX，单文件不超过 10 MB、单批 1–2000 行。日期格式为 `yyyy-MM-dd`，日期时间格式为 `yyyy-MM-dd HH:mm:ss`。
 
@@ -224,6 +222,7 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 - `V20260826_1__grant_policy_import_to_manager.sql`：把 `rehealth:insurance:business:import` 授予 `insurance_department_manager`（保险经理），使经理可在官网「导入保单」为自己负责范围内的用户派发保单。
 - `V20260826_2__grant_policy_import_to_org_admin.sql`：把 `rehealth:insurance:business:import` 授予 `insurance_org_admin`（机构管理员），修复机构管理员在官网提示「缺少保单导入权限」的问题。官网 BFF 对机构管理员/平台管理员按角色放行（不依赖登录时的权限快照）；JeecgBoot Shiro 权限缓存过期后自动生效（本地可删除 `shiro:cache:*authorizationCache:<userId>` 立即刷新）。
 - `V20260826_3__make_policy_assignable.sql`：两步式派发——`rehealth_insurance_policy.insured_subject_ref` 改为可空（未分配保单进入机构保单库，App 端不可见），新增 `assigned_at` 分配时间列。
+- `V20260826_4__create_policy_user_links.sql`：**基础保单库模型**——新建 `rehealth_insurance_policy_link`（`tenant_id + policy_no + subject_ref` 唯一，一保单可关联多个用户），把存量保单的 `insured_subject_ref` 幂等迁移为首条关联；保单表列保留（弃用，兼容旧种子脚本）。App 绑定候选、风险池最新保单、工作台保单统计、研究快照候选全部改走关联表。
 
 迁移均为向前兼容的非破坏性变更，不删除既有保险数据。完整逐表结构见 `backend/docs/REHEALTH_DB_SCHEMA.md`。
 

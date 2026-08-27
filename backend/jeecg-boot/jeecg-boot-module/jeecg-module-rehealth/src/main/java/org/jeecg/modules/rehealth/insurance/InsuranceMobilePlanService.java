@@ -8,11 +8,13 @@ import org.jeecg.modules.rehealth.insurance.entity.InsuranceInterventionFeedback
 import org.jeecg.modules.rehealth.insurance.entity.InsurancePlanBindingEntity;
 import org.jeecg.modules.rehealth.insurance.entity.InsurancePlanCatalogEntity;
 import org.jeecg.modules.rehealth.insurance.entity.InsurancePolicyEntity;
+import org.jeecg.modules.rehealth.insurance.entity.InsurancePolicyLinkEntity;
 import org.jeecg.modules.rehealth.insurance.entity.InsuranceSubjectEntity;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceConsentRecordMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceInterventionFeedbackMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsurancePlanBindingMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsurancePlanCatalogMapper;
+import org.jeecg.modules.rehealth.insurance.mapper.InsurancePolicyLinkMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsurancePolicyMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceSubjectMapper;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -44,6 +46,9 @@ public class InsuranceMobilePlanService {
     );
     private final InsuranceSubjectMapper subjectMapper;
     private final InsurancePolicyMapper policyMapper;
+    //update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧基础保单库】保单-用户关联 Mapper-----------
+    private final InsurancePolicyLinkMapper linkMapper;
+    //update-end---author:ai-agent ---date:2026-08-26  for：【保险侧基础保单库】保单-用户关联 Mapper-----------
     private final InsuranceConsentRecordMapper consentMapper;
     private final InsurancePlanBindingMapper bindingMapper;
     private final InsuranceInterventionFeedbackMapper feedbackMapper;
@@ -54,6 +59,7 @@ public class InsuranceMobilePlanService {
     public InsuranceMobilePlanService(
             InsuranceSubjectMapper subjectMapper,
             InsurancePolicyMapper policyMapper,
+            InsurancePolicyLinkMapper linkMapper,
             InsuranceConsentRecordMapper consentMapper,
             InsurancePlanBindingMapper bindingMapper,
             InsuranceInterventionFeedbackMapper feedbackMapper,
@@ -62,6 +68,7 @@ public class InsuranceMobilePlanService {
     ) {
         this.subjectMapper = subjectMapper;
         this.policyMapper = policyMapper;
+        this.linkMapper = linkMapper;
         this.consentMapper = consentMapper;
         this.bindingMapper = bindingMapper;
         this.feedbackMapper = feedbackMapper;
@@ -69,7 +76,7 @@ public class InsuranceMobilePlanService {
         this.catalogMapper = catalogMapper;
     }
 
-    /** Constructor kept for focused service tests without the plan catalog. */
+    /** Constructor kept for focused service tests without the plan catalog and links. */
     public InsuranceMobilePlanService(
             InsuranceSubjectMapper subjectMapper,
             InsurancePolicyMapper policyMapper,
@@ -78,7 +85,7 @@ public class InsuranceMobilePlanService {
             InsuranceInterventionFeedbackMapper feedbackMapper,
             ObjectMapper objectMapper
     ) {
-        this(subjectMapper, policyMapper, consentMapper, bindingMapper, feedbackMapper, objectMapper, null);
+        this(subjectMapper, policyMapper, null, consentMapper, bindingMapper, feedbackMapper, objectMapper, null);
     }
 
     @Transactional
@@ -190,21 +197,29 @@ public class InsuranceMobilePlanService {
         return tenants.get(0);
     }
 
+    //update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧基础保单库】绑定候选与自动选保单改走保单-用户关联表-----------
     private InsurancePolicyEntity resolveBindPolicy(int tenantId, String subjectRef, String policyNo) {
-        LambdaQueryWrapper<InsurancePolicyEntity> query = new LambdaQueryWrapper<InsurancePolicyEntity>()
-                .eq(InsurancePolicyEntity::getTenantId, tenantId)
-                .eq(InsurancePolicyEntity::getInsuredSubjectRef, subjectRef)
-                .eq(InsurancePolicyEntity::getStatus, "active");
         if (policyNo != null && !policyNo.isBlank()) {
-            query.eq(InsurancePolicyEntity::getPolicyNo, policyNo.trim()).last("LIMIT 1");
-            InsurancePolicyEntity policy = policyMapper.selectOne(query);
+            InsurancePolicyLinkEntity link = linkMapper.selectOne(new LambdaQueryWrapper<InsurancePolicyLinkEntity>()
+                    .eq(InsurancePolicyLinkEntity::getTenantId, tenantId)
+                    .eq(InsurancePolicyLinkEntity::getSubjectRef, subjectRef)
+                    .eq(InsurancePolicyLinkEntity::getPolicyNo, policyNo.trim())
+                    .eq(InsurancePolicyLinkEntity::getStatus, "assigned")
+                    .last("LIMIT 1"));
+            if (link == null) {
+                throw InsuranceApiException.notFound("active policy was not found for the current user");
+            }
+            InsurancePolicyEntity policy = policyMapper.selectOne(new LambdaQueryWrapper<InsurancePolicyEntity>()
+                    .eq(InsurancePolicyEntity::getTenantId, tenantId)
+                    .eq(InsurancePolicyEntity::getPolicyNo, policyNo.trim())
+                    .eq(InsurancePolicyEntity::getStatus, "active")
+                    .last("LIMIT 1"));
             if (policy == null) {
                 throw InsuranceApiException.notFound("active policy was not found for the current user");
             }
             return policy;
         }
-        List<InsurancePolicyEntity> candidates = policyMapper.selectList(
-                query.orderByDesc(InsurancePolicyEntity::getEffectiveOn).last("LIMIT 10"));
+        List<InsurancePolicyEntity> candidates = linkedPolicies(tenantId, subjectRef);
         if (candidates.isEmpty()) {
             throw InsuranceApiException.notFound("当前用户没有有效保单，请联系保险机构");
         }
@@ -212,6 +227,24 @@ public class InsuranceMobilePlanService {
             throw InsuranceApiException.badRequest("存在多张有效保单，请先选择保单");
         }
         return candidates.get(0);
+    }
+
+    /** Active policies linked to the subject, newest effective date first. */
+    private List<InsurancePolicyEntity> linkedPolicies(int tenantId, String subjectRef) {
+        List<InsurancePolicyLinkEntity> links = linkMapper.selectList(
+                new LambdaQueryWrapper<InsurancePolicyLinkEntity>()
+                        .eq(InsurancePolicyLinkEntity::getTenantId, tenantId)
+                        .eq(InsurancePolicyLinkEntity::getSubjectRef, subjectRef)
+                        .eq(InsurancePolicyLinkEntity::getStatus, "assigned"));
+        if (links.isEmpty()) {
+            return List.of();
+        }
+        return policyMapper.selectList(new LambdaQueryWrapper<InsurancePolicyEntity>()
+                .eq(InsurancePolicyEntity::getTenantId, tenantId)
+                .in(InsurancePolicyEntity::getPolicyNo,
+                        links.stream().map(InsurancePolicyLinkEntity::getPolicyNo).toList())
+                .eq(InsurancePolicyEntity::getStatus, "active")
+                .orderByDesc(InsurancePolicyEntity::getEffectiveOn));
     }
 
     public List<InsuranceMobileBindablePolicy> bindablePolicies(String userId) {
@@ -227,12 +260,7 @@ public class InsuranceMobilePlanService {
             if (subject.getTenantId() == null || subjectMapper.countActiveTenant(subject.getTenantId()) < 1) {
                 continue;
             }
-            List<InsurancePolicyEntity> policies = policyMapper.selectList(
-                    new LambdaQueryWrapper<InsurancePolicyEntity>()
-                            .eq(InsurancePolicyEntity::getTenantId, subject.getTenantId())
-                            .eq(InsurancePolicyEntity::getInsuredSubjectRef, subject.getSubjectRef())
-                            .eq(InsurancePolicyEntity::getStatus, "active")
-                            .orderByDesc(InsurancePolicyEntity::getEffectiveOn));
+            List<InsurancePolicyEntity> policies = linkedPolicies(subject.getTenantId(), subject.getSubjectRef());
             for (InsurancePolicyEntity policy : policies) {
                 String policyNo = policy.getPolicyNo() == null ? "" : policy.getPolicyNo();
                 String masked = policyNo.length() > 4 ? "尾号 " + policyNo.substring(policyNo.length() - 4) : policyNo;

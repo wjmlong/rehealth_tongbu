@@ -21,11 +21,11 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * Insurance-side policy dispatch interface: the scoped policy list and the
- * dispatchable subject candidates used by the website import dialog.
- * Both endpoints share the policy import permission.
+ * Insurance-side basic policy library: the tenant policy list, the
+ * dispatchable subject candidates and linking policies to APP users.
+ * All endpoints share the policy import permission.
  */
-//update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧保单派发】官网保单列表与可派发被保人接口-----------
+//update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧基础保单库】保单库与添加保单关联接口-----------
 @Tag(name = "ReHealth Insurance Policy Dispatch API")
 @RestController
 @RequestMapping("/rehealth/insurance/v1/policies")
@@ -46,7 +46,7 @@ public class InsurancePolicyController {
 
     @GetMapping
     @RequiresPermissions(IMPORT_PERMISSION)
-    @Operation(summary = "List tenant policies inside the current staff responsibility scope")
+    @Operation(summary = "List the tenant basic policy library with linked-user counts")
     public ResponseEntity<Result<InsurancePolicyResponse.PolicyPage>> list(
             @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
             @RequestParam(defaultValue = "1") int pageNo,
@@ -56,8 +56,7 @@ public class InsurancePolicyController {
         return respond(() -> {
             LoginUser user = currentUser();
             int tenant = tenantAccessGuard.requireTenant(user, tenantId);
-            InsuranceAssignmentScope scope = tenantAccessGuard.assignmentScopeOrNull(user, tenant);
-            return service.list(tenant, scope, pageNo, pageSize, keyword);
+            return service.list(tenant, pageNo, pageSize, keyword);
         });
     }
 
@@ -76,22 +75,22 @@ public class InsurancePolicyController {
         });
     }
 
-    //update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧两步式保单派发】按手机号分配保单-----------
-    @PostMapping("/assign")
+    //update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧基础保单库】员工为 App 用户添加保单-----------
+    @PostMapping("/link")
     @RequiresPermissions(IMPORT_PERMISSION)
-    @Operation(summary = "Assign an unassigned policy to an APP user by phone")
-    public ResponseEntity<Result<InsurancePolicyResponse.AssignResult>> assign(
+    @Operation(summary = "Link a basic policy to an APP user (one policy may link to many users)")
+    public ResponseEntity<Result<InsurancePolicyResponse.LinkResult>> link(
             @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
-            @RequestBody InsurancePolicyResponse.AssignRequest request
+            @RequestBody InsurancePolicyResponse.LinkRequest request
     ) {
         return respond(() -> {
             LoginUser user = currentUser();
             int tenant = tenantAccessGuard.requireTenant(user, tenantId);
             InsuranceAssignmentScope scope = tenantAccessGuard.assignmentScopeOrNull(user, tenant);
-            return service.assign(tenant, scope, request);
+            return service.link(tenant, scope, user.getId(), request);
         });
     }
-    //update-end---author:ai-agent ---date:2026-08-26  for：【保险侧两步式保单派发】按手机号分配保单-----------
+    //update-end---author:ai-agent ---date:2026-08-26  for：【保险侧基础保单库】员工为 App 用户添加保单-----------
 
     private LoginUser currentUser() {
         Object principal = SecurityUtils.getSubject().getPrincipal();
@@ -109,4 +108,4 @@ public class InsurancePolicyController {
         }
     }
 }
-//update-end---author:ai-agent ---date:2026-08-26  for：【保险侧保单派发】官网保单列表与可派发被保人接口-----------
+//update-end---author:ai-agent ---date:2026-08-26  for：【保险侧基础保单库】保单库与添加保单关联接口-----------

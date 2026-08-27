@@ -6,6 +6,7 @@ import org.jeecg.common.system.vo.LoginUser;
 import org.jeecg.modules.rehealth.insurance.entity.InsurancePolicyEntity;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceClaimMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceImportBatchMapper;
+import org.jeecg.modules.rehealth.insurance.mapper.InsurancePolicyLinkMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsurancePolicyMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceSubjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,9 +39,10 @@ class InsuranceImportServicePolicyScopeTest {
     private final InsuranceImportBatchMapper importBatchMapper = mock(InsuranceImportBatchMapper.class);
     private final InsuranceTenantAccessGuard tenantAccessGuard = mock(InsuranceTenantAccessGuard.class);
     private final InsuranceDispatchAccess dispatchAccess = mock(InsuranceDispatchAccess.class);
+    private final InsurancePolicyLinkMapper linkMapper = mock(InsurancePolicyLinkMapper.class);
     private final InsuranceImportService service = new InsuranceImportService(
             subjectMapper, policyMapper, claimMapper, importBatchMapper,
-            new ObjectMapper().registerModule(new JavaTimeModule()), tenantAccessGuard, dispatchAccess);
+            new ObjectMapper().registerModule(new JavaTimeModule()), tenantAccessGuard, dispatchAccess, linkMapper);
 
     private static final InsuranceAssignmentScope TEAM_SCOPE =
             new InsuranceAssignmentScope("mgr-1", InsuranceAssignmentScope.MODE_TEAM);

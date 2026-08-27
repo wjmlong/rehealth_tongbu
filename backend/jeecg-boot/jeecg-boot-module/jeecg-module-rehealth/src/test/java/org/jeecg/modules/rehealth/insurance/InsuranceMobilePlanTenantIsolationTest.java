@@ -5,10 +5,12 @@ import org.jeecg.modules.rehealth.insurance.entity.InsurancePlanBindingEntity;
 import org.jeecg.modules.rehealth.insurance.entity.InsuranceInterventionFeedbackEntity;
 import org.jeecg.modules.rehealth.insurance.entity.InsuranceConsentRecordEntity;
 import org.jeecg.modules.rehealth.insurance.entity.InsurancePolicyEntity;
+import org.jeecg.modules.rehealth.insurance.entity.InsurancePolicyLinkEntity;
 import org.jeecg.modules.rehealth.insurance.entity.InsuranceSubjectEntity;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceConsentRecordMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceInterventionFeedbackMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsurancePlanBindingMapper;
+import org.jeecg.modules.rehealth.insurance.mapper.InsurancePolicyLinkMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsurancePolicyMapper;
 import org.jeecg.modules.rehealth.insurance.mapper.InsuranceSubjectMapper;
 import org.junit.jupiter.api.Test;
@@ -30,11 +32,12 @@ import static org.mockito.Mockito.when;
 class InsuranceMobilePlanTenantIsolationTest {
     private final InsuranceSubjectMapper subjects = mock(InsuranceSubjectMapper.class);
     private final InsurancePolicyMapper policies = mock(InsurancePolicyMapper.class);
+    private final InsurancePolicyLinkMapper links = mock(InsurancePolicyLinkMapper.class);
     private final InsuranceConsentRecordMapper consents = mock(InsuranceConsentRecordMapper.class);
     private final InsurancePlanBindingMapper bindings = mock(InsurancePlanBindingMapper.class);
     private final InsuranceInterventionFeedbackMapper feedback = mock(InsuranceInterventionFeedbackMapper.class);
     private final InsuranceMobilePlanService service = new InsuranceMobilePlanService(
-            subjects, policies, consents, bindings, feedback, new ObjectMapper()
+            subjects, policies, links, consents, bindings, feedback, new ObjectMapper(), null
     );
 
     @Test
@@ -172,6 +175,12 @@ class InsuranceMobilePlanTenantIsolationTest {
         policy.setDefaultPlanId(null);
         when(subjects.countActiveTenant(1001)).thenReturn(1);
         when(subjects.selectOne(any())).thenReturn(subject);
+        InsurancePolicyLinkEntity link = new InsurancePolicyLinkEntity();
+        link.setTenantId(1001);
+        link.setPolicyNo("POL-NOPLAN");
+        link.setSubjectRef("subject-1");
+        link.setStatus("assigned");
+        when(links.selectOne(any())).thenReturn(link);
         when(policies.selectOne(any())).thenReturn(policy);
         when(consents.selectOne(any())).thenReturn(null);
         when(bindings.selectOne(any())).thenReturn(null);

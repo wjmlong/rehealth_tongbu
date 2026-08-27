@@ -30,8 +30,11 @@ public interface InsuranceStudyMemberMapper extends BaseMapper<InsuranceStudyMem
                        'baselineRisk', risk.risk_score
                    ) AS covariate_json
             FROM rehealth_insurance_subject s
+            JOIN rehealth_insurance_policy_link link
+              ON link.tenant_id = s.tenant_id AND link.subject_ref = s.subject_ref
+             AND link.status = 'assigned'
             JOIN rehealth_insurance_policy p
-              ON p.tenant_id = s.tenant_id AND p.insured_subject_ref = s.subject_ref
+              ON p.tenant_id = link.tenant_id AND p.policy_no = link.policy_no
              AND p.status = 'active'
              AND (#{periodEnd} IS NULL OR p.effective_on IS NULL OR p.effective_on <= #{periodEnd})
              AND (#{periodStart} IS NULL OR p.expires_on IS NULL OR p.expires_on >= #{periodStart})

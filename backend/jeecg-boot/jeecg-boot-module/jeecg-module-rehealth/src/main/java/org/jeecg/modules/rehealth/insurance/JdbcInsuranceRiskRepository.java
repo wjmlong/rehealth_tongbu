@@ -100,8 +100,12 @@ public class JdbcInsuranceRiskRepository implements InsuranceRiskRepository {
                 INNER JOIN rehealth_insurance_policy p ON p.id = (
                     SELECT candidate.id
                     FROM rehealth_insurance_policy candidate
+                    INNER JOIN rehealth_insurance_policy_link link
+                      ON link.tenant_id = candidate.tenant_id
+                     AND link.policy_no = candidate.policy_no
                     WHERE candidate.tenant_id = ts.tenant_id
-                      AND candidate.insured_subject_ref = ts.subject_id
+                      AND link.subject_ref = ts.subject_id
+                      AND link.status = 'assigned'
                       AND candidate.status = 'active'
                     ORDER BY candidate.effective_on DESC, candidate.created_at DESC, candidate.id DESC
                     LIMIT 1
