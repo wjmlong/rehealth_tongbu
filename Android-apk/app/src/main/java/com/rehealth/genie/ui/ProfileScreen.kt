@@ -121,6 +121,7 @@ internal fun ProfileScreen(
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
     var showRhiInputDialog by remember { mutableStateOf(false) }
+    var showScanLinkDialog by remember { mutableStateOf(false) }
     val profile = AttributionDataProvenance.trustedProfile(state.patientMvp)
     val latestInterview = state.patientMvp?.latestHealthInterview
     val session = (context.applicationContext as? ReHealthApplication)?.sessionStore
@@ -148,6 +149,10 @@ internal fun ProfileScreen(
         factory = ServiceContactViewModel.Factory(context),
     )
     val serviceContactState by serviceContactViewModel.uiState.collectAsState()
+    val scanLinkViewModel: ScanLinkViewModel = viewModel(
+        factory = ScanLinkViewModel.Factory(context),
+    )
+    val scanLinkState by scanLinkViewModel.uiState.collectAsState()
     val planBindingViewModel: InsurancePlanBindingViewModel = viewModel(
         factory = InsurancePlanBindingViewModel.Factory(context),
     )
@@ -266,6 +271,15 @@ internal fun ProfileScreen(
                     color = Muted,
                     fontSize = 9.sp,
                     modifier = Modifier.padding(top = 6.dp),
+                )
+                Text(
+                    if (contact == null) "扫码关联服务专员" else "扫码更换服务专员",
+                    color = Mint,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier
+                        .padding(top = 10.dp)
+                        .clickable { showScanLinkDialog = true },
                 )
             }
             ReHealthCardBlock {
@@ -503,6 +517,20 @@ internal fun ProfileScreen(
                     showRhiInputDialog = false
                     rhiInputViewModel.clearError()
                 }
+            },
+        )
+    }
+    if (showScanLinkDialog) {
+        ScanLinkDialog(
+            state = scanLinkState,
+            onCodeChange = scanLinkViewModel::updateCode,
+            onScan = scanLinkViewModel::scan,
+            onConfirm = scanLinkViewModel::confirm,
+            onBack = scanLinkViewModel::backToInput,
+            onDismiss = {
+                showScanLinkDialog = false
+                scanLinkViewModel.backToInput()
+                serviceContactViewModel.loadForCurrentUser(force = true)
             },
         )
     }
@@ -866,4 +894,98 @@ private fun MenuRow(icon: ImageVector, label: String, onClick: () -> Unit = {}) 
         Icon(Icons.Outlined.ChevronRight, null, tint = Muted, modifier = Modifier.size(18.dp))
     }
     HorizontalDivider(color = Line)
+}
+
+/** 扫码关联弹窗：输入员工码 → 预览员工 → 确认建立/更换服务关系（相机扫码后续版本开放）。 */
+@Composable
+private fun ScanLinkDialog(
+    state: ScanLinkUiState,
+    onCodeChange: (String) -> Unit,
+    onScan: () -> Unit,
+    onConfirm: () -> Unit,
+    onBack: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = { if (!state.busy) onDismiss() },
+        shape = RoundedCornerShape(24.dp),
+        containerColor = Color.White,
+        titleContentColor = Ink,
+        textContentColor = Ink,
+        title = { Text("扫码关联服务专员", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                when (state.phase) {
+                    ScanLinkUiState.Phase.INPUT -> {
+                        Text(
+                            "输入服务人员展示的 8 位员工码（相机扫码将在后续版本开放）",
+                            color = Muted,
+                            fontSize = 12.sp,
+                        )
+                        OutlinedTextField(
+                            value = state.codeInput,
+                            onValueChange = onCodeChange,
+                            label = { Text("员工码") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(14.dp),
+                            colors = reHealthTextFieldColors(),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    ScanLinkUiState.Phase.PREVIEW -> {
+                        val preview = state.preview
+                        val employee = preview?.employee
+                        Text(
+                            "确认添加该服务专员？",
+                            color = Ink,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            listOfNotNull(
+                                employee?.name,
+                                employee?.orgName,
+                                employee?.departmentName,
+                            ).joinToString(" · ").ifBlank { "服务专员" },
+                            color = Ink,
+                            fontSize = 12.sp,
+                        )
+                        preview?.existingContact?.let { existing ->
+                            Text(
+                                "您已有服务专员「${existing.employeeName ?: "—"}」，确认更换？",
+                                color = com.rehealth.genie.ui.theme.Muted,
+                                fontSize = 12.sp,
+                            )
+                        }
+                    }
+                    ScanLinkUiState.Phase.DONE -> {
+                        Text(
+                            state.message ?: "服务关系已建立",
+                            color = Ink,
+                            fontSize = 13.sp,
+                        )
+                    }
+                }
+                state.message?.takeIf { state.phase == ScanLinkUiState.Phase.INPUT }?.let { error ->
+                    Text(error, color = Color(0xFFE5484D), fontSize = 12.sp)
+                }
+                if (state.busy) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Mint, strokeWidth = 2.dp)
+                }
+            }
+        },
+        confirmButton = {
+            when (state.phase) {
+                ScanLinkUiState.Phase.INPUT -> TextButton(enabled = !state.busy, onClick = onScan) { Text("识别") }
+                ScanLinkUiState.Phase.PREVIEW -> TextButton(enabled = !state.busy, onClick = onConfirm) { Text("确认") }
+                ScanLinkUiState.Phase.DONE -> TextButton(onClick = onDismiss) { Text("完成") }
+            }
+        },
+        dismissButton = {
+            when (state.phase) {
+                ScanLinkUiState.Phase.PREVIEW -> TextButton(enabled = !state.busy, onClick = onBack) { Text("返回") }
+                else -> TextButton(enabled = !state.busy, onClick = onDismiss) { Text("取消") }
+            }
+        },
+    )
 }

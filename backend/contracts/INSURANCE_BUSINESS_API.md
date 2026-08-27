@@ -225,6 +225,7 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 - `V20260826_2__grant_policy_import_to_org_admin.sql`：把 `rehealth:insurance:business:import` 授予 `insurance_org_admin`（机构管理员），修复机构管理员在官网提示「缺少保单导入权限」的问题。官网 BFF 对机构管理员/平台管理员按角色放行（不依赖登录时的权限快照）；JeecgBoot Shiro 权限缓存过期后自动生效（本地可删除 `shiro:cache:*authorizationCache:<userId>` 立即刷新）。
 - `V20260826_3__make_policy_assignable.sql`：两步式派发——`rehealth_insurance_policy.insured_subject_ref` 改为可空（未分配保单进入机构保单库，App 端不可见），新增 `assigned_at` 分配时间列。
 - `V20260826_4__create_policy_user_links.sql`：**基础保单库模型**——新建 `rehealth_insurance_policy_link`（`tenant_id + policy_no + subject_ref` 唯一，一保单可关联多个用户），把存量保单的 `insured_subject_ref` 幂等迁移为首条关联；保单表列保留（弃用，兼容旧种子脚本）。App 绑定候选、风险池最新保单、工作台保单统计、研究快照候选全部改走关联表。
+- `V20260826_5__create_employee_qr_and_scan_session.sql`：扫码关联——员工专属二维码表（一人一码、30 天有效期）与扫码会话表（5 分钟一次性消费），支持"用户扫码 → 确认 → 建立/更换服务关系"。
 
 迁移均为向前兼容的非破坏性变更，不删除既有保险数据。完整逐表结构见 `backend/docs/REHEALTH_DB_SCHEMA.md`。
 
@@ -255,11 +256,17 @@ DRAFT -> SNAPSHOT_FROZEN -> JOB_QUEUED -> RUNNING
 | `POST` | `/rehealth/insurance/v1/assignments/transfer` | `rehealth:insurance:assignment:transfer` | 单/批量转移：结束旧行+新建行+逐行日志 |
 | `POST` | `/rehealth/insurance/v1/assignments/{assignmentId}/end` | `rehealth:insurance:assignment:manage` | 结束单条活跃关系（原因必填） |
 | `GET` | `/rehealth/insurance/v1/assignments/mine` | `rehealth:insurance:assignment:view` | 我的客户（按当前员工过滤） |
+| `POST` | `/rehealth/insurance/v1/assignments/qr-code` | `rehealth:insurance:assignment:manage` | 生成/刷新当前员工专属二维码（8 位 Base32，30 天有效期，一人一码） |
+| `GET` | `/rehealth/insurance/v1/assignments/qr-code/current` | `rehealth:insurance:assignment:manage` | 查询当前员工二维码（code/status/expiresAt/累计扫码次数） |
+| `POST` | `/rehealth/insurance/v1/assignments/qr-code/disable` | `rehealth:insurance:assignment:manage` | 停用当前员工二维码（泄露止损；可重新生成启用） |
 | `GET` | `/rehealth/insurance/v1/assignments/enrollments` | `rehealth:insurance:assignment:view` | 被保人池：租户内全部参与记录及当前主负责人，供员工认领（支持 keyword 搜索；`claim` 可直接按 `enrollmentId` 认领） |
 | `POST` | `/rehealth/insurance/v1/assignments/enrollments` | `rehealth:insurance:assignment:manage` | 按手机号批量纳入参保人：为已注册 App 用户幂等创建参保关系（subjectRef=sha256(tenant:userId)）与项目参与记录，导入后即可在被保人池认领 |
 | `GET` | `/rehealth/insurance/v1/assignments/{enrollmentId}/history` | `rehealth:insurance:assignment:view` | 责任链 + 变更日志 |
 | `GET` | `/rehealth/mobile/insurance/assignments/current` | App 登录态 | 当前 App 用户的活跃服务专员（脱敏展示） |
-| `POST` | `/rehealth/mobile/insurance/assignments/redeem`、`/scan` | App 登录态 | 预留契约，一期返回 `501`（二期实现） |
+| `POST` | `/rehealth/mobile/insurance/assignments/scan` | App 登录态 | **扫码关联（2026-08-26 实现）**：`{employeeCode, tenantId}` 校验码（active/未过期/员工活跃）→ 创建 5 分钟一次性 pending 会话 → 返回员工脱敏信息（姓名/机构/部门）与现有专员（若有）。限流：同用户每分钟 ≤10 次 |
+| `POST` | `/rehealth/mobile/insurance/assignments/scan/{sessionId}/confirm` | App 登录态 | 用户确认：会话一次性消费（pending→confirmed）。未参保 → 400；已有其他专员且 `replaceExisting=false` → 409「是否确认更换」；`replaceExisting=true` 时结束旧关系、建立新 PRIMARY（复用 createAssignment，责任链保留） |
+| `POST` | `/rehealth/mobile/insurance/assignments/scan/{sessionId}/cancel` | App 登录态 | 取消 pending 会话 |
+| `POST` | `/rehealth/mobile/insurance/assignments/redeem` | App 登录态 | 预留契约，一期返回 `501`（邀请码二期实现） |
 
 数据范围（SQL 层强制）：普通员工只看自己名下的关系（SELF）；部门主管看本部门所有员工负责的用户（TEAM）；机构管理员与审计员全机构（审计员只读+脱敏+日志可见）。风险接口（`/rehealth/insurance/v1/dashboard/risk`、`/insureds`）的负责人过滤已切到 `rehealth_insurance_user_assignment` + `rehealth_insurance_enrollment`；旧 `rehealth_insurance_subject_manager` 保留只读过渡，其写接口 `PUT /settings/assignments/{subjectRef}` 已停用（返回 `501` 引导使用新接口）。
 

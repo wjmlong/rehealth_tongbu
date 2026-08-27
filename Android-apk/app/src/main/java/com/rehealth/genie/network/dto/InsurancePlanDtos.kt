@@ -56,6 +56,48 @@ data class InsuranceServiceContactDto(
     val startTime: String? = null,
 )
 
+/** 扫码关联：扫码请求（员工码 + 租户，租户可选仅作路由提示）。 */
+@JsonClass(generateAdapter = true)
+data class InsuranceScanRequestDto(
+    val employeeCode: String,
+    val tenantId: String? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class InsuranceScanEmployeeDto(
+    val name: String? = null,
+    val orgName: String? = null,
+    val departmentName: String? = null,
+    val avatarInitial: String? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class InsuranceScanExistingContactDto(
+    val tenantId: String? = null,
+    val employeeName: String? = null,
+    val roleType: String? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class InsuranceScanPreviewDto(
+    val sessionId: String,
+    val expiresAt: String? = null,
+    val employee: InsuranceScanEmployeeDto? = null,
+    val existingContact: InsuranceScanExistingContactDto? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class InsuranceScanConfirmRequestDto(
+    val replaceExisting: Boolean = false,
+)
+
+@JsonClass(generateAdapter = true)
+data class InsuranceScanConfirmResultDto(
+    val created: Boolean = false,
+    val alreadyServed: Boolean = false,
+    val employeeName: String? = null,
+)
+
 @JsonClass(generateAdapter = true)
 data class InsurancePlanFeedbackRequestDto(
     val feedbackType: String,

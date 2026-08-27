@@ -40,13 +40,16 @@ public class InsuranceAssignmentController {
 
     private final InsuranceAssignmentService service;
     private final InsuranceTenantAccessGuard tenantAccessGuard;
+    private final InsuranceScanLinkService scanLinkService;
 
     public InsuranceAssignmentController(
             InsuranceAssignmentService service,
-            InsuranceTenantAccessGuard tenantAccessGuard
+            InsuranceTenantAccessGuard tenantAccessGuard,
+            InsuranceScanLinkService scanLinkService
     ) {
         this.service = service;
         this.tenantAccessGuard = tenantAccessGuard;
+        this.scanLinkService = scanLinkService;
     }
 
     @PostMapping("/claim")
@@ -72,6 +75,49 @@ public class InsuranceAssignmentController {
         return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
                 .body(Result.error(501, "邀请码关联接口已预留，二期开放"));
     }
+
+    //update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧扫码关联】员工二维码管理-----------
+    @PostMapping("/qr-code")
+    @RequiresPermissions(MANAGE_PERMISSION)
+    @Operation(summary = "Generate or refresh the current employee QR code (30-day validity)")
+    public ResponseEntity<Result<InsuranceScanLinkResponse.QrCode>> qrCode(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId,
+            @RequestBody(required = false) InsuranceAssignmentRequest.InviteCode request
+    ) {
+        return respond(() -> {
+            LoginUser user = currentUser();
+            int tenant = tenantAccessGuard.requireTenant(user, tenantId);
+            Integer ttl = request == null ? null : request.expiresInMinutes();
+            return scanLinkService.ensureQr(tenant, user.getId(), ttl);
+        });
+    }
+
+    @GetMapping("/qr-code/current")
+    @RequiresPermissions(MANAGE_PERMISSION)
+    @Operation(summary = "Read the current employee QR code")
+    public ResponseEntity<Result<InsuranceScanLinkResponse.QrCode>> currentQr(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId
+    ) {
+        return respond(() -> {
+            LoginUser user = currentUser();
+            int tenant = tenantAccessGuard.requireTenant(user, tenantId);
+            return scanLinkService.currentQr(tenant, user.getId());
+        });
+    }
+
+    @PostMapping("/qr-code/disable")
+    @RequiresPermissions(MANAGE_PERMISSION)
+    @Operation(summary = "Disable the current employee QR code")
+    public ResponseEntity<Result<InsuranceScanLinkResponse.QrCode>> disableQr(
+            @RequestHeader(value = CommonConstant.TENANT_ID, required = false) String tenantId
+    ) {
+        return respond(() -> {
+            LoginUser user = currentUser();
+            int tenant = tenantAccessGuard.requireTenant(user, tenantId);
+            return scanLinkService.disableQr(tenant, user.getId());
+        });
+    }
+    //update-end---author:ai-agent ---date:2026-08-26  for：【保险侧扫码关联】员工二维码管理-----------
 
     @PostMapping("/transfer")
     @RequiresPermissions(TRANSFER_PERMISSION)

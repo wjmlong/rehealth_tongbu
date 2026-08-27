@@ -39,4 +39,14 @@ public final class InsuranceApiException extends RuntimeException {
     public static InsuranceApiException serviceUnavailable(String message) {
         return new InsuranceApiException(HttpStatus.SERVICE_UNAVAILABLE, message);
     }
+
+    //update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧扫码关联】会话过期与限流状态码-----------
+    public static InsuranceApiException gone(String message) {
+        return new InsuranceApiException(HttpStatus.GONE, message);
+    }
+
+    public static InsuranceApiException tooManyRequests(String message) {
+        return new InsuranceApiException(HttpStatus.TOO_MANY_REQUESTS, message);
+    }
+    //update-end---author:ai-agent ---date:2026-08-26  for：【保险侧扫码关联】会话过期与限流状态码-----------
 }

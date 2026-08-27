@@ -225,4 +225,97 @@ class InsuranceAssignmentServiceTest {
         );
         assertEquals(HttpStatus.FORBIDDEN, error.status());
     }
+
+    @Test
+    void scanClaimCreatesPrimaryWhenTheEnrollmentHasNoActiveOwner() {
+        when(jdbc.queryForObject(anyString(),
+                ArgumentMatchers.<RowMapper<InsuranceAssignmentService.EnrollmentRow>>any(),
+                eq(1001), eq("user-1"))).thenReturn(new InsuranceAssignmentService.EnrollmentRow(
+                "enr-1", "proj-1", "默认服务项目", SUBJECT_REF, "user-1", "张三"));
+        when(jdbc.query(anyString(),
+                ArgumentMatchers.<RowMapper<InsuranceAssignmentService.ActivePrimary>>any(),
+                eq("enr-1"))).thenReturn(List.of());
+        when(jdbc.queryForObject(anyString(), eq(String.class), eq("emp-1"))).thenReturn("李四");
+
+        InsuranceScanLinkResponse.ConfirmResult result = service.scanClaim(1001, "emp-1", "user-1", false);
+
+        assertTrue(result.created());
+        assertFalse(result.alreadyServed());
+        assertEquals("李四", result.employeeName());
+    }
+
+    @Test
+    void scanClaimIsIdempotentWhenAlreadyOwnedByTheSameEmployee() {
+        when(jdbc.queryForObject(anyString(),
+                ArgumentMatchers.<RowMapper<InsuranceAssignmentService.EnrollmentRow>>any(),
+                eq(1001), eq("user-1"))).thenReturn(new InsuranceAssignmentService.EnrollmentRow(
+                "enr-1", "proj-1", "默认服务项目", SUBJECT_REF, "user-1", "张三"));
+        when(jdbc.query(anyString(),
+                ArgumentMatchers.<RowMapper<InsuranceAssignmentService.ActivePrimary>>any(),
+                eq("enr-1"))).thenReturn(List.of(
+                new InsuranceAssignmentService.ActivePrimary("asg-1", "emp-1")));
+        when(jdbc.queryForObject(anyString(), eq(String.class), eq("emp-1"))).thenReturn("李四");
+
+        InsuranceScanLinkResponse.ConfirmResult result = service.scanClaim(1001, "emp-1", "user-1", false);
+
+        assertFalse(result.created());
+        assertTrue(result.alreadyServed());
+    }
+
+    @Test
+    void scanClaimRejectsReplacementWithoutTheSecondConfirmation() {
+        when(jdbc.queryForObject(anyString(),
+                ArgumentMatchers.<RowMapper<InsuranceAssignmentService.EnrollmentRow>>any(),
+                eq(1001), eq("user-1"))).thenReturn(new InsuranceAssignmentService.EnrollmentRow(
+                "enr-1", "proj-1", "默认服务项目", SUBJECT_REF, "user-1", "张三"));
+        when(jdbc.query(anyString(),
+                ArgumentMatchers.<RowMapper<InsuranceAssignmentService.ActivePrimary>>any(),
+                eq("enr-1"))).thenReturn(List.of(
+                new InsuranceAssignmentService.ActivePrimary("asg-1", "emp-old")));
+        when(jdbc.queryForObject(anyString(), eq(String.class), eq("emp-old"))).thenReturn("王老五专员");
+
+        InsuranceApiException error = org.junit.jupiter.api.Assertions.assertThrows(
+                InsuranceApiException.class,
+                () -> service.scanClaim(1001, "emp-1", "user-1", false)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, error.status());
+    }
+
+    @Test
+    void scanClaimReplacesTheOwnerAfterTheSecondConfirmation() {
+        when(jdbc.queryForObject(anyString(),
+                ArgumentMatchers.<RowMapper<InsuranceAssignmentService.EnrollmentRow>>any(),
+                eq(1001), eq("user-1"))).thenReturn(new InsuranceAssignmentService.EnrollmentRow(
+                "enr-1", "proj-1", "默认服务项目", SUBJECT_REF, "user-1", "张三"));
+        when(jdbc.query(anyString(),
+                ArgumentMatchers.<RowMapper<InsuranceAssignmentService.ActivePrimary>>any(),
+                eq("enr-1"))).thenReturn(List.of(
+                new InsuranceAssignmentService.ActivePrimary("asg-1", "emp-old")));
+        when(jdbc.query(anyString(),
+                ArgumentMatchers.<RowMapper<InsuranceAssignmentService.AssignmentRow>>any(),
+                eq("asg-1"), eq(1001))).thenReturn(List.of(new InsuranceAssignmentService.AssignmentRow(
+                "asg-1", "enr-1", "emp-old", "PRIMARY", LocalDateTime.now(), "assign")));
+        when(jdbc.queryForObject(anyString(), eq(String.class), eq("emp-1"))).thenReturn("李四");
+
+        InsuranceScanLinkResponse.ConfirmResult result = service.scanClaim(1001, "emp-1", "user-1", true);
+
+        assertTrue(result.created());
+        assertEquals("李四", result.employeeName());
+    }
+
+    @Test
+    void scanClaimRejectsUnenrolledUsers() {
+        when(jdbc.queryForObject(anyString(),
+                ArgumentMatchers.<RowMapper<InsuranceAssignmentService.EnrollmentRow>>any(),
+                eq(1001), eq("user-1")))
+                .thenThrow(new org.springframework.dao.EmptyResultDataAccessException(1));
+
+        InsuranceApiException error = org.junit.jupiter.api.Assertions.assertThrows(
+                InsuranceApiException.class,
+                () -> service.scanClaim(1001, "emp-1", "user-1", false)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, error.status());
+    }
 }

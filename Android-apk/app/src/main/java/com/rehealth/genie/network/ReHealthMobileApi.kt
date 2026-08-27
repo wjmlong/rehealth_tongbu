@@ -13,6 +13,10 @@ import com.rehealth.genie.network.dto.InsurancePlanBindRequestDto
 import com.rehealth.genie.network.dto.InsurancePlanBindingDto
 import com.rehealth.genie.network.dto.InsuranceMobileBindablePolicyDto
 import com.rehealth.genie.network.dto.InsuranceServiceContactDto
+import com.rehealth.genie.network.dto.InsuranceScanRequestDto
+import com.rehealth.genie.network.dto.InsuranceScanPreviewDto
+import com.rehealth.genie.network.dto.InsuranceScanConfirmRequestDto
+import com.rehealth.genie.network.dto.InsuranceScanConfirmResultDto
 import com.rehealth.genie.network.dto.InsurancePlanFeedbackRequestDto
 import com.rehealth.genie.network.dto.InstitutionCarePlanDto
 import com.rehealth.genie.network.dto.InstitutionCarePlanFeedbackRequestDto
@@ -199,6 +203,20 @@ suspend fun uploadRhiSnapshot(
 
     suspend fun getServiceContact(): RemotePhmOutcome<InsuranceServiceContactDto?> =
         unwrapNullable { api.getServiceContact() }
+
+    suspend fun scanInsuranceAssignment(
+        request: InsuranceScanRequestDto,
+    ): RemotePhmOutcome<InsuranceScanPreviewDto> =
+        unwrap { api.scanInsuranceAssignment(request) }
+
+    suspend fun confirmInsuranceScan(
+        sessionId: String,
+        request: InsuranceScanConfirmRequestDto,
+    ): RemotePhmOutcome<InsuranceScanConfirmResultDto> =
+        unwrap { api.confirmInsuranceScan(sessionId, request) }
+
+    suspend fun cancelInsuranceScan(sessionId: String): RemotePhmOutcome<Boolean> =
+        unwrap { api.cancelInsuranceScan(sessionId) }
 
     suspend fun getActiveInsurancePlans(): RemotePhmOutcome<List<InsurancePlanBindingDto>> =
         unwrap { api.getActiveInsurancePlans() }

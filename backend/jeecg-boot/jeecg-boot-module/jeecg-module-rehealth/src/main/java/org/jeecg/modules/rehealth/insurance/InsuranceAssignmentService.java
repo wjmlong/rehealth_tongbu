@@ -575,6 +575,39 @@ public class InsuranceAssignmentService {
         }
     }
 
+    //update-begin---author:ai-agent ---date:2026-08-26  for：【保险侧扫码关联】扫码确认建立/更换服务关系-----------
+    /**
+     * Scan-association claim: after the APP user confirms, establish the
+     * service relationship with the scanned employee. When the user already
+     * has another active PRIMARY owner, {@code replaceExisting} must be true
+     * (the APP shows a second confirmation dialog) and the old relationship
+     * is ended before the new one starts; the history chain is preserved.
+     */
+    public InsuranceScanLinkResponse.ConfirmResult scanClaim(
+            int tenantId, String employeeId, String userId, boolean replaceExisting
+    ) {
+        EnrollmentRow enrollment;
+        try {
+            enrollment = activeEnrollment(tenantId, userId);
+        } catch (InsuranceApiException e) {
+            throw InsuranceApiException.badRequest("该用户尚未在贵机构参保，请先导入参保");
+        }
+        ActivePrimary existing = activePrimary(enrollment.id());
+        if (existing != null && existing.employeeId().equals(employeeId)) {
+            return new InsuranceScanLinkResponse.ConfirmResult(false, true, employeeName(employeeId));
+        }
+        if (existing != null && !replaceExisting) {
+            throw InsuranceApiException.conflict("您已有服务专员「" + employeeName(existing.employeeId()) + "」，是否确认更换？");
+        }
+        if (existing != null) {
+            endAssignmentRow(tenantId, employeeId, existing.assignmentId(), enrollment,
+                    "transfer", "扫码更换专员", existing.employeeId());
+        }
+        createAssignment(tenantId, employeeId, enrollment, employeeId, "PRIMARY", "扫码关联", null);
+        return new InsuranceScanLinkResponse.ConfirmResult(true, false, employeeName(employeeId));
+    }
+    //update-end---author:ai-agent ---date:2026-08-26  for：【保险侧扫码关联】扫码确认建立/更换服务关系-----------
+
     private EnrollmentRow requireEnrollment(int tenantId, String enrollmentId) {
         try {
             return enrollmentRow("""

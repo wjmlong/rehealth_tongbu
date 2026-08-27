@@ -43,6 +43,10 @@ import com.rehealth.genie.network.dto.InsuranceMobileBindablePolicyDto
 import com.rehealth.genie.network.dto.InsurancePlanBindingDto
 import com.rehealth.genie.network.dto.InsurancePlanFeedbackRequestDto
 import com.rehealth.genie.network.dto.InsuranceServiceContactDto
+import com.rehealth.genie.network.dto.InsuranceScanRequestDto
+import com.rehealth.genie.network.dto.InsuranceScanPreviewDto
+import com.rehealth.genie.network.dto.InsuranceScanConfirmRequestDto
+import com.rehealth.genie.network.dto.InsuranceScanConfirmResultDto
 import com.rehealth.genie.network.dto.InstitutionCarePlanDto
 import com.rehealth.genie.network.dto.InstitutionCarePlanFeedbackRequestDto
 import okhttp3.MultipartBody
@@ -155,6 +159,22 @@ interface ReHealthApi {
 
     @GET("rehealth/mobile/insurance/assignments/current")
     suspend fun getServiceContact(): Response<JeecgResult<InsuranceServiceContactDto?>>
+
+    @POST("rehealth/mobile/insurance/assignments/scan")
+    suspend fun scanInsuranceAssignment(
+        @Body request: InsuranceScanRequestDto,
+    ): Response<JeecgResult<InsuranceScanPreviewDto>>
+
+    @POST("rehealth/mobile/insurance/assignments/scan/{sessionId}/confirm")
+    suspend fun confirmInsuranceScan(
+        @Path("sessionId") sessionId: String,
+        @Body request: InsuranceScanConfirmRequestDto,
+    ): Response<JeecgResult<InsuranceScanConfirmResultDto>>
+
+    @POST("rehealth/mobile/insurance/assignments/scan/{sessionId}/cancel")
+    suspend fun cancelInsuranceScan(
+        @Path("sessionId") sessionId: String,
+    ): Response<JeecgResult<Boolean>>
 
     @GET("rehealth/mobile/insurance/plans/active")
     suspend fun getActiveInsurancePlans(): Response<JeecgResult<List<InsurancePlanBindingDto>>>

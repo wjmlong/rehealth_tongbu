@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class InsuranceAssignmentControllerContractTest {
@@ -60,7 +61,8 @@ class InsuranceAssignmentControllerContractTest {
     void claimDelegatesToTheServiceWithTheResolvedTenant() {
         InsuranceAssignmentService service = mock(InsuranceAssignmentService.class);
         InsuranceTenantAccessGuard guard = mock(InsuranceTenantAccessGuard.class);
-        InsuranceAssignmentController controller = new InsuranceAssignmentController(service, guard);
+        InsuranceAssignmentController controller = new InsuranceAssignmentController(
+                service, guard, mock(InsuranceScanLinkService.class));
         bindPrincipal("service-user");
         when(guard.requireTenant(any(LoginUser.class), eq("1000"))).thenReturn(1000);
         when(service.claim(eq(1000), eq("service-user"), any(InsuranceAssignmentRequest.Claim.class)))
@@ -85,7 +87,8 @@ class InsuranceAssignmentControllerContractTest {
     void reservedInviteCodeEndpointReturnsReal501() {
         InsuranceAssignmentService service = mock(InsuranceAssignmentService.class);
         InsuranceTenantAccessGuard guard = mock(InsuranceTenantAccessGuard.class);
-        InsuranceAssignmentController controller = new InsuranceAssignmentController(service, guard);
+        InsuranceAssignmentController controller = new InsuranceAssignmentController(
+                service, guard, mock(InsuranceScanLinkService.class));
         bindPrincipal("service-user");
         when(guard.requireTenant(any(LoginUser.class), eq("1000"))).thenReturn(1000);
 
@@ -98,18 +101,36 @@ class InsuranceAssignmentControllerContractTest {
     }
 
     @Test
-    void mobileReservedEndpointsReturnReal501() {
+    void mobileReservedInviteCodeEndpointReturnsReal501() {
         InsuranceAssignmentService service = mock(InsuranceAssignmentService.class);
-        InsuranceMobileAssignmentController controller = new InsuranceMobileAssignmentController(service);
+        InsuranceMobileAssignmentController controller = new InsuranceMobileAssignmentController(
+                service, mock(InsuranceScanLinkService.class));
         bindPrincipal("app-user-1");
 
         ResponseEntity<Result<?>> redeem = controller.redeem(
                 new InsuranceAssignmentRequest.InviteCode("13800000000", 4320));
-        ResponseEntity<Result<?>> scan = controller.scan(
-                new InsuranceAssignmentRequest.Scan("EMP-CODE", "1000"));
 
         assertEquals(HttpStatus.NOT_IMPLEMENTED, redeem.getStatusCode());
-        assertEquals(HttpStatus.NOT_IMPLEMENTED, scan.getStatusCode());
+    }
+
+    @Test
+    void mobileScanDelegatesToTheScanLinkServiceWithTheLoggedInUser() {
+        InsuranceAssignmentService service = mock(InsuranceAssignmentService.class);
+        InsuranceScanLinkService scanLink = mock(InsuranceScanLinkService.class);
+        InsuranceMobileAssignmentController controller = new InsuranceMobileAssignmentController(service, scanLink);
+        bindPrincipal("app-user-1");
+        when(scanLink.scan(eq("EMP-CODE"), eq("app-user-1")))
+                .thenReturn(new InsuranceScanLinkResponse.ScanPreview(
+                        "session-1", null,
+                        new InsuranceScanLinkResponse.ScanPreview.Employee("陈立峰", "康泰人寿", "健康险运营部", "陈"),
+                        null));
+
+        ResponseEntity<Result<InsuranceScanLinkResponse.ScanPreview>> scan = controller.scan(
+                new InsuranceAssignmentRequest.Scan("EMP-CODE", "1000"));
+
+        assertEquals(HttpStatus.OK, scan.getStatusCode());
+        assertEquals("陈立峰", scan.getBody().getResult().employee().name());
+        verify(scanLink).scan("EMP-CODE", "app-user-1");
     }
 
     private void assertPermission(

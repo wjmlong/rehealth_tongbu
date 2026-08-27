@@ -25,9 +25,9 @@ class ServiceContactViewModel(context: Context) : ViewModel() {
     val uiState: StateFlow<ServiceContactUiState> = _uiState.asStateFlow()
     private var loadedUserId: String? = null
 
-    fun loadForCurrentUser() {
+    fun loadForCurrentUser(force: Boolean = false) {
         val userId = app.sessionStore.userId ?: return
-        if (userId == loadedUserId) return
+        if (!force && userId == loadedUserId) return
         loadedUserId = userId
         viewModelScope.launch {
             _uiState.value = ServiceContactUiState(loading = true)

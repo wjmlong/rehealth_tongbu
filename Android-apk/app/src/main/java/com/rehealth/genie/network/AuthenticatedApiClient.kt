@@ -172,6 +172,23 @@ class AuthenticatedApiClient(
         mobileApi.getServiceContact()
     }
 
+    suspend fun scanInsuranceAssignment(
+        request: InsuranceScanRequestDto,
+    ): ApiResult<InsuranceScanPreviewDto> = executeWithAuth {
+        mobileApi.scanInsuranceAssignment(request)
+    }
+
+    suspend fun confirmInsuranceScan(
+        sessionId: String,
+        request: InsuranceScanConfirmRequestDto,
+    ): ApiResult<InsuranceScanConfirmResultDto> = executeWithAuth {
+        mobileApi.confirmInsuranceScan(sessionId, request)
+    }
+
+    suspend fun cancelInsuranceScan(sessionId: String): ApiResult<Boolean> = executeWithAuth {
+        mobileApi.cancelInsuranceScan(sessionId)
+    }
+
     suspend fun getActiveInsurancePlans(): ApiResult<List<InsurancePlanBindingDto>> = executeWithAuth {
         mobileApi.getActiveInsurancePlans()
     }
