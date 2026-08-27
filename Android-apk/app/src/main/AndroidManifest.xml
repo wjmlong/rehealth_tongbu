@@ -37,12 +37,19 @@
         android:usesPermissionFlags="neverForLocation" />
 
     <!-- ============================================================ -->
+    <!-- 相机：扫码关联员工二维码（无相机设备也可安装，运行时按需申请）       -->
+    <!-- ============================================================ -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
+    <!-- ============================================================ -->
     <!-- 定位                                                           -->
     <!-- ============================================================ -->
     <uses-permission
         android:name="android.permission.ACCESS_FINE_LOCATION"
-        android:maxSdkVersion="30" />
-    <uses-permission
+        android:maxSdkVersion="30" />    <uses-permission
         android:name="android.permission.ACCESS_COARSE_LOCATION"
         android:maxSdkVersion="30" />
 

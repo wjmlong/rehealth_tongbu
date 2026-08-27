@@ -122,6 +122,7 @@ internal fun ProfileScreen(
     var showEditDialog by remember { mutableStateOf(false) }
     var showRhiInputDialog by remember { mutableStateOf(false) }
     var showScanLinkDialog by remember { mutableStateOf(false) }
+    var showScanner by remember { mutableStateOf(false) }
     val profile = AttributionDataProvenance.trustedProfile(state.patientMvp)
     val latestInterview = state.patientMvp?.latestHealthInterview
     val session = (context.applicationContext as? ReHealthApplication)?.sessionStore
@@ -527,11 +528,23 @@ internal fun ProfileScreen(
             onScan = scanLinkViewModel::scan,
             onConfirm = scanLinkViewModel::confirm,
             onBack = scanLinkViewModel::backToInput,
+            onOpenCamera = { showScanner = true },
             onDismiss = {
                 showScanLinkDialog = false
                 scanLinkViewModel.backToInput()
                 serviceContactViewModel.loadForCurrentUser(force = true)
             },
+        )
+    }
+    if (showScanner) {
+        ScanCameraScreen(
+            onCodeFound = { code ->
+                showScanner = false
+                scanLinkViewModel.updateCode(code)
+                scanLinkViewModel.scan()
+            },
+            onClose = { showScanner = false },
+            onDenied = { showScanner = false },
         )
     }
     if (showLogoutDialog) {
@@ -896,7 +909,7 @@ private fun MenuRow(icon: ImageVector, label: String, onClick: () -> Unit = {}) 
     HorizontalDivider(color = Line)
 }
 
-/** 扫码关联弹窗：输入员工码 → 预览员工 → 确认建立/更换服务关系（相机扫码后续版本开放）。 */
+/** 扫码关联弹窗：相机扫码 / 手动输码 → 预览员工 → 确认建立/更换服务关系。 */
 @Composable
 private fun ScanLinkDialog(
     state: ScanLinkUiState,
@@ -904,6 +917,7 @@ private fun ScanLinkDialog(
     onScan: () -> Unit,
     onConfirm: () -> Unit,
     onBack: () -> Unit,
+    onOpenCamera: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
@@ -918,7 +932,7 @@ private fun ScanLinkDialog(
                 when (state.phase) {
                     ScanLinkUiState.Phase.INPUT -> {
                         Text(
-                            "输入服务人员展示的 8 位员工码（相机扫码将在后续版本开放）",
+                            "扫描服务人员展示的二维码，或输入 8 位员工码",
                             color = Muted,
                             fontSize = 12.sp,
                         )
@@ -930,6 +944,18 @@ private fun ScanLinkDialog(
                             shape = RoundedCornerShape(14.dp),
                             colors = reHealthTextFieldColors(),
                             modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            "打开相机扫码",
+                            color = Mint,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MintSoft, RoundedCornerShape(12.dp))
+                                .clickable(enabled = !state.busy) { onOpenCamera() }
+                                .padding(vertical = 12.dp),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         )
                     }
                     ScanLinkUiState.Phase.PREVIEW -> {
