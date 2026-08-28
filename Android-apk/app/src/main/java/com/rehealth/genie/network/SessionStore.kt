@@ -39,6 +39,11 @@ class SessionStore(context: Context) {
         get() = prefs.getString(KEY_REALNAME, null)
         set(value) = prefs.edit().putString(KEY_REALNAME, value).apply()
 
+    /** 当前账号手机号；微信新建账号在强制绑定完成前为空。 */
+    var phone: String?
+        get() = prefs.getString(KEY_PHONE, null)
+        set(value) = prefs.edit().putString(KEY_PHONE, value).apply()
+
     val isLoggedIn: Boolean
         get() = !token.isNullOrBlank()
 
@@ -52,6 +57,7 @@ class SessionStore(context: Context) {
             .remove(KEY_USER_ID)
             .remove(KEY_USERNAME)
             .remove(KEY_REALNAME)
+            .remove(KEY_PHONE)
             .apply()
     }
 
@@ -72,6 +78,7 @@ class SessionStore(context: Context) {
         private const val KEY_USER_ID = "user_id"
         private const val KEY_USERNAME = "username"
         private const val KEY_REALNAME = "realname"
+        private const val KEY_PHONE = "phone"
         private const val KEY_FIRST_USE = "first_use_at"
         private const val DAY_MS = 86_400_000L
     }

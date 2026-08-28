@@ -485,3 +485,7 @@ rehealth:
     mini:
       appid: ${REHEALTH_WECHAT_MINI_APPID:wxecb1ef155eaabe95}
       secret: ${REHEALTH_WECHAT_MINI_SECRET:d32bfd8285f1aebab03d31eea83ac0d8}
+    # 微信开放平台移动应用（App 侧微信登录）。AppID/Secret 任一为空时 app-login 失败关闭。
+    app:
+      appid: ${REHEALTH_WECHAT_APP_APPID:}
+      secret: ${REHEALTH_WECHAT_APP_SECRET:}

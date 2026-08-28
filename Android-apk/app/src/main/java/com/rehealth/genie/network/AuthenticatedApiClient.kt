@@ -303,6 +303,40 @@ class AuthenticatedApiClient(
     }
 
     /**
+     * WeChat Open Platform mobile-app login (pre-auth). The one-time SDK `code` is exchanged
+     * server-side; the response carries the same `{token, userInfo}` shape as [mobileLogin].
+     */
+    suspend fun wechatLogin(code: String): ApiResult<MobileLoginResponse> {
+        return when (val outcome = mobileApi.wechatAppLogin(WechatAppLoginRequest(code))) {
+            is RemotePhmOutcome.Success -> ApiResult.Success(outcome.data)
+            is RemotePhmOutcome.Failure -> ApiResult.InvalidRequest(outcome.error.message)
+        }
+    }
+
+    /**
+     * Send a bind-phone SMS for the authenticated account (registration-SMS infra,
+     * cooldown/quota and Dypnsapi). Maps backend business errors to [ApiResult.InvalidRequest].
+     */
+    suspend fun bindPhoneSms(phone: String): ApiResult<Unit> {
+        return when (val outcome = mobileApi.bindPhoneSms(phone)) {
+            is RemotePhmOutcome.Success -> ApiResult.Success(Unit)
+            is RemotePhmOutcome.Failure -> ApiResult.InvalidRequest(outcome.error.message)
+        }
+    }
+
+    /**
+     * Verify the SMS code and bind the phone to the authenticated account. Backend business
+     * errors (wrong/expired code, phone taken) surface as [ApiResult.InvalidRequest] with the
+     * backend message.
+     */
+    suspend fun bindPhone(phone: String, smsCode: String): ApiResult<BindPhoneResponse> {
+        return when (val outcome = mobileApi.bindPhone(phone, smsCode)) {
+            is RemotePhmOutcome.Success -> ApiResult.Success(outcome.data)
+            is RemotePhmOutcome.Failure -> ApiResult.InvalidRequest(outcome.error.message)
+        }
+    }
+
+    /**
      * Step 1 of registration: request a registration SMS through the public, rate-limited
      * `/sys/registerSms` route. Pre-auth, so no 401/403 handling.
      */

@@ -114,6 +114,8 @@
     <!-- ============================================================ -->
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
+        <!-- 微信登录：检测微信客户端是否安装（Android 11+ 包可见性） -->
+        <package android:name="com.tencent.mm" />
     </queries>
 
     <application
@@ -152,5 +154,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- 微信登录回调：包名必须固定为 {applicationId}.wxapi.WXEntryActivity -->
+        <activity
+            android:name=".wxapi.WXEntryActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
     </application>
 </manifest>

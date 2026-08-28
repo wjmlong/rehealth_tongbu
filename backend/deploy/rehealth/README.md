@@ -579,6 +579,23 @@ JeecgBoot 通过 `SendSmsVerifyCode` 让号码认证服务生成并发送验证�
 旧 Jeecg 短信登录/找回密码配置仍由 `JEECG_SMS_ALIYUN_*` 独立控制，默认关闭。密钥文件轮换后
 需要重启 JeecgBoot 以重建 SDK 客户端。
 
+App 微信登录（`POST /jeecg-boot/rehealth/mobile/wechat/app-login`）与强制绑定手机号
+（`POST /jeecg-boot/rehealth/mobile/account/bind-phone/sms` 与 `/bind-phone`）复用同一套短信
+基础设施；绑定手机号走注册短信的 Redis 频控、`JEECG_SMS_DEV_MODE` 开发码与 Dypnsapi 校验。
+微信登录需要微信开放平台“移动应用”凭据，配置在 JeecgBoot 服务端：
+
+```yaml
+rehealth:
+  wechat:
+    app:
+      appid: ""   # 微信开放平台移动应用 AppID（客户端 BuildConfig WECHAT_APP_ID 与其一致）
+      secret: ""  # AppSecret 仅存服务端，绝不进入 APK/官网/日志/Git
+```
+
+AppID/Secret 任一未配置时 app-login 失败关闭，Android 登录页在 BuildConfig `WECHAT_APP_ID`
+为空时隐藏微信登录入口。APK 的应用签名与包名必须与开放平台登记一致；绑定手机号只写
+`sys_user.phone`，不修改用户名/密码。
+
 该本地启动脚本还会启用
 `REHEALTH_QA_SYNTHETIC_ATTRIBUTION_HISTORY_ENABLED=true`，仅供 Debug APK 的
 全链路演练把已完成真实 RDI-16 远程评估的 30 日合成历史转发给 PIAS。后端默认值仍为

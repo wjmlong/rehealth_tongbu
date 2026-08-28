@@ -67,6 +67,14 @@ Android 同时发送 IANA 时区。问答中明确自述的姓名、性别、年
 Redis 只保存 5 分钟发送会话、60 秒冷却、集群频控和注册锁，不保存生产验证码明文；配置缺失时
 失败关闭，也不复用 OSS 凭据或标准短信服务 `Dysmsapi` 的签名模板。具体部署入口见
 `backend/deploy/rehealth/README.md`。
+Android 同时支持微信登录（微信开放平台移动应用）：App 集成微信官方 SDK 拉起授权，把一次性
+code 交给 JeecgBoot 的 `/rehealth/mobile/wechat/app-login`，服务端用仅存于服务端的 AppSecret
+换 openid 并经 `sys_third_account`（`thirdType=wechat_app`）登录或自动注册，返回与 mLogin 同构的
+`{token, userInfo}` 并复用同一登录后生命周期；AppSecret 不进入 APK，配置缺失失败关闭，BuildConfig
+`WECHAT_APP_ID` 为空时登录页隐藏微信入口。微信新建账号手机号为空，App 强制进入绑定手机页
+（复用注册短信频控与 Dypnsapi 校验，只写 `sys_user.phone`），绑定成功才进入主页，从而保证
+导入被保人、分配保单等按手机号反查账号的既有链路对微信用户同样成立。方案与开放平台申请清单见
+`docs/Android_App微信登录设计方案.md`。
 公司官网本地联调使用独立 `POST /sys/webLogin`：复用现有 Jeecg 用户、租户、角色、失败锁定和
 JWT 校验，但以 `WEB` 客户端类型签发令牌，单点登录缓存与管理 PC 端、Android APP 分离。
 官网 FastAPI BFF 在服务端 Redis 保存 Jeecg Token，并只向浏览器设置 HttpOnly 会话 Cookie；
@@ -493,6 +501,8 @@ python backend/qa/rehealth_stack_gate.py topology `
 | --- | --- | --- |
 | `README.md` | 项目入口、结构、整体架构和开发命令 | 模块、主链路、基础设施、关键命令变化时 |
 | `STATUS.md` | 当前实现、阻塞项和清理决策 | 验收结论、发布阻塞或关键清理决策变化时 |
+| `docs/待办与问题清单_保险侧_App侧_后端_2026-08-27.md` | 保险侧/App 侧/后端待办、官网占位与已发现问题清单（跨两仓库） | 待办落地/关闭、新问题出现时 |
+| `docs/本地凭据与密钥配置清单.md` | 本地密码/API Key 填写位置、现状与注意事项（跨两仓库） | 凭据位置、secret 文件清单或生产差异变化时 |
 | `ENGINEERING.md` | MVP 原则、范围和工程路线 | 目标、边界、里程碑变化时 |
 | `Android-apk/docs/REHEALTH_INTEGRATION_CONTRACT.md` | Android/Backend 正式接口契约 | 路径、认证、DTO、完成语义变化时 |
 | `Android-apk/docs/D2_TELEMETRY_SYNC_PLAN.md` | 遥测同步状态和剩余 QA | 队列、重试、持久化确认、硬件 QA 变化时 |

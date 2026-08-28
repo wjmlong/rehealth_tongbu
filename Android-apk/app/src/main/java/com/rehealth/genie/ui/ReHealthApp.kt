@@ -62,7 +62,7 @@ import com.rehealth.genie.work.MeasurementSyncWorker
 import com.rehealth.genie.work.TelemetryUploadWorker
 import kotlinx.coroutines.launch
 
-internal enum class AppStage { Splash, Login, Register, InterviewSession, Main }
+internal enum class AppStage { Splash, Login, Register, BindPhone, InterviewSession, Main }
 
 internal fun stageAfterAuthentication(requiresOnboarding: Boolean): AppStage =
     if (requiresOnboarding) AppStage.InterviewSession else AppStage.Main
@@ -157,12 +157,24 @@ fun ReHealthApp() {
                     )
                 },
                 onGoToRegister = { stage = AppStage.Register },
+                onBindPhoneRequired = { stage = AppStage.BindPhone },
             )
             AppStage.Register -> RegisterScreen(
                 onBackToLogin = { stage = AppStage.Login },
                 onRegistered = {
                     stage = AppStage.InterviewSession
                 },
+            )
+            AppStage.BindPhone -> BindPhoneScreen(
+                onBound = {
+                    stage = stageAfterAuthentication(
+                        application.onboardingStore.requiresOnboarding(
+                            application.sessionStore.userId,
+                            application.sessionStore.username,
+                        ),
+                    )
+                },
+                onLoggedOut = { endSession() },
             )
             AppStage.InterviewSession -> HealthInterviewFlow(
                 onBack = { stage = AppStage.Login },

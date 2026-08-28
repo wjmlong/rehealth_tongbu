@@ -40,6 +40,15 @@ fun reHealthReleaseApiBaseUrl(): String {
 fun signSecret(): String =
     (localProps.getProperty("JEECG_SIGNATURE_SECRET") ?: System.getenv("JEECG_SIGNATURE_SECRET")
         ?: "").trim()
+
+// 微信开放平台移动应用 AppID（非敏感）。留空时登录页隐藏微信登录入口；
+// AppSecret 绝不进入 APK，仅配置在 JeecgBoot 服务端 rehealth.wechat.app.secret。
+fun wechatAppId(): String =
+    (localProps.getProperty("rehealth.wechat.app.id")
+        ?: System.getenv("REHEALTH_WECHAT_APP_ID")
+        ?: providers.gradleProperty("rehealth.wechat.app.id").orNull
+        ?: "").trim()
+
 fun debugWearableProductCode(): String {
     val normalizedProductCode = (
         providers.gradleProperty("rehealth.debug.wearable.product.code")
@@ -114,6 +123,8 @@ android {
         buildConfigField("boolean", "USE_FAKE_RING", "false")
         buildConfigField("boolean", "SEED_FAKE_HEALTH_DATA", "false")
         buildConfigField("boolean", "ALLOW_WEARABLE_PRODUCT_SWITCH", "true")
+        // 微信登录开关：WECHAT_APP_ID 为空时登录页隐藏微信登录入口（失败关闭）。
+        buildConfigField("String", "WECHAT_APP_ID", "\"\"")
     }
 
     signingConfigs {
@@ -139,6 +150,7 @@ android {
             buildConfigField("String", "DEBUG_WEARABLE_PRODUCT_CODE", "\"${debugWearableProductCode()}\"")
             buildConfigField("String", "REHEALTH_API_BASE_URL", "\"${reHealthApiBaseUrl()}\"")
             buildConfigField("String", "JEECG_SIGN_SECRET", "\"${signSecret()}\"")
+            buildConfigField("String", "WECHAT_APP_ID", "\"${wechatAppId()}\"")
             manifestPlaceholders["usesCleartextTraffic"] = "true"
         }
         release {
@@ -198,6 +210,9 @@ dependencies {
     implementation("no.nordicsemi.android:mcumgr-core:2.7.4")
     implementation("no.nordicsemi.android:mcumgr-ble:2.7.4")
     implementation("no.nordicsemi.android.support.v18:scanner:1.4.2")
+
+    // 微信开放平台移动应用登录（官方 SDK）。AppID 通过 BuildConfig 注入，AppSecret 只在服务端。
+    implementation("com.tencent.mm.opensdk:wechat-sdk-android:6.8.34")
 
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.activity:activity-compose:1.10.1")

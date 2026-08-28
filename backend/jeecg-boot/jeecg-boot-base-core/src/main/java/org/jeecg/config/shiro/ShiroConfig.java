@@ -97,6 +97,9 @@ public class ShiroConfig {
         filterChainDefinitionMap.put("/sys/getEncryptedString", "anon"); //获取加密串
         filterChainDefinitionMap.put("/sys/sms", "anon");//短信验证码
         filterChainDefinitionMap.put("/sys/registerSms", "anon");//ReHealth 注册短信验证码
+        //update-begin---author:rehealth-dev ---date:2026-08-27  for：【App微信登录】微信 App/小程序登录放行-----------
+        filterChainDefinitionMap.put("/rehealth/mobile/wechat/**", "anon");//ReHealth 微信 App 登录（app-login 无 token）
+        //update-end---author:rehealth-dev ---date:2026-08-27  for：【App微信登录】微信 App/小程序登录放行-----------
         filterChainDefinitionMap.put("/sys/phoneLogin", "anon");//手机登录
         filterChainDefinitionMap.put("/sys/user/checkOnlyUser", "anon");//校验用户是否存在
         filterChainDefinitionMap.put("/sys/user/register", "anon");//用户注册

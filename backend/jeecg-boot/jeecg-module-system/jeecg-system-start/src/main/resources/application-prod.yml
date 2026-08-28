@@ -493,3 +493,7 @@ rehealth:
     mini:
       appid: ${REHEALTH_WECHAT_MINI_APPID:}
       secret: ${REHEALTH_WECHAT_MINI_SECRET:}
+    # 微信开放平台移动应用（App 侧微信登录）。生产环境必须通过环境变量注入；缺失时失败关闭。
+    app:
+      appid: ${REHEALTH_WECHAT_APP_APPID:}
+      secret: ${REHEALTH_WECHAT_APP_SECRET:}

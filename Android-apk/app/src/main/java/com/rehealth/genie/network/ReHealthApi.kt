@@ -14,6 +14,10 @@ import com.rehealth.genie.network.dto.IndividualAttributionResponseDto
 import com.rehealth.genie.network.dto.MobileConfigResponse
 import com.rehealth.genie.network.dto.MobileLoginRequest
 import com.rehealth.genie.network.dto.MobileLoginResponse
+import com.rehealth.genie.network.dto.WechatAppLoginRequest
+import com.rehealth.genie.network.dto.BindPhoneSmsRequest
+import com.rehealth.genie.network.dto.BindPhoneRequest
+import com.rehealth.genie.network.dto.BindPhoneResponse
 import com.rehealth.genie.network.dto.DeviceBindRequestDto
 import com.rehealth.genie.network.dto.DeviceBindResponseDto
 import com.rehealth.genie.network.dto.InterventionGenerateRequestDto
@@ -250,6 +254,35 @@ interface ReHealthApi {
     suspend fun mobileLogin(
         @Body request: MobileLoginRequest,
     ): Response<JeecgResult<MobileLoginResponse>>
+
+    /**
+     * WeChat Open Platform mobile-app login. Public pre-auth route (`@IgnoreAuth`,
+     * Shiro anon); the server exchanges the one-time SDK code via
+     * `sns/oauth2/access_token` with its server-only AppSecret. Response shape is
+     * identical to [mobileLogin].
+     */
+    @POST("/jeecg-boot/rehealth/mobile/wechat/app-login")
+    suspend fun wechatAppLogin(
+        @Body request: WechatAppLoginRequest,
+    ): Response<JeecgResult<MobileLoginResponse>>
+
+    /**
+     * Send a bind-phone SMS through the authenticated registration-SMS infrastructure
+     * (Redis cooldown/quota, dev-mode fixed code, production Dypnsapi).
+     */
+    @POST("rehealth/mobile/account/bind-phone/sms")
+    suspend fun bindPhoneSms(
+        @Body request: BindPhoneSmsRequest,
+    ): Response<JeecgResult<*>>
+
+    /**
+     * Verify the SMS code and write `sys_user.phone` for the current account.
+     * Rejects phones already owned by another account.
+     */
+    @POST("rehealth/mobile/account/bind-phone")
+    suspend fun bindPhone(
+        @Body request: BindPhoneRequest,
+    ): Response<JeecgResult<BindPhoneResponse>>
 
     /**
      * Send a registration SMS through the public, rate-limited mobile route. Production code

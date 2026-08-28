@@ -62,6 +62,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.rehealth.genie.BuildConfig
 import com.rehealth.genie.R
 import com.rehealth.genie.ui.theme.Ink
 import com.rehealth.genie.ui.theme.Mint
@@ -71,12 +72,17 @@ import com.rehealth.genie.ui.theme.Muted
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onGoToRegister: () -> Unit = {},
+    onBindPhoneRequired: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val viewModel: LoginViewModel = viewModel(factory = LoginViewModel.Factory(context))
     val uiState by viewModel.uiState.collectAsState()
-    LaunchedEffect(uiState.isLoggedIn) {
-        if (uiState.isLoggedIn) onLoginSuccess()
+    LaunchedEffect(uiState.isLoggedIn, uiState.requiresPhoneBinding) {
+        // 微信新建账号（未绑定手机）走强制绑定页，不触发正常登录成功导航
+        if (uiState.isLoggedIn && !uiState.requiresPhoneBinding) onLoginSuccess()
+    }
+    LaunchedEffect(uiState.requiresPhoneBinding) {
+        if (uiState.requiresPhoneBinding) onBindPhoneRequired()
     }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -252,6 +258,32 @@ fun LoginScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
+                    // 微信登录入口：BuildConfig.WECHAT_APP_ID 为空时隐藏（失败关闭），
+                    // AppSecret 只在服务端；授权结果由 LoginViewModel 观察并驱动 code 登录。
+                    if (BuildConfig.WECHAT_APP_ID.isNotBlank()) {
+                        Button(
+                            onClick = {
+                                if (agreed) {
+                                    viewModel.startWechatAuth()
+                                } else {
+                                    showAgreementHint = true
+                                }
+                            },
+                            enabled = !uiState.isLoading,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(46.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF07C160)),
+                        ) {
+                            Text(
+                                "微信登录",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                            )
+                        }
+                    }
                     OutlinedButton(
                         onClick = {
                             if (agreed) onLoginSuccess() else showAgreementHint = true

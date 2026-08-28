@@ -32,4 +32,6 @@ data class LoginUserInfo(
     val id: String? = null,
     val username: String? = null,
     val realname: String? = null,
+    /** 微信登录新建账号为空；App 据以进入强制绑定手机页。 */
+    val phone: String? = null,
 )

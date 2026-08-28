@@ -25,6 +25,10 @@ import com.rehealth.genie.network.dto.IndividualAttributionResponseDto
 import com.rehealth.genie.network.dto.MobileConfigResponse
 import com.rehealth.genie.network.dto.MobileLoginRequest
 import com.rehealth.genie.network.dto.MobileLoginResponse
+import com.rehealth.genie.network.dto.WechatAppLoginRequest
+import com.rehealth.genie.network.dto.BindPhoneSmsRequest
+import com.rehealth.genie.network.dto.BindPhoneRequest
+import com.rehealth.genie.network.dto.BindPhoneResponse
 import com.rehealth.genie.network.dto.DeviceBindRequestDto
 import com.rehealth.genie.network.dto.DeviceBindResponseDto
 import com.rehealth.genie.network.dto.InterventionGenerateRequestDto
@@ -303,6 +307,18 @@ suspend fun uploadRhiSnapshot(
      */
     suspend fun mobileLogin(request: MobileLoginRequest): RemotePhmOutcome<MobileLoginResponse> =
         unwrap { api.mobileLogin(request) }
+
+    /** WeChat Open Platform mobile-app login (pre-auth, same response shape as [mobileLogin]). */
+    suspend fun wechatAppLogin(request: WechatAppLoginRequest): RemotePhmOutcome<MobileLoginResponse> =
+        unwrap { api.wechatAppLogin(request) }
+
+    /** Send a bind-phone SMS (authenticated). */
+    suspend fun bindPhoneSms(phone: String): RemotePhmOutcome<Unit> =
+        unwrapUnit { api.bindPhoneSms(BindPhoneSmsRequest(phone)) }
+
+    /** Verify the SMS code and bind the phone to the current account (authenticated). */
+    suspend fun bindPhone(phone: String, smsCode: String): RemotePhmOutcome<BindPhoneResponse> =
+        unwrap { api.bindPhone(BindPhoneRequest(phone, smsCode)) }
 
     /** Send a registration SMS through the public, server-rate-limited Dypnsapi route. */
     suspend fun sendSms(mobile: String): RemotePhmOutcome<Unit> =
