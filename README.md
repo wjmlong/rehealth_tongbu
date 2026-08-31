@@ -174,7 +174,7 @@ rehealth_tongbu/
 ├─ rehealth-algorithms/         HealthAgent、PIAS、训练和算法研究
 ├─ sql/                         多数据库结构快照、初始化与测试数据（入口 `sql/README.md`）
 ├─ config/                      Jeecg 在线代码生成模板
-├─ docs/                        管理层全景报告、保险侧整合文档（服务关系与扫码关联/保单与计划管理/运营与开户）、数据库迁移与种子脚本总览、云米接口测试等运营文档
+├─ docs/                        管理层全景报告、保险侧整合文档（服务关系与扫码关联/保单与计划管理/运营与开户）、数据库迁移与种子脚本总览、待办与问题清单、本地凭据与密钥配置清单、App 微信登录设计方案、项目文档总览、云米接口测试等运营文档
 ├─ .agents/skills/              仓库级代理技能说明
 ├─ docs/archive/                历史验收与 QA 快照（只读参考）
 ├─ tools/                       仓库级源码辅助工具（不存放下载的工具链）
@@ -274,6 +274,14 @@ Android Room
 （`GET /rehealth/mobile/insurance/assignments/current`，不落 Room）。计划目录由
 `GET/POST /rehealth/insurance/v1/plans` 维护（官网 BFF `/api/insurer/plans`），保单
 `default_plan_id` 引用目录中的计划标识。
+
+保险侧二期（2026-08-27）已上线：基础保单库重构为“一保单可多用户”（`policy_link` 关联表），
+官网「我的客户」页支持新建/编辑/添加给用户/取消关联（BFF `/api/insurer/policies`，导入需
+`rehealth:insurance:business:import`），取消关联为软取消并级联处理绑定状态；扫码关联上线——
+员工 8 位 Base32 码 30 天有效 + 5 分钟一次性扫码会话，官网二维码弹窗可渲染/刷新/停用
+（BFF `/api/insurer/assignments/qr-code*`），App 用 CameraX 扫码或手动输码建立服务关系，
+已有专员时需二次确认换人且责任链保留；官网「我的客户」页团队视图按产品决定下线
+（TEAM 数据范围保留）。
 
 保险侧“干预改善工作台”详情复用同一个当前生效发布版本，并把版本化计划项目逐项展示在
 “应该采取什么行动”；保险员工创建的人工行动作为独立补充行动展示并保留自己的状态与审计，
@@ -503,6 +511,8 @@ python backend/qa/rehealth_stack_gate.py topology `
 | `STATUS.md` | 当前实现、阻塞项和清理决策 | 验收结论、发布阻塞或关键清理决策变化时 |
 | `docs/待办与问题清单_保险侧_App侧_后端_2026-08-27.md` | 保险侧/App 侧/后端待办、官网占位与已发现问题清单（跨两仓库） | 待办落地/关闭、新问题出现时 |
 | `docs/本地凭据与密钥配置清单.md` | 本地密码/API Key 填写位置、现状与注意事项（跨两仓库） | 凭据位置、secret 文件清单或生产差异变化时 |
+| `docs/Android_App微信登录设计方案.md` | App 微信登录技术方案与开放平台申请清单 | 微信授权、绑定手机流程或开放平台配置变化时 |
+| `docs/项目文档总览.md` | 按架构/接口/数据库/部署/测试分类的文档导航 | 新增/移除规范文档或模块边界变化时 |
 | `ENGINEERING.md` | MVP 原则、范围和工程路线 | 目标、边界、里程碑变化时 |
 | `Android-apk/docs/REHEALTH_INTEGRATION_CONTRACT.md` | Android/Backend 正式接口契约 | 路径、认证、DTO、完成语义变化时 |
 | `Android-apk/docs/D2_TELEMETRY_SYNC_PLAN.md` | 遥测同步状态和剩余 QA | 队列、重试、持久化确认、硬件 QA 变化时 |
